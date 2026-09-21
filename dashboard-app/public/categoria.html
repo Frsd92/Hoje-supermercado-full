@@ -1,0 +1,35 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Categoria | Hoje Supermercado</title>
+  <link rel="icon" type="image/webp" href="imagens/logo/logo-hj.webp">
+  <link rel="stylesheet" href="style.css">
+  <script src="https://unpkg.com/lucide@latest"></script>
+</head>
+<body class="category-page-body">
+  <header class="topbar category-topbar">
+    <div class="topbar-item login-trigger" id="login-trigger" role="button" tabindex="0"><i data-lucide="user"></i><div class="topbar-text"><strong id="store-user-name">Olá, faça seu login</strong><span id="store-user-status">ou cadastre-se</span></div></div>
+    <div class="topbar-item"><i data-lucide="heart"></i><div class="topbar-text"><strong>Meus favoritos</strong><span id="store-favorites-count">Entre para favoritar</span></div></div>
+    <div class="topbar-item cart-trigger" id="cart-trigger"><div class="cart-icon-wrap"><i data-lucide="shopping-cart"></i><span id="cart-badge" class="cart-badge">0</span></div><div class="topbar-text"><strong>Meu carrinho</strong><span id="cart-total">R$ 0,00</span></div></div>
+  </header>
+  <div id="cart-backdrop" class="cart-backdrop"></div>
+  <aside id="cart-panel" class="cart-panel" aria-label="Carrinho de compras"><div class="cart-panel-header"><div class="cart-panel-title-wrap"><span class="cart-panel-icon"><i data-lucide="shopping-cart"></i></span><h3 id="cart-panel-title">Meu Carrinho (0 itens)</h3></div><button id="cart-close" class="cart-close" aria-label="Fechar carrinho">×</button></div><p class="cart-subtitle">Revise seus itens antes de finalizar</p><div id="cart-items" class="cart-items" aria-live="polite"></div><div class="cart-panel-footer"><div class="cart-summary-box"></div><div class="cart-coupon"><input id="coupon-input" type="text" placeholder="Cupom: HOJE10"><button id="apply-coupon" class="btn-coupon" type="button">Aplicar</button></div><p id="coupon-feedback" class="coupon-feedback" aria-live="polite"></p><label class="delivery-address-field" for="delivery-address">Endereço de entrega<select id="delivery-address"><option value="">Selecione um endereço para continuar</option><option value="Casa|Rua das Flores, 123">Casa · Rua das Flores, 123</option><option value="Trabalho|Av. Paulista, 1000">Trabalho · Av. Paulista, 1000</option></select></label><button id="finalizar-compra" class="btn-finalizar">Finalizar Compra</button><button id="limpar-carrinho" class="btn-limpar">Limpar Carrinho</button></div></aside>
+  <header class="category-page-header">
+    <a href="index.html" class="category-back"><i data-lucide="arrow-left"></i> Voltar para a loja</a>
+    <img src="imagens/logo/logo-hoje.webp" alt="Hoje Supermercado">
+    <div class="search-bar category-search"><input type="text" id="search-input" placeholder="Buscar nesta categoria" oninput="buscarProdutos()" onfocus="buscarProdutos()" autocomplete="off"><button type="button"><i data-lucide="search"></i></button><div id="search-results" class="search-results"></div></div>
+    <div class="location" id="location-summary"><i data-lucide="map-pin"></i><span>Selecione seu endereço</span></div>
+  </header>
+  <main class="category-page-content">
+    <span class="category-kicker">Hoje Supermercado</span>
+    <h1 id="category-title">Categoria</h1>
+    <p id="category-description">Todos os produtos disponíveis nesta categoria.</p>
+    <div id="category-products" class="category-products-grid" aria-live="polite"></div>
+    <div id="category-empty" class="category-empty" hidden>Nenhum produto disponível nesta categoria.</div>
+  </main>
+  <script src="script.js"></script>
+  <script src="category.js"></script>
+</body>
+</html>

@@ -1,0 +1,16 @@
+services:
+  postgres:
+    image: postgres:16-alpine
+    container_name: hoje-supermercado-postgres
+    restart: unless-stopped
+    environment:
+      POSTGRES_DB: hoje_supermercado
+      POSTGRES_USER: hoje
+      POSTGRES_PASSWORD: hoje_dev_password
+    ports:
+      - "5432:5432"
+    volumes:
+      - hoje_postgres_data:/var/lib/postgresql/data
+
+volumes:
+  hoje_postgres_data:

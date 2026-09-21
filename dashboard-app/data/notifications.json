@@ -1,0 +1,68 @@
+[
+  {
+    "id": "NOT-1789617001661",
+    "title": "Promo Hoje",
+    "message": "Olá querido cliente , veja nossas ofertas de hoje",
+    "audience": "all",
+    "recipients": [],
+    "type": "promotion",
+    "createdAt": "2026-09-17T03:50:01.661Z",
+    "createdBy": "rogerdiogenesofficial@gmail.com"
+  },
+  {
+    "id": "NOT-1789617652439",
+    "title": "teste",
+    "message": "testse",
+    "audience": "all",
+    "recipients": [],
+    "type": "promotion",
+    "createdAt": "2026-09-17T04:00:52.439Z",
+    "createdBy": "rogerdiogenesofficial@gmail.com"
+  },
+  {
+    "id": "NOT-1789617657660",
+    "title": "oi",
+    "message": "oi",
+    "audience": "all",
+    "recipients": [],
+    "type": "promotion",
+    "createdAt": "2026-09-17T04:00:57.660Z",
+    "createdBy": "rogerdiogenesofficial@gmail.com"
+  },
+  {
+    "id": "NOT-1789618035412",
+    "title": "123",
+    "message": "123",
+    "audience": "all",
+    "recipients": [],
+    "type": "promotion",
+    "durationDays": 1,
+    "expiresAt": "2026-09-18T04:07:15.412Z",
+    "createdAt": "2026-09-17T04:07:15.412Z",
+    "createdBy": "rogerdiogenesofficial@gmail.com"
+  },
+  {
+    "id": "NOT-1789619650818",
+    "title": "essa é a melhor empresa para trabalhar e para comprar",
+    "message": "cliente seja bem vindo , aqui vc fara suas melhores compras e terá as melhores economias",
+    "audience": "all",
+    "recipients": [],
+    "type": "promotion",
+    "durationDays": 2,
+    "expiresAt": "2026-09-19T04:34:10.818Z",
+    "createdAt": "2026-09-17T04:34:10.818Z",
+    "createdBy": "rogerdiogenesofficial@gmail.com"
+  },
+  {
+    "id": "NOT-1789677847901",
+    "title": "asdfasdfsdafasdsdf",
+    "message": "asdfsdfsdfsdafsd",
+    "audience": "all",
+    "recipients": [],
+    "type": "promotion",
+    "durationDays": 1,
+    "expiresAt": "2026-09-18T20:44:07.901Z",
+    "createdAt": "2026-09-17T20:44:07.901Z",
+    "createdBy": "rogerdiogenesofficial@gmail.com"
+  }
+]

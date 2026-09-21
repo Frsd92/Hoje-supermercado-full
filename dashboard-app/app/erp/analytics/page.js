@@ -1,0 +1,70 @@
+'use client';
+
+import { Activity, BarChart3, CircleDollarSign, Clock3, ShoppingBag, Tag, Users } from 'lucide-react';
+import { useEffect, useState } from 'react';
+
+const money = (value) => `R$ ${Number(value || 0).toFixed(2).replace('.', ',')}`;
+const percent = (value) => `${Number(value || 0).toFixed(1).replace('.', ',')}%`;
+
+function Bars({ items }) {
+  const max = Math.max(...items.map((item) => Number(item.value) || 0), 1);
+  if (!items.length) return <div className="erp-empty-data">Ainda não há vendas suficientes.</div>;
+  return <div className="analytics-bars">{items.map((item) => <div className="analytics-bar-column" key={item.label}><span>{money(item.value)}</span><div className="analytics-bar-track"><i style={{ height: `${Math.max((item.value / max) * 100, 4)}%` }} /></div><small>{item.label}</small></div>)}</div>;
+}
+
+function Ranking({ items, unit = 'unidades', moneyValues = false }) {
+  const max = Math.max(...items.map((item) => Number(item.value) || 0), 1);
+  if (!items.length) return <div className="erp-empty-data">Ainda não há dados suficientes.</div>;
+  return <div className="analytics-category-list">{items.map((item) => <div key={item.label}><div><strong>{item.label}</strong><span>{moneyValues ? money(item.value) : `${item.value} ${unit}`}</span></div><div className="analytics-progress"><i style={{ width: `${Math.max((item.value / max) * 100, 4)}%` }} /></div></div>)}</div>;
+}
+
+function PeriodCard({ label, summary, comparison }) {
+  const change = comparison?.revenue ? ((summary.revenue - comparison.revenue) / comparison.revenue) * 100 : null;
+  return <div className="analytics-period-card"><span>{label}</span><strong>{money(summary.revenue)}</strong><small>{summary.orders} pedido(s) · ticket {money(summary.averageTicket)}</small>{change === null ? <em>Sem período anterior</em> : <em className={change >= 0 ? 'positive' : 'negative'}>{change >= 0 ? '+' : ''}{percent(change)} vs. anterior</em>}</div>;
+}
+
+export default function AnalyticsPage() {
+  const [data, setData] = useState(null);
+  const [tab, setTab] = useState('overview');
+  const [startDate, setStartDate] = useState('');
+  const [endDate, setEndDate] = useState('');
+  const [loading, setLoading] = useState(true);
+
+  useEffect(() => {
+    let active = true;
+    const load = async () => {
+      const params = new URLSearchParams();
+      if (startDate) params.set('startDate', startDate);
+      if (endDate) params.set('endDate', endDate);
+      const query = params.toString() ? `?${params.toString()}` : '';
+      const response = await fetch(`/api/erp/analytics${query}`);
+      if (!response.ok) throw new Error('Analytics indisponível');
+      const nextData = await response.json();
+      if (active) { setData(nextData); setLoading(false); }
+    };
+    load().catch(() => setLoading(false));
+    const timer = window.setInterval(() => load().catch(() => {}), 10000);
+    return () => { active = false; window.clearInterval(timer); };
+  }, [startDate, endDate]);
+
+  const sales = data?.sales || { daily: [], hourly: [], weekdays: [] };
+  const profitability = data?.profitability || { grossProfit: 0, cmv: 0, margin: 0, products: [], categories: [], brands: [] };
+  const inventory = data?.inventory || { stockValue: 0, outOfStock: [], lowStock: [], nearExpiry: [] };
+  const customers = data?.customers || { total: 0, newCustomers: 0, recurringCustomers: 0, purchaseFrequency: 0, averageTicket: 0, totalSpent: 0, spending: [], topProducts: [], pairs: [] };
+  const periods = sales.periods || { today: { revenue: 0, orders: 0, averageTicket: 0 }, week: { revenue: 0, orders: 0, averageTicket: 0 }, month: { revenue: 0, orders: 0, averageTicket: 0 }, previousWeek: { revenue: 0 }, previousMonth: { revenue: 0 } };
+  const tabs = [['overview', 'Visão geral'], ['sales', 'Vendas'], ['profitability', 'Lucratividade'], ['inventory', 'Estoque'], ['customers', 'Clientes'], ['promotions', 'Promoções']];
+  const metrics = [['Receita', money(sales.revenue), `${sales.orders || 0} pedidos`, CircleDollarSign], ['Lucro bruto', money(profitability.grossProfit), `CMV ${money(profitability.cmv)}`, Activity], ['Margem', percent(profitability.margin), 'Sobre vendas registradas', BarChart3], ['Ticket médio', money(sales.averageTicket), 'Por pedido', ShoppingBag]];
+
+  return <div className="erp-module-page analytics-page">
+    <div className="erp-customer-header"><div><span className="eyebrow">Inteligência operacional</span><h1>Analytics</h1><p>Indicadores calculados dos pedidos, catálogo, estoque e clientes reais.</p></div><div className="analytics-header-tools">{tab === 'sales' && <><label className="analytics-date-filter">De<input type="date" value={startDate} onChange={(event) => setStartDate(event.target.value)} /></label><label className="analytics-date-filter">Até<input type="date" value={endDate} min={startDate || undefined} onChange={(event) => setEndDate(event.target.value)} /></label><button type="button" className="analytics-clear-filter" onClick={() => { setStartDate(''); setEndDate(''); }}>Limpar</button></>}<span className="analytics-live"><span /> Atualiza a cada 10 segundos</span></div></div>
+    <div className="analytics-tabs" role="tablist">{tabs.map(([value, label]) => <button type="button" role="tab" aria-selected={tab === value} className={tab === value ? 'active' : ''} onClick={() => setTab(value)} key={value}>{label}</button>)}</div>
+    {loading ? <div className="erp-empty-data">Carregando indicadores reais...</div> : <>
+      {(tab === 'overview' || tab === 'sales') && <section className="analytics-section"><div className="analytics-section-heading"><div><span className="eyebrow">Vendas</span><h2>{startDate || endDate ? `Vendas de ${startDate || 'início'} até ${endDate || 'hoje'}` : 'Ritmo comercial'}</h2></div><span>{sales.currentRevenue ? `Últimos 30 dias: ${money(sales.currentRevenue)}` : 'Sem vendas no período'}</span></div>{tab === 'overview' && <div className="erp-customer-metrics">{metrics.map(([label, value, detail, Icon]) => <div className="erp-customer-metric" key={label}><Icon size={17} /><strong>{value}</strong><span>{label}</span><small>{detail}</small></div>)}</div>}<div className="analytics-period-grid"><PeriodCard label="Hoje" summary={periods.today} /><PeriodCard label="Esta semana" summary={periods.week} comparison={periods.previousWeek} /><PeriodCard label="Este mês" summary={periods.month} comparison={periods.previousMonth} /></div><div className="analytics-grid"><section className="analytics-panel"><div className="erp-panel-title"><BarChart3 size={17} /><div><h3>Faturamento por dia</h3><p>{startDate || endDate ? 'Filtro aplicado ao período selecionado.' : 'Últimos 31 dias.'}</p></div></div><Bars items={sales.daily} /></section><section className="analytics-panel"><div className="erp-panel-title"><Clock3 size={17} /><div><h3>Vendas por horário</h3><p>{startDate || endDate ? 'Todos os horários com venda no período.' : 'Distribuição dos pedidos registrados.'}</p></div></div><Bars items={sales.hourly} /></section></div><section className="analytics-panel analytics-hour-table"><div className="erp-panel-title"><Clock3 size={17} /><div><h3>Resumo horário</h3><p>O filtro mostra cada faixa horária dentro do período.</p></div></div>{sales.hourly.length ? <div className="erp-table-scroll"><table className="erp-table"><thead><tr><th>Horário</th><th>Faturamento</th></tr></thead><tbody>{sales.hourly.map((item) => <tr key={item.label}><td>{item.label}</td><td><strong>{money(item.value)}</strong></td></tr>)}</tbody></table></div> : <div className="erp-empty-data">Nenhuma venda no período selecionado.</div>}</section><div className="analytics-grid"><section className="analytics-panel"><div className="erp-panel-title"><ShoppingBag size={17} /><div><h3>Produtos vendidos</h3><p>Unidades e faturamento no período.</p></div></div>{sales.products?.length ? <div className="erp-table-scroll"><table className="erp-table"><thead><tr><th>Produto</th><th>Unidades</th><th>Faturamento</th></tr></thead><tbody>{sales.products.map((item) => <tr key={item.title}><td><strong>{item.title}</strong><small>{item.category}</small></td><td>{item.quantity}</td><td>{money(item.revenue)}</td></tr>)}</tbody></table></div> : <div className="erp-empty-data">Nenhum produto vendido no período.</div>}</section><section className="analytics-panel"><div className="erp-panel-title"><CircleDollarSign size={17} /><div><h3>Formas de pagamento</h3><p>Valor e quantidade de compras.</p></div></div>{sales.payments?.length ? <div className="analytics-category-list">{sales.payments.map((item) => <div key={item.method}><div><strong>{item.label}</strong><span>{money(item.value)} · {item.orders} compra(s)</span></div></div>)}</div> : <div className="erp-empty-data">Nenhum pagamento no período.</div>}</section></div><section className="analytics-panel"><div className="erp-panel-title"><ShoppingBag size={17} /><div><h3>Compras registradas</h3><p>Pedido, horário, cliente, pagamento e valor.</p></div></div>{sales.purchases?.length ? <div className="erp-table-scroll"><table className="erp-table"><thead><tr><th>Pedido</th><th>Data e hora</th><th>Cliente</th><th>Pagamento</th><th>Itens</th><th>Valor</th></tr></thead><tbody>{sales.purchases.map((item) => <tr key={item.id}><td><strong>{item.id}</strong></td><td>{item.date}</td><td>{item.customer}</td><td>{item.paymentLabel}</td><td>{item.items}</td><td><strong>{money(item.value)}</strong></td></tr>)}</tbody></table></div> : <div className="erp-empty-data">Nenhuma compra registrada no período.</div>}</section></section>}
+  {(tab === 'overview' || tab === 'profitability') && <section className="analytics-section"><div className="analytics-section-heading"><div><span className="eyebrow">Lucratividade</span><h2>Resultado e margem</h2></div></div><div className="analytics-grid"><section className="analytics-panel"><h3>Margem por categoria</h3><Ranking items={profitability.categories} moneyValues /></section><section className="analytics-panel"><h3>Margem por marca</h3><Ranking items={profitability.brands} moneyValues /></section></div><div className="erp-customer-metrics"><div className="erp-customer-metric"><CircleDollarSign size={17} /><strong>{money(profitability.grossProfit)}</strong><span>Lucro bruto</span><small>Receita menos CMV</small></div><div className="erp-customer-metric"><Activity size={17} /><strong>{percent(profitability.margin)}</strong><span>Margem</span><small>Sobre vendas registradas</small></div></div></section>}
+  {(tab === 'overview' || tab === 'inventory') && <section className="analytics-section"><div className="analytics-section-heading"><div><span className="eyebrow">Estoque</span><h2>Risco e capital parado</h2></div><span>Em estoque: {money(inventory.stockValue)}</span></div><div className="erp-customer-metrics"><div className="erp-customer-metric"><strong>{inventory.outOfStock.length}</strong><span>Rupturas</span><small>Produtos sem estoque</small></div><div className="erp-customer-metric"><strong>{inventory.lowStock.length}</strong><span>Estoque mínimo</span><small>Abaixo do limite cadastrado</small></div><div className="erp-customer-metric"><strong>{inventory.nearExpiry.length}</strong><span>Vencimento próximo</span><small>Até 30 dias</small></div></div></section>}
+  {(tab === 'overview' || tab === 'customers') && <section className="analytics-section"><div className="analytics-section-heading"><div><span className="eyebrow">Comportamento</span><h2>Como os clientes compram</h2></div><span>{customers.total} cliente(s) identificado(s)</span></div><div className="erp-customer-metrics"><div className="erp-customer-metric"><Users size={17} /><strong>{customers.newCustomers}</strong><span>Clientes novos</span><small>Primeira compra nos últimos 30 dias</small></div><div className="erp-customer-metric"><ShoppingBag size={17} /><strong>{customers.recurringCustomers}</strong><span>Clientes recorrentes</span><small>Mais de um pedido registrado</small></div><div className="erp-customer-metric"><Activity size={17} /><strong>{customers.purchaseFrequency.toFixed(1).replace('.', ',')}</strong><span>Frequência de compra</span><small>Pedidos por cliente</small></div><div className="erp-customer-metric"><CircleDollarSign size={17} /><strong>{money(customers.averageTicket)}</strong><span>Ticket médio</span><small>Valor médio por pedido</small></div></div><div className="analytics-grid"><section className="analytics-panel"><h3>Valor gasto por cliente</h3>{customers.spending?.length ? <div className="erp-table-scroll"><table className="erp-table"><thead><tr><th>Cliente</th><th>Pedidos</th><th>Total gasto</th></tr></thead><tbody>{customers.spending.map((customer) => <tr key={customer.email}><td><strong>{customer.name}</strong><small>{customer.email}</small></td><td>{customer.orders}</td><td><strong>{money(customer.spent)}</strong></td></tr>)}</tbody></table></div> : <div className="erp-empty-data">Ainda não há clientes com compras registradas.</div>}</section><section className="analytics-panel"><h3>Produtos mais comprados</h3><Ranking items={customers.topProducts} /></section></div><div className="analytics-grid"><section className="analytics-panel"><h3>Produtos frequentemente comprados juntos</h3><Ranking items={customers.pairs} unit="pedidos" /></section><section className="analytics-panel analytics-callout"><strong>Oportunidade de kits</strong><span>Use as combinações reais acima para criar recomendações, kits e comunicações direcionadas.</span></section></div></section>}
+  {tab === 'promotions' && <section className="analytics-section"><div className="analytics-promotion-empty"><Tag size={24} /><h3>Histórico promocional necessário</h3><p>Para comparar antes e durante uma promoção, o sistema precisa registrar cada mudança de preço e vincular as vendas ao período. Nenhum resultado será inventado sem esse histórico.</p></div></section>}
+    </>}
+    <div className="analytics-source-note">Fonte: pedidos e catálogo registrados no ERP. Atualização automática a cada 10 segundos.</div>
+  </div>;
+}

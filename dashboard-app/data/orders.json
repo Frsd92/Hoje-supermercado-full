@@ -1,0 +1,112 @@
+[
+  {
+    "id": "PED-1789588754023",
+    "customerName": "Roges Diogenes",
+    "customerEmail": "rogerdiogenesofficial@gmail.com",
+    "items": [
+      {
+        "name": "Arroz Tio João 5kg",
+        "quantity": 1,
+        "price": "R$ 24,90 R$ 32,90"
+      }
+    ],
+    "address": "Casa · Rua das Flores, 123",
+    "total": "R$ 24,90",
+    "status": "Concluido",
+    "createdAt": "16/09/2026, 16:59:14",
+    "updatedAt": "16/09/2026, 17:41:03",
+    "updatedBy": "rogerdiogenesofficial@gmail.com"
+  },
+  {
+    "id": "PED-1789589043205",
+    "customerName": "Roges Diogenes",
+    "customerEmail": "rogerdiogenesofficial@gmail.com",
+    "items": [
+      {
+        "name": "Arroz Tio João 5kg",
+        "quantity": 1,
+        "price": "R$ 24,90 R$ 32,90"
+      }
+    ],
+    "address": "Casa · Rua das Flores, 123",
+    "total": "R$ 24,90",
+    "status": "Concluido",
+    "createdAt": "16/09/2026, 17:04:03",
+    "updatedAt": "16/09/2026, 17:41:05",
+    "updatedBy": "rogerdiogenesofficial@gmail.com"
+  },
+  {
+    "id": "PED-1789590289404",
+    "customerName": "Roges Diogenes",
+    "customerEmail": "rogerdiogenesofficial@gmail.com",
+    "items": [
+      {
+        "name": "Arroz Tio João 5kg",
+        "quantity": 1,
+        "price": "R$ 24,90 R$ 32,90"
+      },
+      {
+        "name": "Leite Italac 1L",
+        "quantity": 1,
+        "price": "R$ 5,49"
+      },
+      {
+        "name": "Tomate kg",
+        "quantity": 1,
+        "price": "R$ 5,49"
+      }
+    ],
+    "address": "Casa · Rua das Flores, 123",
+    "total": "R$ 35,88",
+    "status": "Concluido",
+    "createdAt": "16/09/2026, 17:24:49",
+    "updatedAt": "16/09/2026, 17:41:08",
+    "updatedBy": "rogerdiogenesofficial@gmail.com"
+  },
+  {
+    "id": "PED-1789590290413",
+    "customerName": "Roges Diogenes",
+    "customerEmail": "rogerdiogenesofficial@gmail.com",
+    "items": [
+      {
+        "name": "Arroz Tio João 5kg",
+        "quantity": 1,
+        "price": "R$ 24,90 R$ 32,90"
+      },
+      {
+        "name": "Leite Italac 1L",
+        "quantity": 1,
+        "price": "R$ 5,49"
+      },
+      {
+        "name": "Tomate kg",
+        "quantity": 1,
+        "price": "R$ 5,49"
+      }
+    ],
+    "address": "Casa · Rua das Flores, 123",
+    "total": "R$ 35,88",
+    "status": "Concluido",
+    "createdAt": "16/09/2026, 17:24:50",
+    "updatedAt": "16/09/2026, 17:41:10",
+    "updatedBy": "rogerdiogenesofficial@gmail.com"
+  },
+  {
+    "id": "PED-1789678166469",
+    "customerName": "Roges Diogenes",
+    "customerEmail": "rogerdiogenesofficial@gmail.com",
+    "items": [
+      {
+        "name": "testes",
+        "quantity": 29,
+        "price": "R$ 7,44 R$ 8,00"
+      }
+    ],
+    "address": "Casa · Rua das Flores, 123",
+    "total": "R$ 215,76",
+    "status": "Expedicao",
+    "createdAt": "17/09/2026, 17:49:26",
+    "updatedAt": "17/09/2026, 17:52:12",
+    "updatedBy": "rogerdiogenesofficial@gmail.com"
+  }
+]

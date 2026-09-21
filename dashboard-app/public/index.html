@@ -1,0 +1,1590 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Hoje Supermercado</title>
+    <link rel="icon" type="image/webp" href="imagens/logo/logo-hj.webp">
+    <link rel="stylesheet" href="style.css">
+    <!-- Biblioteca de ícones Lucide (carregada de um link externo, sem precisar instalar nada) -->
+    <script src="https://unpkg.com/lucide@latest" defer></script>
+</head>
+<body>
+
+  <!-- ===================================================== -->
+  <!-- TOPBAR: faixa verde no topo com frete, login, carrinho -->
+  <!-- ===================================================== -->
+  <header class="topbar">
+    <div class="topbar-item">
+      <i data-lucide="shield-check"></i>
+      <div class="topbar-text">
+        <strong>Compra segura</strong>
+        <span>seus dados protegidos</span>
+      </div>
+    </div>
+
+    <div class="topbar-item">
+      <i data-lucide="clock"></i>
+      <div class="topbar-text">
+        <strong>Entrega rápida</strong>
+        <span>receba no seu endereço</span>
+      </div>
+    </div>
+
+    <div class="topbar-item login-trigger" id="login-trigger" role="button" tabindex="0" aria-label="Entrar ou abrir minha conta">
+      <i data-lucide="user"></i>
+      <div class="topbar-text">
+        <strong id="store-user-name">Olá, faça seu login</strong>
+        <span id="store-user-status">ou cadastre-se</span>
+      </div>
+    </div>
+
+    <div class="topbar-item">
+      <i data-lucide="heart"></i>
+      <div class="topbar-text">
+        <strong>Meus favoritos</strong>
+        <span id="store-favorites-count">Entre para favoritar</span>
+      </div>
+    </div>
+
+    <div class="topbar-item cart-trigger" id="cart-trigger">
+      <div class="cart-icon-wrap" aria-label="Abrir carrinho">
+        <i data-lucide="shopping-cart"></i>
+        <span id="cart-badge" class="cart-badge">0</span>
+      </div>
+      <div class="topbar-text">
+        <strong>Meu carrinho</strong>
+        <span id="cart-total">R$ 0,00</span>
+      </div>
+    </div>
+  </header>
+
+  <div id="cart-backdrop" class="cart-backdrop"></div>
+
+  <aside id="cart-panel" class="cart-panel" aria-label="Carrinho de compras">
+    <div class="cart-panel-header">
+      <div class="cart-panel-title-wrap">
+        <span class="cart-panel-icon"><i data-lucide="shopping-cart"></i></span>
+        <h3 id="cart-panel-title">Meu Carrinho (0 itens)</h3>
+      </div>
+      <button id="cart-close" class="cart-close" aria-label="Fechar carrinho">×</button>
+    </div>
+
+    <p class="cart-subtitle">Revise seus itens antes de finalizar</p>
+
+    <div id="cart-items" class="cart-items" aria-live="polite"></div>
+
+    <div class="cart-panel-footer">
+      <div class="cart-summary-box">
+        <div class="summary-row"><span>Subtotal (0 itens)</span><strong>R$ 0,00</strong></div>
+        <div class="summary-row"><span>Descontos</span><strong>R$ 0,00</strong></div>
+        <div class="summary-row"><span>Frete</span><strong>R$ 0,00</strong></div>
+        <div class="summary-row total"><span>Total</span><strong>R$ 0,00</strong></div>
+      </div>
+
+      <div class="cart-coupon">
+        <input id="coupon-input" type="text" placeholder="Cupom: HOJE10" maxlength="20">
+        <button id="apply-coupon" class="btn-coupon" type="button">Aplicar</button>
+      </div>
+      <p id="coupon-feedback" class="coupon-feedback" aria-live="polite"></p>
+
+      <label class="delivery-address-field" for="delivery-address">
+        Endereço de entrega
+        <select id="delivery-address">
+          <option value="">Selecione um endereço para continuar</option>
+        </select>
+      </label>
+
+      <label class="delivery-address-field" for="payment-method">
+        Forma de pagamento
+        <select id="payment-method">
+          <option value="pix">Pix</option>
+          <option value="cartao">Cartão</option>
+          <option value="dinheiro">Dinheiro</option>
+          <option value="outro">Outro</option>
+        </select>
+      </label>
+
+      <button id="finalizar-compra" class="btn-finalizar">Finalizar Compra</button>
+      <button id="limpar-carrinho" class="btn-limpar">Limpar Carrinho</button>
+    </div>
+  </aside>
+
+  <!-- ===================================================== -->
+  <!-- CABEÇALHO PRINCIPAL: logo + barra de busca + endereço -->
+  <!-- ===================================================== -->
+  <div class="main-header">
+    <div class="logo">
+      <img src="imagens/logo/logo-hoje.webp" alt="Hoje Supermercado">
+    </div>
+
+     <div class="search-bar">
+  <input type="text" id="search-input" placeholder="O que você está procurando?" oninput="buscarProdutos()" onfocus="buscarProdutos()" autocomplete="off">
+  <button><i data-lucide="search"></i></button>
+  <div id="search-results" class="search-results"></div>
+    </div>
+
+    <div class="location" id="location-summary">
+      <i data-lucide="map-pin"></i>
+      <select id="store-address-select" aria-label="Selecionar endereço de entrega">
+        <option value="">Selecione seu endereço</option>
+      </select>
+    </div>
+  </div>
+
+  <!-- ===================================================== -->
+  <!-- MENU DE CATEGORIAS: barra horizontal com atalhos rápidos -->
+  <!-- ===================================================== -->
+  <nav class="categories-bar">
+    <button class="all-categories"><i data-lucide="menu"></i> Todas as categorias</button>
+    <a href="#"><i data-lucide="flame"></i> Ofertas do dia</a>
+    <a href="categoria.html?categoria=hortifruti"><i data-lucide="carrot"></i> Hortifruti</a>
+    <a href="categoria.html?categoria=carnes"><i data-lucide="beef"></i> Carnes</a>
+    <a href="categoria.html?categoria=padaria"><i data-lucide="croissant"></i> Padaria</a>
+    <a href="categoria.html?categoria=laticinios"><i data-lucide="milk"></i> Laticínios</a>
+    <a href="categoria.html?categoria=bebidas"><i data-lucide="beer"></i> Bebidas</a>
+    <a href="categoria.html?categoria=limpeza"><i data-lucide="sparkles"></i> Limpeza</a>
+    <a href="categoria.html?categoria=pet"><i data-lucide="dog"></i> Pet Shop</a>
+    <a href="categoria.html?categoria=bebes"><i data-lucide="baby"></i> Bebês</a>
+    <a href="#">Mais <i data-lucide="chevron-down"></i></a>
+  </nav>
+
+  <!-- ===================================================== -->
+  <!-- CONTEÚDO PRINCIPAL: 3 colunas (sidebar + conteúdo + painel direito) -->
+  <!-- ===================================================== -->
+  <div class="content-wrapper">
+
+    <!-- ----- Coluna 1: Sidebar com a lista completa de categorias ----- -->
+    <aside class="sidebar">
+      <ul>
+        <li><a href="categoria.html?categoria=hortifruti"><i data-lucide="carrot"></i> Hortifruti</a></li>
+        <li><a href="categoria.html?categoria=carnes"><i data-lucide="beef"></i> Carnes</a></li>
+        <li><a href="categoria.html?categoria=padaria"><i data-lucide="croissant"></i> Padaria</a></li>
+        <li><a href="categoria.html?categoria=laticinios"><i data-lucide="milk"></i> Laticínios</a></li>
+        <li><a href="categoria.html?categoria=mercearia"><i data-lucide="shopping-basket"></i> Mercearia</a></li>
+        <li><a href="categoria.html?categoria=bomboniere"><i data-lucide="candy"></i> Bomboniere</a></li>
+        <li><a href="categoria.html?categoria=sucos"><i data-lucide="cup-soda"></i> Sucos e Refrigerantes</a></li>
+        <li><a href="categoria.html?categoria=alcoolicas"><i data-lucide="beer"></i> Bebidas Alcoólicas</a></li>
+        <li><a href="categoria.html?categoria=vinhos"><i data-lucide="wine"></i> Vinhos</a></li>
+        <li><a href="categoria.html?categoria=limpeza"><i data-lucide="sparkles"></i> Limpeza</a></li>
+        <li><a href="categoria.html?categoria=lavanderia"><i data-lucide="washing-machine"></i> Lavanderia</a></li>
+        <li><a href="categoria.html?categoria=higiene"><i data-lucide="droplet"></i> Higiene Pessoal</a></li>
+        <li><a href="categoria.html?categoria=pet"><i data-lucide="dog"></i> Pet Shop</a></li>
+        <li><a href="categoria.html?categoria=bebes"><i data-lucide="baby"></i> Bebês</a></li>
+      </ul>
+    </aside>
+
+    <!-- ----- Coluna 2: Conteúdo principal (banner + marcas + vitrines + ofertas) ----- -->
+    <main class="main-content">
+
+      <!-- Banner principal com foto de fundo, selo do logo, texto e bolinhas de navegação -->
+      <section class="banner">
+        <div class="banner-badge">
+          <img src="imagens/logo/logo-hoje.webp" alt="Hoje">
+        </div>
+        <h1>Tudo o que você precisa,<br><span>em um só lugar!</span></h1>
+        <p>Qualidade, variedade e os melhores preços para o seu dia a dia.</p>
+        <button>Ver ofertas →</button>
+        <div class="banner-dots">
+          <span class="dot active"></span>
+          <span class="dot"></span>
+          <span class="dot"></span>
+          <span class="dot"></span>
+        </div>
+      </section>
+
+      <!-- Carrossel automático de logos de marcas (lista duplicada = efeito de loop infinito) -->
+      <section class="brands">
+        <h3>Marcas em destaque</h3>
+        <div class="brands-carousel">
+          <div class="brands-track">
+            <img src="imagens/marcas_em_destaque/coca-cola.png" alt="Coca-Cola">
+            <img src="imagens/marcas_em_destaque/ype.webp" alt="Ambev">
+            <img src="imagens/marcas_em_destaque/heineken2.svg" alt="Heineken">
+            <img src="imagens/marcas_em_destaque/danone.png" alt="Danone">
+            <img src="imagens/marcas_em_destaque/p-g.png" alt="P&G">
+            <img src="imagens/marcas_em_destaque/unilever.png" alt="Unilever">
+            <img src="imagens/marcas_em_destaque/seara.svg" alt="Seara">
+            <img src="imagens/marcas_em_destaque/omo.png" alt="OMO">
+            <img src="imagens/marcas_em_destaque/colgate.png" alt="Colgate">
+            <!-- Repetição da lista (mesmas imagens de novo) pra criar o efeito de loop infinito -->
+            <img src="imagens/marcas_em_destaque/coca-cola.png" alt="Coca-Cola">
+            <img src="imagens/marcas_em_destaque/ype.webp" alt="Ambev">
+            <img src="imagens/marcas_em_destaque/heineken2.svg" alt="Heineken">
+            <img src="imagens/marcas_em_destaque/danone.png" alt="Danone">
+            <img src="imagens/marcas_em_destaque/p-g.png" alt="P&G">
+            <img src="imagens/marcas_em_destaque/unilever.png" alt="Unilever">
+            <img src="imagens/marcas_em_destaque/seara.svg" alt="Seara">
+            <img src="imagens/marcas_em_destaque/omo.png" alt="OMO">
+            <img src="imagens/marcas_em_destaque/colgate.png" alt="Colgate">
+          </div>
+        </div>
+      </section>
+
+      <!-- Cards grandes coloridos de marcas em destaque -->
+      <section class="showcases">
+        <h3>Vitrines em destaque</h3>
+        <div class="showcase-grid">
+
+          <div class="showcase-card" style="background-color: #e53935;">
+            <span class="showcase-brand">Coca-Cola</span>
+            <p>Refresque seus momentos</p>
+            <a href="#">Ver produtos →</a>
+          </div>
+
+          <div class="showcase-card" style="background-color: #fdf6e3;">
+            <span class="showcase-brand" style="color: #333;">Nestlé</span>
+            <p style="color: #555;">Nutrição que acompanha cada fase</p>
+            <a href="#" style="color: #1a7a3c;">Ver produtos →</a>
+          </div>
+
+          <div class="showcase-card" style="background-color: #1565c0;">
+            <span class="showcase-brand">OMO</span>
+            <p>Limpeza profunda para o seu dia a dia</p>
+            <a href="#">Ver produtos →</a>
+          </div>
+
+          <div class="showcase-card" style="background-color: #1a7a3c;">
+            <span class="showcase-brand">Heineken</span>
+            <p>Mais sabor para melhores momentos</p>
+            <a href="#">Ver produtos →</a>
+          </div>
+
+        </div>
+      </section>
+
+      <!-- Grade/carrossel de produtos em oferta, com foto, tag, favorito, preço, avaliação e ações de compra -->
+      <section class="offers">
+        <div class="carousel-header">
+          <h3>🔥 Ofertas em destaque</h3>
+          <a href="#">Ver todas →</a>
+        </div>
+        <div class="carousel-wrapper">
+          <button class="carousel-arrow arrow-left" onclick="moveCarousel(this, -1)">‹</button>
+          <div class="offers-grid scroll-target">
+
+            <div class="product-card">
+              <span class="tag tag-bestseller">Mais vendido</span>
+              <button class="fav-btn"><i data-lucide="heart"></i></button>
+              <img src="imagens/produtos/coca-cola-2l.jpg" alt="Coca-Cola 2L" class="product-img">
+              <div class="product-name">Coca-Cola 2L</div>
+              <div class="product-price">R$ 8,99</div>
+              <div class="product-rating">⭐ 4.8 (13.345)</div>
+              <div class="product-actions">
+                <button class="btn-comprar" onclick="adicionarProduto(this)">Comprar</button>
+                <div class="qty-controls">
+                  <button class="btn-remove" onclick="removerProduto(this)"><i data-lucide="trash-2"></i></button>
+                  <span class="qty">1</span>
+                  <button class="btn-add" onclick="aumentarQtd(this)">+</button>
+                </div>
+              </div>
+            </div>
+
+            <div class="product-card">
+              <span class="tag tag-offer">Oferta</span>
+              <button class="fav-btn"><i data-lucide="heart"></i></button>
+              <img src="imagens/produtos/arroz-tio-joao-5kg.jpg" alt="Arroz Tio João 5kg" class="product-img">
+              <div class="product-name">Arroz Tio João 5kg</div>
+              <div class="product-price">R$ 24,90 <span class="old-price">R$ 32,90</span></div>
+              <div class="product-rating">⭐ 4.7 (8.900)</div>
+              <div class="product-actions">
+                <button class="btn-comprar" onclick="adicionarProduto(this)">Comprar</button>
+                <div class="qty-controls">
+                  <button class="btn-remove" onclick="removerProduto(this)"><i data-lucide="trash-2"></i></button>
+                  <span class="qty">1</span>
+                  <button class="btn-add" onclick="aumentarQtd(this)">+</button>
+                </div>
+              </div>
+            </div>
+
+            <div class="product-card">
+              <button class="fav-btn"><i data-lucide="heart"></i></button>
+              <img src="imagens/produtos/leite-italac-1l.jpg" alt="Leite Italac 1L" class="product-img">
+              <div class="product-name">Leite Italac 1L</div>
+              <div class="product-price">R$ 5,49</div>
+              <div class="product-rating">⭐ 4.6 (5.125)</div>
+              <div class="product-actions">
+                <button class="btn-comprar" onclick="adicionarProduto(this)">Comprar</button>
+                <div class="qty-controls">
+                  <button class="btn-remove" onclick="removerProduto(this)"><i data-lucide="trash-2"></i></button>
+                  <span class="qty">1</span>
+                  <button class="btn-add" onclick="aumentarQtd(this)">+</button>
+                </div>
+              </div>
+            </div>
+
+            <div class="product-card">
+              <button class="fav-btn"><i data-lucide="heart"></i></button>
+              <img src="imagens/produtos/cafe-pilao-500g.jpg" alt="Café Pilão 500g" class="product-img">
+              <div class="product-name">Café Pilão 500g</div>
+              <div class="product-price">R$ 16,90</div>
+              <div class="product-rating">⭐ 4.8 (7.842)</div>
+              <div class="product-actions">
+                <button class="btn-comprar" onclick="adicionarProduto(this)">Comprar</button>
+                <div class="qty-controls">
+                  <button class="btn-remove" onclick="removerProduto(this)"><i data-lucide="trash-2"></i></button>
+                  <span class="qty">1</span>
+                  <button class="btn-add" onclick="aumentarQtd(this)">+</button>
+                </div>
+              </div>
+            </div>
+
+            <div class="product-card">
+              <span class="tag tag-offer">Oferta</span>
+              <button class="fav-btn"><i data-lucide="heart"></i></button>
+              <img src="imagens/produtos/detergente-ype-500ml.jpg" alt="Detergente Ypê 500ml" class="product-img">
+              <div class="product-name">Detergente Ypê 500ml</div>
+              <div class="product-price">R$ 2,49 <span class="old-price">R$ 3,49</span></div>
+              <div class="product-rating">⭐ 4.5 (9.321)</div>
+              <div class="product-actions">
+                <button class="btn-comprar" onclick="adicionarProduto(this)">Comprar</button>
+                <div class="qty-controls">
+                  <button class="btn-remove" onclick="removerProduto(this)"><i data-lucide="trash-2"></i></button>
+                  <span class="qty">1</span>
+                  <button class="btn-add" onclick="aumentarQtd(this)">+</button>
+                </div>
+              </div>
+            </div>
+
+            <div class="product-card">
+              <span class="tag tag-bestseller">Mais vendido</span>
+              <button class="fav-btn"><i data-lucide="heart"></i></button>
+              <img src="imagens/produtos/racao-pedigree-15kg.jpg" alt="Ração Pedigree 15kg" class="product-img">
+              <div class="product-name">Ração Pedigree 15kg</div>
+              <div class="product-price">R$ 89,90</div>
+              <div class="product-rating">⭐ 4.7 (6.721)</div>
+              <div class="product-actions">
+                <button class="btn-comprar" onclick="adicionarProduto(this)">Comprar</button>
+                <div class="qty-controls">
+                  <button class="btn-remove" onclick="removerProduto(this)"><i data-lucide="trash-2"></i></button>
+                  <span class="qty">1</span>
+                  <button class="btn-add" onclick="aumentarQtd(this)">+</button>
+                </div>
+              </div>
+            </div>
+
+          </div>
+          <button class="carousel-arrow arrow-right" onclick="moveCarousel(this, 1)">›</button>
+        </div>
+      </section>
+
+      <!-- Banner de destaque de vendedor/marca parceira -->
+      <section class="vendor-banner">
+        <span class="vendor-tag">Confira</span>
+        <h2>Tudo o que você precisa</h2>
+        <p>Produtos Hoje</p>
+      </section>
+
+      <!-- ===== HORTIFRUTI: banner + mini carrossel juntos ===== -->
+      <section id="hortifruti" class="highlight-banner">
+        <div class="highlight-side highlight-verde">
+          <h3>🥬 Hortifruti</h3>
+          <p>Mais frescor para sua família.</p>
+          <a href="#">Ver todos →</a>
+        </div>
+        <div class="highlight-carousel">
+          <button class="carousel-arrow arrow-left" onclick="moveCarousel(this, -1)">‹</button>
+          <div class="highlight-products scroll-target">
+            <div class="product-card">
+              <img src="imagens/produtos/banana-prata.jpg" alt="Banana Prata" class="product-img">
+              <div class="product-name">Banana Prata kg</div>
+              <div class="product-price">R$ 4,99</div>
+              <div class="product-rating">⭐ 4.6</div>
+              <div class="product-actions">
+                <button class="btn-comprar" onclick="adicionarProduto(this)">Comprar</button>
+                <div class="qty-controls">
+                  <button class="btn-remove" onclick="removerProduto(this)"><i data-lucide="trash-2"></i></button>
+                  <span class="qty">1</span>
+                  <button class="btn-add" onclick="aumentarQtd(this)">+</button>
+                </div>
+              </div>
+            </div>
+            <div class="product-card">
+              <img src="imagens/produtos/tomate.jpg" alt="Tomate" class="product-img">
+              <div class="product-name">Tomate kg</div>
+              <div class="product-price">R$ 5,49</div>
+              <div class="product-rating">⭐ 4.5</div>
+              <div class="product-actions">
+                <button class="btn-comprar" onclick="adicionarProduto(this)">Comprar</button>
+                <div class="qty-controls">
+                  <button class="btn-remove" onclick="removerProduto(this)"><i data-lucide="trash-2"></i></button>
+                  <span class="qty">1</span>
+                  <button class="btn-add" onclick="aumentarQtd(this)">+</button>
+                </div>
+              </div>
+            </div>
+            <div class="product-card">
+              <img src="imagens/produtos/alface.jpg" alt="Alface Crespa" class="product-img">
+              <div class="product-name">Alface Crespa un</div>
+              <div class="product-price">R$ 2,99</div>
+              <div class="product-rating">⭐ 4.7</div>
+              <div class="product-actions">
+                <button class="btn-comprar" onclick="adicionarProduto(this)">Comprar</button>
+                <div class="qty-controls">
+                  <button class="btn-remove" onclick="removerProduto(this)"><i data-lucide="trash-2"></i></button>
+                  <span class="qty">1</span>
+                  <button class="btn-add" onclick="aumentarQtd(this)">+</button>
+                </div>
+              </div>
+            </div>
+            <div class="product-card">
+              <img src="imagens/produtos/cenoura.jpg" alt="Cenoura" class="product-img">
+              <div class="product-name">Cenoura kg</div>
+              <div class="product-price">R$ 3,49</div>
+              <div class="product-rating">⭐ 4.6</div>
+              <div class="product-actions">
+                <button class="btn-comprar" onclick="adicionarProduto(this)">Comprar</button>
+                <div class="qty-controls">
+                  <button class="btn-remove" onclick="removerProduto(this)"><i data-lucide="trash-2"></i></button>
+                  <span class="qty">1</span>
+                  <button class="btn-add" onclick="aumentarQtd(this)">+</button>
+                </div>
+              </div>
+            </div>
+            <div class="product-card">
+              <img src="imagens/produtos/maca-gala.jpg" alt="Maçã Gala" class="product-img">
+              <div class="product-name">Maçã Gala kg</div>
+              <div class="product-price">R$ 7,99</div>
+              <div class="product-rating">⭐ 4.8</div>
+              <div class="product-actions">
+                <button class="btn-comprar" onclick="adicionarProduto(this)">Comprar</button>
+                <div class="qty-controls">
+                  <button class="btn-remove" onclick="removerProduto(this)"><i data-lucide="trash-2"></i></button>
+                  <span class="qty">1</span>
+                  <button class="btn-add" onclick="aumentarQtd(this)">+</button>
+                </div>
+              </div>
+            </div>
+            <div class="product-card">
+              <img src="imagens/produtos/batata.jpg" alt="Batata Lavada" class="product-img">
+              <div class="product-name">Batata Lavada kg</div>
+              <div class="product-price">R$ 4,49</div>
+              <div class="product-rating">⭐ 4.5</div>
+              <div class="product-actions">
+                <button class="btn-comprar" onclick="adicionarProduto(this)">Comprar</button>
+                <div class="qty-controls">
+                  <button class="btn-remove" onclick="removerProduto(this)"><i data-lucide="trash-2"></i></button>
+                  <span class="qty">1</span>
+                  <button class="btn-add" onclick="aumentarQtd(this)">+</button>
+                </div>
+              </div>
+            </div>
+          </div>
+          <button class="carousel-arrow arrow-right" onclick="moveCarousel(this, 1)">›</button>
+        </div>
+      </section>
+
+      <!-- ===== BANNER genérico, leva pra Mercearia ===== -->
+      <section class="promo-banner promo-fresco">
+        <div>
+          <h2>Sabor e frescor <span>em cada escolha.</span></h2>
+          <p>Tudo o que sua família precisa, todos os dias.</p>
+          <button class="promo-cta">Confira ofertas</button>
+        </div>
+        <div class="promo-right">
+          <h2>Mercearia</h2>
+          <p>Tudo o que você precisa na sua despensa.</p>
+        </div>
+      </section>
+
+      <!-- ===== MERCEARIA: banner + mini carrossel juntos ===== -->
+      <section class="highlight-banner">
+        <div class="highlight-side highlight-laranja">
+          <h3>🛒 Mercearia</h3>
+          <p>Tudo o que você precisa na sua despensa.</p>
+          <a href="#">Ver todos →</a>
+        </div>
+        <div class="highlight-carousel">
+          <button class="carousel-arrow arrow-left" onclick="moveCarousel(this, -1)">‹</button>
+          <div class="highlight-products scroll-target">
+            <div class="product-card">
+              <img src="imagens/produtos/arroz-5kg.jpg" alt="Arroz Tio João 5kg" class="product-img">
+              <div class="product-name">Arroz Tio João 5kg</div>
+              <div class="product-price">R$ 24,90</div>
+              <div class="product-rating">⭐ 4.7</div>
+              <div class="product-actions">
+                <button class="btn-comprar" onclick="adicionarProduto(this)">Comprar</button>
+                <div class="qty-controls">
+                  <button class="btn-remove" onclick="removerProduto(this)"><i data-lucide="trash-2"></i></button>
+                  <span class="qty">1</span>
+                  <button class="btn-add" onclick="aumentarQtd(this)">+</button>
+                </div>
+              </div>
+            </div>
+            <div class="product-card">
+              <img src="imagens/produtos/feijao.jpg" alt="Feijão Carioca 1kg" class="product-img">
+              <div class="product-name">Feijão Carioca 1kg</div>
+              <div class="product-price">R$ 7,49</div>
+              <div class="product-rating">⭐ 4.6</div>
+              <div class="product-actions">
+                <button class="btn-comprar" onclick="adicionarProduto(this)">Comprar</button>
+                <div class="qty-controls">
+                  <button class="btn-remove" onclick="removerProduto(this)"><i data-lucide="trash-2"></i></button>
+                  <span class="qty">1</span>
+                  <button class="btn-add" onclick="aumentarQtd(this)">+</button>
+                </div>
+              </div>
+            </div>
+            <div class="product-card">
+              <img src="imagens/produtos/macarrao.jpg" alt="Macarrão Adria 500g" class="product-img">
+              <div class="product-name">Macarrão Adria 500g</div>
+              <div class="product-price">R$ 3,99</div>
+              <div class="product-rating">⭐ 4.5</div>
+              <div class="product-actions">
+                <button class="btn-comprar" onclick="adicionarProduto(this)">Comprar</button>
+                <div class="qty-controls">
+                  <button class="btn-remove" onclick="removerProduto(this)"><i data-lucide="trash-2"></i></button>
+                  <span class="qty">1</span>
+                  <button class="btn-add" onclick="aumentarQtd(this)">+</button>
+                </div>
+              </div>
+            </div>
+            <div class="product-card">
+              <img src="imagens/produtos/leite-1l.jpg" alt="Leite Italac 1L" class="product-img">
+              <div class="product-name">Leite Italac 1L</div>
+              <div class="product-price">R$ 5,49</div>
+              <div class="product-rating">⭐ 4.6</div>
+              <div class="product-actions">
+                <button class="btn-comprar" onclick="adicionarProduto(this)">Comprar</button>
+                <div class="qty-controls">
+                  <button class="btn-remove" onclick="removerProduto(this)"><i data-lucide="trash-2"></i></button>
+                  <span class="qty">1</span>
+                  <button class="btn-add" onclick="aumentarQtd(this)">+</button>
+                </div>
+              </div>
+            </div>
+            <div class="product-card">
+              <img src="imagens/produtos/farinha-trigo.jpg" alt="Farinha de Trigo 1kg" class="product-img">
+              <div class="product-name">Farinha de Trigo 1kg</div>
+              <div class="product-price">R$ 4,99</div>
+              <div class="product-rating">⭐ 4.5</div>
+              <div class="product-actions">
+                <button class="btn-comprar" onclick="adicionarProduto(this)">Comprar</button>
+                <div class="qty-controls">
+                  <button class="btn-remove" onclick="removerProduto(this)"><i data-lucide="trash-2"></i></button>
+                  <span class="qty">1</span>
+                  <button class="btn-add" onclick="aumentarQtd(this)">+</button>
+                </div>
+              </div>
+            </div>
+            <div class="product-card">
+              <img src="imagens/produtos/molho-tomate.jpg" alt="Molho de Tomate 340g" class="product-img">
+              <div class="product-name">Molho de Tomate 340g</div>
+              <div class="product-price">R$ 3,49</div>
+              <div class="product-rating">⭐ 4.4</div>
+              <div class="product-actions">
+                <button class="btn-comprar" onclick="adicionarProduto(this)">Comprar</button>
+                <div class="qty-controls">
+                  <button class="btn-remove" onclick="removerProduto(this)"><i data-lucide="trash-2"></i></button>
+                  <span class="qty">1</span>
+                  <button class="btn-add" onclick="aumentarQtd(this)">+</button>
+                </div>
+              </div>
+            </div>
+          </div>
+          <button class="carousel-arrow arrow-right" onclick="moveCarousel(this, 1)">›</button>
+        </div>
+      </section>
+
+      <!-- ===== BANNER de Limpeza, leva pra próxima seção ===== -->
+      <section class="promo-banner promo-limpeza">
+        <div>
+          <h2>Sua casa mais <span>limpa e perfumada.</span></h2>
+          <p>Produtos de limpeza com qualidade e eficiência.</p>
+          <button class="promo-cta">Ver produtos</button>
+        </div>
+        <div class="promo-right">
+          <h2>Produtos de Limpeza</h2>
+          <p>Mais praticidade para o seu dia a dia.</p>
+        </div>
+      </section>
+
+      <!-- ===== LIMPEZA: banner + mini carrossel juntos ===== -->
+      <section class="highlight-banner">
+        <div class="highlight-side highlight-laranja">
+          <h3>🧽 Produtos de Limpeza</h3>
+          <p>Tudo o que você precisa na sua despensa.</p>
+          <a href="#">Ver todos →</a>
+        </div>
+        <div class="highlight-carousel">
+          <button class="carousel-arrow arrow-left" onclick="moveCarousel(this, -1)">‹</button>
+          <div class="highlight-products scroll-target">
+            <div class="product-card">
+              <img src="imagens/produtos/agua-sanitaria.jpg" alt="Água Sanitária 2L" class="product-img">
+              <div class="product-name">Água Sanitária 2L</div>
+              <div class="product-price">R$ 2,49</div>
+              <div class="product-rating">⭐ 4.5</div>
+              <div class="product-actions">
+                <button class="btn-comprar" onclick="adicionarProduto(this)">Comprar</button>
+                <div class="qty-controls">
+                  <button class="btn-remove" onclick="removerProduto(this)"><i data-lucide="trash-2"></i></button>
+                  <span class="qty">1</span>
+                  <button class="btn-add" onclick="aumentarQtd(this)">+</button>
+                </div>
+              </div>
+            </div>
+            <div class="product-card">
+              <img src="imagens/produtos/desinfetante.jpg" alt="Desinfetante Ypê 2L" class="product-img">
+              <div class="product-name">Desinfetante Ypê 2L</div>
+              <div class="product-price">R$ 5,99</div>
+              <div class="product-rating">⭐ 4.6</div>
+              <div class="product-actions">
+                <button class="btn-comprar" onclick="adicionarProduto(this)">Comprar</button>
+                <div class="qty-controls">
+                  <button class="btn-remove" onclick="removerProduto(this)"><i data-lucide="trash-2"></i></button>
+                  <span class="qty">1</span>
+                  <button class="btn-add" onclick="aumentarQtd(this)">+</button>
+                </div>
+              </div>
+            </div>
+            <div class="product-card">
+              <img src="imagens/produtos/sabao-po.jpg" alt="Sabão em Pó OMO 1kg" class="product-img">
+              <div class="product-name">Sabão em Pó OMO 1kg</div>
+              <div class="product-price">R$ 4,49</div>
+              <div class="product-rating">⭐ 4.7</div>
+              <div class="product-actions">
+                <button class="btn-comprar" onclick="adicionarProduto(this)">Comprar</button>
+                <div class="qty-controls">
+                  <button class="btn-remove" onclick="removerProduto(this)"><i data-lucide="trash-2"></i></button>
+                  <span class="qty">1</span>
+                  <button class="btn-add" onclick="aumentarQtd(this)">+</button>
+                </div>
+              </div>
+            </div>
+            <div class="product-card">
+              <img src="imagens/produtos/sabao-liquido.jpg" alt="Sabão Líquido OMO 1kg" class="product-img">
+              <div class="product-name">Sabão Líquido OMO 1kg</div>
+              <div class="product-price">R$ 14,39</div>
+              <div class="product-rating">⭐ 4.6</div>
+              <div class="product-actions">
+                <button class="btn-comprar" onclick="adicionarProduto(this)">Comprar</button>
+                <div class="qty-controls">
+                  <button class="btn-remove" onclick="removerProduto(this)"><i data-lucide="trash-2"></i></button>
+                  <span class="qty">1</span>
+                  <button class="btn-add" onclick="aumentarQtd(this)">+</button>
+                </div>
+              </div>
+            </div>
+            <div class="product-card">
+              <img src="imagens/produtos/amaciante.jpg" alt="Amaciante Comfort 1L" class="product-img">
+              <div class="product-name">Amaciante Comfort 1L</div>
+              <div class="product-price">R$ 8,99</div>
+              <div class="product-rating">⭐ 4.7</div>
+              <div class="product-actions">
+                <button class="btn-comprar" onclick="adicionarProduto(this)">Comprar</button>
+                <div class="qty-controls">
+                  <button class="btn-remove" onclick="removerProduto(this)"><i data-lucide="trash-2"></i></button>
+                  <span class="qty">1</span>
+                  <button class="btn-add" onclick="aumentarQtd(this)">+</button>
+                </div>
+              </div>
+            </div>
+            <div class="product-card">
+              <img src="imagens/produtos/papel-toalha.jpg" alt="Papel Toalha 340g" class="product-img">
+              <div class="product-name">Papel Toalha 340g</div>
+              <div class="product-price">R$ 6,99</div>
+              <div class="product-rating">⭐ 4.5</div>
+              <div class="product-actions">
+                <button class="btn-comprar" onclick="adicionarProduto(this)">Comprar</button>
+                <div class="qty-controls">
+                  <button class="btn-remove" onclick="removerProduto(this)"><i data-lucide="trash-2"></i></button>
+                  <span class="qty">1</span>
+                  <button class="btn-add" onclick="aumentarQtd(this)">+</button>
+                </div>
+              </div>
+            </div>
+          </div>
+          <button class="carousel-arrow arrow-right" onclick="moveCarousel(this, 1)">›</button>
+        </div>
+      </section>
+
+      <!-- ===== BANNER de Roupas, leva pra Lavar Roupa ===== -->
+      <section class="promo-banner promo-roupas">
+        <div>
+          <h2>Roupas limpas, <span>cheirosas e perfumadas.</span></h2>
+          <p>A linha completa para o seu dia a dia.</p>
+          <button class="promo-cta">Ver ofertas</button>
+        </div>
+        <div class="promo-right">
+          <h2>Produtos de Lavar Roupa</h2>
+          <p>Mais cuidado para suas roupas.</p>
+        </div>
+      </section>
+
+      <!-- ===== PRODUTOS DE LAVAR ROUPA: título + carrossel simples ===== -->
+      <section class="carousel-section">
+        <div class="carousel-header">
+          <h3>Produtos de Lavar Roupa</h3>
+          <a href="#">Ver mais →</a>
+        </div>
+        <div class="carousel-wrapper">
+          <button class="carousel-arrow arrow-left" onclick="moveCarousel(this, -1)">‹</button>
+          <div class="carousel-track scroll-target">
+            <div class="product-card">
+              <img src="imagens/produtos/sabao-po-1kg.jpg" alt="Sabão em Pó OMO 1kg" class="product-img">
+              <div class="product-name">Sabão em Pó OMO 1kg</div>
+              <div class="product-price">R$ 14,39</div>
+              <div class="product-rating">⭐ 4.7</div>
+              <div class="product-actions">
+                <button class="btn-comprar" onclick="adicionarProduto(this)">Comprar</button>
+                <div class="qty-controls">
+                  <button class="btn-remove" onclick="removerProduto(this)"><i data-lucide="trash-2"></i></button>
+                  <span class="qty">1</span>
+                  <button class="btn-add" onclick="aumentarQtd(this)">+</button>
+                </div>
+              </div>
+            </div>
+            <div class="product-card">
+              <img src="imagens/produtos/desinfetante-2l.jpg" alt="Desinfetante Ypê 2L" class="product-img">
+              <div class="product-name">Desinfetante Ypê 2L</div>
+              <div class="product-price">R$ 5,99</div>
+              <div class="product-rating">⭐ 4.6</div>
+              <div class="product-actions">
+                <button class="btn-comprar" onclick="adicionarProduto(this)">Comprar</button>
+                <div class="qty-controls">
+                  <button class="btn-remove" onclick="removerProduto(this)"><i data-lucide="trash-2"></i></button>
+                  <span class="qty">1</span>
+                  <button class="btn-add" onclick="aumentarQtd(this)">+</button>
+                </div>
+              </div>
+            </div>
+            <div class="product-card">
+              <img src="imagens/produtos/limpador-multiuso.jpg" alt="Limpador Multiuso Veja 500ml" class="product-img">
+              <div class="product-name">Limpador Multiuso Veja 500ml</div>
+              <div class="product-price">R$ 4,49</div>
+              <div class="product-rating">⭐ 4.5</div>
+              <div class="product-actions">
+                <button class="btn-comprar" onclick="adicionarProduto(this)">Comprar</button>
+                <div class="qty-controls">
+                  <button class="btn-remove" onclick="removerProduto(this)"><i data-lucide="trash-2"></i></button>
+                  <span class="qty">1</span>
+                  <button class="btn-add" onclick="aumentarQtd(this)">+</button>
+                </div>
+              </div>
+            </div>
+            <div class="product-card">
+              <img src="imagens/produtos/sabao-po-1kg-2.jpg" alt="Sabão em Pó OMO 1kg" class="product-img">
+              <div class="product-name">Sabão em Pó OMO 1kg</div>
+              <div class="product-price">R$ 14,39</div>
+              <div class="product-rating">⭐ 4.6</div>
+              <div class="product-actions">
+                <button class="btn-comprar" onclick="adicionarProduto(this)">Comprar</button>
+                <div class="qty-controls">
+                  <button class="btn-remove" onclick="removerProduto(this)"><i data-lucide="trash-2"></i></button>
+                  <span class="qty">1</span>
+                  <button class="btn-add" onclick="aumentarQtd(this)">+</button>
+                </div>
+              </div>
+            </div>
+            <div class="product-card">
+              <img src="imagens/produtos/amaciante-1l.jpg" alt="Amaciante Comfort 1L" class="product-img">
+              <div class="product-name">Amaciante Comfort 1L</div>
+              <div class="product-price">R$ 16,90</div>
+              <div class="product-rating">⭐ 4.7</div>
+              <div class="product-actions">
+                <button class="btn-comprar" onclick="adicionarProduto(this)">Comprar</button>
+                <div class="qty-controls">
+                  <button class="btn-remove" onclick="removerProduto(this)"><i data-lucide="trash-2"></i></button>
+                  <span class="qty">1</span>
+                  <button class="btn-add" onclick="aumentarQtd(this)">+</button>
+                </div>
+              </div>
+            </div>
+            <div class="product-card">
+              <img src="imagens/produtos/desinfetante-2l-2.jpg" alt="Desinfetante Ypê 2L" class="product-img">
+              <div class="product-name">Desinfetante Ypê 2L</div>
+              <div class="product-price">R$ 5,99</div>
+              <div class="product-rating">⭐ 4.5</div>
+              <div class="product-actions">
+                <button class="btn-comprar" onclick="adicionarProduto(this)">Comprar</button>
+                <div class="qty-controls">
+                  <button class="btn-remove" onclick="removerProduto(this)"><i data-lucide="trash-2"></i></button>
+                  <span class="qty">1</span>
+                  <button class="btn-add" onclick="aumentarQtd(this)">+</button>
+                </div>
+              </div>
+            </div>
+          </div>
+          <button class="carousel-arrow arrow-right" onclick="moveCarousel(this, 1)">›</button>
+        </div>
+      </section>
+
+      <!-- ===== BANNER de Vinhos, leva pra Vinhos ===== -->
+      <section class="promo-banner promo-vinho1">
+        <div>
+          <h2>Momentos especiais pedem <span>um bom vinho.</span></h2>
+          <p>Grandes rótulos para o seu dia a dia.</p>
+          <button class="promo-cta">Ver vinhos</button>
+        </div>
+        <div class="promo-right">
+          <h2>Vinhos</h2>
+          <p>Nacionais e importados. As melhores marcas.</p>
+        </div>
+      </section>
+
+      <!-- ===== VINHOS: título + carrossel simples ===== -->
+      <section class="carousel-section">
+        <div class="carousel-header">
+          <h3>Vinhos</h3>
+          <a href="#">Ver mais →</a>
+        </div>
+        <div class="carousel-wrapper">
+          <button class="carousel-arrow arrow-left" onclick="moveCarousel(this, -1)">‹</button>
+          <div class="carousel-track scroll-target">
+            <div class="product-card">
+              <img src="imagens/produtos/vinho-tinto-reservado.jpg" alt="Vinho Tinto Reservado 750ml" class="product-img">
+              <div class="product-name">Vinho Tinto Reservado 750ml</div>
+              <div class="product-price">R$ 39,90</div>
+              <div class="product-rating">⭐ 4.7</div>
+              <div class="product-actions">
+                <button class="btn-comprar" onclick="adicionarProduto(this)">Comprar</button>
+                <div class="qty-controls">
+                  <button class="btn-remove" onclick="removerProduto(this)"><i data-lucide="trash-2"></i></button>
+                  <span class="qty">1</span>
+                  <button class="btn-add" onclick="aumentarQtd(this)">+</button>
+                </div>
+              </div>
+            </div>
+            <div class="product-card">
+              <img src="imagens/produtos/vinho-chileno.jpg" alt="Vinho Chileno 750ml" class="product-img">
+              <div class="product-name">Vinho Chileno 750ml</div>
+              <div class="product-price">R$ 34,90</div>
+              <div class="product-rating">⭐ 4.6</div>
+              <div class="product-actions">
+                <button class="btn-comprar" onclick="adicionarProduto(this)">Comprar</button>
+                <div class="qty-controls">
+                  <button class="btn-remove" onclick="removerProduto(this)"><i data-lucide="trash-2"></i></button>
+                  <span class="qty">1</span>
+                  <button class="btn-add" onclick="aumentarQtd(this)">+</button>
+                </div>
+              </div>
+            </div>
+            <div class="product-card">
+              <img src="imagens/produtos/vinho-suave.jpg" alt="Vinho Suave 3L" class="product-img">
+              <div class="product-name">Vinho Suave 3L</div>
+              <div class="product-price">R$ 28,90</div>
+              <div class="product-rating">⭐ 4.4</div>
+              <div class="product-actions">
+                <button class="btn-comprar" onclick="adicionarProduto(this)">Comprar</button>
+                <div class="qty-controls">
+                  <button class="btn-remove" onclick="removerProduto(this)"><i data-lucide="trash-2"></i></button>
+                  <span class="qty">1</span>
+                  <button class="btn-add" onclick="aumentarQtd(this)">+</button>
+                </div>
+              </div>
+            </div>
+            <div class="product-card">
+              <img src="imagens/produtos/vinho-hoje-750ml.jpg" alt="Vinho Hoje 750ml" class="product-img">
+              <div class="product-name">Vinho Hoje 750ml</div>
+              <div class="product-price">R$ 26,90</div>
+              <div class="product-rating">⭐ 4.5</div>
+              <div class="product-actions">
+                <button class="btn-comprar" onclick="adicionarProduto(this)">Comprar</button>
+                <div class="qty-controls">
+                  <button class="btn-remove" onclick="removerProduto(this)"><i data-lucide="trash-2"></i></button>
+                  <span class="qty">1</span>
+                  <button class="btn-add" onclick="aumentarQtd(this)">+</button>
+                </div>
+              </div>
+            </div>
+            <div class="product-card">
+              <img src="imagens/produtos/espumante.jpg" alt="Espumante 750ml" class="product-img">
+              <div class="product-name">Espumante 750ml</div>
+              <div class="product-price">R$ 49,90</div>
+              <div class="product-rating">⭐ 4.8</div>
+              <div class="product-actions">
+                <button class="btn-comprar" onclick="adicionarProduto(this)">Comprar</button>
+                <div class="qty-controls">
+                  <button class="btn-remove" onclick="removerProduto(this)"><i data-lucide="trash-2"></i></button>
+                  <span class="qty">1</span>
+                  <button class="btn-add" onclick="aumentarQtd(this)">+</button>
+                </div>
+              </div>
+            </div>
+            <div class="product-card">
+              <img src="imagens/produtos/vinho-tinto-2.jpg" alt="Vinho Tinto 750ml" class="product-img">
+              <div class="product-name">Vinho Tinto 750ml</div>
+              <div class="product-price">R$ 29,90</div>
+              <div class="product-rating">⭐ 4.6</div>
+              <div class="product-actions">
+                <button class="btn-comprar" onclick="adicionarProduto(this)">Comprar</button>
+                <div class="qty-controls">
+                  <button class="btn-remove" onclick="removerProduto(this)"><i data-lucide="trash-2"></i></button>
+                  <span class="qty">1</span>
+                  <button class="btn-add" onclick="aumentarQtd(this)">+</button>
+                </div>
+              </div>
+            </div>
+          </div>
+          <button class="carousel-arrow arrow-right" onclick="moveCarousel(this, 1)">›</button>
+        </div>
+      </section>
+
+      <!-- ===== BANNER de Cervejas, leva pra Cervejas ===== -->
+      <section class="promo-banner promo-vinho2">
+        <div>
+          <h2>Hora de relaxar <span>pede uma cerveja gelada.</span></h2>
+          <p>As melhores marcas, sempre geladinhas.</p>
+          <button class="promo-cta">Ver cervejas</button>
+        </div>
+        <div class="promo-right">
+          <h2>Cervejas</h2>
+          <p>Nacionais e importadas para todos os momentos.</p>
+        </div>
+      </section>
+
+      <!-- ===== CERVEJAS: título + carrossel simples ===== -->
+      <section class="carousel-section">
+        <div class="carousel-header">
+          <h3>Cervejas</h3>
+          <a href="#">Ver mais →</a>
+        </div>
+        <div class="carousel-wrapper">
+          <button class="carousel-arrow arrow-left" onclick="moveCarousel(this, -1)">‹</button>
+          <div class="carousel-track scroll-target">
+            <div class="product-card">
+              <img src="imagens/produtos/heineken-350ml.jpg" alt="Heineken Lata 350ml" class="product-img">
+              <div class="product-name">Heineken Lata 350ml</div>
+              <div class="product-price">R$ 4,99</div>
+              <div class="product-rating">⭐ 4.8</div>
+              <div class="product-actions">
+                <button class="btn-comprar" onclick="adicionarProduto(this)">Comprar</button>
+                <div class="qty-controls">
+                  <button class="btn-remove" onclick="removerProduto(this)"><i data-lucide="trash-2"></i></button>
+                  <span class="qty">1</span>
+                  <button class="btn-add" onclick="aumentarQtd(this)">+</button>
+                </div>
+              </div>
+            </div>
+            <div class="product-card">
+              <img src="imagens/produtos/skol-350ml.jpg" alt="Skol Lata 350ml" class="product-img">
+              <div class="product-name">Skol Lata 350ml</div>
+              <div class="product-price">R$ 3,49</div>
+              <div class="product-rating">⭐ 4.5</div>
+              <div class="product-actions">
+                <button class="btn-comprar" onclick="adicionarProduto(this)">Comprar</button>
+                <div class="qty-controls">
+                  <button class="btn-remove" onclick="removerProduto(this)"><i data-lucide="trash-2"></i></button>
+                  <span class="qty">1</span>
+                  <button class="btn-add" onclick="aumentarQtd(this)">+</button>
+                </div>
+              </div>
+            </div>
+            <div class="product-card">
+              <img src="imagens/produtos/brahma-350ml.jpg" alt="Brahma Duplo Malte 350ml" class="product-img">
+              <div class="product-name">Brahma Duplo Malte 350ml</div>
+              <div class="product-price">R$ 3,79</div>
+              <div class="product-rating">⭐ 4.6</div>
+              <div class="product-actions">
+                <button class="btn-comprar" onclick="adicionarProduto(this)">Comprar</button>
+                <div class="qty-controls">
+                  <button class="btn-remove" onclick="removerProduto(this)"><i data-lucide="trash-2"></i></button>
+                  <span class="qty">1</span>
+                  <button class="btn-add" onclick="aumentarQtd(this)">+</button>
+                </div>
+              </div>
+            </div>
+            <div class="product-card">
+              <img src="imagens/produtos/original-600ml.jpg" alt="Original 600ml" class="product-img">
+              <div class="product-name">Original 600ml</div>
+              <div class="product-price">R$ 8,90</div>
+              <div class="product-rating">⭐ 4.7</div>
+              <div class="product-actions">
+                <button class="btn-comprar" onclick="adicionarProduto(this)">Comprar</button>
+                <div class="qty-controls">
+                  <button class="btn-remove" onclick="removerProduto(this)"><i data-lucide="trash-2"></i></button>
+                  <span class="qty">1</span>
+                  <button class="btn-add" onclick="aumentarQtd(this)">+</button>
+                </div>
+              </div>
+            </div>
+            <div class="product-card">
+              <img src="imagens/produtos/stella-275ml.jpg" alt="Stella Artois 275ml" class="product-img">
+              <div class="product-name">Stella Artois 275ml</div>
+              <div class="product-price">R$ 5,49</div>
+              <div class="product-rating">⭐ 4.7</div>
+              <div class="product-actions">
+                <button class="btn-comprar" onclick="adicionarProduto(this)">Comprar</button>
+                <div class="qty-controls">
+                  <button class="btn-remove" onclick="removerProduto(this)"><i data-lucide="trash-2"></i></button>
+                  <span class="qty">1</span>
+                  <button class="btn-add" onclick="aumentarQtd(this)">+</button>
+                </div>
+              </div>
+            </div>
+            <div class="product-card">
+              <img src="imagens/produtos/budweiser-330ml.jpg" alt="Budweiser Long Neck 330ml" class="product-img">
+              <div class="product-name">Budweiser Long Neck 330ml</div>
+              <div class="product-price">R$ 6,49</div>
+              <div class="product-rating">⭐ 4.6</div>
+              <div class="product-actions">
+                <button class="btn-comprar" onclick="adicionarProduto(this)">Comprar</button>
+                <div class="qty-controls">
+                  <button class="btn-remove" onclick="removerProduto(this)"><i data-lucide="trash-2"></i></button>
+                  <span class="qty">1</span>
+                  <button class="btn-add" onclick="aumentarQtd(this)">+</button>
+                </div>
+              </div>
+            </div>
+          </div>
+          <button class="carousel-arrow arrow-right" onclick="moveCarousel(this, 1)">›</button>
+        </div>
+      </section>
+
+      <!-- ===== MAIS VENDIDOS: título + carrossel simples ===== -->
+      <section class="carousel-section">
+        <div class="carousel-header">
+          <h3>Mais vendidos</h3>
+          <a href="#">Ver mais →</a>
+        </div>
+        <div class="carousel-wrapper">
+          <button class="carousel-arrow arrow-left" onclick="moveCarousel(this, -1)">‹</button>
+          <div class="carousel-track scroll-target">
+            <div class="product-card">
+              <img src="imagens/produtos/coca-cola-2l-b.jpg" alt="Coca-Cola 2L" class="product-img">
+              <div class="product-name">Coca-Cola 2L</div>
+              <div class="product-price">R$ 8,49</div>
+              <div class="product-rating">⭐ 4.9</div>
+              <div class="product-actions">
+                <button class="btn-comprar" onclick="adicionarProduto(this)">Comprar</button>
+                <div class="qty-controls">
+                  <button class="btn-remove" onclick="removerProduto(this)"><i data-lucide="trash-2"></i></button>
+                  <span class="qty">1</span>
+                  <button class="btn-add" onclick="aumentarQtd(this)">+</button>
+                </div>
+              </div>
+            </div>
+            <div class="product-card">
+              <img src="imagens/produtos/leite-italac-3l.jpg" alt="Leite Italac 3L" class="product-img">
+              <div class="product-name">Leite Italac 3L</div>
+              <div class="product-price">R$ 14,90</div>
+              <div class="product-rating">⭐ 4.8</div>
+              <div class="product-actions">
+                <button class="btn-comprar" onclick="adicionarProduto(this)">Comprar</button>
+                <div class="qty-controls">
+                  <button class="btn-remove" onclick="removerProduto(this)"><i data-lucide="trash-2"></i></button>
+                  <span class="qty">1</span>
+                  <button class="btn-add" onclick="aumentarQtd(this)">+</button>
+                </div>
+              </div>
+            </div>
+            <div class="product-card">
+              <img src="imagens/produtos/pao-italac.jpg" alt="Pão de Forma Italac 1kg" class="product-img">
+              <div class="product-name">Pão de Forma Italac 1kg</div>
+              <div class="product-price">R$ 0,49</div>
+              <div class="product-rating">⭐ 4.7</div>
+              <div class="product-actions">
+                <button class="btn-comprar" onclick="adicionarProduto(this)">Comprar</button>
+                <div class="qty-controls">
+                  <button class="btn-remove" onclick="removerProduto(this)"><i data-lucide="trash-2"></i></button>
+                  <span class="qty">1</span>
+                  <button class="btn-add" onclick="aumentarQtd(this)">+</button>
+                </div>
+              </div>
+            </div>
+            <div class="product-card">
+              <img src="imagens/produtos/detergente-2l.jpg" alt="Detergente Ypê 2L" class="product-img">
+              <div class="product-name">Detergente Ypê 2L</div>
+              <div class="product-price">R$ 29,90</div>
+              <div class="product-rating">⭐ 4.6</div>
+              <div class="product-actions">
+                <button class="btn-comprar" onclick="adicionarProduto(this)">Comprar</button>
+                <div class="qty-controls">
+                  <button class="btn-remove" onclick="removerProduto(this)"><i data-lucide="trash-2"></i></button>
+                  <span class="qty">1</span>
+                  <button class="btn-add" onclick="aumentarQtd(this)">+</button>
+                </div>
+              </div>
+            </div>
+            <div class="product-card">
+              <img src="imagens/produtos/vinho-hoje-750ml-b.jpg" alt="Vinho Hoje 750ml" class="product-img">
+              <div class="product-name">Vinho Hoje 750ml</div>
+              <div class="product-price">R$ 26,90</div>
+              <div class="product-rating">⭐ 4.7</div>
+              <div class="product-actions">
+                <button class="btn-comprar" onclick="adicionarProduto(this)">Comprar</button>
+                <div class="qty-controls">
+                  <button class="btn-remove" onclick="removerProduto(this)"><i data-lucide="trash-2"></i></button>
+                  <span class="qty">1</span>
+                  <button class="btn-add" onclick="aumentarQtd(this)">+</button>
+                </div>
+              </div>
+            </div>
+            <div class="product-card">
+              <img src="imagens/produtos/espumante-b.jpg" alt="Espumante 750ml" class="product-img">
+              <div class="product-name">Espumante 750ml</div>
+              <div class="product-price">R$ 49,90</div>
+              <div class="product-rating">⭐ 4.9</div>
+              <div class="product-actions">
+                <button class="btn-comprar" onclick="adicionarProduto(this)">Comprar</button>
+                <div class="qty-controls">
+                  <button class="btn-remove" onclick="removerProduto(this)"><i data-lucide="trash-2"></i></button>
+                  <span class="qty">1</span>
+                  <button class="btn-add" onclick="aumentarQtd(this)">+</button>
+                </div>
+              </div>
+            </div>
+            <div class="product-card">
+              <img src="imagens/produtos/cafe-pilao-500g-b.jpg" alt="Café Pilão 500g" class="product-img">
+              <div class="product-name">Café Pilão 500g</div>
+              <div class="product-price">R$ 16,90</div>
+              <div class="product-rating">⭐ 4.8</div>
+              <div class="product-actions">
+                <button class="btn-comprar" onclick="adicionarProduto(this)">Comprar</button>
+                <div class="qty-controls">
+                  <button class="btn-remove" onclick="removerProduto(this)"><i data-lucide="trash-2"></i></button>
+                  <span class="qty">1</span>
+                  <button class="btn-add" onclick="aumentarQtd(this)">+</button>
+                </div>
+              </div>
+            </div>
+          </div>
+          <button class="carousel-arrow arrow-right" onclick="moveCarousel(this, 1)">›</button>
+        </div>
+      </section>
+
+      <!-- ===== BANNER de Açougue, leva pro Açougue (por último) ===== -->
+      <section class="promo-banner promo-acougue">
+        <div>
+          <h2>Qualidade que você <span>sente no sabor.</span></h2>
+          <p>Carnes frescas todos os dias.</p>
+          <button class="promo-cta">Confira agora</button>
+        </div>
+        <div class="promo-right">
+          <h2>Açougue</h2>
+          <p>Carnes selecionadas com procedência e qualidade.</p>
+        </div>
+      </section>
+
+      <!-- ===== AÇOUGUE: título + carrossel com setas (agora por último) ===== -->
+      <section class="carousel-section">
+        <div class="carousel-header">
+          <h3>Açougue</h3>
+          <a href="#">Ver mais →</a>
+        </div>
+
+        <div class="carousel-wrapper">
+          <button class="carousel-arrow arrow-left" onclick="moveCarousel(this, -1)">‹</button>
+
+          <div class="carousel-track scroll-target">
+            <div class="product-card">
+              <img src="imagens/produtos/fraldinha.jpg" alt="Fraldinha kg" class="product-img">
+              <div class="product-name">Fraldinha kg</div>
+              <div class="product-price">R$ 34,90</div>
+              <div class="product-rating">⭐ 4.7 (1.680)</div>
+              <div class="product-actions">
+                <button class="btn-comprar" onclick="adicionarProduto(this)">Comprar</button>
+                <div class="qty-controls">
+                  <button class="btn-remove" onclick="removerProduto(this)"><i data-lucide="trash-2"></i></button>
+                  <span class="qty">1</span>
+                  <button class="btn-add" onclick="aumentarQtd(this)">+</button>
+                </div>
+              </div>
+            </div>
+            <div class="product-card">
+              <img src="imagens/produtos/peito-de-frango.jpg" alt="Peito de Frango kg" class="product-img">
+              <div class="product-name">Peito de Frango kg</div>
+              <div class="product-price">R$ 15,90</div>
+              <div class="product-rating">⭐ 4.6 (2.940)</div>
+              <div class="product-actions">
+                <button class="btn-comprar" onclick="adicionarProduto(this)">Comprar</button>
+                <div class="qty-controls">
+                  <button class="btn-remove" onclick="removerProduto(this)"><i data-lucide="trash-2"></i></button>
+                  <span class="qty">1</span>
+                  <button class="btn-add" onclick="aumentarQtd(this)">+</button>
+                </div>
+              </div>
+            </div>
+            <div class="product-card">
+              <img src="imagens/produtos/contrafile.jpg" alt="Contrafilé kg" class="product-img">
+              <div class="product-name">Contrafilé kg</div>
+              <div class="product-price">R$ 42,90</div>
+              <div class="product-rating">⭐ 4.8 (2.107)</div>
+              <div class="product-actions">
+                <button class="btn-comprar" onclick="adicionarProduto(this)">Comprar</button>
+                <div class="qty-controls">
+                  <button class="btn-remove" onclick="removerProduto(this)"><i data-lucide="trash-2"></i></button>
+                  <span class="qty">1</span>
+                  <button class="btn-add" onclick="aumentarQtd(this)">+</button>
+                </div>
+              </div>
+            </div>
+            <div class="product-card">
+              <img src="imagens/produtos/sobrecoxa-de-frango.jpg" alt="Sobrecoxa de Frango kg" class="product-img">
+              <div class="product-name">Sobrecoxa de Frango kg</div>
+              <div class="product-price">R$ 12,90</div>
+              <div class="product-rating">⭐ 4.5 (1.850)</div>
+              <div class="product-actions">
+                <button class="btn-comprar" onclick="adicionarProduto(this)">Comprar</button>
+                <div class="qty-controls">
+                  <button class="btn-remove" onclick="removerProduto(this)"><i data-lucide="trash-2"></i></button>
+                  <span class="qty">1</span>
+                  <button class="btn-add" onclick="aumentarQtd(this)">+</button>
+                </div>
+              </div>
+            </div>
+            <div class="product-card">
+              <img src="imagens/produtos/linguica-calabresa.jpg" alt="Linguiça Calabresa kg" class="product-img">
+              <div class="product-name">Linguiça Calabresa kg</div>
+              <div class="product-price">R$ 17,90</div>
+              <div class="product-rating">⭐ 4.6 (2.230)</div>
+              <div class="product-actions">
+                <button class="btn-comprar" onclick="adicionarProduto(this)">Comprar</button>
+                <div class="qty-controls">
+                  <button class="btn-remove" onclick="removerProduto(this)"><i data-lucide="trash-2"></i></button>
+                  <span class="qty">1</span>
+                  <button class="btn-add" onclick="aumentarQtd(this)">+</button>
+                </div>
+              </div>
+            </div>
+            <div class="product-card">
+              <img src="imagens/produtos/costela-suina.jpg" alt="Costela Suína kg" class="product-img">
+              <div class="product-name">Costela Suína kg</div>
+              <div class="product-price">R$ 22,90</div>
+              <div class="product-rating">⭐ 4.7 (1.395)</div>
+              <div class="product-actions">
+                <button class="btn-comprar" onclick="adicionarProduto(this)">Comprar</button>
+                <div class="qty-controls">
+                  <button class="btn-remove" onclick="removerProduto(this)"><i data-lucide="trash-2"></i></button>
+                  <span class="qty">1</span>
+                  <button class="btn-add" onclick="aumentarQtd(this)">+</button>
+                </div>
+              </div>
+            </div>
+            <div class="product-card">
+              <img src="imagens/produtos/bisteca-suina.jpg" alt="Bisteca Suína kg" class="product-img">
+              <div class="product-name">Bisteca Suína kg</div>
+              <div class="product-price">R$ 19,90</div>
+              <div class="product-rating">⭐ 4.5 (1.640)</div>
+              <div class="product-actions">
+                <button class="btn-comprar" onclick="adicionarProduto(this)">Comprar</button>
+                <div class="qty-controls">
+                  <button class="btn-remove" onclick="removerProduto(this)"><i data-lucide="trash-2"></i></button>
+                  <span class="qty">1</span>
+                  <button class="btn-add" onclick="aumentarQtd(this)">+</button>
+                </div>
+              </div>
+            </div>
+            <div class="product-card">
+              <img src="imagens/produtos/asa-de-frango.jpg" alt="Asa de Frango kg" class="product-img">
+              <div class="product-name">Asa de Frango kg</div>
+              <div class="product-price">R$ 11,90</div>
+              <div class="product-rating">⭐ 4.4 (2.510)</div>
+              <div class="product-actions">
+                <button class="btn-comprar" onclick="adicionarProduto(this)">Comprar</button>
+                <div class="qty-controls">
+                  <button class="btn-remove" onclick="removerProduto(this)"><i data-lucide="trash-2"></i></button>
+                  <span class="qty">1</span>
+                  <button class="btn-add" onclick="aumentarQtd(this)">+</button>
+                </div>
+              </div>
+            </div>
+            <div class="product-card">
+              <img src="imagens/produtos/carne-moida.jpg" alt="Carne Moída kg" class="product-img">
+              <div class="product-name">Carne Moída kg</div>
+              <div class="product-price">R$ 28,90</div>
+              <div class="product-rating">⭐ 4.7 (3.480)</div>
+              <div class="product-actions">
+                <button class="btn-comprar" onclick="adicionarProduto(this)">Comprar</button>
+                <div class="qty-controls">
+                  <button class="btn-remove" onclick="removerProduto(this)"><i data-lucide="trash-2"></i></button>
+                  <span class="qty">1</span>
+                  <button class="btn-add" onclick="aumentarQtd(this)">+</button>
+                </div>
+              </div>
+            </div>
+            <div class="product-card">
+              <img src="imagens/produtos/lagarto.jpg" alt="Lagarto kg" class="product-img">
+              <div class="product-name">Lagarto kg</div>
+              <div class="product-price">R$ 30,90</div>
+              <div class="product-rating">⭐ 4.6 (1.220)</div>
+              <div class="product-actions">
+                <button class="btn-comprar" onclick="adicionarProduto(this)">Comprar</button>
+                <div class="qty-controls">
+                  <button class="btn-remove" onclick="removerProduto(this)"><i data-lucide="trash-2"></i></button>
+                  <span class="qty">1</span>
+                  <button class="btn-add" onclick="aumentarQtd(this)">+</button>
+                </div>
+              </div>
+            </div>
+            <div class="product-card">
+              <img src="imagens/produtos/maminha.jpg" alt="Maminha kg" class="product-img">
+              <div class="product-name">Maminha kg</div>
+              <div class="product-price">R$ 37,90</div>
+              <div class="product-rating">⭐ 4.8 (1.750)</div>
+              <div class="product-actions">
+                <button class="btn-comprar" onclick="adicionarProduto(this)">Comprar</button>
+                <div class="qty-controls">
+                  <button class="btn-remove" onclick="removerProduto(this)"><i data-lucide="trash-2"></i></button>
+                  <span class="qty">1</span>
+                  <button class="btn-add" onclick="aumentarQtd(this)">+</button>
+                </div>
+              </div>
+            </div>
+            <div class="product-card">
+              <img src="imagens/produtos/file-mignon.jpg" alt="Filé Mignon kg" class="product-img">
+              <div class="product-name">Filé Mignon kg</div>
+              <div class="product-price">R$ 59,90</div>
+              <div class="product-rating">⭐ 4.9 (2.890)</div>
+              <div class="product-actions">
+                <button class="btn-comprar" onclick="adicionarProduto(this)">Comprar</button>
+                <div class="qty-controls">
+                  <button class="btn-remove" onclick="removerProduto(this)"><i data-lucide="trash-2"></i></button>
+                  <span class="qty">1</span>
+                  <button class="btn-add" onclick="aumentarQtd(this)">+</button>
+                </div>
+              </div>
+            </div>
+            <div class="product-card">
+              <img src="imagens/produtos/cupim.jpg" alt="Cupim kg" class="product-img">
+              <div class="product-name">Cupim kg</div>
+              <div class="product-price">R$ 36,90</div>
+              <div class="product-rating">⭐ 4.7 (980)</div>
+              <div class="product-actions">
+                <button class="btn-comprar" onclick="adicionarProduto(this)">Comprar</button>
+                <div class="qty-controls">
+                  <button class="btn-remove" onclick="removerProduto(this)"><i data-lucide="trash-2"></i></button>
+                  <span class="qty">1</span>
+                  <button class="btn-add" onclick="aumentarQtd(this)">+</button>
+                </div>
+              </div>
+            </div>
+            <div class="product-card">
+              <img src="imagens/produtos/coracao-de-frango.jpg" alt="Coração de Frango kg" class="product-img">
+              <div class="product-name">Coração de Frango kg</div>
+              <div class="product-price">R$ 14,90</div>
+              <div class="product-rating">⭐ 4.3 (720)</div>
+              <div class="product-actions">
+                <button class="btn-comprar" onclick="adicionarProduto(this)">Comprar</button>
+                <div class="qty-controls">
+                  <button class="btn-remove" onclick="removerProduto(this)"><i data-lucide="trash-2"></i></button>
+                  <span class="qty">1</span>
+                  <button class="btn-add" onclick="aumentarQtd(this)">+</button>
+                </div>
+              </div>
+            </div>
+            <div class="product-card">
+              <img src="imagens/produtos/salsicha.jpg" alt="Salsicha kg" class="product-img">
+              <div class="product-name">Salsicha kg</div>
+              <div class="product-price">R$ 13,90</div>
+              <div class="product-rating">⭐ 4.4 (2.140)</div>
+              <div class="product-actions">
+                <button class="btn-comprar" onclick="adicionarProduto(this)">Comprar</button>
+                <div class="qty-controls">
+                  <button class="btn-remove" onclick="removerProduto(this)"><i data-lucide="trash-2"></i></button>
+                  <span class="qty">1</span>
+                  <button class="btn-add" onclick="aumentarQtd(this)">+</button>
+                </div>
+              </div>
+            </div>
+            <div class="product-card">
+              <img src="imagens/produtos/bacon.jpg" alt="Bacon kg" class="product-img">
+              <div class="product-name">Bacon kg</div>
+              <div class="product-price">R$ 26,90</div>
+              <div class="product-rating">⭐ 4.7 (1.980)</div>
+              <div class="product-actions">
+                <button class="btn-comprar" onclick="adicionarProduto(this)">Comprar</button>
+                <div class="qty-controls">
+                  <button class="btn-remove" onclick="removerProduto(this)"><i data-lucide="trash-2"></i></button>
+                  <span class="qty">1</span>
+                  <button class="btn-add" onclick="aumentarQtd(this)">+</button>
+                </div>
+              </div>
+            </div>
+            <div class="product-card">
+              <img src="imagens/produtos/paleta-suina.jpg" alt="Paleta Suína kg" class="product-img">
+              <div class="product-name">Paleta Suína kg</div>
+              <div class="product-price">R$ 20,90</div>
+              <div class="product-rating">⭐ 4.5 (1.310)</div>
+              <div class="product-actions">
+                <button class="btn-comprar" onclick="adicionarProduto(this)">Comprar</button>
+                <div class="qty-controls">
+                  <button class="btn-remove" onclick="removerProduto(this)"><i data-lucide="trash-2"></i></button>
+                  <span class="qty">1</span>
+                  <button class="btn-add" onclick="aumentarQtd(this)">+</button>
+                </div>
+              </div>
+            </div>
+            <div class="product-card">
+              <img src="imagens/produtos/frango-inteiro.jpg" alt="Frango Inteiro kg" class="product-img">
+              <div class="product-name">Frango Inteiro kg</div>
+              <div class="product-price">R$ 9,90</div>
+              <div class="product-rating">⭐ 4.6 (3.120)</div>
+              <div class="product-actions">
+                <button class="btn-comprar" onclick="adicionarProduto(this)">Comprar</button>
+                <div class="qty-controls">
+                  <button class="btn-remove" onclick="removerProduto(this)"><i data-lucide="trash-2"></i></button>
+                  <span class="qty">1</span>
+                  <button class="btn-add" onclick="aumentarQtd(this)">+</button>
+                </div>
+              </div>
+            </div>
+            <div class="product-card">
+              <img src="imagens/produtos/rabada.jpg" alt="Rabada kg" class="product-img">
+              <div class="product-name">Rabada kg</div>
+              <div class="product-price">R$ 25,90</div>
+              <div class="product-rating">⭐ 4.5 (890)</div>
+              <div class="product-actions">
+                <button class="btn-comprar" onclick="adicionarProduto(this)">Comprar</button>
+                <div class="qty-controls">
+                  <button class="btn-remove" onclick="removerProduto(this)"><i data-lucide="trash-2"></i></button>
+                  <span class="qty">1</span>
+                  <button class="btn-add" onclick="aumentarQtd(this)">+</button>
+                </div>
+              </div>
+            </div>
+            <div class="product-card">
+              <img src="imagens/produtos/carne-para-panela.jpg" alt="Carne para Panela kg" class="product-img">
+              <div class="product-name">Carne para Panela kg</div>
+              <div class="product-price">R$ 27,90</div>
+              <div class="product-rating">⭐ 4.6 (1.560)</div>
+              <div class="product-actions">
+                <button class="btn-comprar" onclick="adicionarProduto(this)">Comprar</button>
+                <div class="qty-controls">
+                  <button class="btn-remove" onclick="removerProduto(this)"><i data-lucide="trash-2"></i></button>
+                  <span class="qty">1</span>
+                  <button class="btn-add" onclick="aumentarQtd(this)">+</button>
+                </div>
+              </div>
+            </div>
+          </div>
+
+          <button class="carousel-arrow arrow-right" onclick="moveCarousel(this, 1)">›</button>
+        </div>
+      </section>
+
+    </main>
+
+    <!-- ----- Coluna 3: Painel lateral direito (vitrine, ofertas, app, pedidos, ajuda) ----- -->
+    <aside class="right-panel">
+
+      <!-- Box de destaque escuro, convidando marcas a anunciar -->
+      <div class="panel-box panel-dark">
+        <strong>Vitrine de Marcas</strong>
+        <p>Sua marca em destaque no Hoje! Anuncie e alcance mais clientes.</p>
+        <button>Saiba mais →</button>
+      </div>
+
+      <!-- Box com contador regressivo de ofertas relâmpago -->
+      <div class="panel-box">
+        <strong>⚡ Ofertas Relâmpago</strong>
+        <p>Descontos por tempo limitado!</p>
+        <div class="countdown">
+          <span>01<br><small>DIA</small></span>
+          <span>06<br><small>HRS</small></span>
+          <span>24<br><small>MIN</small></span>
+          <span>37<br><small>SEG</small></span>
+        </div>
+      </div>
+
+      <!-- Box com selos de download do app (App Store / Google Play) -->
+      <div class="panel-box">
+        <div class="panel-header">
+          <i data-lucide="smartphone" class="panel-icon"></i>
+          <div>
+            <strong>Compre pelo app</strong>
+            <p>Mais praticidade na sua rotina.</p>
+          </div>
+        </div>
+        <div class="panel-actions">
+          <a href="#"><img src="imagens/app-baixar/apple_store.png" alt="Baixar na App Store" class="store-badge"></a>
+          <a href="#"><img src="imagens/app-baixar/android_play.png" alt="Disponível no Google Play" class="store-badge"></a>
+        </div>
+      </div>
+
+      <!-- Box de acesso rápido aos pedidos do cliente -->
+      <div class="panel-box">
+        <div class="panel-header">
+          <i data-lucide="package" class="panel-icon"></i>
+          <div>
+            <strong>Meus pedidos</strong>
+            <p>Acompanhe seus pedidos de forma fácil e rápida.</p>
+          </div>
+        </div>
+        <div class="panel-actions">
+          <button>Acessar meus pedidos →</button>
+        </div>
+      </div>
+
+      <!-- Box de atendimento ao cliente -->
+      <div class="panel-box">
+        <div class="panel-header">
+          <i data-lucide="headphones" class="panel-icon"></i>
+          <div>
+            <strong>Precisa de ajuda?</strong>
+            <p>Fale com a gente.</p>
+          </div>
+        </div>
+        <div class="panel-actions">
+          <button>Atendimento online</button>
+        </div>
+      </div>
+
+    </aside>
+
+  </div>
+
+  <!-- ===================================================== -->
+  <!-- RODAPÉ: faixa verde final com logo branco, pagamento, pix, atendimento, app -->
+  <!-- ===================================================== -->
+  <footer class="footer">
+    <div class="footer-logo">
+      <img src="imagens/logo/logo-branco.webp" alt="Hoje">
+    </div>
+
+    <div class="footer-item">
+      <i data-lucide="credit-card"></i>
+      <div>
+        <strong>Pagamento facilitado</strong>
+        <p>Até 12x no cartão</p>
+      </div>
+    </div>
+
+    <div class="footer-item">
+      <i data-lucide="zap"></i>
+      <div>
+        <strong>Pix</strong>
+        <p>Mais rapidez e segurança</p>
+      </div>
+    </div>
+
+    <div class="footer-item">
+      <i data-lucide="headphones"></i>
+      <div>
+        <strong>Atendimento ao cliente</strong>
+        <p>Segunda a domingo - 8h às 22h</p>
+      </div>
+    </div>
+
+    <div class="footer-item">
+      <i data-lucide="smartphone"></i>
+      <div>
+        <strong>Baixe o app e aproveite</strong>
+        <p>Ofertas exclusivas e mais!</p>
+      </div>
+    </div>
+  </footer>
+
+  <!-- script.js precisa vir ANTES de chamar as funções nele definidas -->
+  <script src="script.js"></script>
+  <script>
+    document.addEventListener('DOMContentLoaded', () => {
+      adicionarBotoesFavorito();
+      adicionarCategoriasProdutos();
+      if (window.lucide) {
+        window.lucide.createIcons();
+      }
+
+      document.querySelectorAll('img').forEach((img) => {
+        img.addEventListener('error', () => {
+          const fallback = document.createElement('div');
+          fallback.className = 'img-fallback';
+          fallback.textContent = 'Imagem indisponível';
+          img.replaceWith(fallback);
+        }, { once: true });
+      });
+    });
+  </script>
+
+</body>
+</html>
