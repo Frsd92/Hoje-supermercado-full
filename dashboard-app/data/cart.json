@@ -1,0 +1,82 @@
+{
+  "rogerdiogenesofficial@gmail.com": [
+    {
+      "productId": "XLSX-7891000000001",
+      "name": "Banana Prata",
+      "category": "Hortifruti",
+      "price": "R$ 73,00",
+      "image": "",
+      "quantity": 1
+    }
+  ],
+  "guest:bcf9f7fb-8bce-42f5-8128-4799e4fad5d5": [
+    {
+      "price": "R$ 8,00",
+      "category": "Teste",
+      "name": "Produto de teste",
+      "quantity": 2
+    }
+  ],
+  "guest:0822b540-388d-4e13-a9d8-6721ec409b0c": [
+    {
+      "name": "Arroz Tipo 1 5kg",
+      "category": "Mercearia",
+      "price": "R$ 52,27",
+      "image": "file:///C:/Users/Roges/Desktop/Hoje%20Supermercado/index.html",
+      "quantity": 1
+    }
+  ],
+  "guest:8e2f3d8b-0d76-4948-8613-d7ab0da74d94": [
+    {
+      "name": "Arroz Tipo 1 5kg",
+      "category": "Mercearia",
+      "price": "R$ 52,27",
+      "image": "file:///C:/Users/Roges/Desktop/Hoje%20Supermercado/index.html",
+      "quantity": 1
+    }
+  ],
+  "guest:test-cart-351b2e22-c188-4c13-8817-e07cbf25a5f7": [],
+  "guest:cd9ee051-8707-4457-8dc3-0fd7be6c0c4b": [
+    {
+      "name": "Arroz Tipo 1 5kg",
+      "category": "Mercearia",
+      "price": "R$ 52,27",
+      "image": "file:///C:/Users/Roges/Desktop/Hoje%20Supermercado/index.html",
+      "quantity": 1
+    }
+  ],
+  "guest:3843ce7e-6e75-41cc-9de7-48e86d0c8246": [
+    {
+      "name": "Arroz Tipo 1 5kg",
+      "category": "Mercearia",
+      "price": "R$ 52,27",
+      "image": "file:///C:/Users/Roges/Desktop/Hoje%20Supermercado/index.html",
+      "quantity": 1
+    }
+  ],
+  "guest:a4118bf8-3dc2-4ba1-b83c-346121bc0620": [
+    {
+      "name": "Arroz Tipo 1 5kg",
+      "category": "Mercearia",
+      "price": "R$ 52,27",
+      "image": "file:///C:/Users/Roges/Desktop/Hoje%20Supermercado/index.html",
+      "quantity": 1
+    },
+    {
+      "name": "Feijão Preto 1kg",
+      "category": "Mercearia",
+      "price": "R$ 49,29",
+      "image": "file:///C:/Users/Roges/Desktop/Hoje%20Supermercado/index.html",
+      "quantity": 1
+    }
+  ],
+  "guest:3f6479c1-9fa9-4735-b750-bcf877fac9f0": [
+    {
+      "name": "Maçã Gala",
+      "category": "Frutas & Verduras",
+      "price": "R$ 58,43",
+      "image": "http://localhost:5500/",
+      "quantity": 1
+    }
+  ]
+}
