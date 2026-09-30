@@ -2130,3 +2130,262 @@ body {
 
 .category-topbar { position: static; }
 .category-search { max-width: 460px; }
+
+/* ===================================================== */
+/* Inicio página de politica. */
+/* ===================================================== */
+  .policy-breadcrumb {
+    max-width: 900px;
+    margin: 20px auto 0;
+    padding: 0 20px;
+  }
+  .policy-breadcrumb a {
+    color: #2e7d32;
+    text-decoration: none;
+    font-weight: 600;
+    font-size: 14px;
+  }
+  .policy-breadcrumb a:hover {
+    text-decoration: underline;
+  }
+  .policy-page {
+    max-width: 900px;
+    margin: 20px auto 60px;
+    padding: 0 20px;
+    font-family: inherit;
+    color: #222;
+    line-height: 1.6;
+  }
+  .policy-container h1 {
+    font-size: 28px;
+    color: #1b5e20;
+    margin-bottom: 4px;
+  }
+  .policy-meta {
+    font-size: 13px;
+    color: #666;
+    margin-bottom: 30px;
+  }
+  .policy-container h2 {
+    font-size: 20px;
+    color: #2e7d32;
+    margin-top: 36px;
+    margin-bottom: 10px;
+    border-bottom: 2px solid #e0e0e0;
+    padding-bottom: 6px;
+  }
+  .policy-container h3 {
+    font-size: 16px;
+    color: #333;
+    margin-top: 20px;
+    margin-bottom: 8px;
+  }
+  .policy-container p, .policy-container li {
+    font-size: 15px;
+  }
+  .policy-container ul, .policy-container ol {
+    padding-left: 22px;
+    margin-bottom: 12px;
+  }
+  .policy-note {
+    background: #fff8e1;
+    border-left: 4px solid #f9a825;
+    padding: 12px 16px;
+    margin: 16px 0;
+    font-size: 14px;
+  }
+  .policy-table {
+    width: 100%;
+    border-collapse: collapse;
+    margin: 12px 0 20px;
+    font-size: 14px;
+  }
+  .policy-table th, .policy-table td {
+    border: 1px solid #e0e0e0;
+    padding: 8px 10px;
+    text-align: left;
+  }
+  .policy-table th {
+    background: #f1f8e9;
+    color: #1b5e20;
+  }
+  .footer-bottom {
+    width: 100%;
+    text-align: center;
+    margin-top: 20px;
+    padding-top: 16px;
+    border-top: 1px solid rgba(255,255,255,0.15);
+    font-size: 13px;
+  }
+  .footer-bottom p {
+    margin: 0 0 6px;
+    opacity: 0.8;
+  }
+  .footer-bottom a {
+    color: inherit;
+    text-decoration: underline;
+  }
+/* ===================================================== */
+/* Fim página de serviço */
+/* ===================================================== */
+
+/* ===================================================== */
+/* Início Termos de uso */
+/* ===================================================== */
+
+/* ===================================================================
+   Estilos da página de Termos de Serviço
+   Reaproveita as mesmas classes já usadas em politica-de-privacidade.html
+   Adicione ao seu style.css (o bloco .policy-toc é novo, os demais já
+   devem existir se a política de privacidade já estiver no ar).
+   =================================================================== */
+
+.policy-breadcrumb {
+  max-width: 900px;
+  margin: 20px auto 0;
+  padding: 0 20px;
+}
+.policy-breadcrumb a {
+  color: #2e7d32;
+  text-decoration: none;
+  font-weight: 600;
+  font-size: 14px;
+}
+.policy-breadcrumb a:hover {
+  text-decoration: underline;
+}
+.policy-page {
+  max-width: 900px;
+  margin: 20px auto 60px;
+  padding: 0 20px;
+  font-family: inherit;
+  color: #222;
+  line-height: 1.6;
+}
+.policy-container h1 {
+  font-size: 28px;
+  color: #1b5e20;
+  margin-bottom: 4px;
+}
+.policy-meta {
+  font-size: 13px;
+  color: #666;
+  margin-bottom: 30px;
+}
+.policy-container h2 {
+  font-size: 20px;
+  color: #2e7d32;
+  margin-top: 36px;
+  margin-bottom: 10px;
+  border-bottom: 2px solid #e0e0e0;
+  padding-bottom: 6px;
+}
+.policy-container h3 {
+  font-size: 16px;
+  color: #333;
+  margin-top: 20px;
+  margin-bottom: 8px;
+}
+.policy-container p, .policy-container li {
+  font-size: 15px;
+}
+.policy-container ul, .policy-container ol {
+  padding-left: 22px;
+  margin-bottom: 12px;
+}
+.policy-note {
+  background: #fff8e1;
+  border-left: 4px solid #f9a825;
+  padding: 12px 16px;
+  margin: 16px 0;
+  font-size: 14px;
+}
+.policy-table {
+  width: 100%;
+  border-collapse: collapse;
+  margin: 12px 0 20px;
+  font-size: 14px;
+}
+.policy-table th, .policy-table td {
+  border: 1px solid #e0e0e0;
+  padding: 8px 10px;
+  text-align: left;
+}
+.policy-table th {
+  background: #f1f8e9;
+  color: #1b5e20;
+}
+.fill {
+  background: #f1f8e9;
+  color: #1b5e20;
+  padding: 1px 6px;
+  border-radius: 4px;
+}
+.footer-bottom {
+  width: 100%;
+  text-align: center;
+  margin-top: 20px;
+  padding-top: 16px;
+  border-top: 1px solid rgba(255,255,255,0.15);
+  font-size: 13px;
+}
+.footer-bottom p {
+  margin: 0 0 6px;
+  opacity: 0.8;
+}
+.footer-bottom a {
+  color: inherit;
+  text-decoration: underline;
+}
+
+/* -------- Índice (novo, usado nos Termos de Serviço) -------- */
+.policy-toc {
+  background: #f1f8e9;
+  border: 1px solid #e0e0e0;
+  border-radius: 8px;
+  padding: 16px 20px;
+  margin-bottom: 28px;
+}
+.policy-toc summary {
+  cursor: pointer;
+  font-weight: 700;
+  color: #1b5e20;
+  list-style: none;
+}
+.policy-toc summary::-webkit-details-marker {
+  display: none;
+}
+.policy-toc summary::after {
+  content: " ▾";
+  font-size: .85em;
+}
+.policy-toc[open] summary::after {
+  content: " ▴";
+}
+.policy-toc ol {
+  columns: 2;
+  column-gap: 24px;
+  margin: 14px 0 2px;
+  padding-left: 20px;
+  font-size: 14px;
+}
+.policy-toc li {
+  margin-bottom: 6px;
+  break-inside: avoid;
+}
+.policy-toc a {
+  color: #222;
+  text-decoration: none;
+}
+.policy-toc a:hover {
+  color: #2e7d32;
+  text-decoration: underline;
+}
+@media (max-width: 560px) {
+  .policy-table { font-size: 13px; }
+  .policy-toc ol { columns: 1; }
+}
+
+/* ===================================================== */
+/* Fim página de termo de uso */
+/* ===================================================== */

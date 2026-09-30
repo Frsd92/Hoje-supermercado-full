@@ -1,0 +1,342 @@
+
+Politica de privacidade · HTML
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Política de Privacidade | Hoje Supermercados</title>
+  <link rel="icon" type="image/webp" href="imagens/logo/logo-hj.webp">
+  <link rel="stylesheet" href="style.css">
+  <script src="https://unpkg.com/lucide@latest"></script>
+</head>
+<body>
+ 
+  <!-- ===================== TOPBAR (igual ao index.html) ===================== -->
+  <header class="topbar">
+    <div class="topbar-item">
+      <i data-lucide="shield-check"></i>
+      <div class="topbar-text">
+        <strong>Compra segura</strong>
+        <span>seus dados protegidos</span>
+      </div>
+    </div>
+ 
+    <div class="topbar-item">
+      <i data-lucide="clock"></i>
+      <div class="topbar-text">
+        <strong>Entrega rápida</strong>
+        <span>receba no seu endereço</span>
+      </div>
+    </div>
+ 
+    <div class="topbar-item login-trigger" id="login-trigger" role="button" tabindex="0" aria-label="Entrar ou abrir minha conta">
+      <i data-lucide="user"></i>
+      <div class="topbar-text">
+        <strong id="store-user-name">Olá, faça seu login</strong>
+        <span id="store-user-status">ou cadastre-se</span>
+      </div>
+    </div>
+ 
+    <div class="topbar-item">
+      <i data-lucide="heart"></i>
+      <div class="topbar-text">
+        <strong>Meus favoritos</strong>
+        <span id="store-favorites-count">Entre para favoritar</span>
+      </div>
+    </div>
+ 
+    <div class="topbar-item cart-trigger" id="cart-trigger">
+      <div class="cart-icon-wrap" aria-label="Abrir carrinho">
+        <i data-lucide="shopping-cart"></i>
+        <span id="cart-badge" class="cart-badge">0</span>
+      </div>
+      <div class="topbar-text">
+        <strong>Meu carrinho</strong>
+        <span id="cart-total">R$ 0,00</span>
+      </div>
+    </div>
+  </header>
+ 
+  <!-- ===================== NAVEGAÇÃO SIMPLES DE VOLTA ===================== -->
+  <div class="policy-breadcrumb">
+    <a href="index.html">← Voltar para a loja</a>
+  </div>
+ 
+  <!-- ===================== CONTEÚDO DA POLÍTICA ===================== -->
+  <main class="policy-page">
+    <div class="policy-container">
+ 
+      <h1>Política de Privacidade</h1>
+      <p class="policy-meta"><strong>Última atualização:</strong> 25 de setembro de 2026 &nbsp;|&nbsp; <strong>Versão:</strong> 1.0</p>
+ 
+      <section>
+        <h2>1. Introdução e aceite</h2>
+        <p>Esta Política de Privacidade ("Política") descreve de forma detalhada como <strong>a Hoje Supermercados</strong>, inscrita no CNPJ nº <strong>36.915.196/0001-91</strong> ("nós", "nosso" ou "Hoje"), coleta, utiliza, armazena, compartilha, transfere e protege os dados pessoais dos usuários ("você", "usuário" ou "titular") que acessam ou utilizam nosso site, aplicativo, e demais canais digitais (em conjunto, "Plataforma").</p>
+        <p>Esta Política está em conformidade com a <strong>Lei Geral de Proteção de Dados Pessoais (LGPD – Lei nº 13.709/2018)</strong>, o <strong>Marco Civil da Internet (Lei nº 12.965/2014)</strong> e o <strong>Código de Defesa do Consumidor (Lei nº 8.078/1990)</strong>, no que for aplicável.</p>
+        <p>Ao acessar, cadastrar-se ou utilizar qualquer funcionalidade da Plataforma, você declara ter lido, compreendido e concordado com os termos desta Política. Caso não concorde, recomendamos que não utilize nossos serviços.</p>
+      </section>
+ 
+      <section>
+        <h2>2. Definições</h2>
+        <ul>
+          <li><strong>Dado pessoal:</strong> informação relacionada a pessoa natural identificada ou identificável.</li>
+          <li><strong>Dado pessoal sensível:</strong> dado sobre origem racial/étnica, convicção religiosa, opinião política, saúde, vida sexual, dado genético ou biométrico.</li>
+          <li><strong>Titular:</strong> pessoa natural a quem se referem os dados pessoais tratados.</li>
+          <li><strong>Tratamento:</strong> toda operação realizada com dados pessoais (coleta, uso, armazenamento, compartilhamento, eliminação, etc.).</li>
+          <li><strong>Controlador:</strong> a Hoje Supermercados, responsável pelas decisões sobre o tratamento de dados.</li>
+          <li><strong>Operador:</strong> terceiros que tratam dados pessoais em nome do controlador (ex.: gateway de pagamento, empresas de logística).</li>
+          <li><strong>Encarregado (DPO):</strong> pessoa indicada para atuar como canal de comunicação entre controlador, titulares e a ANPD.</li>
+          <li><strong>ANPD:</strong> Autoridade Nacional de Proteção de Dados.</li>
+        </ul>
+      </section>
+ 
+      <section>
+        <h2>3. Dados que coletamos</h2>
+ 
+        <h3>3.1 Dados fornecidos diretamente por você</h3>
+        <p><strong>Cadastro e identificação:</strong></p>
+        <ul>
+          <li>Nome completo</li>
+          <li>CPF e/ou RG</li>
+          <li>Data de nascimento</li>
+          <li>E-mail</li>
+          <li>Telefone/WhatsApp</li>
+          <li>Senha de acesso (armazenada com hash criptográfico, nunca em texto puro)</li>
+          <li>Foto de perfil (opcional)</li>
+          <li>Dados recebidos ao fazer login social via <strong>Google, Apple ou Facebook</strong> (nome, e-mail e foto de perfil associados à conta utilizada)</li>
+        </ul>
+ 
+        <p><strong>Endereço e entrega:</strong></p>
+        <ul>
+          <li>Endereço(s) completo(s) de entrega</li>
+          <li>Ponto de referência</li>
+          <li>CEP, cidade, estado</li>
+        </ul>
+ 
+        <p><strong>Dados de pagamento:</strong></p>
+        <ul>
+          <li>Dados de cartão de crédito/débito (número tokenizado, bandeira, validade)</li>
+          <li>Dados de PIX (chave utilizada na transação)</li>
+          <li>Dados de boleto, quando aplicável</li>
+          <li>Histórico de compras, valores e formas de pagamento utilizadas</li>
+        </ul>
+ 
+        <div class="policy-note">
+          ⚠️ <strong>Importante:</strong> os dados sensíveis de cartão (número completo, CVV) <strong>não são armazenados</strong> em nossos servidores. Esses dados são processados diretamente pelo gateway de pagamento parceiro, seguindo o padrão de segurança <strong>PCI-DSS</strong>.
+        </div>
+ 
+        <p><strong>Comunicação:</strong></p>
+        <ul>
+          <li>Mensagens enviadas via chat, SAC, WhatsApp ou formulários de contato</li>
+          <li>Avaliações, comentários e reviews de produtos</li>
+        </ul>
+ 
+        <h3>3.2 Dados coletados automaticamente</h3>
+        <ul>
+          <li>Endereço IP</li>
+          <li>Identificadores de dispositivo (device ID, advertising ID)</li>
+          <li>Tipo de dispositivo, sistema operacional e navegador</li>
+          <li>Geolocalização aproximada e precisa (mediante permissão, para entrega e lojas próximas)</li>
+          <li>Páginas visitadas, produtos visualizados, tempo de navegação</li>
+          <li>Itens adicionados ao carrinho e lista de desejos</li>
+          <li>Histórico de buscas dentro da Plataforma</li>
+          <li>Cliques, movimentos e interações (heatmaps, quando aplicável)</li>
+          <li>Logs de acesso, data e horário</li>
+        </ul>
+ 
+        <h3>3.3 Dados de terceiros (login social)</h3>
+        <p>Ao optar por entrar na Plataforma usando <strong>Google, Apple ou Facebook</strong>, recebemos da respectiva plataforma os dados que você autorizar o compartilhamento (normalmente nome, e-mail e foto de perfil). Recomendamos que você também consulte as políticas de privacidade dessas plataformas.</p>
+ 
+        <h3>3.4 Cookies e tecnologias similares</h3>
+        <table class="policy-table">
+          <thead>
+            <tr><th>Tipo de cookie</th><th>Finalidade</th><th>Exemplos</th></tr>
+          </thead>
+          <tbody>
+            <tr><td>Essenciais</td><td>Funcionamento básico da Plataforma, login, carrinho</td><td>Sessão, autenticação</td></tr>
+            <tr><td>Desempenho/Analytics</td><td>Medir uso, identificar erros, melhorar performance</td><td>Google Analytics</td></tr>
+            <tr><td>Funcionais</td><td>Lembrar preferências (idioma, loja favorita)</td><td>Preferências de usuário</td></tr>
+            <tr><td>Marketing/Publicidade</td><td>Personalizar anúncios e medir campanhas</td><td>Meta Pixel, Google Ads, TikTok Pixel</td></tr>
+          </tbody>
+        </table>
+        <p>Você pode gerenciar suas preferências de cookies através do banner de consentimento exibido na Plataforma ou nas configurações do seu navegador. A desativação de cookies essenciais pode comprometer o funcionamento do site/app.</p>
+      </section>
+ 
+      <section>
+        <h2>4. Finalidades do tratamento de dados</h2>
+        <ol>
+          <li>Criar, autenticar e gerenciar sua conta ("Minha Conta"), incluindo via login social</li>
+          <li>Processar pedidos, pagamentos, trocas e devoluções</li>
+          <li>Coordenar entregas e retiradas em loja</li>
+          <li>Emitir notas fiscais e cumprir obrigações fiscais/contábeis</li>
+          <li>Administrar programas de cupons, descontos e pontos de fidelidade</li>
+          <li>Enviar notificações transacionais (confirmação de pedido, status de entrega)</li>
+          <li>Personalizar recomendações de produtos e ofertas</li>
+          <li>Realizar pesquisas de satisfação e melhorias no atendimento</li>
+          <li>Enviar comunicações de marketing e promoções (mediante consentimento, com opção de descadastro)</li>
+          <li>Realizar análises estatísticas, testes A/B e melhorias na Plataforma</li>
+          <li>Prevenir, detectar e investigar fraudes, abusos e atividades ilícitas</li>
+          <li>Garantir a segurança da informação e da infraestrutura</li>
+          <li>Cumprir determinações judiciais, administrativas ou regulatórias</li>
+          <li>Exercer regularmente direitos em processos judiciais, administrativos ou arbitrais</li>
+        </ol>
+      </section>
+ 
+      <section>
+        <h2>5. Base legal para o tratamento (art. 7º e 11 da LGPD)</h2>
+        <table class="policy-table">
+          <thead>
+            <tr><th>Finalidade</th><th>Base legal</th></tr>
+          </thead>
+          <tbody>
+            <tr><td>Processar pedidos e pagamentos</td><td>Execução de contrato</td></tr>
+            <tr><td>Emitir nota fiscal</td><td>Cumprimento de obrigação legal</td></tr>
+            <tr><td>Cookies de marketing e comunicações promocionais</td><td>Consentimento</td></tr>
+            <tr><td>Prevenção a fraudes e segurança</td><td>Legítimo interesse</td></tr>
+            <tr><td>Login social (Google/Apple/Facebook)</td><td>Consentimento</td></tr>
+            <tr><td>Melhoria de produtos/serviços</td><td>Legítimo interesse</td></tr>
+            <tr><td>Atendimento a ordem judicial</td><td>Cumprimento de obrigação legal</td></tr>
+          </tbody>
+        </table>
+        <p>Você pode retirar seu consentimento a qualquer momento, sem prejuízo da legalidade do tratamento realizado anteriormente.</p>
+      </section>
+ 
+      <section>
+        <h2>6. Compartilhamento de dados pessoais</h2>
+        <p>Podemos compartilhar seus dados com as seguintes categorias de terceiros, sempre limitado ao necessário para a finalidade:</p>
+        <ul>
+          <li>Processador de pagamento (adquirente/gateway — a ser definido)</li>
+          <li>Empresas de logística e transportadoras</li>
+          <li>Fornecedores de tecnologia (hospedagem em nuvem, e-mail marketing, CRM, analytics)</li>
+          <li>Provedores de login social (Google, Apple, Facebook), conforme sua opção de acesso</li>
+          <li>Prestadores de suporte e atendimento ao cliente</li>
+          <li>Auditores, consultores e assessores jurídicos, quando necessário</li>
+          <li>Autoridades públicas, judiciais ou reguladoras, mediante requisição legal</li>
+          <li>Parceiros comerciais, exclusivamente para execução de programas de fidelidade, sempre de forma anonimizada quando possível</li>
+        </ul>
+        <p><strong>Não vendemos, alugamos ou comercializamos seus dados pessoais a terceiros</strong> para fins não relacionados aos serviços prestados.</p>
+        <p>Em caso de fusão, aquisição ou reestruturação societária, seus dados poderão ser transferidos, sendo você notificado sobre eventuais mudanças relevantes nesta Política.</p>
+ 
+        <h3>6.1 Transferência internacional de dados</h3>
+        <p>Caso algum de nossos fornecedores esteja localizado fora do Brasil (ex.: serviços de nuvem internacionais, provedores de login social), garantimos que a transferência observará os mecanismos previstos na LGPD (cláusulas contratuais padrão, decisão de adequação da ANPD, ou outras garantias legais).</p>
+      </section>
+ 
+      <section>
+        <h2>7. Armazenamento, retenção e segurança dos dados</h2>
+        <h3>7.1 Segurança</h3>
+        <ul>
+          <li>Criptografia de dados em trânsito (SSL/TLS) e em repouso</li>
+          <li>Controle de acesso baseado em função (RBAC)</li>
+          <li>Monitoramento contínuo contra acessos não autorizados</li>
+          <li>Conformidade PCI-DSS para dados de pagamento (via parceiro processador)</li>
+          <li>Backups periódicos e planos de continuidade de negócio</li>
+        </ul>
+ 
+        <h3>7.2 Retenção</h3>
+        <ul>
+          <li><strong>Dados de conta:</strong> enquanto sua conta estiver ativa, e por até 6 meses após inatividade/exclusão, salvo obrigação legal de retenção maior</li>
+          <li><strong>Dados fiscais e de transação:</strong> mínimo de 5 anos, conforme legislação tributária brasileira</li>
+          <li><strong>Dados de marketing:</strong> até a revogação do consentimento</li>
+          <li><strong>Logs de acesso:</strong> conforme Marco Civil da Internet, mínimo de 6 meses (aplicações) e 1 ano (conexão)</li>
+        </ul>
+        <p>Após esse período, os dados são anonimizados ou eliminados de forma segura.</p>
+ 
+        <h3>7.3 Incidentes de segurança</h3>
+        <p>Em caso de incidente que possa acarretar risco relevante aos titulares, comunicaremos a ANPD e os titulares afetados, conforme exigido pela LGPD, com informações sobre a natureza do incidente, dados afetados e medidas adotadas.</p>
+      </section>
+ 
+      <section>
+        <h2>8. Seus direitos como titular de dados (art. 18 da LGPD)</h2>
+        <ol>
+          <li>Confirmação da existência de tratamento de dados</li>
+          <li>Acesso aos seus dados pessoais</li>
+          <li>Correção de dados incompletos, inexatos ou desatualizados</li>
+          <li>Anonimização, bloqueio ou eliminação de dados desnecessários ou tratados em desconformidade com a lei</li>
+          <li>Portabilidade dos dados a outro fornecedor de serviço</li>
+          <li>Eliminação dos dados pessoais tratados com base no consentimento</li>
+          <li>Informação sobre entidades públicas/privadas com as quais compartilhamos dados</li>
+          <li>Informação sobre a possibilidade de não fornecer consentimento e suas consequências</li>
+          <li>Revogação do consentimento a qualquer momento</li>
+          <li>Oposição a tratamento realizado com base em legítimo interesse, em caso de descumprimento da LGPD</li>
+          <li>Revisão de decisões automatizadas que afetem seus interesses (ex.: recomendações, se aplicável)</li>
+        </ol>
+        <p><strong>Prazo de resposta:</strong> responderemos às suas solicitações em até 15 (quinze) dias, podendo ser prorrogado mediante justificativa.</p>
+      </section>
+ 
+      <section>
+        <h2>9. Menores de idade</h2>
+        <p>Nossos serviços destinam-se a pessoas maiores de 18 anos. Não coletamos intencionalmente dados de menores de idade sem o consentimento específico e em destaque de um dos pais ou responsável legal, conforme art. 14 da LGPD. Caso identifiquemos coleta indevida, os dados serão eliminados.</p>
+      </section>
+ 
+      <section>
+        <h2>10. Alterações nesta Política</h2>
+        <p>Esta Política pode ser atualizada periodicamente para refletir mudanças legais, operacionais ou tecnológicas. Alterações materiais serão comunicadas por e-mail, notificação no app ou aviso destacado no site. A data da última atualização estará sempre indicada no topo deste documento.</p>
+      </section>
+ 
+      <section>
+        <h2>11. Encarregado de Dados (DPO) e canais de contato</h2>
+        <p>
+          📧 <strong>E-mail:</strong> [inserir e-mail do DPO/privacidade]<br>
+          📞 <strong>Telefone/WhatsApp:</strong> [inserir]<br>
+          📍 <strong>Endereço:</strong> Rua Acre, s/n, Águas de Lindóia - SP, CEP 13940-252<br>
+          🏢 <strong>CNPJ:</strong> 36.915.196/0001-91
+        </p>
+        <p>Caso não fique satisfeito com nossa resposta, você também pode registrar reclamação junto à Autoridade Nacional de Proteção de Dados (ANPD) através do site: <a href="https://www.gov.br/anpd" target="_blank" rel="noopener">www.gov.br/anpd</a></p>
+      </section>
+ 
+      <section>
+        <h2>12. Foro</h2>
+        <p>Fica eleito o foro da comarca de <strong>Águas de Lindóia - SP</strong> para dirimir eventuais controvérsias decorrentes desta Política, com renúncia a qualquer outro, por mais privilegiado que seja.</p>
+      </section>
+ 
+    </div>
+  </main>
+ 
+  <!-- ===================== FOOTER (igual ao index.html) ===================== -->
+  <footer class="footer">
+    <div class="footer-logo">
+      <img src="imagens/logo/logo-branco.webp" alt="Hoje">
+    </div>
+ 
+    <div class="footer-item">
+      <i data-lucide="credit-card"></i>
+      <div>
+        <strong>Pagamento facilitado</strong>
+        <p>Até 12x no cartão</p>
+      </div>
+    </div>
+ 
+    <div class="footer-item">
+      <i data-lucide="zap"></i>
+      <div>
+        <strong>Pix</strong>
+        <p>Mais rapidez e segurança</p>
+      </div>
+    </div>
+ 
+    <div class="footer-item">
+      <i data-lucide="headphones"></i>
+      <div>
+        <strong>Atendimento ao cliente</strong>
+        <p>Segunda a domingo - 8h às 22h</p>
+      </div>
+    </div>
+ 
+    <div class="footer-item">
+      <i data-lucide="smartphone"></i>
+      <div>
+        <strong>Baixe o app e aproveite</strong>
+        <p>Ofertas exclusivas e mais!</p>
+      </div>
+    </div>
+ 
+    <div class="footer-bottom">
+      <p>&copy; 2026 Hoje Supermercados. Todos os direitos reservados. CNPJ 36.915.196/0001-91</p>
+      <a href="politica-de-privacidade.html">Política de Privacidade</a>
+    </div>
+  </footer>
+ 
+  <script>
+    lucide.createIcons();
+  </script>
