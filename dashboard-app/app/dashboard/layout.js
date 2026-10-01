@@ -204,6 +204,8 @@ export default function DashboardLayout({ children }) {
   useEffect(() => {
     const cartStorageKey = `hoje-dashboard-cart-${session?.user?.email || 'guest'}`;
     let active = true;
+    let cartRequest = null;
+    let refreshAfterCurrentRequest = false;
     const applyCart = (cart) => {
       if (!Array.isArray(cart)) return;
       const normalizedCart = normalizeCartItems(cart);
@@ -220,31 +222,51 @@ export default function DashboardLayout({ children }) {
       }
     };
 
-    const localCart = readLocalCart();
-    if (Array.isArray(localCart)) {
-      const normalizedCart = normalizeCartItems(localCart);
-      applyCart(normalizedCart);
-      localStorage.setItem(cartStorageKey, JSON.stringify(normalizedCart));
-    } else {
-      fetch('/api/cart')
+    const loadCartFromServer = () => {
+      if (cartRequest) {
+        refreshAfterCurrentRequest = true;
+        return cartRequest;
+      }
+
+      const localCartAtRequestStart = localStorage.getItem(cartStorageKey);
+      cartRequest = fetch('/api/cart', { cache: 'no-store' })
         .then((response) => {
           if (!response.ok) throw new Error('Carrinho indisponível');
           return response.json();
         })
         .then(({ cart = [] }) => {
-          if (!active || localStorage.getItem(cartStorageKey) !== null) return;
+          if (!active || localStorage.getItem(cartStorageKey) !== localCartAtRequestStart) return;
           const normalizedCart = normalizeCartItems(cart);
           applyCart(normalizedCart);
           localStorage.setItem(cartStorageKey, JSON.stringify(normalizedCart));
+          window.dispatchEvent(new CustomEvent('dashboard-cart-updated', { detail: normalizedCart }));
         })
         .catch((error) => {
-          if (active) setCheckoutStatus(`Não foi possível carregar o carrinho salvo: ${error.message}`);
+          if (active) setCheckoutStatus(`Não foi possível atualizar o carrinho salvo: ${error.message}`);
+        })
+        .finally(() => {
+          cartRequest = null;
+          const shouldRefresh = refreshAfterCurrentRequest && active && document.visibilityState === 'visible';
+          refreshAfterCurrentRequest = false;
+          if (shouldRefresh) void loadCartFromServer();
         });
+      return cartRequest;
+    };
+
+    const localCart = readLocalCart();
+    if (Array.isArray(localCart)) {
+      const normalizedCart = normalizeCartItems(localCart);
+      applyCart(normalizedCart);
+      localStorage.setItem(cartStorageKey, JSON.stringify(normalizedCart));
     }
+    void loadCartFromServer();
 
     const handleCartUpdated = (event) => {
       const updatedCart = Array.isArray(event.detail) ? event.detail : readLocalCart();
       if (Array.isArray(updatedCart)) applyCart(updatedCart);
+    };
+    const refreshCartWhenVisible = () => {
+      if (document.visibilityState === 'visible') void loadCartFromServer();
     };
 
     fetch('/api/favorites', { cache: 'no-store' })
@@ -262,6 +284,8 @@ export default function DashboardLayout({ children }) {
     };
     window.addEventListener('dashboard-favorites-updated', handleFavoritesUpdated);
     window.addEventListener('dashboard-cart-updated', handleCartUpdated);
+    window.addEventListener('pageshow', refreshCartWhenVisible);
+    document.addEventListener('visibilitychange', refreshCartWhenVisible);
     const handleOpenCart = () => {
       setCartOpen(true);
       setCheckoutStatus('');
@@ -280,6 +304,8 @@ export default function DashboardLayout({ children }) {
       window.removeEventListener('keydown', handleShortcut);
       window.removeEventListener('dashboard-favorites-updated', handleFavoritesUpdated);
       window.removeEventListener('dashboard-cart-updated', handleCartUpdated);
+      window.removeEventListener('pageshow', refreshCartWhenVisible);
+      document.removeEventListener('visibilitychange', refreshCartWhenVisible);
       window.removeEventListener('dashboard-open-cart', handleOpenCart);
     };
   }, [session?.user?.email]);

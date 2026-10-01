@@ -41,7 +41,6 @@ export default function DashboardHomePage() {
 
   useEffect(() => {
     if (status !== 'authenticated') return;
-    let active = true;
     const cartStorageKey = `hoje-dashboard-cart-${session?.user?.email || 'guest'}`;
     const applyCart = (nextCart) => {
       if (Array.isArray(nextCart)) setCart(nextCart);
@@ -59,23 +58,6 @@ export default function DashboardHomePage() {
     const localCart = readLocalCart();
     if (localCart) {
       applyCart(localCart);
-    } else {
-      fetch('/api/cart', { cache: 'no-store' })
-        .then((response) => {
-          if (!response.ok) throw new Error('Não foi possível carregar o carrinho.');
-          return response.json();
-        })
-        .then(({ cart: savedCart = [] }) => {
-          if (!active) return;
-          const latestLocalCart = readLocalCart();
-          if (latestLocalCart) {
-            applyCart(latestLocalCart);
-            return;
-          }
-          applyCart(savedCart);
-          localStorage.setItem(cartStorageKey, JSON.stringify(savedCart));
-        })
-        .catch((error) => console.error(error));
     }
 
     const handleCartUpdated = (event) => {
@@ -88,7 +70,6 @@ export default function DashboardHomePage() {
     window.addEventListener('dashboard-cart-updated', handleCartUpdated);
     window.addEventListener('storage', handleStorage);
     return () => {
-      active = false;
       window.removeEventListener('dashboard-cart-updated', handleCartUpdated);
       window.removeEventListener('storage', handleStorage);
     };

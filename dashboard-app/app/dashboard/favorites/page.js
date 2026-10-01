@@ -50,23 +50,15 @@ export default function FavoritesPage() {
       } catch {
         setFeedback('Não foi possível ler o carrinho salvo neste dispositivo.');
       }
-    } else {
-      fetch('/api/cart', { cache: 'no-store' })
-        .then((response) => {
-          if (!response.ok) throw new Error('Não foi possível carregar o carrinho.');
-          return response.json();
-        })
-        .then(({ cart = [] }) => {
-          if (!active) return;
-          const normalizedCart = normalizeCartItems(cart);
-          setCartItems(normalizedCart);
-          localStorage.setItem(cartStorageKey, JSON.stringify(normalizedCart));
-        })
-        .catch((error) => {
-          if (active) setFeedback(error.message);
-        });
     }
-    return () => { active = false; };
+    const handleCartUpdated = (event) => {
+      if (Array.isArray(event.detail)) setCartItems(normalizeCartItems(event.detail));
+    };
+    window.addEventListener('dashboard-cart-updated', handleCartUpdated);
+    return () => {
+      active = false;
+      window.removeEventListener('dashboard-cart-updated', handleCartUpdated);
+    };
   }, [session?.user?.email]);
 
   const saveCart = async (nextCart) => {
