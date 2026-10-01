@@ -4,6 +4,7 @@ import { useSession } from 'next-auth/react';
 import { ArrowRight, Heart, Minus, Plus, ShoppingCart, Star, Tag } from 'lucide-react';
 import { useEffect, useState } from 'react';
 import { adjustCartQuantity, formatCartQuantity, normalizeCartItems } from '../cart-utils';
+import { syncFavoritesWithCatalog } from '../favorite-utils';
 
 const FAVORITES_API = '/api/favorites';
 
@@ -17,26 +18,43 @@ export default function FavoritesPage() {
   useEffect(() => {
     let active = true;
     const cartStorageKey = `hoje-dashboard-cart-${session?.user?.email || 'guest'}`;
-    fetch(FAVORITES_API, { cache: 'no-store' })
-      .then((response) => {
+    const loadFavorites = async () => {
+      let mappedFavorites;
+      try {
+        const response = await fetch(FAVORITES_API, { cache: 'no-store' });
         if (!response.ok) throw new Error('Não foi possível carregar os favoritos.');
-        return response.json();
-      })
-      .then(({ favorites: savedFavorites = [] }) => {
-        if (!active) return;
-        const mappedFavorites = savedFavorites.map((item, index) => ({
+        const { favorites: savedFavorites = [] } = await response.json();
+        mappedFavorites = savedFavorites.map((item, index) => ({
           ...item,
           quantity: item.quantity || 1,
           rating: item.rating || '4.8',
           label: index % 2 === 0 ? 'Oferta' : 'Promoção',
           tagClass: index % 2 === 0 ? 'offer' : 'promo',
         }));
-        setFavorites(mappedFavorites);
-        window.dispatchEvent(new CustomEvent('dashboard-favorites-updated', { detail: mappedFavorites.length }));
-      })
-      .catch((error) => {
+      } catch (error) {
         if (active) setFeedback(error.message);
-      });
+        return;
+      }
+
+      if (!active) return;
+      setFavorites(mappedFavorites);
+      window.dispatchEvent(new CustomEvent('dashboard-favorites-updated', { detail: mappedFavorites.length }));
+
+      try {
+        const response = await fetch('/api/products', { cache: 'no-store' });
+        const catalog = await response.json();
+        if (!response.ok) throw new Error(catalog.error || 'Catálogo indisponível.');
+        if (!Array.isArray(catalog.products)) throw new Error('Resposta inválida do catálogo.');
+        if (!active) return;
+        const currentFavorites = syncFavoritesWithCatalog(mappedFavorites, catalog.products);
+        setFavorites(currentFavorites);
+        setFeedback('');
+      } catch (error) {
+        if (active) setFeedback(`Favoritos carregados, mas não foi possível atualizar os dados dos produtos: ${error.message}`);
+      }
+    };
+
+    void loadFavorites();
 
     const localCart = localStorage.getItem(cartStorageKey);
     if (localCart !== null) {

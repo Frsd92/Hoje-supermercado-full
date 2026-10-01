@@ -8,6 +8,7 @@ import { CircleDollarSign, Heart, Package, ShoppingCart, Sparkles, TrendingUp } 
 import { formatCurrency, getBudgetProgress, getCurrentMonthSpend } from './budget';
 import { readLocalBudget } from './budget-storage';
 import { getCartItemCount } from './cart-utils';
+import { syncFavoritesWithCatalog } from './favorite-utils';
 import { getOrderStatus } from './order-status';
 
 export default function DashboardHomePage() {
@@ -21,23 +22,42 @@ export default function DashboardHomePage() {
 
   useEffect(() => {
     if (status !== 'authenticated') return;
+    let active = true;
     Promise.all([
-      fetch('/api/favorites').then((response) => response.json()),
+      fetch('/api/favorites', { cache: 'no-store' }).then((response) => response.json()),
       fetch('/api/my/orders').then((response) => response.json()),
       fetch('/api/profile').then((response) => response.ok ? response.json() : { profile: null }),
     ]).then(([favoriteData, orderData, profileData]) => {
+      if (!active) return;
       setFavorites(favoriteData.favorites || []);
       setOrders(orderData.orders || []);
       setProfile({
         ...(profileData.profile || { monthlyBudget: 0, photo: null, googlePhoto: '' }),
         monthlyBudget: readLocalBudget(session?.user?.email) ?? profileData.profile?.monthlyBudget ?? 0,
       });
+      fetch('/api/products', { cache: 'no-store' })
+        .then(async (response) => {
+          const catalog = await response.json();
+          if (!response.ok) throw new Error(catalog.error || 'Catálogo indisponível.');
+          if (!Array.isArray(catalog.products)) throw new Error('Resposta inválida do catálogo.');
+          return catalog.products;
+        })
+        .then((products) => {
+          if (active) setFavorites((currentFavorites) => syncFavoritesWithCatalog(currentFavorites, products));
+        })
+        .catch((error) => {
+          if (active) console.error('Não foi possível atualizar os dados dos produtos favoritos:', error);
+        });
     }).catch(() => {
+      if (!active) return;
       setFavorites([]);
       setOrders([]);
       setProfile({ monthlyBudget: 0, photo: null, googlePhoto: '' });
     });
-  }, [status]);
+    return () => {
+      active = false;
+    };
+  }, [status, session?.user?.email]);
 
   useEffect(() => {
     if (status !== 'authenticated') return;

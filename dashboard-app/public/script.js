@@ -295,6 +295,7 @@ function obterDadosFavorito(card) {
   priceElement?.querySelector('.old-price')?.remove();
 
   return {
+    productId: card.dataset.id || '',
     name: nome,
     category: card.querySelector('.product-category')?.textContent.trim() || inferirCategoria(nome),
     price: priceElement?.textContent.trim() || 'R$ 0,00',
