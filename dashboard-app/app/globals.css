@@ -6039,16 +6039,15 @@ button.metric-mini:focus-visible {
   }
 
   .topbar .left {
-    display: grid;
-    grid-template-columns: minmax(0, 1fr) auto;
-    align-items: center;
+    display: flex;
+    flex-direction: column;
+    align-items: stretch;
     gap: 8px;
     width: 100%;
-    flex-wrap: nowrap;
   }
 
   .topbar-search-wrap {
-    width: auto;
+    width: 100%;
     min-width: 0;
     flex-direction: row;
     align-items: stretch;
@@ -6073,8 +6072,9 @@ button.metric-mini:focus-visible {
   }
 
   .top-icons {
-    width: auto;
-    gap: 5px;
+    width: 100%;
+    justify-content: flex-end;
+    gap: 8px;
   }
 
   .topbar .right {
@@ -6141,7 +6141,8 @@ button.metric-mini:focus-visible {
 
   .metric-mini-value {
     overflow-wrap: anywhere;
-    font-size: clamp(1.05rem, 5.5vw, 1.45rem);
+    font-size: clamp(0.95rem, 4.2vw, 1.12rem);
+    line-height: 1.15;
   }
 
   .metric-mini-label {

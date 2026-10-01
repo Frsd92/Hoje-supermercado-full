@@ -8,8 +8,8 @@ function getPrismaClient() {
   if (globalForPrisma.prisma) return globalForPrisma.prisma;
   if (!connectionString) throw new Error('DATABASE_URL precisa estar configurada para acessar o banco de dados.');
 
-  const client = new PrismaClient({ adapter: new PrismaPg({ connectionString }) });
-  if (process.env.NODE_ENV !== 'production') globalForPrisma.prisma = client;
+  const client = new PrismaClient({ adapter: new PrismaPg({ connectionString, max: 1 }) });
+  globalForPrisma.prisma = client;
   return client;
 }
 
