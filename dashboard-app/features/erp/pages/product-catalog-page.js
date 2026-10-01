@@ -101,7 +101,7 @@ export default function ProductCatalogPage() {
           const margin = price > 0 ? Math.round(((price - cost) / price) * 100) : 0;
           const identity = product.id || product.sku || product.title;
           return <tr key={product.id}>
-            <td><strong>{product.title}</strong><small>{product.sku || product.id} · {product.brand || 'Sem marca'}</small></td>
+            <td><div className="product-catalog-identity"><span className="erp-product-thumbnail">{product.image ? <img src={product.image} alt="" loading="lazy" decoding="async" /> : <Package size={18} aria-hidden="true" />}</span><span><strong>{product.title}</strong><small>{product.sku || product.id} · {product.brand || 'Sem marca'}</small></span></div></td>
             <td>{product.categories?.join(', ') || '—'}</td>
             <td><strong>{product.quantity || 0}{product.saleUnit === 'Quilograma' ? ' kg' : ''}</strong><small>{product.subcategory || 'Sem subcategoria'}</small></td>
             <td>{currency(cost)}{product.saleUnit === 'Quilograma' ? ' / kg' : ''}</td>

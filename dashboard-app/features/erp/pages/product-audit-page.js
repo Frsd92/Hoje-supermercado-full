@@ -2,8 +2,8 @@
 
 import Link from 'next/link';
 import { useCallback, useEffect, useState } from 'react';
-import { ChevronDown, ExternalLink, History, Search } from 'lucide-react';
-import { formatAuditValue } from '../api/product-audit.js';
+import { ChevronDown, ExternalLink, History, Package, Search } from 'lucide-react';
+import { formatAuditValue, getAuditProductImage } from '../api/product-audit.js';
 
 const actionLabels = {
   CREATE: 'Cadastro inicial',
@@ -183,10 +183,11 @@ export default function ProductAuditPage() {
     {!loading && entries.length > 0 && <section className="product-audit-list" aria-label="Registros de auditoria">
       {entries.map((entry) => {
         const productId = entry.productExternalId || entry.productId;
+        const productImage = getAuditProductImage(entry, entry.productImage);
         return <details className="product-audit-record" key={entry.id}>
           <summary>
             <span className={`product-audit-action ${entry.action === 'CREATE' ? 'create' : entry.action === 'UPDATE' ? 'update' : ''}`}>{actionLabels[entry.action] || entry.action}</span>
-            <span className="product-audit-product"><strong>{entry.productTitle}</strong><small>{productId}</small></span>
+            <span className="product-audit-product"><span className="erp-product-thumbnail">{productImage ? <img src={productImage} alt="" loading="lazy" decoding="async" /> : <Package size={18} aria-hidden="true" />}</span><span><strong>{entry.productTitle}</strong><small>{productId}</small></span></span>
             <span className="product-audit-actor">{entry.actor}</span>
             <time dateTime={entry.occurredAt}>{dateTime.format(new Date(entry.occurredAt))} BRT</time>
             <ChevronDown className="product-audit-chevron" size={17} />

@@ -1,6 +1,6 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
-import { findProductIdentityConflict, formatAuditValue, getProductAuditChanges, productAuditSnapshot, productIdentityKeys } from './product-audit.js';
+import { findProductIdentityConflict, formatAuditValue, getAuditProductImage, getProductAuditChanges, productAuditSnapshot, productIdentityKeys } from './product-audit.js';
 
 test('normalizes product names so accents, case, and spacing do not create duplicate identities', () => {
   assert.equal(productIdentityKeys({ title: '  MAÇÃ   Gala ' }).identityTitle, 'maca gala');
@@ -54,4 +54,12 @@ test('formats audit values without hiding structured data', () => {
   assert.equal(formatAuditValue(false), 'Não');
   assert.equal(formatAuditValue(['A', 'B']), 'A, B');
   assert.equal(formatAuditValue(''), '—');
+});
+
+test('resolves audit thumbnails from historical image data before the current product image', () => {
+  assert.equal(getAuditProductImage({ snapshot: { image: 'created-image' } }, 'current-image'), 'created-image');
+  assert.equal(getAuditProductImage({ changes: { image: { before: 'old-image', after: 'new-image' } } }, 'current-image'), 'new-image');
+  assert.equal(getAuditProductImage({ changes: { image: { before: 'old-image', after: { __auditAbsent: true } } } }, 'current-image'), 'old-image');
+  assert.equal(getAuditProductImage({ changes: { title: { before: 'A', after: 'B' } } }, 'current-image'), 'current-image');
+  assert.equal(getAuditProductImage({ snapshot: { image: null } }), '');
 });

@@ -1,6 +1,7 @@
 import { getServerSession } from 'next-auth';
 import { authOptions } from '@/auth';
 import { hasErpAccess } from '@/features/erp/access';
+import { getAuditProductImage } from '@/features/erp/api/product-audit';
 import { prisma } from '@/lib/prisma';
 
 export async function GET(request) {
@@ -72,8 +73,22 @@ export async function GET(request) {
     ]);
     const hasMore = results.length > limit;
     const entries = hasMore ? results.slice(0, limit) : results;
+    const productIds = [...new Set(entries.map((entry) => entry.productId))];
+    const products = productIds.length
+      ? await prisma.product.findMany({
+        where: { id: { in: productIds } },
+        select: { id: true, image: true },
+      })
+      : [];
+    const currentImages = new Map(products.map((product) => [product.id, product.image || '']));
     return Response.json({
-      entries,
+      entries: entries.map((entry) => {
+        const historicalImage = getAuditProductImage(entry);
+        return {
+          ...entry,
+          productImage: historicalImage ? '' : currentImages.get(entry.productId) || '',
+        };
+      }),
       total,
       nextCursor: hasMore ? entries.at(-1)?.id || null : null,
     }, { headers: { 'Cache-Control': 'private, no-store, max-age=0' } });

@@ -4784,7 +4784,7 @@ button.metric-mini:focus-visible {
 .erp-shell { min-height: 100vh; display: flex; background: #f7f8fa; color: #101826; }
 .erp-sidebar { width: 248px; flex-shrink: 0; padding: 18px 12px; border-right: 1px solid #e5e7eb; background: #fff; display: flex; flex-direction: column; }
 .erp-brand { display: flex; align-items: center; gap: 10px; padding: 8px 10px 24px; }
-.erp-brand-mark { width: 34px; height: 34px; display: grid; place-items: center; border-radius: 9px; background: #17171a; color: #fff; font-weight: 900; }
+.erp-brand-mark { width: 34px; height: 34px; display: block; flex: 0 0 34px; padding: 2px; border: 1px solid #e5e7eb; border-radius: 9px; background: #fff; object-fit: contain; }
 .erp-brand span, .erp-brand strong { display: block; }
 .erp-brand span { color: #15803d; font-size: .62rem; font-weight: 900; letter-spacing: .12em; }
 .erp-brand strong { margin-top: 3px; font-size: .88rem; }
@@ -4860,7 +4860,9 @@ button.metric-mini:focus-visible {
 .product-audit-action { width: fit-content; padding: 5px 8px; border-radius: 999px; background: #f1f5f9; color: #475569; font-size: .68rem; font-weight: 800; }
 .product-audit-action.create { background: #dcfce7; color: #166534; }
 .product-audit-action.update { background: #dbeafe; color: #1d4ed8; }
+.product-audit-product { display: flex; align-items: center; gap: 10px; min-width: 0; }
 .product-audit-product strong, .product-audit-product small { display: block; }
+.product-audit-product > span:last-child { min-width: 0; }
 .product-audit-product strong { color: #1e293b; font-size: .82rem; }
 .product-audit-product small { margin-top: 3px; color: #94a3b8; font-size: .67rem; }
 .product-audit-actor, .product-audit-record time { color: #64748b; font-size: .74rem; }
@@ -5265,6 +5267,10 @@ button.metric-mini:focus-visible {
 .erp-table td { padding: 13px 8px; border-bottom: 1px solid rgba(148,163,184,.12); }
 .erp-table td strong, .erp-table td small { display: block; }
 .erp-table td small { margin-top: 4px; color: var(--muted); font-size: .67rem; }
+.product-catalog-identity { display: flex; align-items: center; gap: 10px; min-width: 170px; }
+.product-catalog-identity > span:last-child { min-width: 0; }
+.erp-product-thumbnail { display: grid; flex: 0 0 44px; width: 44px; height: 44px; place-items: center; overflow: hidden; border: 1px solid #e2e8f0; border-radius: 9px; background-color: #fff; background-image: linear-gradient(45deg, #edf1f5 25%, transparent 25%), linear-gradient(-45deg, #edf1f5 25%, transparent 25%), linear-gradient(45deg, transparent 75%, #edf1f5 75%), linear-gradient(-45deg, transparent 75%, #edf1f5 75%); background-position: 0 0, 0 8px, 8px -8px, -8px 0; background-size: 16px 16px; color: #94a3b8; }
+.erp-product-thumbnail img { display: block; width: 100%; height: 100%; object-fit: contain; }
 .erp-status { display: inline-flex; padding: 5px 8px; border-radius: 999px; background: #dcfce7; color: #166534; font-size: .67rem; font-weight: 800; }
 .erp-status.sem-estoque { background: #ffe4e6; color: #be123c; }
 .erp-status.estoque-baixo { background: #fef3c7; color: #92400e; }

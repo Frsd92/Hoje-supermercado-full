@@ -58,6 +58,19 @@ export function getProductAuditChanges(before, after) {
   }]));
 }
 
+export function getAuditProductImage(entry, currentImage = '') {
+  const snapshotImage = entry?.snapshot?.image;
+  if (typeof snapshotImage === 'string' && snapshotImage) return snapshotImage;
+
+  const imageChange = entry?.changes?.image;
+  if (imageChange && typeof imageChange === 'object') {
+    if (typeof imageChange.after === 'string' && imageChange.after) return imageChange.after;
+    if (typeof imageChange.before === 'string' && imageChange.before) return imageChange.before;
+  }
+
+  return typeof currentImage === 'string' ? currentImage : '';
+}
+
 export function formatAuditValue(value) {
   if (value && typeof value === 'object' && value.__auditAbsent === true) return 'Campo não informado';
   if (value === null || value === undefined || value === '') return '—';

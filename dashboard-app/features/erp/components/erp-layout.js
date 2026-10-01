@@ -41,7 +41,7 @@ export default function ERPLayout({ children }) {
     <div className="erp-shell">
       <aside className="erp-sidebar">
         <div className="erp-brand">
-          <div className="erp-brand-mark">H</div>
+          <img className="erp-brand-mark" src="/imagens/logo/logo-hj.webp" alt="Logo Hoje" />
           <div><span>HOJE</span><strong>ERP Operacional</strong></div>
         </div>
         <nav className="erp-nav" aria-label="Navegação ERP">
