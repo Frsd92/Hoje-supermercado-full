@@ -25,6 +25,7 @@ import {
   UserRound,
   LogOut,
   X,
+  Menu,
 } from 'lucide-react';
 
 const navItems = [
@@ -84,6 +85,7 @@ export default function DashboardLayout({ children }) {
   const [profileName, setProfileName] = useState('');
   const [notifications, setNotifications] = useState([]);
   const [notificationsOpen, setNotificationsOpen] = useState(false);
+  const [mobileNavOpen, setMobileNavOpen] = useState(false);
   const cartItemsRef = useRef([]);
   const cartWriteQueueRef = useRef(Promise.resolve());
   const savedAddressesRef = useRef([]);
@@ -93,6 +95,10 @@ export default function DashboardLayout({ children }) {
     const storedMethod = localStorage.getItem(paymentMethodStorageKey(session?.user?.email));
     if (storedMethod && paymentMethods.includes(storedMethod)) setPaymentMethod(storedMethod);
   }, [session?.user?.email]);
+
+  useEffect(() => {
+    setMobileNavOpen(false);
+  }, [pathname]);
 
   useEffect(() => {
     const colorScheme = window.matchMedia('(prefers-color-scheme: light)');
@@ -550,14 +556,25 @@ export default function DashboardLayout({ children }) {
               <p className="brand-kicker">Cliente</p>
               <h2>Hoje Supermercado</h2>
             </div>
+            <button
+              type="button"
+              className="sidebar-menu-toggle"
+              aria-label={mobileNavOpen ? 'Fechar menu' : 'Abrir menu'}
+              aria-expanded={mobileNavOpen}
+              onClick={() => setMobileNavOpen((open) => !open)}
+            >
+              {mobileNavOpen ? <X size={20} /> : <Menu size={20} />}
+            </button>
           </div>
 
-          <nav className="sidebar-nav">
+          {mobileNavOpen && <div className="sidebar-nav-backdrop" onClick={() => setMobileNavOpen(false)} />}
+
+          <nav className={`sidebar-nav ${mobileNavOpen ? 'mobile-open' : ''}`}>
             {navItems.map(({ label, href, icon: Icon }) => {
               const active = pathname === href || (href !== '/dashboard' && pathname.startsWith(href));
 
               return (
-                <Link key={label} href={href} className={`sidebar-item ${active ? 'active' : ''}`}>
+                <Link key={label} href={href} className={`sidebar-item ${active ? 'active' : ''}`} onClick={() => setMobileNavOpen(false)}>
                   <Icon size={18} />
                   <span>{label}</span>
                 </Link>
