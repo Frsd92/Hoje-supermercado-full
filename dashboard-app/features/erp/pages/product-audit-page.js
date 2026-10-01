@@ -194,7 +194,7 @@ export default function ProductAuditPage() {
           <div className="product-audit-record-body">
             <div className="product-audit-record-meta"><span><strong>Responsável:</strong> {entry.actor}</span><span><strong>Data e hora:</strong> {dateTime.format(new Date(entry.occurredAt))} (BRT)</span>{entry.note && <p>{entry.note}</p>}</div>
             <AuditFields entry={entry} />
-            {entry.action !== 'DELETE' && <Link className="product-audit-edit-link" href={`/erp/products/cadastro?edit=${encodeURIComponent(productId)}`}>Abrir produto para editar <ExternalLink size={14} /></Link>}
+            {entry.action !== 'DELETE' && <Link className="product-audit-edit-link" href={`/erp/catalog?edit=${encodeURIComponent(productId)}`}>Abrir produto para editar <ExternalLink size={14} /></Link>}
           </div>
         </details>;
       })}
