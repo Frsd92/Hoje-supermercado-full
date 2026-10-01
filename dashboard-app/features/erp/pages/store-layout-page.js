@@ -1,7 +1,7 @@
 'use client';
 
 import { useCallback, useEffect, useState } from 'react';
-import { ImagePlus, LayoutTemplate, LoaderCircle, Save } from 'lucide-react';
+import { ImagePlus, LayoutTemplate, LoaderCircle, Save, Trash2 } from 'lucide-react';
 
 const MAX_UPLOAD_BYTES = 10 * 1024 * 1024;
 const MAX_ENCODED_LENGTH = 3_300_000;
@@ -142,6 +142,30 @@ export default function StoreLayoutPage() {
     }
   };
 
+  const removeImage = async (slot) => {
+    if (!slot.imageUrl || !window.confirm(`Remover a arte personalizada de “${slot.label}” e voltar para o banner padrão?`)) return;
+
+    setSavingKey(slot.key);
+    setError('');
+    setFeedback('');
+    try {
+      const response = await fetch(`/api/erp/store-layout?key=${encodeURIComponent(slot.key)}`, { method: 'DELETE' });
+      const data = await response.json();
+      if (!response.ok) throw new Error(data.error || 'Não foi possível remover a imagem do banner.');
+      await loadSlots();
+      setDrafts((current) => {
+        const next = { ...current };
+        delete next[slot.key];
+        return next;
+      });
+      setFeedback(`Arte personalizada de “${slot.label}” removida. A Loja voltou ao banner padrão.`);
+    } catch (removeError) {
+      setError(removeError.message || 'Não foi possível remover a imagem do banner.');
+    } finally {
+      setSavingKey('');
+    }
+  };
+
   return <div className="erp-page store-layout-page">
     <header className="store-layout-header">
       <div><span className="eyebrow">Personalização da Loja</span><h1>Layout</h1><p>Troque as artes dos banners da Loja. Cada espaço está identificado com sua localização e dimensão recomendada em pixels.</p></div>
@@ -175,6 +199,7 @@ export default function StoreLayoutPage() {
               event.target.value = '';
             }} /></label>
             <button type="button" className="primary-cta" disabled={!draft || saving} onClick={() => saveImage(slot)}>{saving ? <LoaderCircle size={15} className="store-layout-spinner" /> : <Save size={15} />}{saving ? 'Salvando...' : 'Salvar na Loja'}</button>
+            {slot.imageUrl && <button type="button" className="store-layout-remove" disabled={saving} onClick={() => removeImage(slot)}><Trash2 size={15} />Remover banner</button>}
           </div>
         </article>;
       })}

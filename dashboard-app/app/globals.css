@@ -5284,6 +5284,9 @@ button.metric-mini:focus-visible {
 .store-layout-updated { margin: 9px 0 0; color: #64748b; font-size: .66rem; }
 .store-layout-actions { display: flex; flex-wrap: wrap; justify-content: space-between; gap: 8px; margin-top: 13px; }
 .store-layout-actions .primary-cta { min-height: 36px; padding: 8px 11px; font-size: .7rem; }
+.store-layout-remove { display: inline-flex; align-items: center; justify-content: center; gap: 6px; min-height: 36px; padding: 8px 11px; border: 1px solid #fecaca; border-radius: 8px; background: #fff7f7; color: #b91c1c; cursor: pointer; font-size: .7rem; font-weight: 750; }
+.store-layout-remove:hover:not(:disabled) { border-color: #fca5a5; background: #fee2e2; }
+.store-layout-remove:disabled { cursor: wait; opacity: .6; }
 .store-layout-upload { position: relative; display: inline-flex; align-items: center; justify-content: center; gap: 6px; min-height: 36px; padding: 8px 11px; overflow: hidden; border: 1px solid #cbd5e1; border-radius: 8px; background: #fff; color: #334155; cursor: pointer; font-size: .7rem; font-weight: 750; }
 .store-layout-upload:hover { background: #f8fafc; }
 .store-layout-upload input { position: absolute; inset: 0; width: 100%; height: 100%; opacity: 0; cursor: pointer; }

@@ -10,7 +10,7 @@ export async function GET() {
       return updatedAt ? [{ key: slot.key, imageUrl: `/api/store-layout/${slot.key}?v=${updatedAt.getTime()}` }] : [];
     });
     return Response.json({ banners }, {
-      headers: { 'Cache-Control': 'public, max-age=30, stale-while-revalidate=120' },
+      headers: { 'Cache-Control': 'no-store' },
     });
   } catch (error) {
     console.error('Não foi possível carregar os banners gerenciados da Loja:', error);

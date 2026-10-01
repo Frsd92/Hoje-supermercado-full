@@ -67,3 +67,19 @@ export async function PUT(request) {
     return Response.json({ error: 'Não foi possível salvar a imagem. Verifique a conexão com o banco de dados.' }, { status: 500 });
   }
 }
+
+export async function DELETE(request) {
+  const session = await getServerSession(authOptions);
+  if (!hasErpAccess(session?.user)) return Response.json({ error: 'Acesso negado.' }, { status: 403 });
+
+  const key = new URL(request.url).searchParams.get('key') || '';
+  if (!getStoreLayoutSlot(key)) return Response.json({ error: 'Selecione um banner válido do layout da Loja.' }, { status: 400 });
+
+  try {
+    const result = await prisma.storeLayoutAsset.deleteMany({ where: { key } });
+    return Response.json({ removed: result.count > 0 });
+  } catch (error) {
+    console.error('Não foi possível remover a imagem do layout da Loja:', error);
+    return Response.json({ error: 'Não foi possível remover a imagem. Verifique a conexão com o banco de dados.' }, { status: 500 });
+  }
+}

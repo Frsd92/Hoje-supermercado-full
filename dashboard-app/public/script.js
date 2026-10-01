@@ -786,6 +786,35 @@ function inicializarCarrinho() {
         return;
       }
 
+      const subtotal = carrinhoItens.reduce((sum, item) => sum + item.preco * item.qty, 0);
+      const desconto = cupomAplicado.codigo === couponCode ? subtotal * cupomAplicado.percentual / 100 : 0;
+      const total = Math.max(0, subtotal - desconto);
+      const paymentMethodLabels = {
+        pix: 'Pix',
+        cartao: 'Cartão',
+        dinheiro: 'Dinheiro',
+        outro: 'Outro',
+      };
+      const itensResumo = carrinhoItens.map((item) => {
+        const unidade = item.saleUnit === 'Quilograma' ? 'kg' : 'un.';
+        return `• ${item.nome} — ${formatarQuantidade(item.qty, item.saleUnit === 'Quilograma')} ${unidade} — ${formatarPreco(item.preco * item.qty)}`;
+      });
+      const resumoPedido = [
+        'Confira seu pedido antes de confirmar:',
+        '',
+        ...itensResumo,
+        '',
+        `Subtotal: ${formatarPreco(subtotal)}`,
+        `Desconto: ${formatarPreco(desconto)}`,
+        'Frete: R$ 0,00',
+        `Total: ${formatarPreco(total)}`,
+        `Endereço: ${deliveryAddress.selectedOptions[0].textContent}`,
+        `Pagamento: ${paymentMethodLabels[document.getElementById('payment-method')?.value] || 'Outro'}`,
+        '',
+        'Ao continuar, você confirma os itens e as condições exibidas. Deseja enviar o pedido?',
+      ].join('\n');
+      if (!window.confirm(resumoPedido)) return;
+
       try {
         const paymentSelect = document.getElementById('payment-method');
         const paymentMethod = PAYMENT_METHODS.includes(paymentSelect?.value) ? paymentSelect.value : 'outro';
