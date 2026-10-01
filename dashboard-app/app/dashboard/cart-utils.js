@@ -1,3 +1,7 @@
+function normalizeCartProductName(value) {
+  return String(value || '').trim().toLowerCase().normalize('NFD').replace(/[\u0300-\u036f]/g, '');
+}
+
 export function getCartItemCount(cart) {
   if (!Array.isArray(cart)) return 0;
   return cart.reduce((total, item) => {
@@ -5,6 +9,20 @@ export function getCartItemCount(cart) {
     const quantity = Number(item?.quantity);
     return total + (Number.isFinite(quantity) && quantity > 0 ? quantity : 1);
   }, 0);
+}
+
+export function isSameCartProduct(cartItem, product) {
+  const cartProductId = String(cartItem?.productId || cartItem?.id || '').trim();
+  const productId = String(product?.productId || product?.id || '').trim();
+  if (cartProductId && productId) return cartProductId === productId;
+
+  const cartProductName = normalizeCartProductName(cartItem?.name);
+  return Boolean(cartProductName && cartProductName === normalizeCartProductName(product?.name));
+}
+
+export function removeCartProduct(cart, product) {
+  if (!Array.isArray(cart)) return [];
+  return cart.filter((item) => !isSameCartProduct(item, product));
 }
 
 export function normalizeCartItems(cart) {

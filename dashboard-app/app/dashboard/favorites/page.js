@@ -1,9 +1,9 @@
 'use client';
 
 import { useSession } from 'next-auth/react';
-import { ArrowRight, Heart, Minus, Plus, ShoppingCart, Star, Tag } from 'lucide-react';
+import { ArrowRight, Heart, Plus, ShoppingCart, Star, Tag, Trash2 } from 'lucide-react';
 import { useEffect, useState } from 'react';
-import { adjustCartQuantity, formatCartQuantity, normalizeCartItems } from '../cart-utils';
+import { adjustCartQuantity, formatCartQuantity, isSameCartProduct, normalizeCartItems, removeCartProduct } from '../cart-utils';
 import { syncFavoritesWithCatalog } from '../favorite-utils';
 
 const FAVORITES_API = '/api/favorites';
@@ -99,24 +99,18 @@ export default function FavoritesPage() {
     }
   };
 
-  const changeCartQuantity = (item, delta) => {
-    const currentItem = cartItems.find((cartItem) => cartItem.name === item.name);
-    const saleUnit = item.saleUnit === 'Quilograma' || currentItem?.saleUnit === 'Quilograma' ? 'Quilograma' : 'Unidade';
-    const nextCart = cartItems
-      .map((cartItem) => cartItem.name === item.name
-        ? { ...cartItem, saleUnit, quantity: adjustCartQuantity(cartItem.quantity, delta, saleUnit) }
-        : cartItem)
-    saveCart(nextCart);
-  };
-
   const addToCart = (item) => {
-    const existing = cartItems.find((cartItem) => cartItem.name === item.name);
+    const existing = cartItems.find((cartItem) => isSameCartProduct(cartItem, item));
     const saleUnit = item.saleUnit === 'Quilograma' || existing?.saleUnit === 'Quilograma' ? 'Quilograma' : 'Unidade';
     const step = saleUnit === 'Quilograma' ? 0.1 : 1;
     const nextCart = existing
-      ? cartItems.map((cartItem) => cartItem.name === item.name ? { ...cartItem, saleUnit, quantity: adjustCartQuantity(cartItem.quantity, 1, saleUnit) } : cartItem)
+      ? cartItems.map((cartItem) => isSameCartProduct(cartItem, item) ? { ...cartItem, saleUnit, quantity: adjustCartQuantity(cartItem.quantity, 1, saleUnit) } : cartItem)
       : [...cartItems, { productId: item.id, name: item.name, category: item.category, price: item.price, image: item.image || '', quantity: step, saleUnit }];
     saveCart(nextCart);
+  };
+
+  const removeFromCart = (item) => {
+    saveCart(removeCartProduct(cartItems, item));
   };
 
   const toggleFavorite = async (name) => {
@@ -186,7 +180,7 @@ export default function FavoritesPage() {
                 <span className="favorite-unit">{item.saleUnit === 'Quilograma' ? 'por kg' : 'por unidade'}</span>
               </div>
 
-              <div className="favorite-card-actions">{cartItems.some((cartItem) => cartItem.name === item.name) ? <div className="favorite-quantity" aria-label={`Quantidade de ${item.name}`}><button type="button" aria-label={`Diminuir ${item.saleUnit === 'Quilograma' ? '100 gramas' : 'quantidade'} de ${item.name}`} onClick={() => changeCartQuantity(item, -1)}><Minus size={13} /></button><strong>{formatCartQuantity(cartItems.find((cartItem) => cartItem.name === item.name))}</strong><button type="button" aria-label={`Aumentar ${item.saleUnit === 'Quilograma' ? '100 gramas' : 'quantidade'} de ${item.name}`} onClick={() => addToCart(item)}><Plus size={13} /></button></div> : <button type="button" className="favorite-buy-btn" onClick={() => addToCart(item)}><ShoppingCart size={15} /> {item.saleUnit === 'Quilograma' ? 'Adicionar 100 g' : 'Adicionar'}</button>}</div>
+              <div className="favorite-card-actions">{cartItems.some((cartItem) => isSameCartProduct(cartItem, item)) ? <div className="favorite-quantity" aria-label={`Quantidade de ${item.name}`}><button type="button" aria-label={`Remover ${item.name} do carrinho`} onClick={() => removeFromCart(item)}><Trash2 size={13} /></button><strong>{formatCartQuantity(cartItems.find((cartItem) => isSameCartProduct(cartItem, item)))}</strong><button type="button" aria-label={`Aumentar ${item.saleUnit === 'Quilograma' ? '100 gramas' : 'quantidade'} de ${item.name}`} onClick={() => addToCart(item)}><Plus size={13} /></button></div> : <button type="button" className="favorite-buy-btn" onClick={() => addToCart(item)}><ShoppingCart size={15} /> {item.saleUnit === 'Quilograma' ? 'Adicionar 100 g' : 'Adicionar'}</button>}</div>
             </div>
           ))}
         </div>

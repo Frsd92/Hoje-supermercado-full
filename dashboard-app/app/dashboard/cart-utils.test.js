@@ -1,7 +1,7 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
 
-import { adjustCartQuantity, formatCartQuantity, getCartItemCount, normalizeCartItems } from './cart-utils.js';
+import { adjustCartQuantity, formatCartQuantity, getCartItemCount, isSameCartProduct, normalizeCartItems, removeCartProduct } from './cart-utils.js';
 
 test('formats kilogram cart quantities in 100-gram steps', () => {
   assert.equal(formatCartQuantity({ quantity: 0.1, saleUnit: 'Quilograma' }), '100 g');
@@ -38,4 +38,20 @@ test('normalizes legacy duplicates by accent-insensitive product name', () => {
     { name: 'Café', quantity: 1 },
   ]);
   assert.equal(cart.length, 1);
+});
+
+test('removes the matching product by stable ID even if its catalog title changed', () => {
+  const cart = [
+    { productId: 'product-1', name: 'Nome antigo', quantity: 2 },
+    { productId: 'product-2', name: 'Outro produto', quantity: 1 },
+  ];
+  assert.deepEqual(removeCartProduct(cart, { id: 'product-1', name: 'Nome atualizado' }), [cart[1]]);
+});
+
+test('matches legacy cart products by accent-insensitive name when no ID is available', () => {
+  assert.equal(isSameCartProduct({ name: 'Cafe' }, { name: 'Café' }), true);
+  assert.deepEqual(
+    removeCartProduct([{ name: 'Cafe' }, { name: 'Chá' }], { name: 'Café' }),
+    [{ name: 'Chá' }],
+  );
 });
