@@ -5472,6 +5472,16 @@ button.metric-mini:focus-visible {
   box-shadow: 12px 0 36px rgba(15,50,35,0.07);
 }
 
+.dashboard-shell[data-dashboard-theme="light"] .sidebar-menu-toggle {
+  color: #173f31;
+  background: #edf6ef;
+  border-color: rgba(23,63,49,0.22);
+}
+
+.dashboard-shell[data-dashboard-theme="light"] .sidebar-menu-toggle:hover {
+  background: #e0eee4;
+}
+
 .dashboard-shell[data-dashboard-theme="light"] .brand-kicker,
 .dashboard-shell[data-dashboard-theme="light"] .user-mini span {
   color: #65776c;
