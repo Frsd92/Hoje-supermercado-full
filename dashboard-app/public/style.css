@@ -2284,6 +2284,60 @@ body {
 .category-topbar { position: static; }
 .category-search { max-width: 460px; }
 
+.categories-navigation {
+  position: relative;
+  z-index: 1002;
+}
+
+.categories-menu {
+  position: absolute;
+  top: calc(100% + 8px);
+  left: 20px;
+  z-index: 1003;
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 4px;
+  width: min(460px, calc(100vw - 40px));
+  max-height: min(70vh, 520px);
+  overflow-y: auto;
+  padding: 8px;
+  border: 1px solid rgba(148, 163, 184, 0.2);
+  border-radius: 16px;
+  background: rgba(255, 255, 255, 0.98);
+  box-shadow: 0 20px 44px rgba(15, 23, 42, 0.18);
+  overscroll-behavior-y: contain;
+}
+
+.categories-menu[hidden] {
+  display: none;
+}
+
+.categories-menu a {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  min-height: 42px;
+  padding: 8px 12px;
+  border-radius: 10px;
+  color: #2d3748;
+  font-size: 13px;
+  font-weight: 600;
+  text-decoration: none;
+  transition: background 0.18s ease, color 0.18s ease;
+}
+
+.categories-menu a [data-lucide] {
+  flex: 0 0 auto;
+  color: #1a7a3c;
+}
+
+.categories-menu a:hover,
+.categories-menu a:focus-visible {
+  color: #145c32;
+  background: rgba(26, 122, 60, 0.08);
+  outline: none;
+}
+
 /* ===================================================== */
 /* Inicio página de politica. */
 /* ===================================================== */
@@ -2544,11 +2598,59 @@ body {
 /* ===================================================== */
 
 @media (max-width: 640px) {
+  .category-page-header {
+    display: grid;
+    grid-template-columns: minmax(0, 1fr) auto;
+    grid-template-areas:
+      "back logo"
+      "search search"
+      "location location";
+    gap: 12px;
+    padding: 12px 14px;
+  }
+
+  .category-back {
+    grid-area: back;
+    min-width: 0;
+    gap: 6px;
+    font-size: 0.76rem;
+  }
+
+  .category-page-header > img {
+    grid-area: logo;
+    justify-self: end;
+    max-width: 120px;
+    height: 32px;
+  }
+
+  .category-search {
+    grid-area: search;
+    width: 100%;
+    min-width: 0;
+    max-width: none;
+  }
+
+  .category-search input {
+    min-width: 0;
+  }
+
+  .category-page-header .location {
+    grid-area: location;
+    justify-content: flex-start;
+    min-width: 0;
+    white-space: normal;
+    font-size: 12px;
+  }
+
   .topbar {
     display: grid;
     grid-template-columns: repeat(5, minmax(0, 1fr));
     gap: 6px;
     padding: 6px 10px;
+  }
+
+  .category-topbar {
+    grid-template-columns: repeat(3, minmax(0, 1fr));
   }
 
   .topbar-item,
@@ -2610,60 +2712,6 @@ body {
     overscroll-behavior-x: contain;
   }
 
-  .categories-navigation {
-    position: relative;
-    z-index: 1002;
-  }
-
-  .categories-menu {
-    position: absolute;
-    top: calc(100% + 8px);
-    left: 20px;
-    z-index: 1;
-    display: grid;
-    grid-template-columns: 1fr;
-    gap: 4px;
-    width: 320px;
-    max-height: min(70vh, 520px);
-    overflow-y: auto;
-    padding: 8px;
-    border: 1px solid rgba(148, 163, 184, 0.2);
-    border-radius: 16px;
-    background: rgba(255, 255, 255, 0.98);
-    box-shadow: 0 20px 44px rgba(15, 23, 42, 0.18);
-    overscroll-behavior-y: contain;
-    -webkit-overflow-scrolling: touch;
-  }
-
-  .categories-menu[hidden] {
-    display: none;
-  }
-
-  .categories-menu a {
-    display: flex;
-    align-items: center;
-    gap: 10px;
-    min-height: 42px;
-    padding: 8px 12px;
-    border-radius: 10px;
-    color: #2d3748;
-    font-size: 13px;
-    font-weight: 600;
-    text-decoration: none;
-    transition: background 0.18s ease, color 0.18s ease;
-  }
-
-  .categories-menu a [data-lucide] {
-    color: #1a7a3c;
-  }
-
-  .categories-menu a:hover,
-  .categories-menu a:focus-visible {
-    color: #145c32;
-    background: rgba(26, 122, 60, 0.08);
-    outline: none;
-  }
-
   .categories-bar a,
   .all-categories {
     min-height: 40px;
@@ -2675,7 +2723,9 @@ body {
     top: calc(100% + 4px);
     left: 10px;
     width: min(360px, calc(100vw - 20px));
+    grid-template-columns: 1fr;
     max-height: min(70dvh, 520px);
+    -webkit-overflow-scrolling: touch;
   }
 
   .content-wrapper {
