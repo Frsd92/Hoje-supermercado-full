@@ -84,11 +84,41 @@ async function sincronizarCarrinhoApi(itens) {
     })
     .catch((error) => {
       console.warn('Não foi possível sincronizar o carrinho:', error.message);
+      const feedback = document.getElementById('coupon-feedback');
+      if (feedback) {
+        feedback.textContent = 'Seus itens estão visíveis neste momento, mas não foi possível salvá-los. Verifique sua conexão e tente novamente.';
+        feedback.className = 'coupon-feedback error';
+      }
     })
     .finally(() => {
       carrinhoGravacoesPendentes -= 1;
     });
   await filaGravacaoCarrinho;
+}
+
+function aplicarCarrinhoNosCartoes(cart) {
+  const normalizedCart = Array.isArray(cart) ? cart : [];
+  document.querySelectorAll('.product-card').forEach((card) => {
+    const name = card.querySelector('.product-name')?.textContent.trim();
+    const controls = card.querySelector('.qty-controls');
+    const quantity = card.querySelector('.qty');
+    const buyButton = card.querySelector('.btn-comprar');
+    if (!name || !controls || !quantity || !buyButton) return;
+
+    const item = normalizedCart.find((savedItem) => (
+      (card.dataset.id && String(savedItem.productId || savedItem.id || '') === card.dataset.id)
+      || normalizarCatalogo(savedItem.name || savedItem.nome) === normalizarCatalogo(name)
+    ));
+    if (item) {
+      definirQuantidade(card, Number(item.quantity ?? item.qty) || (produtoVendidoPorKg(card) ? 0.1 : 1));
+      controls.classList.add('show');
+      buyButton.style.display = 'none';
+    } else {
+      definirQuantidade(card, produtoVendidoPorKg(card) ? 0.1 : 1);
+      controls.classList.remove('show');
+      buyButton.style.display = 'block';
+    }
+  });
 }
 
 async function carregarCarrinhoDaApi() {
@@ -107,28 +137,7 @@ async function carregarCarrinhoDaApi() {
       persistirCarrinhoLocal = carrinhoRevision !== revisionAtStart;
     } else {
       carrinhoItens = cart.map(normalizarItemCarrinho);
-      document.querySelectorAll('.product-card').forEach((card) => {
-        const nome = card.querySelector('.product-name')?.textContent.trim();
-        const normalizedName = normalizarCatalogo(nome);
-        const controls = card.querySelector('.qty-controls');
-        const quantity = card.querySelector('.qty');
-        const buyButton = card.querySelector('.btn-comprar');
-        if (!nome || !controls || !quantity || !buyButton) return;
-        const item = cart.find((savedItem) => (
-          (card.dataset.id && String(savedItem.productId || savedItem.id || '') === card.dataset.id)
-          || normalizarCatalogo(savedItem.name) === normalizedName
-        ));
-        if (item) {
-          definirQuantidade(card, Number(item.quantity) || (produtoVendidoPorKg(card) ? 0.1 : 1));
-          controls.classList.add('show');
-          buyButton.style.display = 'none';
-        } else {
-          definirQuantidade(card, produtoVendidoPorKg(card) ? 0.1 : 1);
-          controls.classList.remove('show');
-          buyButton.style.display = 'block';
-        }
-      });
-
+      aplicarCarrinhoNosCartoes(cart);
       carrinhoHidratado = true;
       renderizarCarrinho(false);
     }
@@ -987,6 +996,12 @@ async function carregarCatalogoReal() {
         });
       container.innerHTML = visibleProducts.map(criarCardDoCatalogo).join('');
     });
+    aplicarCarrinhoNosCartoes(carrinhoItens.map((item) => ({
+      productId: item.id,
+      name: item.nome,
+      quantity: item.qty,
+      saleUnit: item.saleUnit,
+    })));
     adicionarCategoriasProdutos();
     adicionarBotoesFavorito();
     carregarCarrinhoDaApi();
@@ -996,8 +1011,30 @@ async function carregarCatalogoReal() {
   }
 }
 
+async function carregarBannersGerenciados() {
+  if (!document.querySelector('[data-store-layout]')) return;
+
+  try {
+    const response = await fetch('/api/store-layout', { cache: 'no-store' });
+    const data = await response.json();
+    if (!response.ok) throw new Error(data.error || 'Não foi possível carregar os banners personalizados.');
+
+    (data.banners || []).forEach(({ key, imageUrl }) => {
+      const banner = document.querySelector(`[data-store-layout="${key}"]`);
+      if (!banner || !imageUrl) return;
+      const image = `url("${imageUrl}")`;
+      banner.style.backgroundImage = key === 'main-hero'
+        ? `linear-gradient(90deg, rgba(7, 23, 15, 0.86), rgba(9, 34, 22, 0.58), rgba(10, 26, 18, 0.22)), ${image}`
+        : image;
+    });
+  } catch (error) {
+    console.warn('Banners personalizados indisponíveis:', error.message);
+  }
+}
+
 window.addEventListener('DOMContentLoaded', () => {
   inicializarCarrinho();
+  carregarBannersGerenciados();
   adicionarBotoesFavorito();
   adicionarCategoriasProdutos();
   carregarCatalogoReal();

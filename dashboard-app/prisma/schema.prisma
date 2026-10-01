@@ -37,6 +37,12 @@ model CustomerCart {
   updatedAt DateTime @updatedAt
 }
 
+model GuestCart {
+  id        String   @id
+  items     Json     @default("[]")
+  updatedAt DateTime @updatedAt
+}
+
 model Product {
   id                 String   @id @default(cuid())
   externalId         String?  @unique
@@ -91,6 +97,15 @@ model ProductAuditLog {
 
   @@index([productId, occurredAt])
   @@index([productExternalId, occurredAt])
+}
+
+model StoreLayoutAsset {
+  key          String   @id
+  imageData    String   @db.Text
+  contentType  String
+  originalName String
+  updatedBy    String
+  updatedAt    DateTime @updatedAt
 }
 
 model Supplier {
