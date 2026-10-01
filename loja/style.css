@@ -1832,6 +1832,9 @@ body {
 }
 
 .highlight-side {
+  position: relative;
+  background-position: center;
+  background-size: cover;
   color: white;
   padding: 15px 20px;
   width: 260px;

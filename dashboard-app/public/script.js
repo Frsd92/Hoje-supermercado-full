@@ -1023,7 +1023,9 @@ async function carregarBannersGerenciados() {
       const banner = document.querySelector(`[data-store-layout="${key}"]`);
       if (!banner || !imageUrl) return;
       const image = `url("${imageUrl}")`;
-      banner.style.backgroundImage = key === 'main-hero'
+      banner.style.backgroundImage = key.startsWith('carousel-')
+        ? `linear-gradient(180deg, rgba(0, 0, 0, 0.34), rgba(0, 0, 0, 0.48)), ${image}`
+        : key === 'main-hero'
         ? `linear-gradient(90deg, rgba(7, 23, 15, 0.86), rgba(9, 34, 22, 0.58), rgba(10, 26, 18, 0.22)), ${image}`
         : image;
     });
