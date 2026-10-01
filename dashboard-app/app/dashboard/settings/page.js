@@ -12,7 +12,7 @@ const initialSettings = {
   dataSharing: false,
   usageAnalysis: true,
   personalizedMarketing: false,
-  theme: 'Claro',
+  theme: 'Escuro',
   language: 'Portugues (Brasil)',
   currency: 'Real (R$)',
   deliveryWindow: 'Manha (8h - 12h)',
@@ -30,7 +30,18 @@ export default function SettingsPage() {
     }
   }, []);
 
-  const updateSetting = (key, value) => setSettings((current) => ({ ...current, [key]: value }));
+  const updateSetting = (key, value) => {
+    setSettings((current) => ({ ...current, [key]: value }));
+    if (key === 'theme') {
+      try {
+        const savedSettings = JSON.parse(localStorage.getItem('dashboard-settings') || '{}');
+        localStorage.setItem('dashboard-settings', JSON.stringify({ ...savedSettings, theme: value }));
+        window.dispatchEvent(new Event('dashboard-theme-updated'));
+      } catch (error) {
+        setFeedback(`Não foi possível salvar o tema: ${error.message}`);
+      }
+    }
+  };
   const toggle = async (key) => {
     const nextValue = !settings[key];
     if (key === 'pushNotifications' && nextValue && 'Notification' in window && Notification.permission === 'default') {
@@ -41,12 +52,14 @@ export default function SettingsPage() {
   const saveSettings = () => {
     localStorage.setItem('dashboard-settings', JSON.stringify(settings));
     window.dispatchEvent(new Event('dashboard-settings-updated'));
+    window.dispatchEvent(new Event('dashboard-theme-updated'));
     setFeedback('Configuracoes salvas com sucesso.');
   };
   const restoreSettings = () => {
     setSettings(initialSettings);
     localStorage.removeItem('dashboard-settings');
     window.dispatchEvent(new Event('dashboard-settings-updated'));
+    window.dispatchEvent(new Event('dashboard-theme-updated'));
     setFeedback('Configuracoes restauradas.');
   };
 

@@ -3,10 +3,12 @@
 import Link from 'next/link';
 import { usePathname } from 'next/navigation';
 import { signOut, useSession } from 'next-auth/react';
-import { useEffect, useState } from 'react';
+import { useEffect, useMemo, useRef, useState } from 'react';
+import { adjustCartQuantity, formatCartQuantity, getCartItemCount, normalizeCartItems } from './cart-utils';
 import {
   Bell,
-  BriefcaseBusiness,
+  ChevronDown,
+  CircleDollarSign,
   Home,
   MapPin,
   Settings,
@@ -17,7 +19,8 @@ import {
   Plus,
   Trash2,
   Store,
-  Sparkles,
+  Sun,
+  Moon,
   Star,
   UserRound,
   LogOut,
@@ -30,49 +33,227 @@ const navItems = [
   { label: 'Endereços', href: '/dashboard/addresses', icon: MapPin },
   { label: 'Favoritos', href: '/dashboard/favorites', icon: Star },
   { label: 'Meus Pedidos', href: '/dashboard/orders', icon: ShoppingBag },
+  { label: 'Orçamento', href: '/dashboard/budget', icon: CircleDollarSign },
   { label: 'Configurações', href: '/dashboard/settings', icon: Settings },
 ];
 
-const storeUrl = 'http://localhost:5500/';
-const validCoupons = { HOJE10: 0.1, HOJE20: 0.2, PREMIUM: 0.15 };
+const deliveryAddressStorageKey = (email) => `hoje-dashboard-delivery-address-${email || 'guest'}`;
+
+function getAddressValue(address) {
+  return `${address.title || 'Endereço'} | ${[address.street, address.city, address.state].filter(Boolean).join(' | ')}`;
+}
+
+function getAddressLabel(address) {
+  return `${address.title || 'Endereço'} · ${address.street || ''}${address.city ? ` · ${address.city}` : ''}`;
+}
+
+function getAddressHeading(address) {
+  return address?.city || address?.street || 'Escolher endereço';
+}
 
 export default function DashboardLayout({ children }) {
   const pathname = usePathname();
   const { data: session } = useSession();
   const [search, setSearch] = useState('');
+  const [theme, setTheme] = useState('dark');
   const [searchFocused, setSearchFocused] = useState(false);
   const [cartCount, setCartCount] = useState(0);
   const [cartItems, setCartItems] = useState([]);
   const [cartOpen, setCartOpen] = useState(false);
   const [checkoutAddress, setCheckoutAddress] = useState('');
+  const [savedAddresses, setSavedAddresses] = useState([]);
+  const [selectedAddressId, setSelectedAddressId] = useState('');
+  const [deliveryAddressOpen, setDeliveryAddressOpen] = useState(false);
   const [paymentMethod, setPaymentMethod] = useState('pix');
   const [coupon, setCoupon] = useState('');
+  const [couponDiscountPercent, setCouponDiscountPercent] = useState(0);
+  const [appliedCouponCode, setAppliedCouponCode] = useState('');
   const [couponStatus, setCouponStatus] = useState('');
+  const normalizedCoupon = coupon.trim().toUpperCase();
+  const validCoupons = appliedCouponCode === normalizedCoupon && normalizedCoupon
+    ? { [normalizedCoupon]: couponDiscountPercent / 100 }
+    : {};
   const [checkoutStatus, setCheckoutStatus] = useState('');
   const [checkoutLoading, setCheckoutLoading] = useState(false);
   const [searchableProducts, setSearchableProducts] = useState([]);
   const [notificationCount, setNotificationCount] = useState(0);
+  const [favoritesCount, setFavoritesCount] = useState(null);
+  const [profilePhoto, setProfilePhoto] = useState('');
+  const [profileName, setProfileName] = useState('');
   const [notifications, setNotifications] = useState([]);
   const [notificationsOpen, setNotificationsOpen] = useState(false);
+  const cartItemsRef = useRef([]);
+  const cartWriteQueueRef = useRef(Promise.resolve());
+  const savedAddressesRef = useRef([]);
+  const searchProductsLoadedRef = useRef(false);
 
   useEffect(() => {
-    const updateCartCount = async () => {
+    const colorScheme = window.matchMedia('(prefers-color-scheme: light)');
+    const applySavedTheme = () => {
+      let preference = 'Escuro';
       try {
-        const response = await fetch('/api/cart');
-        if (!response.ok) throw new Error('Carrinho indisponível');
-        const { cart = [] } = await response.json();
-        setCartItems(cart);
-        setCartCount(cart.reduce((total, item) => total + (item.quantity || 1), 0));
+        const settings = JSON.parse(localStorage.getItem('dashboard-settings') || '{}');
+        preference = settings.theme || preference;
       } catch {
-        setCartItems([]);
-        setCartCount(0);
+        preference = 'Escuro';
+      }
+
+      const resolvedTheme = preference === 'Claro'
+        ? 'light'
+        : preference === 'Automatico'
+          ? (colorScheme.matches ? 'light' : 'dark')
+          : 'dark';
+      setTheme(resolvedTheme);
+    };
+    const handleColorSchemeChange = () => applySavedTheme();
+
+    applySavedTheme();
+    colorScheme.addEventListener('change', handleColorSchemeChange);
+    window.addEventListener('dashboard-theme-updated', applySavedTheme);
+    window.addEventListener('dashboard-settings-updated', applySavedTheme);
+    window.addEventListener('storage', applySavedTheme);
+    return () => {
+      colorScheme.removeEventListener('change', handleColorSchemeChange);
+      window.removeEventListener('dashboard-theme-updated', applySavedTheme);
+      window.removeEventListener('dashboard-settings-updated', applySavedTheme);
+      window.removeEventListener('storage', applySavedTheme);
+    };
+  }, []);
+
+  useEffect(() => {
+    let active = true;
+    const updatePhoto = (profile) => {
+      setProfilePhoto(profile?.photo || profile?.googlePhoto || session?.user?.image || '');
+      setProfileName(profile?.fullName || session?.user?.name || '');
+    };
+    fetch('/api/profile', { cache: 'no-store' })
+      .then((response) => {
+        if (!response.ok) throw new Error('Não foi possível carregar a foto do perfil.');
+        return response.json();
+      })
+      .then(({ profile }) => {
+        if (active) updatePhoto(profile);
+      })
+      .catch((error) => console.error(error));
+    const handleProfileUpdated = (event) => updatePhoto(event.detail);
+    window.addEventListener('dashboard-profile-updated', handleProfileUpdated);
+    return () => {
+      active = false;
+      window.removeEventListener('dashboard-profile-updated', handleProfileUpdated);
+    };
+  }, [session?.user?.image, session?.user?.email]);
+
+  useEffect(() => {
+    const addressStorageKey = deliveryAddressStorageKey(session?.user?.email);
+    const applyAddresses = (addresses) => {
+      if (!Array.isArray(addresses)) return;
+      savedAddressesRef.current = addresses;
+      setSavedAddresses(addresses);
+      let preferredId = localStorage.getItem(addressStorageKey) || '';
+      let selectedAddress = addresses.find((address) => String(address.id) === preferredId);
+      if (!selectedAddress) {
+        selectedAddress = addresses.find((address) => address.type === 'Padrão') || addresses[0];
+        preferredId = selectedAddress ? String(selectedAddress.id) : '';
+      }
+      setSelectedAddressId(preferredId);
+      const value = selectedAddress ? getAddressValue(selectedAddress) : '';
+      setCheckoutAddress(value);
+      if (preferredId) localStorage.setItem(addressStorageKey, preferredId);
+      else localStorage.removeItem(addressStorageKey);
+    };
+    const loadAddresses = () => fetch('/api/addresses', { cache: 'no-store' })
+      .then((response) => {
+        if (!response.ok) throw new Error('Não foi possível carregar os endereços.');
+        return response.json();
+      })
+      .then(({ addresses = [] }) => applyAddresses(addresses))
+      .catch((error) => console.error(error));
+    const selectAddress = (addressId) => {
+      const selected = savedAddressesRef.current.find((address) => String(address.id) === String(addressId));
+      if (!selected) return;
+      setSelectedAddressId(String(selected.id));
+      setCheckoutAddress(getAddressValue(selected));
+      localStorage.setItem(addressStorageKey, String(selected.id));
+      setDeliveryAddressOpen(false);
+    };
+    const handleAddressSelected = (event) => {
+      if (event.detail?.addressId) {
+        selectAddress(event.detail.addressId);
+      } else {
+        loadAddresses();
+      }
+    };
+    loadAddresses();
+    window.addEventListener('dashboard-address-selected', handleAddressSelected);
+    return () => window.removeEventListener('dashboard-address-selected', handleAddressSelected);
+  }, [session?.user?.email]);
+
+  useEffect(() => {
+    const cartStorageKey = `hoje-dashboard-cart-${session?.user?.email || 'guest'}`;
+    let active = true;
+    const applyCart = (cart) => {
+      if (!Array.isArray(cart)) return;
+      const normalizedCart = normalizeCartItems(cart);
+      cartItemsRef.current = normalizedCart;
+      setCartItems(normalizedCart);
+      setCartCount(getCartItemCount(normalizedCart));
+    };
+    const readLocalCart = () => {
+      try {
+        const storedValue = localStorage.getItem(cartStorageKey);
+        return storedValue === null ? null : JSON.parse(storedValue);
+      } catch {
+        return null;
       }
     };
 
-    updateCartCount();
-    const cartInterval = window.setInterval(updateCartCount, 3000);
-    fetch('/api/products').then((response) => response.json()).then(({ products = [] }) => setSearchableProducts(products)).catch(() => setSearchableProducts([]));
-    window.addEventListener('dashboard-cart-updated', updateCartCount);
+    const localCart = readLocalCart();
+    if (Array.isArray(localCart)) {
+      const normalizedCart = normalizeCartItems(localCart);
+      applyCart(normalizedCart);
+      localStorage.setItem(cartStorageKey, JSON.stringify(normalizedCart));
+    } else {
+      fetch('/api/cart')
+        .then((response) => {
+          if (!response.ok) throw new Error('Carrinho indisponível');
+          return response.json();
+        })
+        .then(({ cart = [] }) => {
+          if (!active || localStorage.getItem(cartStorageKey) !== null) return;
+          const normalizedCart = normalizeCartItems(cart);
+          applyCart(normalizedCart);
+          localStorage.setItem(cartStorageKey, JSON.stringify(normalizedCart));
+        })
+        .catch((error) => {
+          if (active) setCheckoutStatus(`Não foi possível carregar o carrinho salvo: ${error.message}`);
+        });
+    }
+
+    const handleCartUpdated = (event) => {
+      const updatedCart = Array.isArray(event.detail) ? event.detail : readLocalCart();
+      if (Array.isArray(updatedCart)) applyCart(updatedCart);
+    };
+
+    fetch('/api/favorites', { cache: 'no-store' })
+      .then((response) => {
+        if (!response.ok) throw new Error('Não foi possível carregar os favoritos.');
+        return response.json();
+      })
+      .then(({ favorites = [] }) => setFavoritesCount(favorites.length))
+      .catch((error) => {
+        console.error(error);
+        setFavoritesCount(null);
+      });
+    const handleFavoritesUpdated = (event) => {
+      if (Number.isInteger(event.detail)) setFavoritesCount(event.detail);
+    };
+    window.addEventListener('dashboard-favorites-updated', handleFavoritesUpdated);
+    window.addEventListener('dashboard-cart-updated', handleCartUpdated);
+    const handleOpenCart = () => {
+      setCartOpen(true);
+      setCheckoutStatus('');
+    };
+    window.addEventListener('dashboard-open-cart', handleOpenCart);
     const handleShortcut = (event) => {
       if ((event.metaKey || event.ctrlKey) && event.key.toLowerCase() === 'k') {
         event.preventDefault();
@@ -82,62 +263,179 @@ export default function DashboardLayout({ children }) {
 
     window.addEventListener('keydown', handleShortcut);
     return () => {
-      window.clearInterval(cartInterval);
+      active = false;
       window.removeEventListener('keydown', handleShortcut);
-      window.removeEventListener('dashboard-cart-updated', updateCartCount);
+      window.removeEventListener('dashboard-favorites-updated', handleFavoritesUpdated);
+      window.removeEventListener('dashboard-cart-updated', handleCartUpdated);
+      window.removeEventListener('dashboard-open-cart', handleOpenCart);
     };
   }, [session?.user?.email]);
 
-  const saveCart = async (nextCart) => {
-    setCartItems(nextCart);
-    setCartCount(nextCart.reduce((total, item) => total + (item.quantity || 1), 0));
-    try {
-      await fetch('/api/cart', {
-        method: 'PUT',
-        credentials: 'include',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ cart: nextCart }),
+  useEffect(() => {
+    if (!searchFocused || searchProductsLoadedRef.current) return;
+    searchProductsLoadedRef.current = true;
+    fetch('/api/products?purpose=search')
+      .then(async (response) => {
+        const data = await response.json();
+        if (!response.ok) throw new Error(data.error || 'Não foi possível carregar os produtos para busca.');
+        setSearchableProducts(data.products || []);
+      })
+      .catch((error) => {
+        searchProductsLoadedRef.current = false;
+        console.error(error);
       });
-      window.dispatchEvent(new Event('dashboard-cart-updated'));
-    } catch {
-      setCheckoutStatus('Não foi possível atualizar o carrinho.');
-    }
+  }, [searchFocused]);
+
+  const normalizedSearchText = (text = '') => String(text || '').toLowerCase().normalize('NFD').replace(/[\u0300-\u036f]/g, '').trim();
+
+  const searchResults = useMemo(() => {
+    const query = normalizedSearchText(search);
+    if (!query) return [];
+
+    return searchableProducts.filter((product) => {
+      const haystack = [
+        product.title,
+        product.categories,
+        product.subcategory,
+        product.brand,
+        product.description,
+      ].flat().filter(Boolean).join(' ');
+      return normalizedSearchText(haystack).includes(query);
+    });
+  }, [search, searchableProducts]);
+
+  const quickSuggestions = useMemo(() => searchableProducts.slice(0, 4), [searchableProducts]);
+  const selectedDeliveryAddress = savedAddresses.find((address) => String(address.id) === selectedAddressId);
+
+  const addressOptions = useMemo(() => {
+    const options = savedAddresses.length ? savedAddresses.map((address) => ({
+      value: getAddressValue(address),
+      label: getAddressLabel(address),
+    })) : [
+      { value: 'Casa | Rua das Flores, 123 - Apto 45 | Centro, São Paulo - SP', label: 'Casa · Rua das Flores, 123 · Centro, São Paulo - SP' },
+      { value: 'Trabalho | Av. Paulista, 1000 | Bela Vista, São Paulo - SP', label: 'Trabalho · Av. Paulista, 1000 · Bela Vista, São Paulo - SP' },
+    ];
+    return options.filter((option) => option.value && option.label);
+  }, [savedAddresses]);
+
+  const saveCart = async (nextCart) => {
+    const cartStorageKey = `hoje-dashboard-cart-${session?.user?.email || 'guest'}`;
+    const normalizedCart = normalizeCartItems(nextCart);
+    cartItemsRef.current = normalizedCart;
+    setCartItems(normalizedCart);
+    setCartCount(getCartItemCount(normalizedCart));
+    localStorage.setItem(cartStorageKey, JSON.stringify(normalizedCart));
+    window.dispatchEvent(new CustomEvent('dashboard-cart-updated', { detail: normalizedCart }));
+
+    cartWriteQueueRef.current = cartWriteQueueRef.current
+      .then(async () => {
+        const response = await fetch('/api/cart', {
+          method: 'PUT',
+          credentials: 'include',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ cart: normalizedCart }),
+        });
+        if (!response.ok) throw new Error('Carrinho indisponível');
+      })
+      .catch((error) => {
+        setCheckoutStatus(`O carrinho foi salvo neste dispositivo, mas não foi possível sincronizá-lo: ${error.message}`);
+      });
+    await cartWriteQueueRef.current;
   };
 
   const addToCart = (product) => {
     const price = Number(product.salePrice ?? product.price ?? 0);
-    const existing = cartItems.find((item) => item.productId === product.id || item.name === product.title);
+    const saleUnit = product.saleUnit === 'Quilograma' ? 'Quilograma' : 'Unidade';
+    const step = saleUnit === 'Quilograma' ? 0.1 : 1;
+    const currentCart = cartItemsRef.current;
+    const existing = currentCart.find((item) => String(item.productId || '') === String(product.id) || item.name === product.title);
     const nextCart = existing
-      ? cartItems.map((item) => item === existing ? { ...item, quantity: (item.quantity || 1) + 1 } : item)
-      : [...cartItems, { productId: product.id, name: product.title, category: product.categories?.[0] || '', price: `R$ ${price.toFixed(2).replace('.', ',')}`, image: product.image || '', quantity: 1 }];
+      ? currentCart.map((item) => item === existing ? { ...item, quantity: Math.round(((Number(item.quantity) || step) + step) * 10) / 10 } : item)
+      : [...currentCart, { productId: product.id, name: product.title, category: product.categories?.[0] || '', price: `R$ ${price.toFixed(2).replace('.', ',')}${saleUnit === 'Quilograma' ? ' / kg' : ''}`, image: product.image || '', quantity: step, saleUnit }];
     saveCart(nextCart);
-    setCheckoutStatus(`${product.title} foi adicionado ao carrinho.`);
-    setSearchFocused(false);
-    setSearch('');
+    setCheckoutStatus(saleUnit === 'Quilograma' ? `100 g de ${product.title} foram adicionados ao carrinho.` : `${product.title} foi adicionado ao carrinho.`);
   };
 
   const changeCartQuantity = (item, delta) => {
-    const nextCart = cartItems
-      .map((current) => current === item ? { ...current, quantity: (current.quantity || 1) + delta } : current)
-      .filter((current) => current.quantity > 0);
+    const itemKey = String(item.productId || item.name);
+    const matchingProduct = searchableProducts.find((product) => String(product.id) === String(item.productId || '') || product.title === item.name);
+    const saleUnit = item.saleUnit === 'Quilograma' || matchingProduct?.saleUnit === 'Quilograma' ? 'Quilograma' : 'Unidade';
+    const nextCart = cartItemsRef.current
+      .map((current) => String(current.productId || current.name) === itemKey
+        ? { ...current, saleUnit, quantity: adjustCartQuantity(current.quantity, delta, saleUnit) }
+        : current)
     saveCart(nextCart);
   };
 
+  const removeCartItem = (item) => {
+    const itemKey = String(item.productId || item.name);
+    saveCart(cartItemsRef.current.filter((current) => String(current.productId || current.name) !== itemKey));
+  };
+
+  const toggleTheme = () => {
+    const nextPreference = theme === 'dark' ? 'Claro' : 'Escuro';
+    const nextTheme = nextPreference === 'Claro' ? 'light' : 'dark';
+    setTheme(nextTheme);
+    try {
+      const settings = JSON.parse(localStorage.getItem('dashboard-settings') || '{}');
+      localStorage.setItem('dashboard-settings', JSON.stringify({ ...settings, theme: nextPreference }));
+      window.dispatchEvent(new Event('dashboard-theme-updated'));
+    } catch (error) {
+      setCheckoutStatus(`Não foi possível salvar o tema escolhido: ${error.message}`);
+    }
+  };
+  const applyCoupon = async () => {
+    const code = coupon.trim().toUpperCase();
+    if (validCoupons[code]) {
+      setCouponDiscountPercent(validCoupons[code] * 100);
+      setAppliedCouponCode(code);
+      setCouponStatus(`Cupom ${code} aplicado com sucesso!`);
+      return;
+    }
+    try {
+      const response = await fetch('/api/coupons');
+      const data = await response.json();
+      if (!response.ok) throw new Error(data.error || 'Não foi possível validar seus cupons.');
+      const assignedCoupon = (data.coupons || []).find((item) => item.code === code);
+      if (!assignedCoupon) {
+        setCouponDiscountPercent(0);
+        setAppliedCouponCode('');
+        setCouponStatus('Cupom inválido, expirado ou não disponível para sua conta.');
+        return;
+      }
+      setCouponDiscountPercent(assignedCoupon.discountPercent);
+      setAppliedCouponCode(code);
+      setCouponStatus(`Cupom ${code} aplicado: ${assignedCoupon.discountPercent}% de desconto.`);
+    } catch (error) {
+      setCouponDiscountPercent(0);
+      setAppliedCouponCode('');
+      setCouponStatus(error.message);
+    }
+  };
   const finishPurchase = async (event) => {
     event.preventDefault();
     if (!cartItems.length) return setCheckoutStatus('Adicione produtos antes de finalizar.');
-    if (!checkoutAddress.trim()) return setCheckoutStatus('Informe o endereço de entrega.');
+    if (!checkoutAddress.trim()) return setCheckoutStatus('Cadastre ou selecione um endereço antes de concluir a compra.');
+    if (!session?.user?.email) return setCheckoutStatus('É necessário estar autenticado para finalizar a compra.');
+
     setCheckoutLoading(true);
     setCheckoutStatus('');
     const subtotal = cartItems.reduce((sum, item) => sum + (Number(String(item.price || '').replace(/[^0-9,]/g, '').replace(',', '.')) || 0) * (item.quantity || 1), 0);
-    const discount = subtotal * (validCoupons[coupon.trim().toUpperCase()] || 0);
+    const discount = subtotal * (couponDiscountPercent / 100);
     const total = subtotal - discount;
     try {
       const response = await fetch('/api/erp/orders', {
         method: 'POST',
         credentials: 'include',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ items: cartItems, address: checkoutAddress.trim(), paymentMethod, total: `R$ ${total.toFixed(2).replace('.', ',')}` }),
+        body: JSON.stringify({
+          items: cartItems,
+          address: checkoutAddress.trim(),
+          addressDetails: selectedDeliveryAddress,
+          paymentMethod,
+          couponCode: coupon.trim().toUpperCase(),
+          total: `R$ ${total.toFixed(2).replace('.', ',')}`,
+        }),
       });
       const data = await response.json();
       if (!response.ok) throw new Error(data.error || 'Não foi possível finalizar a compra.');
@@ -145,6 +443,8 @@ export default function DashboardLayout({ children }) {
       setCheckoutAddress('');
       setPaymentMethod('pix');
       setCoupon('');
+      setCouponDiscountPercent(0);
+      setAppliedCouponCode('');
       setCouponStatus('');
       setCheckoutStatus(`Pedido ${data.order.id} realizado com sucesso.`);
     } catch (error) {
@@ -200,10 +500,14 @@ export default function DashboardLayout({ children }) {
       }
     };
     loadNotifications();
-    const interval = window.setInterval(loadNotifications, 10000);
+    const refreshWhenVisible = () => {
+      if (document.visibilityState === 'visible') loadNotifications();
+    };
+    const interval = window.setInterval(refreshWhenVisible, 60000);
     window.addEventListener('dashboard-settings-updated', loadNotifications);
     window.addEventListener('dashboard-notifications-updated', loadNotifications);
-    return () => { active = false; window.clearInterval(interval); window.removeEventListener('dashboard-settings-updated', loadNotifications); window.removeEventListener('dashboard-notifications-updated', loadNotifications); };
+    document.addEventListener('visibilitychange', refreshWhenVisible);
+    return () => { active = false; window.clearInterval(interval); window.removeEventListener('dashboard-settings-updated', loadNotifications); window.removeEventListener('dashboard-notifications-updated', loadNotifications); document.removeEventListener('visibilitychange', refreshWhenVisible); };
   }, [session?.user?.email]);
 
   const enableNotifications = async () => {
@@ -232,7 +536,7 @@ export default function DashboardLayout({ children }) {
     .toUpperCase() || 'U';
 
   return (
-    <div className="dashboard-shell">
+    <div className="dashboard-shell" data-dashboard-theme={theme}>
       <aside className="sidebar">
         <div>
           <div className="brand-wrap">
@@ -260,15 +564,15 @@ export default function DashboardLayout({ children }) {
         </div>
 
         <div className="sidebar-footer">
-          <a className="store-return-link" href={storeUrl}>
+          <a className="store-return-link" href="/">
             <Store size={16} />
             <span>Voltar para a loja</span>
           </a>
 
           <div className="user-mini">
-            <div className="avatar">{initials}</div>
+            <div className="avatar">{profilePhoto ? <img src={profilePhoto} alt="" /> : initials}</div>
             <div>
-              <strong>{session?.user?.name || 'Usuário Google'}</strong>
+              <strong>{profileName || session?.user?.name || 'Usuário Google'}</strong>
               <span>{session?.user?.email || 'usuario@gmail.com'}</span>
             </div>
           </div>
@@ -304,32 +608,64 @@ export default function DashboardLayout({ children }) {
                 ) : <kbd>Ctrl K</kbd>}
 
                 {searchFocused && (
-                  <div className="search-suggestions">
-                    {search ? (
+                  <div className={`search-suggestions ${searchResults.length >= 7 ? 'has-many-results' : ''}`}>
+                    {search.trim() ? (
                       <>
-                        <span className="search-suggestions-label">Produtos encontrados</span>
-                        {searchableProducts
-                          .filter((product) => `${product.title} ${product.categories?.join(' ') || ''}`.toLowerCase().includes(search.toLowerCase()))
-                          .slice(0, 5)
-                          .map((product) => (
+                        <div className="search-suggestions-heading">
+                          <div>
+                            <span className="search-suggestions-label">Resultados da busca</span>
+                            <span className="search-suggestions-caption">Produtos disponíveis na loja</span>
+                          </div>
+                          {searchResults.length > 0 && <span className="search-results-count">{searchResults.length}</span>}
+                        </div>
+                        {searchResults.length ? searchResults.map((product) => {
+                          const price = Number(product.salePrice ?? product.price ?? 0);
+                          const originalPrice = Number(product.price ?? price);
+                          const cartItem = cartItems.find((item) => String(item.productId || '') === String(product.id) || item.name === product.title);
+                          const quantity = cartItem?.quantity || 0;
+                          return (
                             <div key={product.id} className="dashboard-search-product">
+                              <span className="dashboard-search-product-image">
+                                {product.image ? <img src={product.image} alt="" /> : <ShoppingBag size={18} />}
+                              </span>
                               <span className="dashboard-search-product-info">
                                 <strong>{product.title}</strong>
-                                <small>{product.categories?.join(', ')} · R$ {Number(product.price).toFixed(2).replace('.', ',')}</small>
+                                <small>{product.categories?.join(', ') || product.subcategory || 'Mercearia'}</small>
+                                <span className="dashboard-search-price">
+                                  R$ {price.toFixed(2).replace('.', ',')}{product.saleUnit === 'Quilograma' ? ' / kg' : ''}
+                                  {originalPrice > price && <del>R$ {originalPrice.toFixed(2).replace('.', ',')}{product.saleUnit === 'Quilograma' ? ' / kg' : ''}</del>}
+                                </span>
                               </span>
-                              <button className="dashboard-search-buy" type="button" onMouseDown={(event) => event.preventDefault()} onClick={() => addToCart(product)}>
-                                <Plus size={13} /> Adicionar
-                              </button>
+                              {quantity > 0 ? (
+                                <span className="dashboard-search-quantity">
+                                  <button type="button" aria-label={`Diminuir ${product.saleUnit === 'Quilograma' ? '100 gramas' : 'quantidade'} de ${product.title}`} onMouseDown={(event) => event.preventDefault()} onClick={() => changeCartQuantity(cartItem, -1)}>
+                                    <Minus size={13} />
+                                  </button>
+                                  <strong aria-live="polite">{formatCartQuantity(cartItem)}</strong>
+                                  <button type="button" aria-label={`Aumentar ${product.saleUnit === 'Quilograma' ? '100 gramas' : 'quantidade'} de ${product.title}`} onMouseDown={(event) => event.preventDefault()} onClick={() => addToCart(product)}>
+                                    <Plus size={13} />
+                                  </button>
+                                </span>
+                              ) : (
+                                <button className="dashboard-search-buy" type="button" onMouseDown={(event) => event.preventDefault()} onClick={() => addToCart(product)}>
+                                  <Plus size={14} /> <span>{product.saleUnit === 'Quilograma' ? 'Adicionar 100 g' : 'Adicionar'}</span>
+                                </button>
+                              )}
                             </div>
-                          ))}
-                        {!searchableProducts.some((product) => `${product.title} ${product.categories?.join(' ') || ''}`.toLowerCase().includes(search.toLowerCase())) && (
-                          <span className="search-suggestions-empty">Nenhum produto encontrado.</span>
+                          );
+                        }) : (
+                          <span className="search-suggestions-empty">Nenhum produto encontrado. Confira a escrita ou tente outro termo.</span>
                         )}
                       </>
                     ) : (
                       <>
-                        <span className="search-suggestions-label">Sugestões rápidas</span>
-                        {searchableProducts.slice(0, 4).map((product) => (
+                        <div className="search-suggestions-heading">
+                          <div>
+                            <span className="search-suggestions-label">Sugestões para você</span>
+                            <span className="search-suggestions-caption">Comece por um produto popular</span>
+                          </div>
+                        </div>
+                        {quickSuggestions.map((product) => (
                           <button key={product.id} type="button" onMouseDown={(event) => event.preventDefault()} onClick={() => setSearch(product.title)}>
                             <Search size={14} />
                             {product.title}
@@ -348,25 +684,69 @@ export default function DashboardLayout({ children }) {
                 <ShoppingCart size={18} />
                 <span className="dashboard-cart-count">{cartCount}</span>
               </button>
-              <button className="icon-button" aria-label="Favoritos">
+              <Link href="/dashboard/favorites" className="icon-button favorites-icon-button" aria-label={`Favoritos, ${favoritesCount ?? 0} itens salvos`} title={`Favoritos (${favoritesCount ?? 0})`}>
                 <Star size={18} />
-              </button>
+                <span className="favorites-icon-count">{favoritesCount === null ? '…' : favoritesCount > 99 ? '99+' : favoritesCount}</span>
+              </Link>
               <button className="icon-button notification-button" aria-label="Abrir notificações" onClick={() => setNotificationsOpen((current) => !current)}>
                 <Bell size={18} />
                 {notificationCount > 0 && <span className="notification-count">{notificationCount > 9 ? '9+' : notificationCount}</span>}
               </button>
               {notificationsOpen && <div className="notification-inbox"><div className="notification-inbox-header"><div><strong>Notificações</strong><small>{notificationCount ? `${notificationCount} não lida(s)` : 'Tudo em dia'}</small></div><button type="button" aria-label="Fechar notificações" onClick={() => setNotificationsOpen(false)}><X size={15} /></button></div>{notifications.length ? <div className="notification-inbox-list">{notifications.map((notification) => { const seen = JSON.parse(localStorage.getItem(`hoje-notifications-seen-${session?.user?.email}`) || '[]').includes(notification.id); return <button type="button" key={notification.id} className={`notification-inbox-item ${seen ? 'is-read' : 'is-unread'}`} onClick={() => markNotificationRead(notification.id)}><span className="notification-inbox-dot" /><span><strong>{notification.title}</strong><small>{notification.message}</small><em>{notification.durationDays ? `${notification.durationDays} dias` : 'Mensagem ativa'}</em></span></button>; })}</div> : <div className="notification-inbox-empty"><Bell size={20} /><span>Nenhuma mensagem disponível.</span></div>}</div>}
-              <button className="icon-button" aria-label="Área de trabalho">
-                <BriefcaseBusiness size={18} />
-              </button>
-              <button className="icon-button" aria-label="Sparkles">
-                <Sparkles size={18} />
+              <button
+                className="icon-button theme-toggle"
+                type="button"
+                aria-label={`Ativar tema ${theme === 'dark' ? 'claro' : 'escuro'}`}
+                aria-pressed={theme === 'light'}
+                title={`Ativar tema ${theme === 'dark' ? 'claro' : 'escuro'}`}
+                onClick={toggleTheme}
+              >
+                {theme === 'dark' ? <Sun size={18} /> : <Moon size={18} />}
               </button>
             </div>
           </div>
 
           <div className="right">
-            <a className="topbar-store-link" href={storeUrl}>
+            <div className="delivery-address-picker">
+              <button
+                type="button"
+                className="topbar-delivery-address"
+                aria-expanded={deliveryAddressOpen}
+                aria-label={selectedDeliveryAddress ? `Endereço de entrega: ${getAddressHeading(selectedDeliveryAddress)}` : 'Escolher endereço de entrega'}
+                onClick={() => setDeliveryAddressOpen((open) => !open)}
+              >
+                <MapPin size={20} />
+                <span className="topbar-delivery-copy">
+                  <small>Entregar em</small>
+                  <strong>{selectedDeliveryAddress ? getAddressHeading(selectedDeliveryAddress) : 'Escolher endereço'}</strong>
+                </span>
+                <ChevronDown size={16} />
+              </button>
+              {deliveryAddressOpen && (
+                <div className="delivery-address-menu">
+                  {savedAddresses.length ? savedAddresses.map((address) => (
+                    <button
+                      type="button"
+                      key={address.id}
+                      className={String(address.id) === selectedAddressId ? 'selected' : ''}
+                      onClick={() => {
+                        const addressId = String(address.id);
+                        setSelectedAddressId(addressId);
+                        setCheckoutAddress(getAddressValue(address));
+                        localStorage.setItem(deliveryAddressStorageKey(session?.user?.email), addressId);
+                        window.dispatchEvent(new CustomEvent('dashboard-address-selected', { detail: { addressId } }));
+                        setDeliveryAddressOpen(false);
+                      }}
+                    >
+                      <MapPin size={15} />
+                      <span><strong>{address.title || 'Endereço'}</strong><small>{getAddressHeading(address)}</small></span>
+                    </button>
+                  )) : <span className="delivery-address-menu-empty">Nenhum endereço cadastrado</span>}
+                  <Link href="/dashboard/addresses" onClick={() => setDeliveryAddressOpen(false)}>Gerenciar endereços</Link>
+                </div>
+              )}
+            </div>
+            <a className="topbar-store-link" href="/">
               <Store size={16} />
               <span>Loja</span>
             </a>
@@ -380,11 +760,11 @@ export default function DashboardLayout({ children }) {
 
       {cartOpen && <div className="cart-backdrop open" onMouseDown={() => setCartOpen(false)}>
         <aside className="cart-panel open" onMouseDown={(event) => event.stopPropagation()}>
-          <div className="cart-panel-header"><div className="cart-panel-title-wrap"><span className="cart-panel-icon"><ShoppingCart size={18} /></span><h3 id="cart-panel-title">Meu Carrinho ({cartItems.reduce((total, item) => total + (item.quantity || 1), 0)} {cartItems.reduce((total, item) => total + (item.quantity || 1), 0) === 1 ? 'item' : 'itens'})</h3></div><button type="button" className="cart-close" aria-label="Fechar carrinho" onClick={() => setCartOpen(false)}>×</button></div>
+          <div className="cart-panel-header"><div className="cart-panel-title-wrap"><span className="cart-panel-icon"><ShoppingCart size={18} /></span><h3 id="cart-panel-title">Meu Carrinho ({cartCount} {cartCount === 1 ? 'item' : 'itens'})</h3></div><button type="button" className="cart-close" aria-label="Fechar carrinho" onClick={() => setCartOpen(false)}>×</button></div>
           <p className="cart-subtitle">Revise seus itens antes de finalizar</p>
-          <div className="cart-items">{cartItems.length ? cartItems.map((item) => <div className="cart-item" key={item.productId || item.name}><div className="cart-item-thumb">{item.image ? <img src={item.image} alt={item.name} /> : <div className="cart-thumb-placeholder" />}</div><div className="cart-item-info"><div className="cart-item-name">{item.name}</div><div className="cart-item-category">{item.category || 'Produtos'}</div><div className="cart-item-price">{item.price}</div></div><div className="cart-item-controls"><button type="button" aria-label={`Diminuir quantidade de ${item.name}`} onClick={() => changeCartQuantity(item, -1)}><Minus size={16} /></button><span className="cart-item-qty">{item.quantity || 1}</span><button type="button" aria-label={`Aumentar quantidade de ${item.name}`} onClick={() => changeCartQuantity(item, 1)}><Plus size={16} /></button></div><button type="button" className="cart-item-remove" aria-label={`Remover ${item.name}`} onClick={() => saveCart(cartItems.filter((current) => current !== item))}><Trash2 size={16} /></button></div>) : <div className="cart-empty"><ShoppingCart size={28} /><strong>Seu carrinho está vazio</strong></div>}</div>
-          <form className="cart-panel-footer" onSubmit={finishPurchase}><div className="cart-summary-box"><div className="summary-row"><span>Subtotal ({cartItems.reduce((total, item) => total + (item.quantity || 1), 0)} itens)</span><strong>R$ {cartItems.reduce((sum, item) => sum + (Number(String(item.price || '').replace(/[^0-9,]/g, '').replace(',', '.')) || 0) * (item.quantity || 1), 0).toFixed(2).replace('.', ',')}</strong></div><div className="summary-row"><span>Descontos</span><strong>R$ {(cartItems.reduce((sum, item) => sum + (Number(String(item.price || '').replace(/[^0-9,]/g, '').replace(',', '.')) || 0) * (item.quantity || 1), 0) * (validCoupons[coupon.trim().toUpperCase()] || 0)).toFixed(2).replace('.', ',')}</strong></div><div className="summary-row"><span>Frete</span><strong>R$ 0,00</strong></div><div className="summary-row total"><span>Total</span><strong>R$ {(cartItems.reduce((sum, item) => sum + (Number(String(item.price || '').replace(/[^0-9,]/g, '').replace(',', '.')) || 0) * (item.quantity || 1), 0) * (1 - (validCoupons[coupon.trim().toUpperCase()] || 0))).toFixed(2).replace('.', ',')}</strong></div></div><div className="cart-coupon"><input value={coupon} onChange={(event) => setCoupon(event.target.value)} placeholder="Cupom: HOJE10" maxLength={20} /><button className="btn-coupon" type="button" onClick={() => setCouponStatus(validCoupons[coupon.trim().toUpperCase()] ? `Cupom ${coupon.trim().toUpperCase()} aplicado com sucesso!` : 'Cupom inválido. Tente: HOJE10, HOJE20 ou PREMIUM')}>Aplicar</button></div><p className={`coupon-feedback ${couponStatus.includes('sucesso') ? 'success' : couponStatus ? 'error' : ''}`}>{couponStatus}</p><label className="delivery-address-field">Endereço de entrega<select value={checkoutAddress} onChange={(event) => setCheckoutAddress(event.target.value)}><option value="">Selecione seu endereço</option><option value="Casa | Rua das Flores, 123 - Apto 45 | Centro, São Paulo - SP">Casa · Rua das Flores, 123</option><option value="Trabalho | Av. Paulista, 1000 | Bela Vista, São Paulo - SP">Trabalho · Av. Paulista, 1000</option></select></label><button className="btn-finalizar" type="submit" disabled={checkoutLoading || !cartItems.length}>{checkoutLoading ? 'Finalizando...' : 'Finalizar Compra'}</button><button type="button" className="btn-limpar" onClick={() => saveCart([])}>Limpar Carrinho</button>{checkoutStatus && <p className={`coupon-feedback ${checkoutStatus.includes('sucesso') ? 'success' : 'error'}`}>{checkoutStatus}</p>}</form>
-        </aside>
+          <div className="cart-items">{cartItems.length ? cartItems.map((item) => <div className="cart-item" key={item.productId || item.name}><div className="cart-item-thumb">{item.image ? <img src={item.image} alt={item.name} /> : <div className="cart-thumb-placeholder" />}</div><div className="cart-item-info"><div className="cart-item-name">{item.name}</div><div className="cart-item-category">{item.category || 'Produtos'}</div><div className="cart-item-price">{item.saleUnit === 'Quilograma' && !String(item.price || '').includes('/kg') ? `${item.price} / kg` : item.price}</div></div><div className="cart-item-controls"><button type="button" aria-label={`Diminuir ${item.saleUnit === 'Quilograma' ? '100 gramas' : 'quantidade'} de ${item.name}`} onClick={() => changeCartQuantity(item, -1)}><Minus size={16} /></button><span className="cart-item-qty">{formatCartQuantity(item)}</span><button type="button" aria-label={`Aumentar ${item.saleUnit === 'Quilograma' ? '100 gramas' : 'quantidade'} de ${item.name}`} onClick={() => changeCartQuantity(item, 1)}><Plus size={16} /></button></div><button type="button" className="cart-item-remove" aria-label={`Remover ${item.name}`} onClick={() => removeCartItem(item)}><Trash2 size={16} /></button></div>) : <div className="cart-empty"><ShoppingCart size={28} /><strong>Seu carrinho está vazio</strong></div>}</div>
+          <form className="cart-panel-footer" onSubmit={finishPurchase}><div className="cart-summary-box"><div className="summary-row"><span>Subtotal ({cartCount} itens)</span><strong>R$ {cartItems.reduce((sum, item) => sum + (Number(String(item.price || '').replace(/[^0-9,]/g, '').replace(',', '.')) || 0) * (item.quantity || 1), 0).toFixed(2).replace('.', ',')}</strong></div><div className="summary-row"><span>Descontos</span><strong>R$ {(cartItems.reduce((sum, item) => sum + (Number(String(item.price || '').replace(/[^0-9,]/g, '').replace(',', '.')) || 0) * (item.quantity || 1), 0) * (validCoupons[coupon.trim().toUpperCase()] || 0)).toFixed(2).replace('.', ',')}</strong></div><div className="summary-row"><span>Frete</span><strong>R$ 0,00</strong></div><div className="summary-row total"><span>Total</span><strong>R$ {(cartItems.reduce((sum, item) => sum + (Number(String(item.price || '').replace(/[^0-9,]/g, '').replace(',', '.')) || 0) * (item.quantity || 1), 0) * (1 - (validCoupons[coupon.trim().toUpperCase()] || 0))).toFixed(2).replace('.', ',')}</strong></div></div><div className="cart-coupon"><input value={coupon} onChange={(event) => { setCoupon(event.target.value); setCouponDiscountPercent(0); setAppliedCouponCode(''); setCouponStatus(''); }} placeholder="Cupom enviado pelo ERP" maxLength={24} /><button className="btn-coupon" type="button" onClick={applyCoupon}>Aplicar</button></div><p className={`coupon-feedback ${couponStatus.includes('sucesso') ? 'success' : couponStatus ? 'error' : ''}`}>{couponStatus}</p>          <label className="delivery-address-field">Endereço de entrega<select value={checkoutAddress} onChange={(event) => setCheckoutAddress(event.target.value)}><option value="">Selecione seu endereço</option>{addressOptions.map((option) => <option key={option.value} value={option.value}>{option.label}</option>)}</select></label><label className="delivery-address-field">Forma de pagamento<select value={paymentMethod} onChange={(event) => setPaymentMethod(event.target.value)}><option value="pix">Pix</option><option value="cartao">Cartão</option><option value="dinheiro">Dinheiro</option><option value="outro">Outro / combinar</option></select></label><button className="btn-finalizar" type="submit" disabled={checkoutLoading ||
+ !cartItems.length}>{checkoutLoading ? 'Finalizando...' : 'Finalizar Compra'}</button><button type="button" className="btn-limpar" onClick={() => saveCart([])}>Limpar Carrinho</button>{checkoutStatus && <p className={`coupon-feedback ${checkoutStatus.includes('sucesso') ? 'success' : 'error'}`}>{checkoutStatus}</p>}</form>        </aside>
       </div>}
     </div>
   );

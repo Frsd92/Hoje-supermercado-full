@@ -8,12 +8,6 @@ function moveCarousel(botao, direcao) {
   });
 }
 
-const CUPONS_VALIDOS = {
-  HOJE10: 0.1,
-  HOJE20: 0.2,
-  PREMIUM: 0.15
-};
-
 const FAVORITES_API = '/api/favorites';
 const CART_API = '/api/cart';
 const SESSION_API = '/api/store-session';
@@ -22,6 +16,11 @@ const PAYMENT_METHODS = ['pix', 'cartao', 'dinheiro', 'outro'];
 let sessaoLoja = { authenticated: false, user: null };
 let carrinhoHidratado = false;
 let carrinhoAtualizando = false;
+let carrinhoRevision = 0;
+let carrinhoGravacoesPendentes = 0;
+let filaGravacaoCarrinho = Promise.resolve();
+let carrinhoItens = [];
+let cupomAplicado = { codigo: '', percentual: 0 };
 
 function idCarrinhoVisitante() {
   const storageKey = 'hoje-cart-id';
@@ -44,64 +43,103 @@ function opcoesCarrinho(options = {}) {
   };
 }
 
+function normalizarItemCarrinho(item) {
+  const nome = String(item.nome || item.name || '').trim();
+  const rawPrice = item.preco ?? item.price ?? 0;
+  const priceText = String(rawPrice).replace(/[^0-9,.-]/g, '');
+  const preco = typeof rawPrice === 'number'
+    ? rawPrice
+    : Number(priceText.includes(',') ? priceText.replace(/\./g, '').replace(',', '.') : priceText) || 0;
+  return {
+    id: String(item.id || item.productId || nome),
+    nome,
+    categoria: String(item.categoria || item.category || inferirCategoria(nome)),
+    qty: Number(item.qty ?? item.quantity) || 1,
+    preco,
+    imagem: String(item.imagem || item.image || ''),
+    saleUnit: item.saleUnit === 'Quilograma' || item.unit === 'kg' ? 'Quilograma' : 'Unidade',
+  };
+}
+
 async function sincronizarCarrinhoApi(itens) {
   if (!carrinhoHidratado) return;
-  try {
-    await fetch(CART_API, opcoesCarrinho({
-      method: 'PUT',
-      headers: { 'Content-Type': 'text/plain' },
-      body: JSON.stringify({
-        cart: itens.map((item) => ({
-          name: item.nome,
-          category: item.categoria,
-          price: formatarPreco(item.preco),
-          image: item.imagem || '',
-          quantity: item.qty,
-        })),
-      }),
-    }));
-  } catch (error) {
-    console.warn('Não foi possível sincronizar o carrinho:', error.message);
-  }
+  const cart = itens.map((item) => ({
+    productId: item.id,
+    name: item.nome,
+    category: item.categoria,
+    price: formatarPreco(item.preco),
+    image: item.imagem || '',
+    quantity: item.qty,
+    saleUnit: item.saleUnit,
+  }));
+  carrinhoGravacoesPendentes += 1;
+  filaGravacaoCarrinho = filaGravacaoCarrinho
+    .then(async () => {
+      const response = await fetch(CART_API, opcoesCarrinho({
+        method: 'PUT',
+        headers: { 'Content-Type': 'text/plain' },
+        body: JSON.stringify({ cart }),
+      }));
+      if (!response.ok) throw new Error(`Falha ao salvar carrinho (${response.status})`);
+    })
+    .catch((error) => {
+      console.warn('Não foi possível sincronizar o carrinho:', error.message);
+    })
+    .finally(() => {
+      carrinhoGravacoesPendentes -= 1;
+    });
+  await filaGravacaoCarrinho;
 }
 
 async function carregarCarrinhoDaApi() {
-  if (carrinhoAtualizando) {
-    carrinhoHidratado = true;
-    return;
-  }
+  if (carrinhoAtualizando) return;
 
   carrinhoAtualizando = true;
+  const revisionAtStart = carrinhoRevision;
+  let persistirCarrinhoLocal = false;
   try {
-    const response = await fetch(CART_API, opcoesCarrinho());
-    if (!response.ok) return;
+    const response = await fetch(CART_API, opcoesCarrinho({ cache: 'no-store' }));
+    if (!response.ok) throw new Error(`Falha ao carregar carrinho (${response.status})`);
     const { cart = [] } = await response.json();
+    const localCartChanged = carrinhoRevision !== revisionAtStart || carrinhoGravacoesPendentes > 0;
 
-    document.querySelectorAll('.product-card').forEach((card) => {
-      const nome = card.querySelector('.product-name')?.textContent.trim();
-      const item = cart.find((savedItem) => savedItem.name === nome);
-      const controls = card.querySelector('.qty-controls');
-      const quantity = card.querySelector('.qty');
-      const buyButton = card.querySelector('.btn-comprar');
-      if (!controls || !quantity || !buyButton) return;
-      if (item) {
-        quantity.textContent = String(item.quantity || 1);
-        controls.classList.add('show');
-        buyButton.style.display = 'none';
-      } else {
-        quantity.textContent = '1';
-        controls.classList.remove('show');
-        buyButton.style.display = 'block';
-      }
-    });
+    if (localCartChanged) {
+      persistirCarrinhoLocal = carrinhoRevision !== revisionAtStart;
+    } else {
+      carrinhoItens = cart.map(normalizarItemCarrinho);
+      document.querySelectorAll('.product-card').forEach((card) => {
+        const nome = card.querySelector('.product-name')?.textContent.trim();
+        const normalizedName = normalizarCatalogo(nome);
+        const controls = card.querySelector('.qty-controls');
+        const quantity = card.querySelector('.qty');
+        const buyButton = card.querySelector('.btn-comprar');
+        if (!nome || !controls || !quantity || !buyButton) return;
+        const item = cart.find((savedItem) => (
+          (card.dataset.id && String(savedItem.productId || savedItem.id || '') === card.dataset.id)
+          || normalizarCatalogo(savedItem.name) === normalizedName
+        ));
+        if (item) {
+          definirQuantidade(card, Number(item.quantity) || (produtoVendidoPorKg(card) ? 0.1 : 1));
+          controls.classList.add('show');
+          buyButton.style.display = 'none';
+        } else {
+          definirQuantidade(card, produtoVendidoPorKg(card) ? 0.1 : 1);
+          controls.classList.remove('show');
+          buyButton.style.display = 'block';
+        }
+      });
 
-    carrinhoHidratado = true;
-    renderizarCarrinho(false);
+      carrinhoHidratado = true;
+      renderizarCarrinho(false);
+    }
+
   } catch (error) {
     console.warn('Carrinho compartilhado indisponível:', error.message);
-    carrinhoHidratado = true;
+    persistirCarrinhoLocal = carrinhoRevision !== revisionAtStart;
   } finally {
+    carrinhoHidratado = true;
     carrinhoAtualizando = false;
+    if (persistirCarrinhoLocal) renderizarCarrinho();
   }
 }
 
@@ -210,6 +248,7 @@ function obterDadosFavorito(card) {
     category: card.querySelector('.product-category')?.textContent.trim() || inferirCategoria(nome),
     price: priceElement?.textContent.trim() || 'R$ 0,00',
     image: card.querySelector('.product-img')?.getAttribute('src') || '',
+    saleUnit: produtoVendidoPorKg(card) ? 'Quilograma' : 'Unidade',
   };
 }
 
@@ -241,6 +280,35 @@ async function sincronizarFavorito(card, button) {
 
 function formatarPreco(valor) {
   return 'R$ ' + valor.toFixed(2).replace('.', ',');
+}
+
+function produtoVendidoPorKg(card) {
+  return card?.dataset.saleUnit === 'Quilograma';
+}
+
+function formatarQuantidade(quantidade, porKg) {
+  if (!porKg) return String(Math.max(1, Math.trunc(Number(quantidade) || 1)));
+  const gramas = Math.round((Number(quantidade) || 0.1) * 1000);
+  if (gramas < 1000) return `${gramas} g`;
+  return `${(gramas / 1000).toLocaleString('pt-BR', { maximumFractionDigits: 1 })} kg`;
+}
+
+function lerQuantidade(card) {
+  const span = card?.querySelector('.qty');
+  const quantidade = Number(span?.dataset.quantity);
+  if (Number.isFinite(quantidade) && quantidade > 0) return quantidade;
+  const textQuantity = Number(String(span?.textContent || '').replace(',', '.'));
+  return Number.isFinite(textQuantity) && textQuantity > 0 ? textQuantity : (produtoVendidoPorKg(card) ? 0.1 : 1);
+}
+
+function definirQuantidade(card, quantidade) {
+  const span = card?.querySelector('.qty');
+  if (!span) return;
+  const normalizada = produtoVendidoPorKg(card)
+    ? Math.max(0.1, Math.round(quantidade * 10) / 10)
+    : Math.max(1, Math.trunc(quantidade));
+  span.dataset.quantity = String(normalizada);
+  span.textContent = formatarQuantidade(normalizada, produtoVendidoPorKg(card));
 }
 
 function obterPrecoProduto(card) {
@@ -304,35 +372,47 @@ function renderizarCarrinho(persistir = true) {
   const totalEl = document.getElementById('cart-total');
   const couponInput = document.getElementById('coupon-input');
   const couponValue = (couponInput?.value || '').trim().toUpperCase();
-  const descontoPercentual = CUPONS_VALIDOS[couponValue] || 0;
+  const descontoPercentual = cupomAplicado.codigo === couponValue ? cupomAplicado.percentual / 100 : 0;
 
-  const itens = [];
+  const itensPorProduto = new Map(carrinhoItens.map((item) => [normalizarCatalogo(item.nome), item]));
+  const nomesVisiveis = new Set();
   let totalItens = 0;
   let totalPreco = 0;
 
   document.querySelectorAll('.product-card').forEach(card => {
+    const nome = card.querySelector('.product-name')?.textContent.trim() || 'Produto';
+    const chaveProduto = normalizarCatalogo(nome);
+    if (nomesVisiveis.has(chaveProduto)) return;
+    nomesVisiveis.add(chaveProduto);
     const qtyControls = card.querySelector('.qty-controls');
     const qtyEl = card.querySelector('.qty');
 
-    if (!qtyControls || !qtyEl || !qtyControls.classList.contains('show')) return;
+    if (!qtyControls || !qtyEl) return;
+    if (!qtyControls.classList.contains('show')) {
+      itensPorProduto.delete(chaveProduto);
+      return;
+    }
 
-    const qty = parseInt(qtyEl.textContent || '1', 10);
-    const nome = card.querySelector('.product-name')?.textContent.trim() || 'Produto';
+    const qty = lerQuantidade(card);
     const preco = obterPrecoProduto(card);
     const imagem = card.querySelector('.product-img')?.src || '';
-
-    totalItens += qty;
-    totalPreco += qty * preco;
-
-    itens.push({
+    const saleUnit = produtoVendidoPorKg(card) ? 'Quilograma' : 'Unidade';
+    itensPorProduto.set(chaveProduto, {
       id: card.dataset.id || nome,
       nome,
       categoria: inferirCategoria(nome),
       qty,
       preco,
       imagem,
+      saleUnit,
       card
     });
+  });
+  carrinhoItens = [...itensPorProduto.values()].map(normalizarItemCarrinho);
+  const itens = [...itensPorProduto.values()];
+  itens.forEach((item) => {
+    totalItens += item.saleUnit === 'Quilograma' ? 1 : item.qty;
+    totalPreco += item.qty * item.preco;
   });
 
   if (badge) badge.textContent = String(totalItens);
@@ -369,13 +449,13 @@ function renderizarCarrinho(persistir = true) {
 
       <div class="cart-item-info">
         <div class="cart-item-name">${item.nome}</div>
-        <div class="cart-item-category">${item.categoria}</div>
+        <div class="cart-item-category">${item.saleUnit === 'Quilograma' ? `${item.categoria} · ${formatarPreco(item.preco)}/kg` : item.categoria}</div>
         <div class="cart-item-price">${formatarPreco(item.preco * item.qty)}</div>
       </div>
 
       <div class="cart-item-controls">
         <button class="qty-minus" data-action="decrement" data-name="${item.nome}" aria-label="Diminuir quantidade">−</button>
-        <span class="cart-item-qty">${item.qty}</span>
+        <span class="cart-item-qty">${formatarQuantidade(item.qty, item.saleUnit === 'Quilograma')}</span>
         <button class="qty-plus" data-action="increment" data-name="${item.nome}" aria-label="Aumentar quantidade">+</button>
       </div>
 
@@ -406,10 +486,13 @@ function renderizarCarrinho(persistir = true) {
 }
 
 function limparCarrinho() {
+  carrinhoRevision += 1;
+  carrinhoItens = [];
   const couponInput = document.getElementById('coupon-input');
   const feedback = document.getElementById('coupon-feedback');
 
   if (couponInput) couponInput.value = '';
+  cupomAplicado = { codigo: '', percentual: 0 };
   if (feedback) {
     feedback.textContent = '';
     feedback.className = 'coupon-feedback';
@@ -422,7 +505,7 @@ function limparCarrinho() {
 
     if (!qtyControls || !qtySpan || !comprarBtn) return;
 
-    qtySpan.textContent = '1';
+    definirQuantidade(card, produtoVendidoPorKg(card) ? 0.1 : 1);
     qtyControls.classList.remove('show');
     comprarBtn.style.display = 'block';
   });
@@ -431,9 +514,12 @@ function limparCarrinho() {
 }
 
 function ajustarQuantidadeProduto(nome, operacao) {
+  carrinhoRevision += 1;
+  let productCardFound = false;
   document.querySelectorAll('.product-card').forEach(card => {
     const itemNome = card.querySelector('.product-name')?.textContent.trim();
-    if (itemNome !== nome) return;
+    if (normalizarCatalogo(itemNome) !== normalizarCatalogo(nome)) return;
+    productCardFound = true;
 
     const qtyControls = card.querySelector('.qty-controls');
     const qtySpan = card.querySelector('.qty');
@@ -441,17 +527,16 @@ function ajustarQuantidadeProduto(nome, operacao) {
 
     if (!qtyControls || !qtySpan || !comprarBtn) return;
 
-    const atual = parseInt(qtySpan.textContent || '1', 10);
-    const proximo = operacao === 'increment' ? atual + 1 : atual - 1;
+    const atual = lerQuantidade(card);
+    const passo = produtoVendidoPorKg(card) ? 0.1 : 1;
+    const proximo = Math.round((operacao === 'increment' ? atual + passo : atual - passo) * 10) / 10;
 
-    if (proximo <= 0) {
-      qtySpan.textContent = '1';
-      qtyControls.classList.remove('show');
-      comprarBtn.style.display = 'block';
-    } else {
-      qtySpan.textContent = String(proximo);
-    }
+    definirQuantidade(card, Math.max(passo, proximo));
   });
+  if (!productCardFound) {
+    const item = carrinhoItens.find((cartItem) => normalizarCatalogo(cartItem.nome) === normalizarCatalogo(nome));
+    if (item) item.qty = Math.max(item.saleUnit === 'Quilograma' ? 0.1 : 1, item.qty + (operacao === 'increment' ? 1 : -1) * (item.saleUnit === 'Quilograma' ? 0.1 : 1));
+  }
 
   renderizarCarrinho();
 }
@@ -461,23 +546,24 @@ function adicionarProduto(botao) {
   const card = botao.closest('.product-card');
   if (!card) return;
 
-  const qtyControls = card.querySelector('.qty-controls');
-  const qtySpan = card.querySelector('.qty');
-  const comprarBtn = card.querySelector('.btn-comprar');
+  const nome = card.querySelector('.product-name')?.textContent.trim();
+  if (!nome) return;
+  carrinhoRevision += 1;
+  const quantidade = lerQuantidade(card);
+  document.querySelectorAll('.product-card').forEach((productCard) => {
+    if (normalizarCatalogo(productCard.querySelector('.product-name')?.textContent.trim()) !== normalizarCatalogo(nome)) return;
+    const qtyControls = productCard.querySelector('.qty-controls');
+    const comprarBtn = productCard.querySelector('.btn-comprar');
+    if (!qtyControls || !comprarBtn) return;
+    definirQuantidade(productCard, quantidade);
+    qtyControls.classList.add('show');
+    comprarBtn.style.display = 'none';
+  });
   const badge = document.getElementById('cart-badge');
-
-  if (!qtyControls || !qtySpan || !comprarBtn) return;
 
   card.classList.remove('is-added');
   void card.offsetWidth;
   card.classList.add('is-added');
-
-  comprarBtn.style.display = 'none';
-  qtyControls.classList.add('show');
-
-  if (!Number.isFinite(parseInt(qtySpan.textContent)) || parseInt(qtySpan.textContent) < 1) {
-    qtySpan.textContent = '1';
-  }
 
   if (badge) {
     badge.classList.remove('pulse');
@@ -494,10 +580,16 @@ function aumentarQtd(botao) {
   const card = botao.closest('.product-card');
   if (!card) return;
 
-  const qtySpan = card.querySelector('.qty');
-  if (!qtySpan) return;
-
-  qtySpan.textContent = String(parseInt(qtySpan.textContent || '1', 10) + 1);
+  const nome = card.querySelector('.product-name')?.textContent.trim();
+  if (!nome) return;
+  carrinhoRevision += 1;
+  const passo = produtoVendidoPorKg(card) ? 0.1 : 1;
+  const quantidade = lerQuantidade(card) + passo;
+  document.querySelectorAll('.product-card').forEach((productCard) => {
+    if (normalizarCatalogo(productCard.querySelector('.product-name')?.textContent.trim()) === normalizarCatalogo(nome)) {
+      definirQuantidade(productCard, quantidade);
+    }
+  });
   renderizarCarrinho();
 }
 
@@ -506,15 +598,19 @@ function removerProduto(botao) {
   const card = botao.closest('.product-card');
   if (!card) return;
 
-  const qtyControls = card.querySelector('.qty-controls');
-  const qtySpan = card.querySelector('.qty');
-  const comprarBtn = card.querySelector('.btn-comprar');
-
-  if (!qtyControls || !qtySpan || !comprarBtn) return;
-
-  qtySpan.textContent = '1';
-  qtyControls.classList.remove('show');
-  comprarBtn.style.display = 'block';
+  const nome = card.querySelector('.product-name')?.textContent.trim();
+  if (!nome) return;
+  carrinhoRevision += 1;
+  carrinhoItens = carrinhoItens.filter((item) => normalizarCatalogo(item.nome) !== normalizarCatalogo(nome));
+  document.querySelectorAll('.product-card').forEach((productCard) => {
+    if (normalizarCatalogo(productCard.querySelector('.product-name')?.textContent.trim()) !== normalizarCatalogo(nome)) return;
+    const qtyControls = productCard.querySelector('.qty-controls');
+    const comprarBtn = productCard.querySelector('.btn-comprar');
+    if (!qtyControls || !comprarBtn) return;
+    definirQuantidade(productCard, produtoVendidoPorKg(productCard) ? 0.1 : 1);
+    qtyControls.classList.remove('show');
+    comprarBtn.style.display = 'block';
+  });
   renderizarCarrinho();
 }
 
@@ -663,22 +759,31 @@ function inicializarCarrinho() {
         return;
       }
 
-      const items = [...document.querySelectorAll('.product-card')].flatMap((card) => {
-        const controls = card.querySelector('.qty-controls');
-        if (!controls?.classList.contains('show')) return [];
-        return [{ name: card.querySelector('.product-name')?.textContent.trim(), quantity: Number(card.querySelector('.qty')?.textContent || 1), price: card.querySelector('.product-price')?.textContent.trim() || '' }];
-      });
+      const items = carrinhoItens.map((item) => ({
+        name: item.nome,
+        quantity: item.qty,
+        unit: item.saleUnit === 'Quilograma' ? 'kg' : 'unidade',
+        price: formatarPreco(item.preco),
+      }));
 
       if (!items.length) {
         if (feedback) { feedback.textContent = 'Adicione ao menos um produto antes de finalizar.'; feedback.className = 'coupon-feedback error'; }
         return;
       }
 
+      const couponCode = couponInput?.value.trim().toUpperCase() || '';
+      if (couponCode && cupomAplicado.codigo !== couponCode) {
+        if (feedback) { feedback.textContent = 'Aplique e valide seu cupom antes de finalizar a compra.'; feedback.className = 'coupon-feedback error'; }
+        return;
+      }
+
       try {
         const paymentSelect = document.getElementById('payment-method');
         const paymentMethod = PAYMENT_METHODS.includes(paymentSelect?.value) ? paymentSelect.value : 'outro';
-        const response = await fetch('/api/erp/orders', { method: 'POST', credentials: 'include', headers: { 'Content-Type': 'text/plain' }, body: JSON.stringify({ items, address: deliveryAddress.selectedOptions[0].textContent, paymentMethod, total: document.getElementById('cart-total')?.textContent || 'R$ 0,00' }) });
-        if (!response.ok) throw new Error('Não foi possível registrar o pedido.');
+        const response = await fetch('/api/erp/orders', { method: 'POST', credentials: 'include', headers: { 'Content-Type': 'text/plain' }, body: JSON.stringify({ items, address: deliveryAddress.selectedOptions[0].textContent, paymentMethod, couponCode }) });
+        const data = await response.json();
+        if (!response.ok) throw new Error(data.error || 'Não foi possível registrar o pedido.');
+        limparCarrinho();
         if (feedback) { feedback.textContent = 'Pedido registrado com sucesso.'; feedback.className = 'coupon-feedback success'; }
       } catch (error) {
         if (feedback) { feedback.textContent = error.message; feedback.className = 'coupon-feedback error'; }
@@ -726,22 +831,60 @@ function inicializarCarrinho() {
   }
 
   if (applyCouponBtn && couponInput) {
-    applyCouponBtn.addEventListener('click', () => {
+    applyCouponBtn.addEventListener('click', async () => {
       const valor = couponInput.value.trim().toUpperCase();
-
-      if (CUPONS_VALIDOS[valor]) {
+      cupomAplicado = { codigo: '', percentual: 0 };
+      if (!valor) {
         if (feedback) {
-          feedback.textContent = `Cupom ${valor} aplicado com sucesso!`;
-          feedback.className = 'coupon-feedback success';
-        }
-      } else {
-        if (feedback) {
-          feedback.textContent = 'Cupom inválido. Tente: HOJE10, HOJE20 ou PREMIUM';
+          feedback.textContent = 'Informe o código de um cupom enviado para sua conta.';
           feedback.className = 'coupon-feedback error';
         }
+        renderizarCarrinho();
+        return;
       }
 
-      renderizarCarrinho();
+      if (!sessaoLoja.authenticated) {
+        if (feedback) {
+          feedback.textContent = 'Entre na sua conta para validar os cupons enviados para você.';
+          feedback.className = 'coupon-feedback error';
+        }
+        renderizarCarrinho();
+        return;
+      }
+
+      applyCouponBtn.disabled = true;
+      try {
+        const response = await fetch('/api/coupons', { credentials: 'include', cache: 'no-store' });
+        const data = await response.json();
+        if (!response.ok) throw new Error(data.error || 'Não foi possível validar seus cupons.');
+        const assignedCoupon = (data.coupons || []).find((item) => item.code === valor);
+        if (!assignedCoupon) throw new Error('Cupom inválido, expirado ou não enviado para sua conta.');
+
+        cupomAplicado = { codigo: valor, percentual: assignedCoupon.discountPercent };
+        if (feedback) {
+          feedback.textContent = `Cupom ${valor} aplicado: ${assignedCoupon.discountPercent}% de desconto.`;
+          feedback.className = 'coupon-feedback success';
+        }
+      } catch (error) {
+        if (feedback) {
+          feedback.textContent = error.message;
+          feedback.className = 'coupon-feedback error';
+        }
+      } finally {
+        applyCouponBtn.disabled = false;
+        renderizarCarrinho();
+      }
+    });
+
+    couponInput.addEventListener('input', () => {
+      if (couponInput.value.trim().toUpperCase() !== cupomAplicado.codigo) {
+        cupomAplicado = { codigo: '', percentual: 0 };
+        if (feedback) {
+          feedback.textContent = '';
+          feedback.className = 'coupon-feedback';
+        }
+        renderizarCarrinho();
+      }
     });
 
     couponInput.addEventListener('keydown', (event) => {
@@ -771,9 +914,11 @@ function inicializarCarrinho() {
       }
 
       if (action === 'remove') {
+        carrinhoRevision += 1;
+        carrinhoItens = carrinhoItens.filter((item) => normalizarCatalogo(item.nome) !== normalizarCatalogo(nome));
         document.querySelectorAll('.product-card').forEach(card => {
           const itemNome = card.querySelector('.product-name')?.textContent.trim();
-          if (itemNome !== nome) return;
+          if (normalizarCatalogo(itemNome) !== normalizarCatalogo(nome)) return;
 
           const qtyControls = card.querySelector('.qty-controls');
           const qtySpan = card.querySelector('.qty');
@@ -781,7 +926,7 @@ function inicializarCarrinho() {
 
           if (!qtyControls || !qtySpan || !comprarBtn) return;
 
-          qtySpan.textContent = '1';
+          definirQuantidade(card, produtoVendidoPorKg(card) ? 0.1 : 1);
           qtyControls.classList.remove('show');
           comprarBtn.style.display = 'block';
         });
@@ -817,9 +962,10 @@ function categoriaDoCarrossel(container) {
 
 function criarCardDoCatalogo(product) {
   const salePrice = Number(product.salePrice ?? product.price);
-  const price = `R$ ${salePrice.toFixed(2).replace('.', ',')}`;
-  const oldPrice = Number(product.discount) > 0 ? ` <span class="old-price">R$ ${Number(product.price).toFixed(2).replace('.', ',')}</span>` : '';
-  return `<article class="product-card"><img src="${product.image || ''}" alt="${product.title}" class="product-img"><div class="product-name">${product.title}</div><div class="product-price">${price}${oldPrice}</div><div class="product-rating">${product.subcategory || product.categories.join(', ')}</div><div class="product-actions"><button class="btn-comprar" onclick="adicionarProduto(this)">Comprar</button><div class="qty-controls"><button class="btn-remove" onclick="removerProduto(this)"><i data-lucide="trash-2"></i></button><span class="qty">1</span><button class="btn-add" onclick="aumentarQtd(this)">+</button></div></div></article>`;
+  const porKg = product.saleUnit === 'Quilograma';
+  const price = `R$ ${salePrice.toFixed(2).replace('.', ',')}${porKg ? ' / kg' : ''}`;
+  const oldPrice = Number(product.discount) > 0 ? ` <span class="old-price">R$ ${Number(product.price).toFixed(2).replace('.', ',')}${porKg ? ' / kg' : ''}</span>` : '';
+  return `<article class="product-card" data-id="${product.id}" data-sale-unit="${porKg ? 'Quilograma' : 'Unidade'}"><img src="${product.image || ''}" alt="${product.title}" class="product-img"><div class="product-name">${product.title}</div><div class="product-price">${price}${oldPrice}</div><div class="product-rating">${product.subcategory || product.categories.join(', ')}</div><div class="product-actions"><button class="btn-comprar" onclick="adicionarProduto(this)">Adicionar</button><div class="qty-controls"><button class="btn-remove" onclick="removerProduto(this)"><i data-lucide="trash-2"></i></button><span class="qty" data-quantity="${porKg ? '0.1' : '1'}">${porKg ? '100 g' : '1'}</span><button class="btn-add" onclick="aumentarQtd(this)">+</button></div></div></article>`;
 }
 
 async function carregarCatalogoReal() {
@@ -877,6 +1023,23 @@ function normalizarBusca(texto) {
     .replace(/[\u0300-\u036f]/g, '');
 }
 
+// Build an index of products (name, category, card) to speed searches and avoid querying DOM each keystroke
+let _productIndex = [];
+let _searchDebounceTimer = null;
+
+function buildProductIndex() {
+  _productIndex = [...document.querySelectorAll('.product-card')].map((card) => {
+    const nome = card.querySelector('.product-name')?.textContent.trim() || '';
+    const categoria = card.querySelector('.product-category')?.textContent.trim() || '';
+    return { name: nome, nameNormalized: normalizarBusca(nome), category: categoria, categoryNormalized: normalizarBusca(categoria), card };
+  });
+}
+
+function scheduleBuscarProdutos() {
+  clearTimeout(_searchDebounceTimer);
+  _searchDebounceTimer = setTimeout(buscarProdutos, 180);
+}
+
 // Atualiza os resultados da busca da loja conforme o usuário digita.
 function buscarProdutos() {
   const input = document.getElementById('search-input');
@@ -891,25 +1054,20 @@ function buscarProdutos() {
     return;
   }
 
+  // Use the indexed list for faster filtering
+  const encontrados = [];
   const vistos = new Set();
-  const resultados = [];
+  for (let i = 0; i < _productIndex.length && encontrados.length < 8; i += 1) {
+    const item = _productIndex[i];
+    const name = item.nameNormalized;
+    const cat = item.categoryNormalized;
+    if ((name.includes(termo) || cat.includes(termo)) && !vistos.has(name)) {
+      vistos.add(name);
+      encontrados.push(item);
+    }
+  }
 
-  document.querySelectorAll('.product-card').forEach(card => {
-    if (resultados.length >= 8) return;
-
-    const nomeEl = card.querySelector('.product-name');
-    if (!nomeEl) return;
-
-    const nomeOriginal = nomeEl.textContent.trim();
-    const nome = normalizarBusca(nomeOriginal);
-    const categoria = normalizarBusca(card.querySelector('.product-category')?.textContent || '');
-    if ((!nome.includes(termo) && !categoria.includes(termo)) || vistos.has(nome)) return;
-
-    vistos.add(nome);
-    resultados.push({ card, nomeOriginal });
-  });
-
-  if (!resultados.length) {
+  if (!encontrados.length) {
     resultsBox.innerHTML = `
       <div class="search-empty">
         <i data-lucide="search-x"></i>
@@ -919,7 +1077,8 @@ function buscarProdutos() {
     `;
     resultsBox.classList.add('show');
   } else {
-    resultados.forEach(({ card, nomeOriginal }) => {
+    encontrados.forEach(({ card, name }) => {
+      const nomeOriginal = name;
       const item = document.createElement('div');
       item.setAttribute('role', 'button');
       item.setAttribute('tabindex', '0');
@@ -935,7 +1094,7 @@ function buscarProdutos() {
         <span class="search-result-info"><strong>${nomeOriginal}</strong><small>${categoria}</small></span>
         <span class="search-result-price">${preco}</span>
         <span class="search-result-actions">
-          <button type="button" class="search-buy">Comprar</button>
+          <button type="button" class="search-buy">Adicionar</button>
           <span class="search-qty-controls">
             <button type="button" class="search-qty-minus" aria-label="Diminuir quantidade">−</button>
             <strong class="search-qty-value">1</strong>
@@ -1010,6 +1169,81 @@ function buscarProdutos() {
   if (window.lucide) window.lucide.createIcons();
   resultsBox.classList.add('show');
 }
+
+// Hook in: replace inline handlers by scheduling the debounced search
+(function replaceSearchListeners() {
+  const input = document.getElementById('search-input');
+  if (input) {
+    // remove inline handlers if present
+    input.removeAttribute('oninput');
+    input.removeAttribute('onfocus');
+    input.addEventListener('input', scheduleBuscarProdutos);
+    input.addEventListener('focus', scheduleBuscarProdutos);
+  }
+})();
+
+// Ensure index built after content populated
+window.addEventListener('DOMContentLoaded', () => {
+  buildProductIndex();
+});
+
+// Rebuild index when product catalog is (re)loaded
+const origCarregarCatalogoReal = window.carregarCatalogoReal;
+if (typeof origCarregarCatalogoReal === 'function') {
+  window.carregarCatalogoReal = async function patchedCarregarCatalogoReal() {
+    await origCarregarCatalogoReal();
+    buildProductIndex();
+  };
+}
+
+// Ensure first result activation on Enter still works (keeps previous behavior)
+document.addEventListener('keydown', function(evento) {
+  const input = document.getElementById('search-input');
+  if (evento.key === 'Enter' && document.activeElement === input) {
+    const primeiroResultado = document.querySelector('.search-result-item');
+    if (primeiroResultado) {
+      evento.preventDefault();
+      primeiroResultado.click();
+    }
+  }
+});
+
+// END of search improvements
+
+// --- Checkout: require profile/address before finalizing purchase ---
+(function patchFinalizeFlow() {
+  const finalizeButton = document.getElementById('finalizar-compra');
+  if (!finalizeButton) return;
+
+  finalizeButton.addEventListener('click', async (e) => {
+    e.preventDefault();
+    // existing logic starts here
+    // check authentication
+    if (!sessaoLoja.authenticated) {
+      abrirLoginDashboard();
+      return;
+    }
+
+    // check if user has addresses loaded (delivery-address select)
+    const deliveryAddress = document.getElementById('delivery-address');
+    const feedback = document.getElementById('coupon-feedback');
+    if (!deliveryAddress || deliveryAddress.options.length <= 1 || !deliveryAddress.value) {
+      if (feedback) {
+        feedback.textContent = 'Complete seu perfil com um endereço antes de finalizar a compra.';
+        feedback.className = 'coupon-feedback error';
+      }
+      // redirect user to profile page to add address
+      setTimeout(() => { window.location.href = '/dashboard/profile'; }, 900);
+      return;
+    }
+
+    // Otherwise, keep original finalize flow (simulate previous handler)
+    // trigger original click behavior: locate original handler by dispatching a custom event
+    // The page has an existing finalize handler attached in inicializarCarrinho; call it indirectly
+    const event = new Event('hoje-finalize-click', { bubbles: true, cancelable: true });
+    finalizeButton.dispatchEvent(event);
+  });
+})();
 
 // Fecha o menu de busca se a pessoa clicar em qualquer lugar fora dele
 document.addEventListener('click', function(evento) {

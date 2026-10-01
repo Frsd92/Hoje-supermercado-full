@@ -57,10 +57,11 @@ async function loadCategory() {
   filteredProducts.forEach((product) => {
     const name = product.title;
     const salePrice = Number(product.salePrice ?? product.price);
-    const price = `R$ ${salePrice.toFixed(2).replace('.', ',')}`;
-    const oldPrice = Number(product.discount) > 0 ? ` <span class="old-price">R$ ${Number(product.price).toFixed(2).replace('.', ',')}</span>` : '';
+    const porKg = product.saleUnit === 'Quilograma';
+    const price = `R$ ${salePrice.toFixed(2).replace('.', ',')}${porKg ? ' / kg' : ''}`;
+    const oldPrice = Number(product.discount) > 0 ? ` <span class="old-price">R$ ${Number(product.price).toFixed(2).replace('.', ',')}${porKg ? ' / kg' : ''}</span>` : '';
     const imageSource = product.image || '';
-    container.insertAdjacentHTML('beforeend', `<article class="product-card"><img src="${imageSource}" alt="${name}" class="product-img"><div class="product-category">${product.subcategory || product.categories.join(', ')}</div><div class="product-name">${name}</div><div class="product-price">${price}${oldPrice}</div><div class="product-actions"><button class="btn-comprar" onclick="adicionarProduto(this)">Comprar</button><div class="qty-controls"><button class="btn-remove" onclick="removerProduto(this)">×</button><span class="qty">1</span><button class="btn-add" onclick="aumentarQtd(this)">+</button></div></div></article>`);
+    container.insertAdjacentHTML('beforeend', `<article class="product-card" data-id="${product.id}" data-sale-unit="${porKg ? 'Quilograma' : 'Unidade'}"><img src="${imageSource}" alt="${name}" class="product-img"><div class="product-category">${product.subcategory || product.categories.join(', ')}</div><div class="product-name">${name}</div><div class="product-price">${price}${oldPrice}</div><div class="product-actions"><button class="btn-comprar" onclick="adicionarProduto(this)">Adicionar</button><div class="qty-controls"><button class="btn-remove" onclick="removerProduto(this)">×</button><span class="qty" data-quantity="${porKg ? '0.1' : '1'}">${porKg ? '100 g' : '1'}</span><button class="btn-add" onclick="aumentarQtd(this)">+</button></div></div></article>`);
   });
 
   document.getElementById('category-empty').hidden = filteredProducts.length > 0;

@@ -1,52 +1,5 @@
-'use client';
+import ERPLayout from '@/features/erp/components/erp-layout';
 
-import Link from 'next/link';
-import { usePathname } from 'next/navigation';
-import { Activity, BarChart3, Boxes, ClipboardList, FileText, LayoutDashboard, Megaphone, Package, ShoppingCart, Truck, Users } from 'lucide-react';
-import { useEffect, useState } from 'react';
-
-const erpNavigation = [
-  { label: 'Dashboard', href: '/erp', icon: LayoutDashboard },
-  { label: 'Central de Cadastros', href: '/erp/catalog', icon: ClipboardList },
-  { label: 'Produtos', href: '/erp/products', icon: Package },
-  { label: 'Pedidos', href: '/erp/orders', icon: ShoppingCart },
-  { label: 'Clientes', href: '/erp/customers', icon: Users },
-  { label: 'Fornecedores', href: '/erp/suppliers', icon: Truck },
-  { label: 'Comunicação', href: '/erp/promotions', icon: Megaphone },
-  { label: 'Analytics', href: '/erp/analytics', icon: Activity },
-  { label: 'Relatórios', href: '/erp/reports', icon: BarChart3 },
-];
-
-export default function ERPLayout({ children }) {
-  const pathname = usePathname();
-  const [newOrders, setNewOrders] = useState(0);
-
-  useEffect(() => {
-    const loadNewOrders = () => fetch('/api/erp/orders').then((response) => response.json()).then(({ orders = [] }) => {
-      const acknowledged = JSON.parse(localStorage.getItem('erp-acknowledged-orders') || '[]');
-      setNewOrders(orders.filter((order) => order.status === 'Recebido' && !acknowledged.includes(order.id)).length);
-    }).catch(() => setNewOrders(0));
-    loadNewOrders();
-    window.addEventListener('erp-orders-updated', loadNewOrders);
-    return () => window.removeEventListener('erp-orders-updated', loadNewOrders);
-  }, []);
-
-  return (
-    <div className="erp-shell">
-      <aside className="erp-sidebar">
-        <div className="erp-brand">
-          <div className="erp-brand-mark">H</div>
-          <div><span>HOJE</span><strong>ERP Operacional</strong></div>
-        </div>
-        <nav className="erp-nav" aria-label="Navegação ERP">
-          {erpNavigation.map(({ label, href, icon: Icon }) => {
-            const active = pathname === href || (href !== '/erp' && pathname.startsWith(href));
-            return <Link key={label} href={href} className={`erp-nav-item ${active ? 'active' : ''}`}><Icon size={17} /><span>{label}</span>{label === 'Pedidos' && newOrders > 0 && <b className="erp-nav-badge">{newOrders}</b>}</Link>;
-          })}
-        </nav>
-        <div className="erp-sidebar-footer"><FileText size={15} /><span>Dados auditáveis</span></div>
-      </aside>
-      <main className="erp-main">{children}</main>
-    </div>
-  );
+export default function Layout({ children }) {
+  return <ERPLayout>{children}</ERPLayout>;
 }

@@ -22,7 +22,9 @@ export default function LoginPage() {
     const params = new URLSearchParams(window.location.search);
     const error = params.get('error') || '';
     const requestedCallback = params.get('callbackUrl');
-    setAuthError(error);
+    setAuthError(error === 'google-required'
+      ? 'Para acessar o painel do cliente, entre com sua conta Google.'
+      : error);
     if (requestedCallback) setCallbackUrl(requestedCallback);
   }, []);
 
@@ -98,7 +100,7 @@ export default function LoginPage() {
       <section className="login-panel">
         <div className="login-card">
           <div className="login-header-row">
-            <a className="login-store-link" href="http://localhost:5500/">
+            <a className="login-store-link" href="/">
               <ArrowLeft size={15} />
               <span>Voltar para a loja</span>
             </a>

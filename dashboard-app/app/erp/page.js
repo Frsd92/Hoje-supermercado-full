@@ -1,5 +1,1 @@
-import ERPPage from '../dashboard/erp/page';
-
-export default function ERPStandalonePage() {
-  return <ERPPage />;
-}
+export { default } from '@/features/erp/pages/dashboard-page';

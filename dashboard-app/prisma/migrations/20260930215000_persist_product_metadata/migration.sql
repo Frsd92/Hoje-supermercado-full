@@ -1,0 +1,6 @@
+ALTER TABLE "Product"
+  ALTER COLUMN "quantity" TYPE DECIMAL(12, 3)
+  USING "quantity"::DECIMAL(12, 3);
+
+ALTER TABLE "Product"
+  ADD COLUMN IF NOT EXISTS "metadata" JSONB NOT NULL DEFAULT '{}'::jsonb;

@@ -9,3 +9,4 @@ build/
 .vercel/
 
 client_secret_*.json
+/dashboard-app/data/profiles.json

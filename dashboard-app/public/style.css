@@ -1491,48 +1491,190 @@ body {
 /* RODAPÉ: faixa verde final */
 /* ===================================================== */
 .footer {
-  background-color: #1a7a3c;
-  color: white;
-  display: flex;
-  justify-content: space-around;
-  padding: 20px;
+  background-color: #0f3b24;
+  color: #e6f6ee;
+  padding: 28px 22px 14px;
   margin-top: 30px;
-  flex-wrap: wrap; /* quebra linha em telas pequenas, em vez de espremer */
-  gap: 20px;
+  border-top: 1px solid rgba(255,255,255,0.04);
 }
 
-.footer-logo {
+.footer-inner {
   display: flex;
-  align-items: center;
-  margin-right: 20px;
+  gap: 28px;
+  align-items: flex-start;
+  justify-content: space-between;
+  max-width: 1200px;
+  margin: 0 auto;
+  flex-wrap: wrap;
+}
+
+.footer-left {
+  min-width: 220px;
+  max-width: 320px;
 }
 
 .footer-logo img {
-  height: 32px;
+  height: 42px;
   width: auto;
-}
-
-.footer-item {
-  display: flex;
-  align-items: center;
-  gap: 12px;
-}
-
-.footer-item strong {
-  font-size: 14px;
   display: block;
 }
 
-.footer-item p {
-  font-size: 12px;
-  color: #dcefe1;
+.footer-tagline {
+  margin-top: 8px;
+  color: rgba(255,255,255,0.9);
+  font-size: 14px;
 }
 
-.footer-item [data-lucide] {
-  width: 24px;
-  height: 24px;
-  flex-shrink: 0;
+.footer-columns {
+  display: flex;
+  gap: 36px;
+  flex: 1 1 520px;
+  justify-content: space-between;
 }
+
+.footer-column h4 {
+  margin: 0 0 10px 0;
+  font-size: 14px;
+  color: #fff;
+}
+
+.footer-column ul {
+  list-style: none;
+  padding: 0;
+  margin: 0;
+}
+
+.footer-column ul li {
+  margin: 6px 0;
+}
+
+.footer-column a {
+  color: rgba(230,246,238,0.92);
+  text-decoration: none;
+  font-size: 13px;
+}
+
+.payment-icons {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+  align-items: center;
+}
+
+.payment {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  background: rgba(255,255,255,0.06);
+  padding: 6px 10px;
+  border-radius: 8px;
+  font-weight: 700;
+  font-size: 13px;
+}
+
+.payment [data-lucide] {
+  width: 16px;
+  height: 16px;
+  flex: 0 0 auto;
+}
+
+.newsletter {
+  margin-top: 14px;
+  display: flex;
+  flex-direction: column;
+  align-items: stretch;
+  gap: 7px;
+}
+
+.newsletter-label {
+  color: #fff;
+  font-size: 13px;
+  font-weight: 700;
+}
+
+.newsletter-form {
+  display: flex;
+  gap: 8px;
+  align-items: center;
+}
+
+.newsletter input {
+  width: 100%;
+  min-width: 0;
+  padding: 8px 10px;
+  border-radius: 8px;
+  border: 1px solid rgba(255,255,255,0.06);
+  background: rgba(255,255,255,0.03);
+  color: #fff;
+  min-width: 160px;
+}
+
+.newsletter button {
+  flex: 0 0 auto;
+  background: #f5c518;
+  color: #0b2412;
+  border: none;
+  padding: 8px 12px;
+  border-radius: 8px;
+  cursor: pointer;
+  font-weight: 800;
+}
+
+.social-icons {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+}
+
+.social-icons a,
+.social-icon-static {
+  color: rgba(255,255,255,0.9);
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 34px;
+  height: 34px;
+  border-radius: 8px;
+  background: rgba(255,255,255,0.02);
+}
+
+.social-icons a {
+  text-decoration: none;
+}
+
+.social-icons a:hover,
+.social-icons a:focus-visible {
+  color: #f5c518;
+  background: rgba(255,255,255,0.1);
+  outline-offset: 3px;
+}
+
+.social-icon-static {
+  color: rgba(255,255,255,0.65);
+  cursor: default;
+}
+
+.social-icons [data-lucide] {
+  width: 18px;
+  height: 18px;
+}
+
+.footer-bottom {
+  max-width: 1200px;
+  margin: 12px auto 0;
+  padding-top: 12px;
+  border-top: 1px solid rgba(255,255,255,0.03);
+  text-align: center;
+  color: rgba(255,255,255,0.7);
+}
+
+.copyright {
+  margin-top: 12px;
+  color: rgba(255,255,255,0.7);
+  font-size: 13px;
+}
+
+.visually-hidden { position:absolute !important; height:1px; width:1px; overflow:hidden; clip:rect(1px,1px,1px,1px); white-space:nowrap; }
 
 /* Banner de destaque de vendedor/marca parceira, tipo "Produtos Hoje" */
 .vendor-banner {
@@ -2130,3 +2272,262 @@ body {
 
 .category-topbar { position: static; }
 .category-search { max-width: 460px; }
+
+/* ===================================================== */
+/* Inicio página de politica. */
+/* ===================================================== */
+  .policy-breadcrumb {
+    max-width: 900px;
+    margin: 20px auto 0;
+    padding: 0 20px;
+  }
+  .policy-breadcrumb a {
+    color: #2e7d32;
+    text-decoration: none;
+    font-weight: 600;
+    font-size: 14px;
+  }
+  .policy-breadcrumb a:hover {
+    text-decoration: underline;
+  }
+  .policy-page {
+    max-width: 900px;
+    margin: 20px auto 60px;
+    padding: 0 20px;
+    font-family: inherit;
+    color: #222;
+    line-height: 1.6;
+  }
+  .policy-container h1 {
+    font-size: 28px;
+    color: #1b5e20;
+    margin-bottom: 4px;
+  }
+  .policy-meta {
+    font-size: 13px;
+    color: #666;
+    margin-bottom: 30px;
+  }
+  .policy-container h2 {
+    font-size: 20px;
+    color: #2e7d32;
+    margin-top: 36px;
+    margin-bottom: 10px;
+    border-bottom: 2px solid #e0e0e0;
+    padding-bottom: 6px;
+  }
+  .policy-container h3 {
+    font-size: 16px;
+    color: #333;
+    margin-top: 20px;
+    margin-bottom: 8px;
+  }
+  .policy-container p, .policy-container li {
+    font-size: 15px;
+  }
+  .policy-container ul, .policy-container ol {
+    padding-left: 22px;
+    margin-bottom: 12px;
+  }
+  .policy-note {
+    background: #fff8e1;
+    border-left: 4px solid #f9a825;
+    padding: 12px 16px;
+    margin: 16px 0;
+    font-size: 14px;
+  }
+  .policy-table {
+    width: 100%;
+    border-collapse: collapse;
+    margin: 12px 0 20px;
+    font-size: 14px;
+  }
+  .policy-table th, .policy-table td {
+    border: 1px solid #e0e0e0;
+    padding: 8px 10px;
+    text-align: left;
+  }
+  .policy-table th {
+    background: #f1f8e9;
+    color: #1b5e20;
+  }
+  .footer-bottom {
+    width: 100%;
+    text-align: center;
+    margin-top: 20px;
+    padding-top: 16px;
+    border-top: 1px solid rgba(255,255,255,0.15);
+    font-size: 13px;
+  }
+  .footer-bottom p {
+    margin: 0 0 6px;
+    opacity: 0.8;
+  }
+  .footer-bottom a {
+    color: inherit;
+    text-decoration: underline;
+  }
+/* ===================================================== */
+/* Fim página de serviço */
+/* ===================================================== */
+
+/* ===================================================== */
+/* Início Termos de uso */
+/* ===================================================== */
+
+/* ===================================================================
+   Estilos da página de Termos de Serviço
+   Reaproveita as mesmas classes já usadas em politica-de-privacidade.html
+   Adicione ao seu style.css (o bloco .policy-toc é novo, os demais já
+   devem existir se a política de privacidade já estiver no ar).
+   =================================================================== */
+
+.policy-breadcrumb {
+  max-width: 900px;
+  margin: 20px auto 0;
+  padding: 0 20px;
+}
+.policy-breadcrumb a {
+  color: #2e7d32;
+  text-decoration: none;
+  font-weight: 600;
+  font-size: 14px;
+}
+.policy-breadcrumb a:hover {
+  text-decoration: underline;
+}
+.policy-page {
+  max-width: 900px;
+  margin: 20px auto 60px;
+  padding: 0 20px;
+  font-family: inherit;
+  color: #222;
+  line-height: 1.6;
+}
+.policy-container h1 {
+  font-size: 28px;
+  color: #1b5e20;
+  margin-bottom: 4px;
+}
+.policy-meta {
+  font-size: 13px;
+  color: #666;
+  margin-bottom: 30px;
+}
+.policy-container h2 {
+  font-size: 20px;
+  color: #2e7d32;
+  margin-top: 36px;
+  margin-bottom: 10px;
+  border-bottom: 2px solid #e0e0e0;
+  padding-bottom: 6px;
+}
+.policy-container h3 {
+  font-size: 16px;
+  color: #333;
+  margin-top: 20px;
+  margin-bottom: 8px;
+}
+.policy-container p, .policy-container li {
+  font-size: 15px;
+}
+.policy-container ul, .policy-container ol {
+  padding-left: 22px;
+  margin-bottom: 12px;
+}
+.policy-note {
+  background: #fff8e1;
+  border-left: 4px solid #f9a825;
+  padding: 12px 16px;
+  margin: 16px 0;
+  font-size: 14px;
+}
+.policy-table {
+  width: 100%;
+  border-collapse: collapse;
+  margin: 12px 0 20px;
+  font-size: 14px;
+}
+.policy-table th, .policy-table td {
+  border: 1px solid #e0e0e0;
+  padding: 8px 10px;
+  text-align: left;
+}
+.policy-table th {
+  background: #f1f8e9;
+  color: #1b5e20;
+}
+.fill {
+  background: #f1f8e9;
+  color: #1b5e20;
+  padding: 1px 6px;
+  border-radius: 4px;
+}
+.footer-bottom {
+  width: 100%;
+  text-align: center;
+  margin-top: 20px;
+  padding-top: 16px;
+  border-top: 1px solid rgba(255,255,255,0.15);
+  font-size: 13px;
+}
+.footer-bottom p {
+  margin: 0 0 6px;
+  opacity: 0.8;
+}
+.footer-bottom a {
+  color: inherit;
+  text-decoration: underline;
+}
+
+/* -------- Índice (novo, usado nos Termos de Serviço) -------- */
+.policy-toc {
+  background: #f1f8e9;
+  border: 1px solid #e0e0e0;
+  border-radius: 8px;
+  padding: 16px 20px;
+  margin-bottom: 28px;
+}
+.policy-toc summary {
+  cursor: pointer;
+  font-weight: 700;
+  color: #1b5e20;
+  list-style: none;
+}
+.policy-toc summary::-webkit-details-marker {
+  display: none;
+}
+.policy-toc summary::after {
+  content: " ▾";
+  font-size: .85em;
+}
+.policy-toc[open] summary::after {
+  content: " ▴";
+}
+.policy-toc ol {
+  columns: 2;
+  column-gap: 24px;
+  margin: 14px 0 2px;
+  padding-left: 20px;
+  font-size: 14px;
+}
+.policy-toc li {
+  margin-bottom: 6px;
+  break-inside: avoid;
+}
+.policy-toc a {
+  color: #222;
+  text-decoration: none;
+}
+.policy-toc a:hover {
+  color: #2e7d32;
+  text-decoration: underline;
+}
+@media (max-width: 560px) {
+  .policy-table { font-size: 13px; }
+  .policy-toc ol { columns: 1; }
+}
+
+/* ===================================================== */
+/* Fim página de termo de uso */
+/* ===================================================== */

@@ -1,5 +1,9 @@
-import GoogleProvider from 'next-auth/providers/google';
+import GoogleProviderModule from 'next-auth/providers/google';
+import CredentialsProviderModule from 'next-auth/providers/credentials';
+import { verifyErpCredentials } from './features/erp/password.js';
 
+const GoogleProvider = typeof GoogleProviderModule === 'function' ? GoogleProviderModule : GoogleProviderModule.default;
+const CredentialsProvider = typeof CredentialsProviderModule === 'function' ? CredentialsProviderModule : CredentialsProviderModule.default;
 const hasGoogleConfig = Boolean(process.env.GOOGLE_CLIENT_ID && process.env.GOOGLE_CLIENT_SECRET);
 
 export const authOptions = {
@@ -13,6 +17,22 @@ export const authOptions = {
         clientSecret: process.env.GOOGLE_CLIENT_SECRET,
       }),
     ] : []),
+    CredentialsProvider({
+      credentials: {
+        username: { label: 'Nome de usuário', type: 'text' },
+        password: { label: 'Senha', type: 'password' },
+      },
+      async authorize(credentials) {
+        const username = credentials?.username;
+        const password = credentials?.password;
+        if (typeof username !== 'string' || typeof password !== 'string') return null;
+
+        const isAuthorized = await verifyErpCredentials(username, password);
+        if (!isAuthorized) return null;
+        const normalizedUsername = username.trim().toLowerCase();
+        return { id: normalizedUsername, username: normalizedUsername, name: 'CEO' };
+      },
+    }),
   ],
   pages: {
     signIn: '/login',
@@ -31,11 +51,20 @@ export const authOptions = {
       }
       return `${baseUrl}/dashboard`;
     },
-    async jwt({ token, user }) {
+    async jwt({ token, user, account }) {
+      if (account) {
+        token.erpAccess = account.provider === 'credentials';
+        token.erpAccessExpiresAt = token.erpAccess ? Date.now() + 8 * 60 * 60 * 1000 : 0;
+        token.authProvider = account.provider;
+      } else if (token.erpAccess !== true || typeof token.erpAccessExpiresAt !== 'number' || token.erpAccessExpiresAt <= Date.now()) {
+        token.erpAccess = false;
+      }
       if (user) {
         token.id = user.id;
         token.email = user.email;
         token.name = user.name;
+        token.picture = user.image;
+        token.erpUsername = user.username;
       }
       return token;
     },
@@ -44,6 +73,10 @@ export const authOptions = {
         session.user.id = token.id;
         session.user.email = token.email || session.user.email;
         session.user.name = token.name || session.user.name;
+        session.user.image = token.picture || session.user.image;
+        session.user.username = token.erpUsername || null;
+        session.user.erpAccess = token.erpAccess === true;
+        session.user.erpAccessExpiresAt = token.erpAccessExpiresAt || 0;
       }
       return session;
     },

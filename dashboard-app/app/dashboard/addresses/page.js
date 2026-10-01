@@ -5,6 +5,7 @@ import { useEffect, useState } from 'react';
 import { useSession } from 'next-auth/react';
 
 const addressesApi = '/api/addresses';
+const deliveryAddressStorageKey = (email) => `hoje-dashboard-delivery-address-${email || 'guest'}`;
 
 const initialAddresses = [
   {
@@ -26,8 +27,9 @@ const initialAddresses = [
 ];
 
 export default function AddressesPage() {
-  const { status } = useSession();
+  const { data: session, status } = useSession();
   const [addresses, setAddresses] = useState(initialAddresses);
+  const [selectedAddressId, setSelectedAddressId] = useState('');
   const [isFormOpen, setIsFormOpen] = useState(false);
   const [editingId, setEditingId] = useState(null);
   const [form, setForm] = useState({ title: '', street: '', city: '', cep: '', type: 'Alternativo' });
@@ -37,17 +39,54 @@ export default function AddressesPage() {
     if (status !== 'authenticated') return;
     fetch(addressesApi)
       .then((response) => response.json())
-      .then(({ addresses: savedAddresses = [] }) => setAddresses(savedAddresses))
+      .then(({ addresses: savedAddresses = [] }) => {
+        setAddresses(savedAddresses);
+        const storageKey = deliveryAddressStorageKey(session?.user?.email);
+        const storedId = localStorage.getItem(storageKey);
+        const selected = savedAddresses.find((address) => String(address.id) === storedId)
+          || savedAddresses.find((address) => address.type === 'Padrão')
+          || savedAddresses[0];
+        if (selected) {
+          const selectedId = String(selected.id);
+          setSelectedAddressId(selectedId);
+          localStorage.setItem(storageKey, selectedId);
+          window.dispatchEvent(new CustomEvent('dashboard-address-selected', { detail: { addressId: selectedId } }));
+        } else {
+          setSelectedAddressId('');
+          localStorage.removeItem(storageKey);
+          window.dispatchEvent(new CustomEvent('dashboard-address-selected', { detail: {} }));
+        }
+      })
       .catch(() => setAddresses(initialAddresses));
-  }, [status]);
+  }, [status, session?.user?.email]);
 
   const persistAddresses = async (nextAddresses) => {
     setAddresses(nextAddresses);
-    await fetch(addressesApi, {
+    const response = await fetch(addressesApi, {
       method: 'PUT',
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify({ addresses: nextAddresses }),
     });
+    if (!response.ok) throw new Error('Não foi possível salvar os endereços.');
+    const storageKey = deliveryAddressStorageKey(session?.user?.email);
+    const currentSelectionExists = nextAddresses.some((address) => String(address.id) === selectedAddressId);
+    if (!currentSelectionExists) {
+      const selected = nextAddresses.find((address) => address.type === 'Padrão') || nextAddresses[0];
+      const nextId = selected ? String(selected.id) : '';
+      setSelectedAddressId(nextId);
+      if (nextId) localStorage.setItem(storageKey, nextId);
+      else localStorage.removeItem(storageKey);
+    }
+    window.dispatchEvent(new CustomEvent('dashboard-address-selected', {
+      detail: { addressId: currentSelectionExists ? selectedAddressId : String(nextAddresses.find((address) => address.type === 'Padrão')?.id || nextAddresses[0]?.id || '') },
+    }));
+  };
+
+  const selectDeliveryAddress = (address) => {
+    const addressId = String(address.id);
+    setSelectedAddressId(addressId);
+    localStorage.setItem(deliveryAddressStorageKey(session?.user?.email), addressId);
+    window.dispatchEvent(new CustomEvent('dashboard-address-selected', { detail: { addressId } }));
   };
 
   const openCreateForm = () => {
@@ -160,7 +199,7 @@ export default function AddressesPage() {
       ) : (
         <div className="address-grid">
           {addresses.map((address) => (
-            <div key={address.id} className="address-card">
+            <div key={address.id} className={`address-card ${String(address.id) === selectedAddressId ? 'delivery-address-selected' : ''}`}>
               <div className="address-card-header">
                 <div className="address-tag"><Home size={14} /> {address.title}</div>
                 <div className="address-actions-inline">
@@ -180,6 +219,14 @@ export default function AddressesPage() {
               <div className="default-setting">
                 <span>{address.type}</span>
               </div>
+              <button
+                type="button"
+                className="select-delivery-address"
+                aria-pressed={String(address.id) === selectedAddressId}
+                onClick={() => selectDeliveryAddress(address)}
+              >
+                {String(address.id) === selectedAddressId ? 'Endereço selecionado' : 'Usar para entrega'}
+              </button>
             </div>
           ))}
         </div>

@@ -5,7 +5,7 @@ import path from 'node:path';
 import process from 'node:process';
 import { fileURLToPath } from 'node:url';
 
-const rootDirectory = path.resolve(path.dirname(fileURLToPath(import.meta.url)), '..', '..');
+const rootDirectory = path.resolve(path.dirname(fileURLToPath(import.meta.url)), '..', '..', 'loja');
 const port = 5500;
 const contentTypes = {
   '.css': 'text/css; charset=utf-8',

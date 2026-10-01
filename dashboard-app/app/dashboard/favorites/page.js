@@ -1,62 +1,128 @@
 'use client';
 
-import { ArrowRight, Heart, Plus, ShoppingCart, Star, Tag, Trash2 } from 'lucide-react';
+import { useSession } from 'next-auth/react';
+import { ArrowRight, Heart, Minus, Plus, ShoppingCart, Star, Tag } from 'lucide-react';
 import { useEffect, useState } from 'react';
+import { adjustCartQuantity, formatCartQuantity, normalizeCartItems } from '../cart-utils';
 
 const FAVORITES_API = '/api/favorites';
 
 export default function FavoritesPage() {
+  const { data: session } = useSession();
   const [favorites, setFavorites] = useState([]);
   const [activeCategory, setActiveCategory] = useState('Todos');
   const [cartItems, setCartItems] = useState([]);
+  const [feedback, setFeedback] = useState('');
 
   useEffect(() => {
-    fetch(FAVORITES_API)
-      .then((response) => response.json())
-      .then(({ favorites: savedFavorites = [] }) => setFavorites(savedFavorites.map((item, index) => ({
-        ...item,
-        quantity: item.quantity || 1,
-        rating: item.rating || '4.8',
-        label: index % 2 === 0 ? 'Oferta' : 'Promoção',
-        tagClass: index % 2 === 0 ? 'offer' : 'promo',
-      }))))
-      .catch(() => setFavorites([]));
-    fetch('/api/cart').then((response) => response.json()).then(({ cart = [] }) => setCartItems(cart)).catch(() => setCartItems([]));
-  }, []);
+    let active = true;
+    const cartStorageKey = `hoje-dashboard-cart-${session?.user?.email || 'guest'}`;
+    fetch(FAVORITES_API, { cache: 'no-store' })
+      .then((response) => {
+        if (!response.ok) throw new Error('Não foi possível carregar os favoritos.');
+        return response.json();
+      })
+      .then(({ favorites: savedFavorites = [] }) => {
+        if (!active) return;
+        const mappedFavorites = savedFavorites.map((item, index) => ({
+          ...item,
+          quantity: item.quantity || 1,
+          rating: item.rating || '4.8',
+          label: index % 2 === 0 ? 'Oferta' : 'Promoção',
+          tagClass: index % 2 === 0 ? 'offer' : 'promo',
+        }));
+        setFavorites(mappedFavorites);
+        window.dispatchEvent(new CustomEvent('dashboard-favorites-updated', { detail: mappedFavorites.length }));
+      })
+      .catch((error) => {
+        if (active) setFeedback(error.message);
+      });
 
-  const removeFromCart = async (name) => {
-    const nextCart = cartItems.filter((item) => item.name !== name);
-    setCartItems(nextCart);
-    await fetch('/api/cart', { method: 'PUT', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ cart: nextCart }) });
-    window.dispatchEvent(new Event('dashboard-cart-updated'));
+    const localCart = localStorage.getItem(cartStorageKey);
+    if (localCart !== null) {
+      try {
+        const storedCart = JSON.parse(localCart);
+        if (Array.isArray(storedCart)) {
+          const normalizedCart = normalizeCartItems(storedCart);
+          setCartItems(normalizedCart);
+          localStorage.setItem(cartStorageKey, JSON.stringify(normalizedCart));
+        }
+      } catch {
+        setFeedback('Não foi possível ler o carrinho salvo neste dispositivo.');
+      }
+    } else {
+      fetch('/api/cart', { cache: 'no-store' })
+        .then((response) => {
+          if (!response.ok) throw new Error('Não foi possível carregar o carrinho.');
+          return response.json();
+        })
+        .then(({ cart = [] }) => {
+          if (!active) return;
+          const normalizedCart = normalizeCartItems(cart);
+          setCartItems(normalizedCart);
+          localStorage.setItem(cartStorageKey, JSON.stringify(normalizedCart));
+        })
+        .catch((error) => {
+          if (active) setFeedback(error.message);
+        });
+    }
+    return () => { active = false; };
+  }, [session?.user?.email]);
+
+  const saveCart = async (nextCart) => {
+    const cartStorageKey = `hoje-dashboard-cart-${session?.user?.email || 'guest'}`;
+    const normalizedCart = normalizeCartItems(nextCart);
+    setCartItems(normalizedCart);
+    localStorage.setItem(cartStorageKey, JSON.stringify(normalizedCart));
+    window.dispatchEvent(new CustomEvent('dashboard-cart-updated', { detail: normalizedCart }));
+    try {
+      const response = await fetch('/api/cart', {
+        method: 'PUT',
+        credentials: 'include',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ cart: normalizedCart }),
+      });
+      if (!response.ok) throw new Error('Não foi possível sincronizar o carrinho.');
+      setFeedback('');
+    } catch (error) {
+      setFeedback(`O carrinho foi salvo neste dispositivo, mas não sincronizou: ${error.message}`);
+    }
   };
 
-  const addToCart = async (item) => {
-    const response = await fetch('/api/cart');
-    const { cart: currentCart = [] } = await response.json();
-    const existing = currentCart.find((cartItem) => cartItem.name === item.name);
+  const changeCartQuantity = (item, delta) => {
+    const currentItem = cartItems.find((cartItem) => cartItem.name === item.name);
+    const saleUnit = item.saleUnit === 'Quilograma' || currentItem?.saleUnit === 'Quilograma' ? 'Quilograma' : 'Unidade';
+    const nextCart = cartItems
+      .map((cartItem) => cartItem.name === item.name
+        ? { ...cartItem, saleUnit, quantity: adjustCartQuantity(cartItem.quantity, delta, saleUnit) }
+        : cartItem)
+    saveCart(nextCart);
+  };
+
+  const addToCart = (item) => {
+    const existing = cartItems.find((cartItem) => cartItem.name === item.name);
+    const saleUnit = item.saleUnit === 'Quilograma' || existing?.saleUnit === 'Quilograma' ? 'Quilograma' : 'Unidade';
+    const step = saleUnit === 'Quilograma' ? 0.1 : 1;
     const nextCart = existing
-      ? currentCart.map((cartItem) => cartItem.name === item.name ? { ...cartItem, quantity: (cartItem.quantity || 1) + 1 } : cartItem)
-      : [...currentCart, { name: item.name, category: item.category, price: item.price, quantity: 1 }];
-    await fetch('/api/cart', { method: 'PUT', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ cart: nextCart }) });
-    setCartItems(nextCart);
-    window.dispatchEvent(new Event('dashboard-cart-updated'));
+      ? cartItems.map((cartItem) => cartItem.name === item.name ? { ...cartItem, saleUnit, quantity: adjustCartQuantity(cartItem.quantity, 1, saleUnit) } : cartItem)
+      : [...cartItems, { productId: item.id, name: item.name, category: item.category, price: item.price, image: item.image || '', quantity: step, saleUnit }];
+    saveCart(nextCart);
   };
 
   const toggleFavorite = async (name) => {
     const previousFavorites = favorites;
-    setFavorites((current) => current.filter((item) => item.name !== name));
+    const nextFavorites = favorites.filter((item) => item.name !== name);
+    setFavorites(nextFavorites);
+    window.dispatchEvent(new CustomEvent('dashboard-favorites-updated', { detail: nextFavorites.length }));
     try {
       const response = await fetch(FAVORITES_API, { method: 'DELETE', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ name }) });
       if (!response.ok) throw new Error('Não foi possível atualizar os favoritos.');
-    } catch {
+      setFeedback('');
+    } catch (error) {
       setFavorites(previousFavorites);
+      window.dispatchEvent(new CustomEvent('dashboard-favorites-updated', { detail: previousFavorites.length }));
+      setFeedback(error.message);
     }
-  };
-
-  const clearFavorites = () => {
-    favorites.forEach((item) => fetch(FAVORITES_API, { method: 'DELETE', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ name: item.name }) }));
-    setFavorites([]);
   };
 
   const categories = ['Todos', ...new Set(favorites.map((item) => item.category).filter(Boolean))];
@@ -66,9 +132,10 @@ export default function FavoritesPage() {
     <div className="section-shell favorites-showcase">
       <div className="favorites-showcase-header">
         <div className="favorites-title-wrap"><span className="favorites-hero-icon"><Heart size={25} fill="currentColor" /></span><div><span className="favorites-kicker">Sua seleção</span><h1>Seus <em>Favoritos</em></h1><p>Aqui estão os produtos que você marcou como favoritos.<br />Tudo o que você gosta, sempre à mão!</p></div></div>
-        <div className="favorites-promo-banner"><div><span><Heart size={14} fill="currentColor" /> Produtos que você ama!</span><small>Mantenha seus favoritos sempre por perto e aproveite ofertas exclusivas.</small><a href="http://localhost:5500/">Ver ofertas <ArrowRight size={13} /></a></div><span className="favorites-promo-orbit"><ShoppingCart size={33} /></span></div>
+        <div className="favorites-promo-banner"><div><span><Heart size={14} fill="currentColor" /> Produtos que você ama!</span><small>Mantenha seus favoritos sempre por perto e aproveite ofertas exclusivas.</small><a href="/">Ver ofertas <ArrowRight size={13} /></a></div><span className="favorites-promo-orbit"><ShoppingCart size={33} /></span></div>
       </div>
 
+      {feedback && <p className="favorites-feedback" role="status">{feedback}</p>}
       <div className="favorites-category-tabs" aria-label="Filtrar favoritos">{categories.map((category) => <button key={category} type="button" className={activeCategory === category ? 'active' : ''} onClick={() => setActiveCategory(category)}>{category}</button>)}</div>
       <div className="favorites-showcase-rule"><span>{visibleFavorites.length} {visibleFavorites.length === 1 ? 'produto guardado' : 'produtos guardados'}</span><span>Hoje Supermercado</span></div>
 
@@ -106,10 +173,10 @@ export default function FavoritesPage() {
 
               <div className="price">
                 <div><strong>{item.price || 'Preço indisponível'}</strong><small>{item.oldPrice}</small></div>
-                <span className="favorite-unit">por unidade</span>
+                <span className="favorite-unit">{item.saleUnit === 'Quilograma' ? 'por kg' : 'por unidade'}</span>
               </div>
 
-              <div className="favorite-card-actions">{cartItems.some((cartItem) => cartItem.name === item.name) ? <div className="favorite-quantity" aria-label={`Quantidade de ${item.name}`}><button type="button" aria-label="Remover do carrinho" onClick={() => removeFromCart(item.name)}><Trash2 size={13} /></button><strong>{cartItems.find((cartItem) => cartItem.name === item.name)?.quantity || 1}</strong><button type="button" aria-label="Aumentar quantidade" onClick={() => addToCart(item)}><Plus size={13} /></button></div> : <button type="button" className="favorite-buy-btn" onClick={() => addToCart(item)}><ShoppingCart size={15} /> Comprar</button>}</div>
+              <div className="favorite-card-actions">{cartItems.some((cartItem) => cartItem.name === item.name) ? <div className="favorite-quantity" aria-label={`Quantidade de ${item.name}`}><button type="button" aria-label={`Diminuir ${item.saleUnit === 'Quilograma' ? '100 gramas' : 'quantidade'} de ${item.name}`} onClick={() => changeCartQuantity(item, -1)}><Minus size={13} /></button><strong>{formatCartQuantity(cartItems.find((cartItem) => cartItem.name === item.name))}</strong><button type="button" aria-label={`Aumentar ${item.saleUnit === 'Quilograma' ? '100 gramas' : 'quantidade'} de ${item.name}`} onClick={() => addToCart(item)}><Plus size={13} /></button></div> : <button type="button" className="favorite-buy-btn" onClick={() => addToCart(item)}><ShoppingCart size={15} /> {item.saleUnit === 'Quilograma' ? 'Adicionar 100 g' : 'Adicionar'}</button>}</div>
             </div>
           ))}
         </div>

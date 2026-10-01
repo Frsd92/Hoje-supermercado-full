@@ -2,6 +2,8 @@ import { promises as fs } from 'fs';
 import path from 'path';
 import { getServerSession } from 'next-auth';
 import { authOptions } from '@/auth';
+import { normalizeCartItems } from '@/app/dashboard/cart-utils';
+import { prisma } from '@/lib/prisma';
 
 const dataDirectory = path.join(process.cwd(), 'data');
 const dataFile = path.join(dataDirectory, 'cart.json');
@@ -37,7 +39,7 @@ async function getUser() {
 }
 
 function userKey(user) {
-  return user.email || user.name || 'cliente';
+  return user.email?.trim().toLowerCase() || user.name || 'cliente';
 }
 
 function readCookie(request, name) {
@@ -66,11 +68,23 @@ export async function GET(request) {
   const user = await getUser();
   const store = await readStore();
   const identity = cartIdentity(request, user);
-  let cart = store[identity.key] || [];
+  let cart = normalizeCartItems(store[identity.key] || []);
 
-  if (user && !store[identity.key] && store[`guest:${identity.guestId}`]) {
-    cart = store[`guest:${identity.guestId}`];
-    await writeStore({ ...store, [identity.key]: cart });
+  if (user?.email) {
+    try {
+      const savedCart = await prisma.customerCart.findUnique({ where: { email: identity.key } });
+      if (savedCart) {
+        cart = normalizeCartItems(savedCart.items);
+      } else {
+        cart = normalizeCartItems(store[identity.key] || store[user.email] || store[`guest:${identity.guestId}`] || []);
+        if (cart.length) {
+          await prisma.customerCart.create({ data: { email: identity.key, items: cart } });
+        }
+      }
+    } catch (error) {
+      console.error('Não foi possível carregar o carrinho salvo do cliente:', error);
+      return Response.json({ error: 'Não foi possível carregar seu carrinho.' }, { status: 500, headers: responseHeaders(request, identity.guestId) });
+    }
   }
 
   return Response.json({ cart }, { headers: responseHeaders(request, identity.guestId) });
@@ -79,9 +93,22 @@ export async function GET(request) {
 export async function PUT(request) {
   const user = await getUser();
   const body = await request.json();
-  const cart = Array.isArray(body?.cart) ? body.cart : [];
-  const store = await readStore();
+  const cart = normalizeCartItems(body?.cart);
   const identity = cartIdentity(request, user);
-  await writeStore({ ...store, [identity.key]: cart });
+  if (user?.email) {
+    try {
+      await prisma.customerCart.upsert({
+        where: { email: identity.key },
+        create: { email: identity.key, items: cart },
+        update: { items: cart },
+      });
+    } catch (error) {
+      console.error('Não foi possível salvar o carrinho do cliente:', error);
+      return Response.json({ error: 'Não foi possível salvar seu carrinho.' }, { status: 500, headers: responseHeaders(request, identity.guestId) });
+    }
+  } else {
+    const store = await readStore();
+    await writeStore({ ...store, [identity.key]: cart });
+  }
   return Response.json({ cart }, { headers: responseHeaders(request, identity.guestId) });
 }
