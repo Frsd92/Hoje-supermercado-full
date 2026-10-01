@@ -27,7 +27,15 @@ test('only Google sessions can access the customer dashboard', async () => {
 
   assert.equal(hasCustomerDashboardAccess(googleToken), true);
   assert.equal(hasCustomerDashboardAccess(erpToken), false);
+  assert.equal(hasCustomerDashboardAccess({ authProvider: 'google', email: 'ceo@example.com', erpAccess: true }), false);
+  assert.equal(hasCustomerDashboardAccess({ authProvider: 'google', email: '' }), false);
   assert.equal(hasCustomerDashboardAccess({ authProvider: 'unknown' }), false);
+
+  const session = await authOptions.callbacks.session({
+    session: { user: {} },
+    token: googleToken,
+  });
+  assert.equal(session.user.authProvider, 'google');
 });
 
 test('ERP credentials provider authenticates only the configured CEO account', async () => {

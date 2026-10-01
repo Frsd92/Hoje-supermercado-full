@@ -24,9 +24,11 @@ export function parseOrderDate(value) {
 
 export function getDaysSincePurchase(value, now = new Date()) {
   const purchaseDate = parseOrderDate(value);
-  return purchaseDate
-    ? Math.max(0, Math.floor((now.getTime() - purchaseDate.getTime()) / 86400000))
-    : null;
+  if (!purchaseDate) return null;
+
+  const purchaseDay = Date.UTC(purchaseDate.getFullYear(), purchaseDate.getMonth(), purchaseDate.getDate());
+  const currentDay = Date.UTC(now.getFullYear(), now.getMonth(), now.getDate());
+  return Math.max(0, Math.round((currentDay - purchaseDay) / 86400000));
 }
 
 function orderTimestamp(order) {

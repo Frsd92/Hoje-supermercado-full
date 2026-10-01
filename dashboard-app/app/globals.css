@@ -4919,7 +4919,7 @@ button.metric-mini:focus-visible {
 .media-dropzone span { font-size: .72rem; }
 .media-dropzone input { position: absolute; inset: 0; opacity: 0; cursor: pointer; }
 .media-preview-grid { display: grid; grid-template-columns: repeat(4, 1fr); gap: 8px; margin-top: 10px; }
-.media-preview-grid img { width: 100%; aspect-ratio: 1; object-fit: contain; border: 1px solid #e2e8f0; border-radius: 8px; }
+.media-preview-grid img { width: 100%; aspect-ratio: 1; object-fit: contain; border: 1px solid #e2e8f0; border-radius: 8px; background-color: #fff; background-image: linear-gradient(45deg, #edf1f5 25%, transparent 25%), linear-gradient(-45deg, #edf1f5 25%, transparent 25%), linear-gradient(45deg, transparent 75%, #edf1f5 75%), linear-gradient(-45deg, transparent 75%, #edf1f5 75%); background-position: 0 0, 0 8px, 8px -8px, -8px 0; background-size: 16px 16px; }
 .editor-checkbox { flex-direction: row !important; align-items: center; font-weight: 600 !important; }
 .editor-checkbox input { width: auto; accent-color: #16a34a; }
 .margin-callout { margin-top: 12px; padding: 10px 12px; border-radius: 8px; background: #ecfdf5; color: #166534; font-size: .76rem; }

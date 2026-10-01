@@ -77,6 +77,7 @@ export const authOptions = {
         session.user.username = token.erpUsername || null;
         session.user.erpAccess = token.erpAccess === true;
         session.user.erpAccessExpiresAt = token.erpAccessExpiresAt || 0;
+        session.user.authProvider = token.authProvider || null;
       }
       return session;
     },

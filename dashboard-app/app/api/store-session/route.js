@@ -1,5 +1,6 @@
 import { getServerSession } from 'next-auth';
 import { authOptions } from '@/auth';
+import { hasCustomerDashboardAccess } from '@/features/auth/access';
 
 const allowedOrigins = new Set([
   'http://localhost:8010',
@@ -26,10 +27,11 @@ export async function OPTIONS(request) {
 export async function GET(request) {
   const session = await getServerSession(authOptions);
   const headers = corsHeaders(request);
+  const isCustomerSession = hasCustomerDashboardAccess(session?.user);
 
   return Response.json({
-    authenticated: Boolean(session?.user),
-    user: session?.user
+    authenticated: isCustomerSession,
+    user: isCustomerSession
       ? { name: session.user.name || 'Cliente', email: session.user.email || '' }
       : null,
   }, { headers });

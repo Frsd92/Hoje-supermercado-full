@@ -4,6 +4,7 @@ import { ArrowLeft, Check, ImagePlus, Plus, Save, Trash2 } from 'lucide-react';
 import { useEffect, useState } from 'react';
 import { formatAuditValue } from '../api/product-audit.js';
 import { calculateProductPricing, formatBRL, parseBRL, parsePercent, priceFromMarkup, roundMoney } from './product-pricing.js';
+import { encodeProductImage } from './product-image.js';
 
 const categories = ['Hortifruti', 'Açougue', 'Padaria', 'Mercearia', 'Bebidas', 'Vinhos', 'Bebidas Alcoólicas', 'Cervejas', 'Produtos de Limpeza', 'Lavanderia', 'Pet Shop', 'Higiene Pessoal', 'Bomboniere', 'Laticínios', 'Bebês'];
 const emptyProduct = { title: '', description: '', price: '', cost: '', promotionalPrice: '', discount: '', profitMarginPercent: '', profitMarginValue: '', markupPercent: '', suggestedMarkup: '', priceType: 'Normal', featuredPriceTypes: [], barcodes: [], barcode: '', sku: '', expiry: '', lot: '', manufactureDate: '', controlsLot: false, controlsExpiry: false, minimumShelfLife: '', serialNumber: '', quantity: '0', minStock: '0', maxStock: '', location: '', weight: '', height: '', width: '', length: '', packageWeight: '', packageType: '', transportUnit: '', fragile: false, refrigerated: false, frozen: false, roomTemperature: true, specialCare: false, saleUnit: 'Unidade', fractionalSale: false, brand: '', manufacturer: '', supplier: '', suppliers: [], categories: [], department: '', subcategory: '', tags: [], collection: '', productType: '', perishable: false, seasonal: false, exclusive: false, promotionStart: '', promotionEnd: '', promotionLimit: '', promotionStock: '', promotionType: '', image: '', status: 'Ativo' };
@@ -75,17 +76,16 @@ export default function ERPProductsPage() {
           setFeedback('Não foi possível preparar esta imagem.');
           return;
         }
-        context.drawImage(image, 0, 0, canvas.width, canvas.height);
-        const webpImage = canvas.toDataURL('image/webp', 0.82);
-        const compressedImage = webpImage.startsWith('data:image/webp')
-          ? webpImage
-          : canvas.toDataURL('image/png');
-        if (compressedImage.length > 1_600_000) {
-          setFeedback('A imagem não pôde ser reduzida o suficiente. Escolha outra imagem menor.');
-          return;
+        try {
+          context.drawImage(image, 0, 0, canvas.width, canvas.height);
+          const compressedImage = encodeProductImage(canvas, context);
+          update('image', compressedImage);
+          setFeedback(compressedImage.startsWith('data:image/png')
+            ? 'Imagem carregada em PNG com transparência preservada. Salve o produto para publicar a alteração.'
+            : 'Imagem carregada. Salve o produto para publicar a alteração.');
+        } catch (error) {
+          setFeedback(error.message || 'Não foi possível preparar esta imagem.');
         }
-        update('image', compressedImage);
-        setFeedback('Imagem carregada. Salve o produto para publicar a alteração.');
       };
       image.src = String(reader.result);
     };
