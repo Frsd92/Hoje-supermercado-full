@@ -135,19 +135,37 @@
   <!-- ===================================================== -->
   <!-- MENU DE CATEGORIAS: barra horizontal com atalhos rápidos -->
   <!-- ===================================================== -->
-  <nav class="categories-bar">
-    <button id="all-categories" class="all-categories" type="button" aria-controls="store-categories" aria-expanded="false" onclick="toggleCategoriasLoja()"><i data-lucide="menu"></i><span>Todas as categorias</span></button>
-    <a href="#"><i data-lucide="flame"></i> Ofertas do dia</a>
-    <a href="categoria.html?categoria=hortifruti"><i data-lucide="carrot"></i> Hortifruti</a>
-    <a href="categoria.html?categoria=carnes"><i data-lucide="beef"></i> Carnes</a>
-    <a href="categoria.html?categoria=padaria"><i data-lucide="croissant"></i> Padaria</a>
-    <a href="categoria.html?categoria=laticinios"><i data-lucide="milk"></i> Laticínios</a>
-    <a href="categoria.html?categoria=bebidas"><i data-lucide="beer"></i> Bebidas</a>
-    <a href="categoria.html?categoria=limpeza"><i data-lucide="sparkles"></i> Limpeza</a>
-    <a href="categoria.html?categoria=pet"><i data-lucide="dog"></i> Pet Shop</a>
-    <a href="categoria.html?categoria=bebes"><i data-lucide="baby"></i> Bebês</a>
-    <a href="#">Mais <i data-lucide="chevron-down"></i></a>
-  </nav>
+  <div class="categories-navigation">
+    <nav class="categories-bar">
+      <button id="all-categories" class="all-categories" type="button" aria-controls="all-categories-menu" aria-expanded="false" onclick="toggleCategoriasLoja()"><i data-lucide="menu"></i><span>Todas as categorias</span></button>
+      <a href="#"><i data-lucide="flame"></i> Ofertas do dia</a>
+      <a href="categoria.html?categoria=hortifruti"><i data-lucide="carrot"></i> Hortifruti</a>
+      <a href="categoria.html?categoria=carnes"><i data-lucide="beef"></i> Carnes</a>
+      <a href="categoria.html?categoria=padaria"><i data-lucide="croissant"></i> Padaria</a>
+      <a href="categoria.html?categoria=laticinios"><i data-lucide="milk"></i> Laticínios</a>
+      <a href="categoria.html?categoria=bebidas"><i data-lucide="beer"></i> Bebidas</a>
+      <a href="categoria.html?categoria=limpeza"><i data-lucide="sparkles"></i> Limpeza</a>
+      <a href="categoria.html?categoria=pet"><i data-lucide="dog"></i> Pet Shop</a>
+      <a href="categoria.html?categoria=bebes"><i data-lucide="baby"></i> Bebês</a>
+      <a href="#">Mais <i data-lucide="chevron-down"></i></a>
+    </nav>
+    <div id="all-categories-menu" class="categories-menu" aria-labelledby="all-categories" aria-hidden="true" hidden>
+      <a href="categoria.html?categoria=hortifruti"><i data-lucide="carrot"></i> Hortifruti</a>
+      <a href="categoria.html?categoria=carnes"><i data-lucide="beef"></i> Carnes</a>
+      <a href="categoria.html?categoria=padaria"><i data-lucide="croissant"></i> Padaria</a>
+      <a href="categoria.html?categoria=laticinios"><i data-lucide="milk"></i> Laticínios</a>
+      <a href="categoria.html?categoria=mercearia"><i data-lucide="shopping-basket"></i> Mercearia</a>
+      <a href="categoria.html?categoria=bomboniere"><i data-lucide="candy"></i> Bomboniere</a>
+      <a href="categoria.html?categoria=sucos"><i data-lucide="cup-soda"></i> Sucos e Refrigerantes</a>
+      <a href="categoria.html?categoria=alcoolicas"><i data-lucide="beer"></i> Bebidas Alcoólicas</a>
+      <a href="categoria.html?categoria=vinhos"><i data-lucide="wine"></i> Vinhos</a>
+      <a href="categoria.html?categoria=limpeza"><i data-lucide="sparkles"></i> Limpeza</a>
+      <a href="categoria.html?categoria=lavanderia"><i data-lucide="washing-machine"></i> Lavanderia</a>
+      <a href="categoria.html?categoria=higiene"><i data-lucide="droplet"></i> Higiene Pessoal</a>
+      <a href="categoria.html?categoria=pet"><i data-lucide="dog"></i> Pet Shop</a>
+      <a href="categoria.html?categoria=bebes"><i data-lucide="baby"></i> Bebês</a>
+    </div>
+  </div>
 
   <!-- ===================================================== -->
   <!-- CONTEÚDO PRINCIPAL: 3 colunas (sidebar + conteúdo + painel direito) -->

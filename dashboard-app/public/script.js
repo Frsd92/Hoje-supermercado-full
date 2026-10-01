@@ -241,19 +241,30 @@ function updateAddressSummaryFromSelection() {
 }
 
 function toggleCategoriasLoja() {
-  const sidebar = document.getElementById('store-categories');
   const button = document.getElementById('all-categories');
-  if (!sidebar || !button) return;
+  const menu = document.getElementById('all-categories-menu');
+  if (!menu || !button) return;
 
   const expanded = button.getAttribute('aria-expanded') !== 'true';
   button.setAttribute('aria-expanded', String(expanded));
-  sidebar.classList.toggle('is-expanded', expanded);
+  menu.hidden = !expanded;
+  menu.setAttribute('aria-hidden', String(!expanded));
   button.querySelector('span').textContent = expanded ? 'Recolher categorias' : 'Todas as categorias';
-
-  if (expanded) {
-    sidebar.scrollIntoView({ behavior: 'smooth', block: 'start' });
-  }
 }
+
+document.addEventListener('click', (event) => {
+  if (!(event.target instanceof Element) || event.target.closest('.categories-navigation')) return;
+  const button = document.getElementById('all-categories');
+  if (button?.getAttribute('aria-expanded') === 'true') toggleCategoriasLoja();
+});
+
+document.addEventListener('keydown', (event) => {
+  if (event.key !== 'Escape') return;
+  const button = document.getElementById('all-categories');
+  if (button?.getAttribute('aria-expanded') !== 'true') return;
+  toggleCategoriasLoja();
+  button.focus();
+});
 
 function atualizarBotaoFinalizarCompra() {
   const button = document.getElementById('finalizar-compra');
