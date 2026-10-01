@@ -4,6 +4,7 @@ import { getServerSession } from 'next-auth';
 import { authOptions } from '@/auth';
 import { erpActorLabel, hasErpAccess } from '@/features/erp/access';
 import { appendPriceHistory } from '@/features/erp/api/price-history';
+import { calculateSalePrice } from '@/features/erp/api/product-pricing';
 import { findProductIdentityConflict, getProductAuditChanges, productAuditSnapshot, productIdentityKeys } from '@/features/erp/api/product-audit';
 import { prisma } from '@/lib/prisma';
 
@@ -255,12 +256,12 @@ export async function GET(request) {
         brand: product.brand || '',
         description: product.description || '',
         price: Number(product.price) || 0,
-        salePrice: Number((Number(product.price) * (1 - Number(product.discount || 0) / 100)).toFixed(2)),
+        salePrice: calculateSalePrice(product),
         discount: Number(product.discount) || 0,
         saleUnit: product.saleUnit === 'Quilograma' ? 'Quilograma' : 'Unidade',
       }));
     return Response.json({ products: searchableProducts }, {
-      headers: { ...corsHeaders(request), 'Cache-Control': 'private, max-age=60, stale-while-revalidate=120' },
+      headers: { ...corsHeaders(request), 'Cache-Control': 'private, no-store, max-age=0' },
     });
   }
   const sales = await readSales();
@@ -268,7 +269,7 @@ export async function GET(request) {
   const activeProducts = visibleProducts.map((product) => {
     const enrichedProduct = {
       ...ensurePriceHistory(product),
-      salePrice: Number((Number(product.price) * (1 - Number(product.discount || 0) / 100)).toFixed(2)),
+      salePrice: calculateSalePrice(product),
       salesCount: sales[String(product.id).toLowerCase()] || sales[String(product.title).toLowerCase()] || 0,
     };
 

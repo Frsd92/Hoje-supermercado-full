@@ -1,3 +1,5 @@
+import { calculateSalePrice } from '../api/product-pricing.js';
+
 export const parseBRL = (value) => {
   const normalized = String(value || '').replace(/[^0-9,.-]/g, '');
   const decimalValue = normalized.includes(',')
@@ -14,8 +16,7 @@ export function calculateProductPricing({ cost: rawCost, price: rawPrice, promot
   const price = parseBRL(rawPrice);
   const promotionalPrice = parseBRL(rawPromotionalPrice);
   const discount = Math.min(100, Math.max(0, parsePercent(rawDiscount)));
-  const discountedPrice = price > 0 ? roundMoney(price * (1 - discount / 100)) : 0;
-  const effectivePrice = promotionalPrice > 0 ? promotionalPrice : discountedPrice;
+  const effectivePrice = calculateSalePrice({ price, promotionalPrice, discount });
   const profitValue = roundMoney(effectivePrice - cost);
 
   return {
