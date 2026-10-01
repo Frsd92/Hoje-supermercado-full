@@ -609,6 +609,19 @@
   border-bottom: 1px solid rgba(148, 163, 184, 0.12);
 }
 
+.store-header-shell {
+  position: sticky;
+  top: 0;
+  z-index: 1100;
+}
+
+.store-header-shell > .topbar,
+.store-header-shell > .main-header,
+.store-header-shell > .category-page-header {
+  position: relative;
+  top: auto;
+}
+
 body {
   background:
     radial-gradient(circle at top left, rgba(25, 122, 60, 0.18), transparent 20%),

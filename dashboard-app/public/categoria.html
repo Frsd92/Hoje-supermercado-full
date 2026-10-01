@@ -9,6 +9,7 @@
   <script src="https://unpkg.com/lucide@latest"></script>
 </head>
 <body class="category-page-body">
+  <div class="store-header-shell">
   <header class="topbar category-topbar">
     <div class="topbar-item login-trigger" id="login-trigger" role="button" tabindex="0"><i data-lucide="user"></i><div class="topbar-text"><strong id="store-user-name">Olá, faça seu login</strong><span id="store-user-status">ou cadastre-se</span></div></div>
     <div class="topbar-item"><i data-lucide="heart"></i><div class="topbar-text"><strong>Meus favoritos</strong><span id="store-favorites-count">Entre para favoritar</span></div></div>
@@ -22,6 +23,7 @@
     <div class="search-bar category-search"><input type="text" id="search-input" placeholder="Buscar nesta categoria" oninput="buscarProdutos()" onfocus="buscarProdutos()" autocomplete="off"><button type="button"><i data-lucide="search"></i></button><div id="search-results" class="search-results"></div></div>
     <div class="location" id="location-summary"><i data-lucide="map-pin"></i><span>Selecione seu endereço</span></div>
   </header>
+  </div>
   <main class="category-page-content">
     <span class="category-kicker">Hoje Supermercado</span>
     <h1 id="category-title">Categoria</h1>
