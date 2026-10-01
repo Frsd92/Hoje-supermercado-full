@@ -74,7 +74,7 @@ export default function ProductCatalogPage() {
   return <div className="erp-page product-catalog-page">
     <header className="erp-customer-header">
       <div><span className="eyebrow">Catálogo operacional</span><h1>Produtos</h1><p>Busque, consulte e altere produtos já cadastrados. Cada produto deve ter um único cadastro.</p></div>
-      <Link href="/erp/products/cadastro" className="primary-cta"><Plus size={16} /> Cadastrar produto</Link>
+      <Link href="/erp/catalog" className="primary-cta"><Plus size={16} /> Cadastro de Produto</Link>
     </header>
 
     <section className="erp-table-panel" aria-label="Catálogo de produtos">

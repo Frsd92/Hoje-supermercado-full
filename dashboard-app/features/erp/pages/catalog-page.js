@@ -11,5 +11,5 @@ const entries = [
 ];
 
 export default function CatalogPage() {
-  return <div className="erp-module-page"><div className="erp-customer-header"><div><span className="eyebrow">Dados mestres</span><h1>Central de Cadastros</h1><p>Cadastros que estruturam toda a operação.</p></div><Link className="primary-cta" href="/erp/products/cadastro"><Plus size={16} /> Cadastrar produto</Link></div><div className="erp-module-grid">{entries.map(([title, description, href, Icon]) => <Link key={title} href={href} className="erp-module-card"><span><Icon size={19} /></span><h2>{title}</h2><p>{description}</p><strong>Gerenciar</strong></Link>)}</div></div>;
+  return <div className="erp-module-page"><div className="erp-customer-header"><div><span className="eyebrow">Dados mestres</span><h1>Cadastro de Produto</h1><p>Acesse o formulário de cadastro e as ferramentas de organização do catálogo.</p></div><Link className="primary-cta" href="/erp/products/cadastro"><Plus size={16} /> Cadastrar produto</Link></div><div className="erp-module-grid">{entries.map(([title, description, href, Icon]) => <Link key={title} href={href} className="erp-module-card"><span><Icon size={19} /></span><h2>{title}</h2><p>{description}</p><strong>{href === '#' ? 'Em breve' : 'Gerenciar'}</strong></Link>)}</div></div>;
 }

@@ -4,7 +4,7 @@ import { useParams } from 'next/navigation';
 import CommunicationsPage from './communications-page';
 
 const sections = {
-  catalog: ['Central de Cadastros', 'Produtos, marcas, categorias e unidades em um único lugar.'],
+  catalog: ['Cadastro de Produto', 'Acesse o formulário de produtos e organize o catálogo.'],
   products: ['Produtos', 'Catálogo, estoque, lotes, validade e histórico de preços.'],
   orders: ['Pedidos', 'Pedidos, separação, expedição e status de entrega.'],
   customers: ['Clientes', 'Clientes, comportamento, favoritos e histórico de compras.'],

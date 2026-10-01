@@ -2,12 +2,12 @@
 
 import Link from 'next/link';
 import { usePathname } from 'next/navigation';
-import { Activity, BarChart3, Bell, ClipboardList, FileText, History, LayoutDashboard, Package, ShoppingCart, TicketPercent, Truck, Users } from 'lucide-react';
+import { Activity, BarChart3, Bell, FileText, History, LayoutDashboard, Package, ShoppingCart, TicketPercent, Truck, Users } from 'lucide-react';
 import { useEffect, useState } from 'react';
 
 const erpNavigation = [
   { label: 'Dashboard', href: '/erp', icon: LayoutDashboard },
-  { label: 'Central de Cadastros', href: '/erp/catalog', icon: ClipboardList },
+  { label: 'Cadastro de Produto', href: '/erp/catalog', icon: Package },
   { label: 'Produtos', href: '/erp/products', icon: Package },
   { label: 'Auditoria de produtos', href: '/erp/product-audit', icon: History },
   { label: 'Pedidos', href: '/erp/orders', icon: ShoppingCart },

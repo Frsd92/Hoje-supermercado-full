@@ -156,7 +156,7 @@ export default function ERPPage() {
     <div className="section-shell erp-page">
       <div className="section-header erp-header">
         <div><span className="eyebrow">Centro de Operações</span><h1>ERP Dashboard</h1><p>Visão integrada de produtos, estoque, vendas, margem e auditoria.</p></div>
-        <Link href="/erp/products/cadastro" className="primary-cta"><FilePlus2 size={16} /> Cadastrar produto</Link>
+        <Link href="/erp/catalog" className="primary-cta"><FilePlus2 size={16} /> Cadastro de Produto</Link>
       </div>
 
       <div className="erp-metrics-grid">{metrics.map(({ label, value, detail, icon: Icon, tone }) => <div key={label} className={`erp-metric ${tone}`}><div className="erp-metric-icon"><Icon size={18} /></div><strong>{value}</strong><span>{label}</span><small>{detail}</small></div>)}</div>
