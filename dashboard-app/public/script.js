@@ -246,10 +246,26 @@ function toggleCategoriasLoja() {
   if (!menu || !button) return;
 
   const expanded = button.getAttribute('aria-expanded') !== 'true';
-  button.setAttribute('aria-expanded', String(expanded));
-  menu.hidden = !expanded;
-  menu.setAttribute('aria-hidden', String(!expanded));
-  button.querySelector('span').textContent = expanded ? 'Recolher categorias' : 'Todas as categorias';
+  if (expanded) {
+    button.setAttribute('aria-expanded', 'true');
+    menu.hidden = false;
+    menu.setAttribute('aria-hidden', 'false');
+    button.querySelector('span').textContent = 'Recolher categorias';
+    return;
+  }
+
+  fecharMenuCategoriasLoja();
+}
+
+function fecharMenuCategoriasLoja() {
+  const button = document.getElementById('all-categories');
+  const menu = document.getElementById('all-categories-menu');
+  if (!menu || !button) return;
+
+  button.setAttribute('aria-expanded', 'false');
+  menu.hidden = true;
+  menu.setAttribute('aria-hidden', 'true');
+  button.querySelector('span').textContent = 'Todas as categorias';
 }
 
 document.addEventListener('click', (event) => {
@@ -387,6 +403,7 @@ function abrirCarrinho() {
   const cartPanel = document.getElementById('cart-panel');
   const cartBackdrop = document.getElementById('cart-backdrop');
 
+  fecharMenuCategoriasLoja();
   if (cartPanel) cartPanel.classList.add('open');
   if (cartBackdrop) cartBackdrop.classList.add('open');
 }

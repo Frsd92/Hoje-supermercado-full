@@ -173,7 +173,7 @@
   visibility: hidden;
   pointer-events: none;
   transition: opacity 0.25s ease, visibility 0.25s ease;
-  z-index: 998;
+  z-index: 1101;
 }
 
 .cart-backdrop.open {
@@ -193,7 +193,7 @@
   box-shadow: -28px 0 52px rgba(15, 23, 42, 0.14), 0 0 0 1px rgba(148,163,184,0.12);
   transform: translateX(102%);
   transition: transform 0.28s ease;
-  z-index: 1001;
+  z-index: 1102;
   display: flex;
   flex-direction: column;
   padding: 18px 18px 18px;
