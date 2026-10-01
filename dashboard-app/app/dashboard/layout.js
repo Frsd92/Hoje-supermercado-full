@@ -38,6 +38,8 @@ const navItems = [
 ];
 
 const deliveryAddressStorageKey = (email) => `hoje-dashboard-delivery-address-${email || 'guest'}`;
+const paymentMethodStorageKey = (email) => `hoje-dashboard-payment-method-${email || 'guest'}`;
+const paymentMethods = ['pix', 'cartao', 'dinheiro', 'outro'];
 
 function getAddressValue(address) {
   return `${address.title || 'Endereço'} | ${[address.street, address.city, address.state].filter(Boolean).join(' | ')}`;
@@ -86,6 +88,11 @@ export default function DashboardLayout({ children }) {
   const cartWriteQueueRef = useRef(Promise.resolve());
   const savedAddressesRef = useRef([]);
   const searchProductsLoadedRef = useRef(false);
+
+  useEffect(() => {
+    const storedMethod = localStorage.getItem(paymentMethodStorageKey(session?.user?.email));
+    if (storedMethod && paymentMethods.includes(storedMethod)) setPaymentMethod(storedMethod);
+  }, [session?.user?.email]);
 
   useEffect(() => {
     const colorScheme = window.matchMedia('(prefers-color-scheme: light)');
@@ -308,13 +315,10 @@ export default function DashboardLayout({ children }) {
   const selectedDeliveryAddress = savedAddresses.find((address) => String(address.id) === selectedAddressId);
 
   const addressOptions = useMemo(() => {
-    const options = savedAddresses.length ? savedAddresses.map((address) => ({
+    const options = savedAddresses.map((address) => ({
       value: getAddressValue(address),
       label: getAddressLabel(address),
-    })) : [
-      { value: 'Casa | Rua das Flores, 123 - Apto 45 | Centro, São Paulo - SP', label: 'Casa · Rua das Flores, 123 · Centro, São Paulo - SP' },
-      { value: 'Trabalho | Av. Paulista, 1000 | Bela Vista, São Paulo - SP', label: 'Trabalho · Av. Paulista, 1000 · Bela Vista, São Paulo - SP' },
-    ];
+    }));
     return options.filter((option) => option.value && option.label);
   }, [savedAddresses]);
 
@@ -441,7 +445,6 @@ export default function DashboardLayout({ children }) {
       if (!response.ok) throw new Error(data.error || 'Não foi possível finalizar a compra.');
       await saveCart([]);
       setCheckoutAddress('');
-      setPaymentMethod('pix');
       setCoupon('');
       setCouponDiscountPercent(0);
       setAppliedCouponCode('');
@@ -763,8 +766,8 @@ export default function DashboardLayout({ children }) {
           <div className="cart-panel-header"><div className="cart-panel-title-wrap"><span className="cart-panel-icon"><ShoppingCart size={18} /></span><h3 id="cart-panel-title">Meu Carrinho ({cartCount} {cartCount === 1 ? 'item' : 'itens'})</h3></div><button type="button" className="cart-close" aria-label="Fechar carrinho" onClick={() => setCartOpen(false)}>×</button></div>
           <p className="cart-subtitle">Revise seus itens antes de finalizar</p>
           <div className="cart-items">{cartItems.length ? cartItems.map((item) => <div className="cart-item" key={item.productId || item.name}><div className="cart-item-thumb">{item.image ? <img src={item.image} alt={item.name} /> : <div className="cart-thumb-placeholder" />}</div><div className="cart-item-info"><div className="cart-item-name">{item.name}</div><div className="cart-item-category">{item.category || 'Produtos'}</div><div className="cart-item-price">{item.saleUnit === 'Quilograma' && !String(item.price || '').includes('/kg') ? `${item.price} / kg` : item.price}</div></div><div className="cart-item-controls"><button type="button" aria-label={`Diminuir ${item.saleUnit === 'Quilograma' ? '100 gramas' : 'quantidade'} de ${item.name}`} onClick={() => changeCartQuantity(item, -1)}><Minus size={16} /></button><span className="cart-item-qty">{formatCartQuantity(item)}</span><button type="button" aria-label={`Aumentar ${item.saleUnit === 'Quilograma' ? '100 gramas' : 'quantidade'} de ${item.name}`} onClick={() => changeCartQuantity(item, 1)}><Plus size={16} /></button></div><button type="button" className="cart-item-remove" aria-label={`Remover ${item.name}`} onClick={() => removeCartItem(item)}><Trash2 size={16} /></button></div>) : <div className="cart-empty"><ShoppingCart size={28} /><strong>Seu carrinho está vazio</strong></div>}</div>
-          <form className="cart-panel-footer" onSubmit={finishPurchase}><div className="cart-summary-box"><div className="summary-row"><span>Subtotal ({cartCount} itens)</span><strong>R$ {cartItems.reduce((sum, item) => sum + (Number(String(item.price || '').replace(/[^0-9,]/g, '').replace(',', '.')) || 0) * (item.quantity || 1), 0).toFixed(2).replace('.', ',')}</strong></div><div className="summary-row"><span>Descontos</span><strong>R$ {(cartItems.reduce((sum, item) => sum + (Number(String(item.price || '').replace(/[^0-9,]/g, '').replace(',', '.')) || 0) * (item.quantity || 1), 0) * (validCoupons[coupon.trim().toUpperCase()] || 0)).toFixed(2).replace('.', ',')}</strong></div><div className="summary-row"><span>Frete</span><strong>R$ 0,00</strong></div><div className="summary-row total"><span>Total</span><strong>R$ {(cartItems.reduce((sum, item) => sum + (Number(String(item.price || '').replace(/[^0-9,]/g, '').replace(',', '.')) || 0) * (item.quantity || 1), 0) * (1 - (validCoupons[coupon.trim().toUpperCase()] || 0))).toFixed(2).replace('.', ',')}</strong></div></div><div className="cart-coupon"><input value={coupon} onChange={(event) => { setCoupon(event.target.value); setCouponDiscountPercent(0); setAppliedCouponCode(''); setCouponStatus(''); }} placeholder="Cupom enviado pelo ERP" maxLength={24} /><button className="btn-coupon" type="button" onClick={applyCoupon}>Aplicar</button></div><p className={`coupon-feedback ${couponStatus.includes('sucesso') ? 'success' : couponStatus ? 'error' : ''}`}>{couponStatus}</p>          <label className="delivery-address-field">Endereço de entrega<select value={checkoutAddress} onChange={(event) => setCheckoutAddress(event.target.value)}><option value="">Selecione seu endereço</option>{addressOptions.map((option) => <option key={option.value} value={option.value}>{option.label}</option>)}</select></label><label className="delivery-address-field">Forma de pagamento<select value={paymentMethod} onChange={(event) => setPaymentMethod(event.target.value)}><option value="pix">Pix</option><option value="cartao">Cartão</option><option value="dinheiro">Dinheiro</option><option value="outro">Outro / combinar</option></select></label><button className="btn-finalizar" type="submit" disabled={checkoutLoading ||
- !cartItems.length}>{checkoutLoading ? 'Finalizando...' : 'Finalizar Compra'}</button><button type="button" className="btn-limpar" onClick={() => saveCart([])}>Limpar Carrinho</button>{checkoutStatus && <p className={`coupon-feedback ${checkoutStatus.includes('sucesso') ? 'success' : 'error'}`}>{checkoutStatus}</p>}</form>        </aside>
+          <form className="cart-panel-footer" onSubmit={finishPurchase}><div className="cart-summary-box"><div className="summary-row"><span>Subtotal ({cartCount} itens)</span><strong>R$ {cartItems.reduce((sum, item) => sum + (Number(String(item.price || '').replace(/[^0-9,]/g, '').replace(',', '.')) || 0) * (item.quantity || 1), 0).toFixed(2).replace('.', ',')}</strong></div><div className="summary-row"><span>Descontos</span><strong>R$ {(cartItems.reduce((sum, item) => sum + (Number(String(item.price || '').replace(/[^0-9,]/g, '').replace(',', '.')) || 0) * (item.quantity || 1), 0) * (validCoupons[coupon.trim().toUpperCase()] || 0)).toFixed(2).replace('.', ',')}</strong></div><div className="summary-row"><span>Frete</span><strong>R$ 0,00</strong></div><div className="summary-row total"><span>Total</span><strong>R$ {(cartItems.reduce((sum, item) => sum + (Number(String(item.price || '').replace(/[^0-9,]/g, '').replace(',', '.')) || 0) * (item.quantity || 1), 0) * (1 - (validCoupons[coupon.trim().toUpperCase()] || 0))).toFixed(2).replace('.', ',')}</strong></div></div><div className="cart-coupon"><input value={coupon} onChange={(event) => { setCoupon(event.target.value); setCouponDiscountPercent(0); setAppliedCouponCode(''); setCouponStatus(''); }} placeholder="Insira seu Cupom" maxLength={24} /><button className="btn-coupon" type="button" onClick={applyCoupon}>Aplicar</button></div><p className={`coupon-feedback ${couponStatus.includes('sucesso') ? 'success' : couponStatus ? 'error' : ''}`}>{couponStatus}</p>          <label className="delivery-address-field">Endereço de entrega<select value={checkoutAddress} onChange={(event) => setCheckoutAddress(event.target.value)}><option value="">Selecione seu endereço</option>{addressOptions.map((option) => <option key={option.value} value={option.value}>{option.label}</option>)}</select></label><label className="delivery-address-field">Forma de pagamento<select value={paymentMethod} onChange={(event) => { setPaymentMethod(event.target.value); localStorage.setItem(paymentMethodStorageKey(session?.user?.email), event.target.value); }}><option value="pix">Pix</option><option value="cartao">Cartão</option><option value="dinheiro">Dinheiro</option><option value="outro">Outro / combinar</option></select></label><button className="btn-finalizar" type="submit" disabled={checkoutLoading ||
+ !cartItems.length}>{checkoutLoading ? 'Finalizando...' : 'Finalizar Pedido'}</button><button type="button" className="btn-limpar" onClick={() => saveCart([])}>Limpar Carrinho</button>{checkoutStatus && <p className={`coupon-feedback ${checkoutStatus.includes('sucesso') ? 'success' : 'error'}`}>{checkoutStatus}</p>}</form>        </aside>
       </div>}
     </div>
   );

@@ -7,40 +7,26 @@ import { useSession } from 'next-auth/react';
 const addressesApi = '/api/addresses';
 const deliveryAddressStorageKey = (email) => `hoje-dashboard-delivery-address-${email || 'guest'}`;
 
-const initialAddresses = [
-  {
-    id: 1,
-    title: 'Casa',
-    type: 'Padrão',
-    street: 'Rua das Flores, 123 - Apto 45',
-    city: 'Centro, São Paulo - SP',
-    cep: 'CEP: 01234-567',
-  },
-  {
-    id: 2,
-    title: 'Trabalho',
-    type: 'Alternativo',
-    street: 'Av. Paulista, 1000',
-    city: 'Bela Vista, São Paulo - SP',
-    cep: 'CEP: 01310-100',
-  },
-];
-
 export default function AddressesPage() {
   const { data: session, status } = useSession();
-  const [addresses, setAddresses] = useState(initialAddresses);
+  const [addresses, setAddresses] = useState([]);
   const [selectedAddressId, setSelectedAddressId] = useState('');
   const [isFormOpen, setIsFormOpen] = useState(false);
   const [editingId, setEditingId] = useState(null);
   const [form, setForm] = useState({ title: '', street: '', city: '', cep: '', type: 'Alternativo' });
   const [cepStatus, setCepStatus] = useState('');
+  const [addressesError, setAddressesError] = useState('');
 
   useEffect(() => {
     if (status !== 'authenticated') return;
     fetch(addressesApi)
-      .then((response) => response.json())
+      .then((response) => {
+        if (!response.ok) throw new Error('Não foi possível carregar seus endereços.');
+        return response.json();
+      })
       .then(({ addresses: savedAddresses = [] }) => {
         setAddresses(savedAddresses);
+        setAddressesError('');
         const storageKey = deliveryAddressStorageKey(session?.user?.email);
         const storedId = localStorage.getItem(storageKey);
         const selected = savedAddresses.find((address) => String(address.id) === storedId)
@@ -57,7 +43,10 @@ export default function AddressesPage() {
           window.dispatchEvent(new CustomEvent('dashboard-address-selected', { detail: {} }));
         }
       })
-      .catch(() => setAddresses(initialAddresses));
+      .catch((error) => {
+        setAddresses([]);
+        setAddressesError(error.message);
+      });
   }, [status, session?.user?.email]);
 
   const persistAddresses = async (nextAddresses) => {
@@ -182,7 +171,7 @@ export default function AddressesPage() {
           <div className="address-form-grid">
             <label>CEP<input name="cep" value={form.cep} onChange={handleChange} onBlur={lookupCep} placeholder="00000-000" required /></label>
             <label>Tipo<select name="type" value={form.type} onChange={handleChange}><option>Padrão</option><option>Alternativo</option></select></label>
-            <label>Complemento<input name="title" value={form.title} onChange={handleChange} placeholder="Apto 45, casa..." /></label>
+            <label>Identificação do endereço<input name="title" value={form.title} onChange={handleChange} placeholder="Casa, trabalho..." required /></label>
             <label className="address-form-wide">Rua e número<input name="street" value={form.street} onChange={handleChange} placeholder="Rua, número e complemento" required /></label>
             <label>Bairro, cidade e estado<input name="city" value={form.city} onChange={handleChange} placeholder="Bairro, cidade - UF" required /></label>
           </div>
@@ -191,7 +180,12 @@ export default function AddressesPage() {
         </form>
       )}
 
-      {addresses.length === 0 ? (
+      {addressesError ? (
+        <div className="empty-state" role="alert">
+          <h3>Não foi possível carregar seus endereços</h3>
+          <p>{addressesError}</p>
+        </div>
+      ) : addresses.length === 0 ? (
         <div className="empty-state">
           <h3>Nenhum endereço cadastrado</h3>
           <p>Adicione um endereço de entrega para continuar.</p>

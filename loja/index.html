@@ -83,7 +83,7 @@
       </div>
 
       <div class="cart-coupon">
-        <input id="coupon-input" type="text" placeholder="Cupom enviado pelo ERP" maxlength="24">
+        <input id="coupon-input" type="text" placeholder="Insira seu Cupom" maxlength="24">
         <button id="apply-coupon" class="btn-coupon" type="button">Aplicar</button>
       </div>
       <p id="coupon-feedback" class="coupon-feedback" aria-live="polite"></p>
@@ -105,7 +105,7 @@
         </select>
       </label>
 
-      <button id="finalizar-compra" class="btn-finalizar">Finalizar Compra</button>
+      <button id="finalizar-compra" class="btn-finalizar">Finalizar Pedido</button>
       <button id="limpar-carrinho" class="btn-limpar">Limpar Carrinho</button>
     </div>
   </aside>
@@ -136,7 +136,7 @@
   <!-- MENU DE CATEGORIAS: barra horizontal com atalhos rápidos -->
   <!-- ===================================================== -->
   <nav class="categories-bar">
-    <button class="all-categories"><i data-lucide="menu"></i> Todas as categorias</button>
+    <button id="all-categories" class="all-categories" type="button" aria-controls="store-categories" aria-expanded="false" onclick="toggleCategoriasLoja()"><i data-lucide="menu"></i><span>Todas as categorias</span></button>
     <a href="#"><i data-lucide="flame"></i> Ofertas do dia</a>
     <a href="categoria.html?categoria=hortifruti"><i data-lucide="carrot"></i> Hortifruti</a>
     <a href="categoria.html?categoria=carnes"><i data-lucide="beef"></i> Carnes</a>
@@ -155,7 +155,7 @@
   <div class="content-wrapper">
 
     <!-- ----- Coluna 1: Sidebar com a lista completa de categorias ----- -->
-    <aside class="sidebar">
+    <aside class="sidebar" id="store-categories">
       <ul>
         <li><a href="categoria.html?categoria=hortifruti"><i data-lucide="carrot"></i> Hortifruti</a></li>
         <li><a href="categoria.html?categoria=carnes"><i data-lucide="beef"></i> Carnes</a></li>

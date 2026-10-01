@@ -5,10 +5,6 @@ import { authOptions } from '@/auth';
 
 const dataDirectory = path.join(process.cwd(), 'data');
 const dataFile = path.join(dataDirectory, 'addresses.json');
-const defaultAddresses = [
-  { id: 'address-home', title: 'Casa', type: 'Padrão', street: 'Rua das Flores, 123 - Apto 45', city: 'Centro, São Paulo - SP', cep: 'CEP: 01234-567' },
-  { id: 'address-work', title: 'Trabalho', type: 'Alternativo', street: 'Av. Paulista, 1000', city: 'Bela Vista, São Paulo - SP', cep: 'CEP: 01310-100' },
-];
 const allowedOrigins = new Set(['http://localhost:8010', 'http://localhost:5500', 'http://127.0.0.1:5500', 'null']);
 
 function headers(request) {
@@ -39,7 +35,7 @@ export async function GET(request) {
   const email = await getEmail();
   if (!email) return Response.json({ addresses: [] }, { headers: headers(request) });
   const store = await readStore();
-  return Response.json({ addresses: store[email] || defaultAddresses }, { headers: headers(request) });
+  return Response.json({ addresses: store[email] || [] }, { headers: headers(request) });
 }
 
 export async function PUT(request) {

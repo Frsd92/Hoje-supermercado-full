@@ -240,10 +240,25 @@ function updateAddressSummaryFromSelection() {
   if (headerSelect) headerSelect.value = selectedValue;
 }
 
+function toggleCategoriasLoja() {
+  const sidebar = document.getElementById('store-categories');
+  const button = document.getElementById('all-categories');
+  if (!sidebar || !button) return;
+
+  const expanded = button.getAttribute('aria-expanded') !== 'true';
+  button.setAttribute('aria-expanded', String(expanded));
+  sidebar.classList.toggle('is-expanded', expanded);
+  button.querySelector('span').textContent = expanded ? 'Recolher categorias' : 'Todas as categorias';
+
+  if (expanded) {
+    sidebar.scrollIntoView({ behavior: 'smooth', block: 'start' });
+  }
+}
+
 function atualizarBotaoFinalizarCompra() {
   const button = document.getElementById('finalizar-compra');
   if (!button) return;
-  button.textContent = sessaoLoja.authenticated ? 'Finalizar Compra' : 'Fazer login';
+  button.textContent = sessaoLoja.authenticated ? 'Finalizar Pedido' : 'Fazer login';
   button.dataset.loginRequired = String(!sessaoLoja.authenticated);
 }
 
