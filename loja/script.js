@@ -322,9 +322,11 @@ async function carregarEnderecosDaApi() {
     if (headerSelect) headerSelect.innerHTML = '<option value="">Selecione seu endereço</option>';
     addresses.forEach((address) => {
       const option = document.createElement('option');
+      const streetAndNumber = [address.street, address.number].filter(Boolean).join(', ');
+      const location = [address.city, address.state, address.country].filter(Boolean).join(', ');
       option.value = address.id;
-      option.textContent = `${address.title} · ${address.street}`;
-      option.dataset.address = [address.title, address.street, address.city].filter(Boolean).join(' | ');
+      option.textContent = `${address.title} · ${[streetAndNumber, location].filter(Boolean).join(' · ')}`;
+      option.dataset.address = [address.title, streetAndNumber, location].filter(Boolean).join(' | ');
       if (select) select.appendChild(option.cloneNode(true));
       if (headerSelect) headerSelect.appendChild(option);
     });

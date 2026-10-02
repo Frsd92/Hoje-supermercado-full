@@ -49,16 +49,21 @@ const navItems = [
 ];
 
 const deliveryAddressStorageKey = (email) => `hoje-dashboard-delivery-address-${email || 'guest'}`;
+const getAddressStreet = (address) => [address?.street, address?.number].filter(Boolean).join(', ');
+
 function getAddressValue(address) {
-  return `${address.title || 'Endereço'} | ${[address.street, address.city, address.state].filter(Boolean).join(' | ')}`;
+  return `${address.title || 'Endereço'} | ${[
+    getAddressStreet(address), address.city, address.state, address.country,
+  ].filter(Boolean).join(' | ')}`;
 }
 
 function getAddressLabel(address) {
-  return `${address.title || 'Endereço'} · ${address.street || ''}${address.city ? ` · ${address.city}` : ''}`;
+  const location = [address.city, address.state, address.country].filter(Boolean).join(', ');
+  return `${address.title || 'Endereço'} · ${getAddressStreet(address)}${location ? ` · ${location}` : ''}`;
 }
 
 function getAddressHeading(address) {
-  return address?.city || address?.street || 'Escolher endereço';
+  return address?.city || getAddressStreet(address) || 'Escolher endereço';
 }
 
 export default function DashboardLayout({ children }) {

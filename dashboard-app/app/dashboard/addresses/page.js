@@ -13,7 +13,9 @@ export default function AddressesPage() {
   const [selectedAddressId, setSelectedAddressId] = useState('');
   const [isFormOpen, setIsFormOpen] = useState(false);
   const [editingId, setEditingId] = useState(null);
-  const [form, setForm] = useState({ title: '', street: '', city: '', cep: '', type: 'Alternativo' });
+  const [form, setForm] = useState({
+    title: '', street: '', number: '', city: '', state: '', country: '', cep: '', type: 'Alternativo',
+  });
   const [cepStatus, setCepStatus] = useState('');
   const [addressesError, setAddressesError] = useState('');
   const cepLookupTimer = useRef(null);
@@ -95,7 +97,9 @@ export default function AddressesPage() {
   const openCreateForm = () => {
     cancelCepLookup();
     setEditingId(null);
-    setForm({ title: '', street: '', city: '', cep: '', type: 'Alternativo' });
+    setForm({
+      title: '', street: '', number: '', city: '', state: '', country: '', cep: '', type: 'Alternativo',
+    });
     setCepStatus('');
     setIsFormOpen(true);
   };
@@ -103,7 +107,13 @@ export default function AddressesPage() {
   const openEditForm = (address) => {
     cancelCepLookup();
     setEditingId(address.id);
-    setForm({ ...address, cep: address.cep.replace(/^CEP:\s*/, '') });
+    setForm({
+      ...address,
+      number: address.number || '',
+      state: address.state || '',
+      country: address.country || '',
+      cep: address.cep.replace(/^CEP:\s*/, ''),
+    });
     setCepStatus('');
     setIsFormOpen(true);
   };
@@ -148,9 +158,9 @@ export default function AddressesPage() {
           ...current,
           cep: `${cep.slice(0, 5)}-${cep.slice(5)}`,
           street: data.logradouro || current.street,
-          city: [data.bairro, data.localidade && data.uf ? `${data.localidade} - ${data.uf}` : data.localidade]
-            .filter(Boolean)
-            .join(', '),
+          city: [data.bairro, data.localidade].filter(Boolean).join(', '),
+          state: data.estado || data.uf || current.state,
+          country: 'Brasil',
         };
       });
       setCepStatus('Endereço encontrado.');
@@ -170,7 +180,10 @@ export default function AddressesPage() {
       ...form,
       title: form.title.trim(),
       street: form.street.trim(),
+      number: form.number.trim(),
       city: form.city.trim(),
+      state: form.state.trim(),
+      country: form.country.trim(),
       cep: `CEP: ${form.cep.trim()}`,
     };
 
@@ -208,9 +221,12 @@ export default function AddressesPage() {
           <div className="address-form-grid">
             <label>CEP<input name="cep" value={form.cep} onChange={handleChange} placeholder="00000-000" required /></label>
             <label>Tipo<select name="type" value={form.type} onChange={handleChange}><option>Padrão</option><option>Alternativo</option></select></label>
-            <label>Identificação do endereço<input name="title" value={form.title} onChange={handleChange} placeholder="Casa, trabalho..." required /></label>
-            <label className="address-form-wide">Rua e número<input name="street" value={form.street} onChange={handleChange} placeholder="Rua, número e complemento" required /></label>
-            <label>Bairro, cidade e estado<input name="city" value={form.city} onChange={handleChange} placeholder="Bairro, cidade - UF" required /></label>
+            <label className="address-form-wide">Identificação do endereço<input name="title" value={form.title} onChange={handleChange} placeholder="Casa, trabalho..." required /></label>
+            <label className="address-form-wide">Rua<input name="street" value={form.street} onChange={handleChange} placeholder="Nome da rua" required /></label>
+            <label className="address-form-wide">Número<input name="number" value={form.number} onChange={handleChange} placeholder="Ex.: 123 ou S/N" /></label>
+            <label>Bairro e cidade<input name="city" value={form.city} onChange={handleChange} placeholder="Bairro, cidade" required /></label>
+            <label>Estado<input name="state" value={form.state} onChange={handleChange} placeholder="Ex.: São Paulo" /></label>
+            <label className="address-form-wide">País<input name="country" value={form.country} onChange={handleChange} placeholder="Ex.: Brasil" /></label>
           </div>
           {cepStatus && <p className={`cep-status ${cepStatus.startsWith('Endereço') ? 'success' : ''}`} role="status">{cepStatus}</p>}
           <button type="submit" className="primary-cta">Salvar endereço</button>
@@ -242,8 +258,9 @@ export default function AddressesPage() {
               </div>
 
               <div>
-                <p>{address.street}</p>
+                <p>{[address.street, address.number].filter(Boolean).join(', ')}</p>
                 <p>{address.city}</p>
+                {(address.state || address.country) && <p>{[address.state, address.country].filter(Boolean).join(', ')}</p>}
                 <p>{address.cep}</p>
               </div>
 
