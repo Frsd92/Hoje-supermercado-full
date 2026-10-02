@@ -91,20 +91,23 @@
 
       <label class="delivery-address-field" for="delivery-address">
         Endereço de entrega
-        <select id="delivery-address">
+        <select id="delivery-address" required>
           <option value="">Selecione um endereço para continuar</option>
         </select>
       </label>
+      <small class="checkout-field-hint">O endereço escolhido será usado na entrega.</small>
 
       <label class="delivery-address-field" for="payment-method">
         Forma de pagamento
-        <select id="payment-method">
+        <select id="payment-method" required>
+          <option value="" selected disabled>Selecione sua forma de pagamento</option>
           <option value="pix">Pix</option>
           <option value="cartao">Cartão</option>
           <option value="dinheiro">Dinheiro</option>
-          <option value="outro">Outro</option>
+          <option value="outro">Outro / combinar</option>
         </select>
       </label>
+      <small class="checkout-field-hint">Obrigatória para concluir o pedido.</small>
 
       <button id="finalizar-compra" class="btn-finalizar">Finalizar Pedido</button>
       <button id="limpar-carrinho" class="btn-limpar">Limpar Carrinho</button>
@@ -120,8 +123,8 @@
     </div>
 
      <div class="search-bar">
-  <input type="text" id="search-input" placeholder="O que você está procurando?" oninput="buscarProdutos()" onfocus="buscarProdutos()" autocomplete="off">
-  <button><i data-lucide="search"></i></button>
+  <input type="text" id="search-input" placeholder="O que você está procurando?" aria-label="Buscar produtos" oninput="buscarProdutos()" onfocus="buscarProdutos()" autocomplete="off">
+  <button type="button" id="search-submit" aria-label="Buscar produtos"><i data-lucide="search"></i></button>
   <div id="search-results" class="search-results"></div>
     </div>
 

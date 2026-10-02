@@ -75,6 +75,7 @@ export default function DashboardLayout({ children }) {
   const [selectedAddressId, setSelectedAddressId] = useState('');
   const [deliveryAddressOpen, setDeliveryAddressOpen] = useState(false);
   const [paymentMethod, setPaymentMethod] = useState(DEFAULT_PAYMENT_METHOD);
+  const [cpfNoteDialogOpen, setCpfNoteDialogOpen] = useState(false);
   const [coupon, setCoupon] = useState('');
   const [couponDiscountPercent, setCouponDiscountPercent] = useState(0);
   const [appliedCouponCode, setAppliedCouponCode] = useState('');
@@ -93,10 +94,23 @@ export default function DashboardLayout({ children }) {
   const [notifications, setNotifications] = useState([]);
   const [notificationsOpen, setNotificationsOpen] = useState(false);
   const [mobileNavOpen, setMobileNavOpen] = useState(false);
+  const cpfNoteDialogRef = useRef(null);
+  const cpfNoteNoButtonRef = useRef(null);
   const cartItemsRef = useRef([]);
   const cartWriteQueueRef = useRef(Promise.resolve());
   const savedAddressesRef = useRef([]);
   const searchProductsLoadedRef = useRef(false);
+
+  useEffect(() => {
+    const dialog = cpfNoteDialogRef.current;
+    if (!dialog) return;
+    if (cpfNoteDialogOpen && !dialog.open) {
+      dialog.showModal();
+      cpfNoteNoButtonRef.current?.focus();
+    } else if (!cpfNoteDialogOpen && dialog.open) {
+      dialog.close();
+    }
+  }, [cpfNoteDialogOpen]);
 
   useEffect(() => {
     const accountEmail = session?.user?.email || 'guest';
@@ -473,12 +487,19 @@ export default function DashboardLayout({ children }) {
       setCouponStatus(error.message);
     }
   };
-  const finishPurchase = async (event) => {
+  const finishPurchase = (event) => {
     event.preventDefault();
     if (!cartItems.length) return setCheckoutStatus('Adicione produtos antes de finalizar.');
     if (!checkoutAddress.trim()) return setCheckoutStatus('Cadastre ou selecione um endereço antes de concluir a compra.');
     if (!session?.user?.email) return setCheckoutStatus('É necessário estar autenticado para finalizar a compra.');
+    if (!isPaymentMethod(paymentMethod)) return setCheckoutStatus('Selecione uma forma no campo Forma de pagamento; você também pode defini-la na aba Formas de pagamento.');
 
+    setCheckoutStatus('');
+    setCpfNoteDialogOpen(true);
+  };
+
+  const submitPurchase = async (includeCpfOnReceipt) => {
+    setCpfNoteDialogOpen(false);
     setCheckoutLoading(true);
     setCheckoutStatus('');
     const subtotal = cartItems.reduce((sum, item) => sum + (Number(String(item.price || '').replace(/[^0-9,]/g, '').replace(',', '.')) || 0) * (item.quantity || 1), 0);
@@ -494,6 +515,7 @@ export default function DashboardLayout({ children }) {
           address: checkoutAddress.trim(),
           addressDetails: selectedDeliveryAddress,
           paymentMethod,
+          includeCpfOnReceipt,
           couponCode: coupon.trim().toUpperCase(),
           total: `R$ ${total.toFixed(2).replace('.', ',')}`,
         }),
@@ -709,8 +731,8 @@ export default function DashboardLayout({ children }) {
                               </span>
                               {quantity > 0 ? (
                                 <span className="dashboard-search-quantity">
-                                  <button type="button" aria-label={`Diminuir ${product.saleUnit === 'Quilograma' ? '100 gramas' : 'quantidade'} de ${product.title}`} onMouseDown={(event) => event.preventDefault()} onClick={() => changeCartQuantity(cartItem, -1)}>
-                                    <Minus size={13} />
+                                  <button type="button" aria-label={`Remover ${product.title} do carrinho`} onMouseDown={(event) => event.preventDefault()} onClick={() => removeCartItem(cartItem)}>
+                                    <Trash2 size={13} />
                                   </button>
                                   <strong aria-live="polite">{formatCartQuantity(cartItem)}</strong>
                                   <button type="button" aria-label={`Aumentar ${product.saleUnit === 'Quilograma' ? '100 gramas' : 'quantidade'} de ${product.title}`} onMouseDown={(event) => event.preventDefault()} onClick={() => addToCart(product)}>
@@ -862,15 +884,19 @@ export default function DashboardLayout({ children }) {
             <p className={`coupon-feedback ${couponStatus.includes('sucesso') ? 'success' : couponStatus ? 'error' : ''}`}>{couponStatus}</p>
             <label className="delivery-address-field">
               Endereço de entrega
-              <select value={checkoutAddress} onChange={(event) => setCheckoutAddress(event.target.value)}>
+              <select required value={checkoutAddress} onChange={(event) => setCheckoutAddress(event.target.value)}>
                 <option value="">Selecione seu endereço</option>
                 {addressOptions.map((option) => <option key={option.value} value={option.value}>{option.label}</option>)}
               </select>
             </label>
+            <small className="checkout-field-hint">
+              {addressOptions.length ? 'O pedido será entregue no endereço selecionado.' : <>Cadastre um endereço antes de continuar. <Link href="/dashboard/addresses">Gerenciar endereços</Link></>}
+            </small>
             <label className="delivery-address-field">
               Forma de pagamento
               <select
-                value={paymentMethod}
+                required
+                value={paymentMethod || ''}
                 onChange={(event) => {
                   try {
                     savePaymentMethod(session?.user?.email, event.target.value);
@@ -880,14 +906,34 @@ export default function DashboardLayout({ children }) {
                   }
                 }}
               >
+                <option value="" disabled>Selecione sua forma de pagamento</option>
                 {PAYMENT_METHODS.map(({ value, label }) => <option key={value} value={value}>{label}</option>)}
               </select>
             </label>
+            <small className="checkout-field-hint">Obrigatória para concluir o pedido. <Link href="/dashboard/payment-methods">Gerenciar formas de pagamento</Link></small>
             <button className="btn-finalizar" type="submit" disabled={checkoutLoading || !cartItems.length}>
               {checkoutLoading ? 'Finalizando...' : 'Finalizar Pedido'}
             </button>
             <button type="button" className="btn-limpar" onClick={() => saveCart([])}>Limpar Carrinho</button>
-            {checkoutStatus && <p className={`coupon-feedback ${checkoutStatus.includes('sucesso') ? 'success' : 'error'}`}>{checkoutStatus}</p>}
+            {checkoutStatus && <p className={`coupon-feedback ${checkoutStatus.includes('sucesso') ? 'success' : 'error'}`} role="status">{checkoutStatus}</p>}
+            <dialog
+              ref={cpfNoteDialogRef}
+              className="cpf-note-dialog"
+              aria-labelledby="dashboard-cpf-note-title"
+              aria-describedby="dashboard-cpf-note-description"
+              onCancel={(event) => { event.preventDefault(); setCpfNoteDialogOpen(false); }}
+            >
+              <div className="cpf-note-dialog-content">
+                <span className="settings-kicker">Nota fiscal</span>
+                <h2 id="dashboard-cpf-note-title">Deseja CPF na nota?</h2>
+                <p id="dashboard-cpf-note-description">A escolha é obrigatória para enviar o pedido. Se responder Sim, usaremos o CPF cadastrado no seu perfil.</p>
+                <div className="cpf-note-dialog-actions">
+                  <button ref={cpfNoteNoButtonRef} type="button" className="cpf-note-choice cpf-note-no" disabled={checkoutLoading} onClick={() => submitPurchase(false)}>Não, continuar sem CPF</button>
+                  <button type="button" className="cpf-note-choice cpf-note-yes" disabled={checkoutLoading} onClick={() => submitPurchase(true)}>Sim, quero CPF na nota</button>
+                  <button type="button" className="cpf-note-cancel" onClick={() => setCpfNoteDialogOpen(false)}>Voltar ao carrinho</button>
+                </div>
+              </div>
+            </dialog>
           </form>
         </aside>
       </div>}

@@ -4,7 +4,7 @@ import Link from 'next/link';
 import { useSession } from 'next-auth/react';
 import { useRouter } from 'next/navigation';
 import { useEffect, useState } from 'react';
-import { CircleDollarSign, Heart, Package, ShoppingCart, Sparkles, TrendingUp } from 'lucide-react';
+import { CircleDollarSign, Heart, Package, ShoppingCart, Sparkles } from 'lucide-react';
 import { formatCurrency, getBudgetProgress, getCurrentMonthSpend } from './budget';
 import { readLocalBudget } from './budget-storage';
 import { getCartItemCount } from './cart-utils';
@@ -201,9 +201,28 @@ export default function DashboardHomePage() {
         return <Link key={label} href={href} className={cardClassName}>{cardContent}</Link>;
       })}</div>
 
-      <div className="home-grid"><div className="panel-box profile-panel"><div className="panel-header compact"><h3>Resumo do perfil</h3><span className="status-pill ok">Autenticado</span></div><div className="profile-preview"><div className="avatar-large">{profile.photo || profile.googlePhoto || session.user?.image ? <img src={profile.photo || profile.googlePhoto || session.user?.image} alt="" /> : session.user?.name?.[0]?.toUpperCase() || 'U'}</div><div><strong>{profile.fullName || session.user?.name || 'Cliente'}</strong><span>{session.user?.email || 'E-mail não informado'}</span></div></div><div className="profile-detail-grid"><div><label>Localização</label><strong>{deliveryAddress?.city || deliveryAddress?.street || 'Sem endereço'}</strong></div><div><label>Entrega</label><strong>{deliveryAddress?.title || 'Não selecionada'}</strong></div><div><label>Orçamento mensal</label><strong>{profile.monthlyBudget ? formatCurrency(profile.monthlyBudget) : 'Não definido'}</strong></div></div></div><div className="panel-box"><div className="panel-header compact"><h3>Últimos pedidos</h3></div>{orders.length ? <ul className="mini-list">{orders.slice(0, 4).map((order) => { const info = getOrderStatus(order.status); return <li key={order.id}><span>{order.id}</span><strong className={`mini-order-status ${info.tone}`}><span className="order-status-light" />{info.label}</strong><em>{order.total}</em></li>; })}</ul> : <div className="erp-empty-data">Nenhum pedido registrado.</div>}</div></div>
+      <div className="home-grid">
+        <div className="panel-box profile-panel">
+          <div className="panel-header compact"><h3>Resumo do perfil</h3><Link href="/dashboard/profile" className="dashboard-panel-link">Editar perfil</Link></div>
+          <div className="profile-preview"><div className="avatar-large">{profile.photo || profile.googlePhoto || session.user?.image ? <img src={profile.photo || profile.googlePhoto || session.user?.image} alt="" /> : session.user?.name?.[0]?.toUpperCase() || 'U'}</div><div><strong>{profile.fullName || session.user?.name || 'Cliente'}</strong><span>{session.user?.email || 'E-mail não informado'}</span></div></div>
+          <div className="profile-detail-grid"><div><label>Localização</label><strong>{deliveryAddress?.city || deliveryAddress?.street || 'Sem endereço'}</strong></div><div><label>Entrega</label><strong>{deliveryAddress?.title || 'Não selecionada'}</strong></div><div><label>Orçamento mensal</label><strong>{profile.monthlyBudget ? formatCurrency(profile.monthlyBudget) : 'Não definido'}</strong></div></div>
+        </div>
+        <div className="panel-box">
+          <div className="panel-header compact"><h3>Últimos pedidos</h3><Link href="/dashboard/orders" className="dashboard-panel-link">Ver todos</Link></div>
+          {orders.length ? <ul className="mini-list">{orders.slice(0, 4).map((order) => { const info = getOrderStatus(order.status); return <li key={order.id}><span>{order.id}</span><strong className={`mini-order-status ${info.tone}`}><span className="order-status-light" />{info.label}</strong><em>{order.total}</em></li>; })}</ul> : <div className="dashboard-home-empty"><span>Nenhum pedido registrado.</span><Link href="/">Ver produtos da loja</Link></div>}
+        </div>
+      </div>
 
-      <div className="bottom-grid"><div className="panel-box"><div className="panel-header compact"><h3>Produtos favoritos</h3></div>{favorites.length ? <div className="favorites-mini-list">{favorites.slice(0, 5).map((item) => <div key={item.name} className="favorite-mini-row"><div className="favorite-mini-icon">◫</div><div><strong>{item.name}</strong><span>{item.category || 'Categoria não informada'}</span></div><em>{item.price || 'Sem preço'}</em></div>)}</div> : <div className="erp-empty-data">Nenhum favorito registrado.</div>}</div><div className="panel-box"><div className="panel-header compact"><h3>Atividade recente</h3><TrendingUp size={16} color="#16a34a" /></div><div className="erp-empty-data">A atividade aparecerá aqui quando houver ações registradas.</div></div></div>
+      <div className="bottom-grid">
+        <div className="panel-box">
+          <div className="panel-header compact"><h3>Produtos favoritos</h3><Link href="/dashboard/favorites" className="dashboard-panel-link">Ver todos</Link></div>
+          {favorites.length ? <div className="favorites-mini-list">{favorites.slice(0, 5).map((item) => <div key={item.name} className="favorite-mini-row"><div className="favorite-mini-icon">◫</div><div><strong>{item.name}</strong><span>{item.category || 'Categoria não informada'}</span></div><em>{item.price || 'Sem preço'}</em></div>)}</div> : <div className="dashboard-home-empty"><span>Nenhum favorito registrado.</span><Link href="/">Descobrir produtos</Link></div>}
+        </div>
+        <div className="panel-box">
+          <div className="panel-header compact"><h3>Atalhos da conta</h3></div>
+          <div className="dashboard-quick-links"><Link href="/dashboard/addresses">Gerenciar endereços</Link><Link href="/dashboard/payment-methods">Formas de pagamento</Link><Link href="/dashboard/profile">Meu perfil</Link></div>
+        </div>
+      </div>
     </div>
   );
 }

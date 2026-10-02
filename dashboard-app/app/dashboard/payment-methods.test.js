@@ -7,12 +7,13 @@ import {
   PAYMENT_METHODS,
   getPaymentMethodStorageKey,
   isPaymentMethod,
+  readPaymentMethod,
   savePaymentMethod,
 } from './payment-methods.js';
 
 test('exposes the payment methods supported by the existing checkout', () => {
   assert.deepEqual(PAYMENT_METHODS.map(({ value }) => value), ['pix', 'cartao', 'dinheiro', 'outro']);
-  assert.equal(DEFAULT_PAYMENT_METHOD, 'pix');
+  assert.equal(DEFAULT_PAYMENT_METHOD, null);
   assert.equal(isPaymentMethod('cartao'), true);
   assert.equal(isPaymentMethod('transferencia'), false);
 });
@@ -49,5 +50,24 @@ test('saves the preference for the account and notifies the checkout', () => {
     else globalThis.localStorage = originalLocalStorage;
     if (originalWindow === undefined) delete globalThis.window;
     else globalThis.window = originalWindow;
+  }
+});
+
+test('requires an explicitly saved preference instead of silently defaulting to Pix', () => {
+  const originalLocalStorage = globalThis.localStorage;
+  const storedValues = new Map();
+  globalThis.localStorage = {
+    getItem: (key) => storedValues.get(key) ?? null,
+  };
+
+  try {
+    assert.equal(readPaymentMethod('cliente@example.com'), null);
+    storedValues.set(getPaymentMethodStorageKey('cliente@example.com'), 'invalid');
+    assert.equal(readPaymentMethod('cliente@example.com'), null);
+    storedValues.set(getPaymentMethodStorageKey('cliente@example.com'), 'pix');
+    assert.equal(readPaymentMethod('cliente@example.com'), 'pix');
+  } finally {
+    if (originalLocalStorage === undefined) delete globalThis.localStorage;
+    else globalThis.localStorage = originalLocalStorage;
   }
 });

@@ -5,7 +5,7 @@ export const PAYMENT_METHODS = [
   { value: 'outro', label: 'Outro / combinar', description: 'Escolha outra opção ou combine o pagamento no atendimento.' },
 ];
 
-export const DEFAULT_PAYMENT_METHOD = 'pix';
+export const DEFAULT_PAYMENT_METHOD = null;
 export const PAYMENT_METHOD_UPDATED_EVENT = 'dashboard-payment-method-updated';
 
 export function isPaymentMethod(value) {
@@ -18,7 +18,7 @@ export function getPaymentMethodStorageKey(email) {
 
 export function readPaymentMethod(email) {
   const storedMethod = localStorage.getItem(getPaymentMethodStorageKey(email));
-  return isPaymentMethod(storedMethod) ? storedMethod : DEFAULT_PAYMENT_METHOD;
+  return isPaymentMethod(storedMethod) ? storedMethod : null;
 }
 
 export function savePaymentMethod(email, method) {

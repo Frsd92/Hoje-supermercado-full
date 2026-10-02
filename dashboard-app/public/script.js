@@ -32,6 +32,117 @@ function idCarrinhoVisitante() {
   return id;
 }
 
+function garantirSeletorPagamento(finalizeButton) {
+  let select = document.getElementById('payment-method');
+  if (select || !finalizeButton?.parentElement) return select;
+
+  const label = document.createElement('label');
+  label.className = 'delivery-address-field';
+  label.htmlFor = 'payment-method';
+  label.append(document.createTextNode('Forma de pagamento'));
+
+  select = document.createElement('select');
+  select.id = 'payment-method';
+  select.required = true;
+  [
+    ['', 'Selecione sua forma de pagamento'],
+    ['pix', 'Pix'],
+    ['cartao', 'Cartão'],
+    ['dinheiro', 'Dinheiro'],
+    ['outro', 'Outro / combinar'],
+  ].forEach(([value, labelText]) => {
+    const option = document.createElement('option');
+    option.value = value;
+    option.textContent = labelText;
+    option.disabled = value === '';
+    select.append(option);
+  });
+  label.append(select);
+    const hint = document.createElement('small');
+    hint.className = 'checkout-field-hint';
+    hint.textContent = 'Obrigatória para concluir o pedido.';
+    const checkoutPanel = finalizeButton.parentElement;
+    checkoutPanel.insertBefore(label, finalizeButton);
+    checkoutPanel.insertBefore(hint, finalizeButton);
+    return select;
+}
+
+function atualizarPreferenciaPagamentoLoja() {
+  const select = document.getElementById('payment-method');
+  if (!select) return;
+  select.disabled = !sessaoLoja.authenticated;
+  if (!sessaoLoja.authenticated) {
+    select.value = '';
+    return;
+  }
+
+  select.value = '';
+  const email = sessaoLoja.user?.email || 'guest';
+  try {
+    const method = localStorage.getItem(`hoje-dashboard-payment-method-${email}`);
+    select.value = PAYMENT_METHODS.includes(method) ? method : '';
+  } catch (error) {
+    console.error('Não foi possível carregar a forma de pagamento preferida:', error);
+    const feedback = document.getElementById('coupon-feedback');
+    if (feedback) {
+      feedback.textContent = 'Não foi possível carregar sua forma de pagamento. Verifique as permissões de armazenamento do navegador.';
+      feedback.className = 'coupon-feedback error';
+    }
+  }
+}
+
+function perguntarCpfNaNota() {
+  let dialog = document.getElementById('cpf-note-dialog');
+  if (!dialog) {
+    dialog = document.createElement('dialog');
+    dialog.id = 'cpf-note-dialog';
+    dialog.className = 'cpf-note-dialog';
+    dialog.setAttribute('aria-labelledby', 'cpf-note-title');
+    dialog.setAttribute('aria-describedby', 'cpf-note-description');
+    dialog.innerHTML = `
+      <div class="cpf-note-dialog-content">
+        <span class="settings-kicker">Nota fiscal</span>
+        <h2 id="cpf-note-title">Deseja CPF na nota?</h2>
+        <p id="cpf-note-description">A escolha é obrigatória para enviar o pedido. Se responder Sim, usaremos o CPF cadastrado no seu perfil.</p>
+        <div class="cpf-note-dialog-actions">
+          <button type="button" class="cpf-note-choice cpf-note-no">Não, continuar sem CPF</button>
+          <button type="button" class="cpf-note-choice cpf-note-yes">Sim, quero CPF na nota</button>
+          <button type="button" class="cpf-note-cancel">Voltar ao carrinho</button>
+        </div>
+      </div>`;
+    document.body.append(dialog);
+  }
+
+  const noButton = dialog.querySelector('.cpf-note-no');
+  const yesButton = dialog.querySelector('.cpf-note-yes');
+  const cancelButton = dialog.querySelector('.cpf-note-cancel');
+
+  return new Promise((resolve) => {
+    const finish = (choice) => {
+      dialog.removeEventListener('cancel', handleCancel);
+      noButton.removeEventListener('click', handleNo);
+      yesButton.removeEventListener('click', handleYes);
+      cancelButton.removeEventListener('click', handleCancelButton);
+      if (dialog.open) dialog.close();
+      resolve(choice);
+    };
+    const handleCancel = (event) => {
+      event.preventDefault();
+      finish(null);
+    };
+    const handleNo = () => finish(false);
+    const handleYes = () => finish(true);
+    const handleCancelButton = () => finish(null);
+
+    dialog.addEventListener('cancel', handleCancel);
+    noButton.addEventListener('click', handleNo);
+    yesButton.addEventListener('click', handleYes);
+    cancelButton.addEventListener('click', handleCancelButton);
+    dialog.showModal();
+    noButton.focus();
+  });
+}
+
 function opcoesCarrinho(options = {}) {
   return {
     ...options,
@@ -161,6 +272,7 @@ async function carregarSessaoDaLoja() {
     if (!response.ok) throw new Error(`Sessão indisponível (${response.status})`);
     const data = await response.json();
     sessaoLoja = data;
+    atualizarPreferenciaPagamentoLoja();
     atualizarBotaoFinalizarCompra();
 
     const nameElement = document.getElementById('store-user-name');
@@ -192,6 +304,7 @@ async function carregarSessaoDaLoja() {
     await carregarCarrinhoDaApi();
   } catch (error) {
     sessaoLoja = { authenticated: false, user: null };
+    atualizarPreferenciaPagamentoLoja();
     atualizarBotaoFinalizarCompra();
     console.warn('Não foi possível verificar o login:', error.message);
   }
@@ -778,7 +891,29 @@ function inicializarCarrinho() {
   const feedback = document.getElementById('coupon-feedback');
   const deliveryAddress = document.getElementById('delivery-address');
   const finalizeButton = document.getElementById('finalizar-compra');
+  const paymentSelect = garantirSeletorPagamento(finalizeButton);
   const locationSummary = document.getElementById('location-summary');
+
+  if (paymentSelect) {
+    paymentSelect.addEventListener('change', () => {
+      if (!sessaoLoja.authenticated || !PAYMENT_METHODS.includes(paymentSelect.value)) return;
+      const email = sessaoLoja.user?.email || 'guest';
+      try {
+        localStorage.setItem(`hoje-dashboard-payment-method-${email}`, paymentSelect.value);
+        window.dispatchEvent(new CustomEvent('dashboard-payment-method-updated', {
+          detail: { email, method: paymentSelect.value },
+        }));
+      } catch (error) {
+        console.error('Não foi possível salvar a forma de pagamento preferida:', error);
+        if (feedback) {
+          feedback.textContent = 'Não foi possível salvar sua forma de pagamento. Verifique as permissões de armazenamento do navegador.';
+          feedback.className = 'coupon-feedback error';
+        }
+      }
+    });
+    window.addEventListener('storage', atualizarPreferenciaPagamentoLoja);
+    atualizarPreferenciaPagamentoLoja();
+  }
 
   const updateAddressSummary = () => {
     const selected = deliveryAddress?.selectedOptions[0];
@@ -812,6 +947,15 @@ function inicializarCarrinho() {
         return;
       }
 
+      if (!PAYMENT_METHODS.includes(paymentSelect?.value)) {
+        if (feedback) {
+          feedback.textContent = 'Escolha sua forma de pagamento antes de finalizar o pedido.';
+          feedback.className = 'coupon-feedback error';
+        }
+        paymentSelect?.focus();
+        return;
+      }
+
       const items = carrinhoItens.map((item) => ({
         name: item.nome,
         quantity: item.qty,
@@ -833,6 +977,8 @@ function inicializarCarrinho() {
       const subtotal = carrinhoItens.reduce((sum, item) => sum + item.preco * item.qty, 0);
       const desconto = cupomAplicado.codigo === couponCode ? subtotal * cupomAplicado.percentual / 100 : 0;
       const total = Math.max(0, subtotal - desconto);
+      const includeCpfOnReceipt = await perguntarCpfNaNota();
+      if (includeCpfOnReceipt === null) return;
       const paymentMethodLabels = {
         pix: 'Pix',
         cartao: 'Cartão',
@@ -853,16 +999,15 @@ function inicializarCarrinho() {
         'Frete: R$ 0,00',
         `Total: ${formatarPreco(total)}`,
         `Endereço: ${deliveryAddress.selectedOptions[0].textContent}`,
-        `Pagamento: ${paymentMethodLabels[document.getElementById('payment-method')?.value] || 'Outro'}`,
+        `Pagamento: ${paymentMethodLabels[paymentSelect.value]}`,
+        `CPF na nota: ${includeCpfOnReceipt ? 'Sim' : 'Não'}`,
         '',
         'Ao continuar, você confirma os itens e as condições exibidas. Deseja enviar o pedido?',
       ].join('\n');
       if (!window.confirm(resumoPedido)) return;
 
       try {
-        const paymentSelect = document.getElementById('payment-method');
-        const paymentMethod = PAYMENT_METHODS.includes(paymentSelect?.value) ? paymentSelect.value : 'outro';
-        const response = await fetch('/api/erp/orders', { method: 'POST', credentials: 'include', headers: { 'Content-Type': 'text/plain' }, body: JSON.stringify({ items, address: deliveryAddress.selectedOptions[0].textContent, paymentMethod, couponCode }) });
+        const response = await fetch('/api/erp/orders', { method: 'POST', credentials: 'include', headers: { 'Content-Type': 'text/plain' }, body: JSON.stringify({ items, address: deliveryAddress.selectedOptions[0].textContent, paymentMethod: paymentSelect.value, includeCpfOnReceipt, couponCode }) });
         const data = await response.json();
         if (!response.ok) throw new Error(data.error || 'Não foi possível registrar o pedido.');
         limparCarrinho();
@@ -1208,7 +1353,7 @@ function buscarProdutos() {
         <span class="search-result-actions">
           <button type="button" class="search-buy">Adicionar</button>
           <span class="search-qty-controls">
-            <button type="button" class="search-qty-minus" aria-label="Diminuir quantidade">−</button>
+            <button type="button" class="search-qty-remove" aria-label="Remover produto do carrinho"><i data-lucide="trash-2"></i></button>
             <strong class="search-qty-value">1</strong>
             <button type="button" class="search-qty-plus" aria-label="Aumentar quantidade">+</button>
           </span>
@@ -1241,9 +1386,11 @@ function buscarProdutos() {
         atualizarQuantidadeBusca();
       });
 
-      item.querySelector('.search-qty-minus').addEventListener('click', (event) => {
+      const removeButton = item.querySelector('.search-qty-remove');
+      removeButton.setAttribute('aria-label', `Remover ${nomeOriginal} do carrinho`);
+      removeButton.addEventListener('click', (event) => {
         event.stopPropagation();
-        ajustarQuantidadeProduto(nomeOriginal, 'decrement');
+        removerProduto(card.querySelector('.btn-comprar'));
         atualizarQuantidadeBusca();
       });
 
@@ -1285,12 +1432,17 @@ function buscarProdutos() {
 // Hook in: replace inline handlers by scheduling the debounced search
 (function replaceSearchListeners() {
   const input = document.getElementById('search-input');
+  const searchButton = document.getElementById('search-submit');
   if (input) {
     // remove inline handlers if present
     input.removeAttribute('oninput');
     input.removeAttribute('onfocus');
     input.addEventListener('input', scheduleBuscarProdutos);
     input.addEventListener('focus', scheduleBuscarProdutos);
+    searchButton?.addEventListener('click', () => {
+      input.focus();
+      scheduleBuscarProdutos();
+    });
   }
 })();
 

@@ -1,7 +1,7 @@
 'use client';
 
 import Link from 'next/link';
-import { AlertTriangle, Boxes, CalendarClock, CircleDollarSign, Eye, FilePlus2, TrendingUp, Users } from 'lucide-react';
+import { AlertTriangle, ArrowUpRight, BarChart3, Boxes, CalendarClock, CircleDollarSign, Eye, FilePlus2, ShoppingCart, TrendingUp, Users } from 'lucide-react';
 import { useEffect, useState } from 'react';
 import { buildPriceChart, formatPriceAxis, formatPriceTimeAxis, getEffectiveRecordedPrice, getPriceHistorySyncStatus, PRICE_RANGES, priceChartY } from './price-chart.js';
 
@@ -151,13 +151,30 @@ export default function ERPPage() {
     { label: 'Produtos ativos', value: products.length, detail: 'Produtos cadastrados no ERP', icon: Boxes, tone: 'blue' },
     { label: 'Clientes ativos', value: metricsLoading ? '...' : customers.filter((customer) => customer.status === 'Ativo').length, detail: `${customers.length} cliente(s) identificado(s)`, icon: Users, tone: 'violet' },
   ];
+  const quickActions = [
+    { label: 'Pedidos', detail: metricsLoading ? 'Carregando fila' : `${orders.filter((order) => order.status === 'Recebido').length} aguardando conferência`, href: '/erp/orders', icon: ShoppingCart },
+    { label: 'Produtos', detail: metricsLoading ? 'Carregando catálogo' : `${products.length} produto(s) cadastrado(s)`, href: '/erp/products', icon: Boxes },
+    { label: 'Clientes', detail: metricsLoading ? 'Carregando clientes' : `${customers.length} cliente(s) identificado(s)`, href: '/erp/customers', icon: Users },
+    { label: 'Analytics', detail: 'Vendas, clientes e operação', href: '/erp/analytics', icon: BarChart3 },
+  ];
 
   return (
     <div className="section-shell erp-page">
       <div className="section-header erp-header">
-        <div><span className="eyebrow">Centro de Operações</span><h1>ERP Dashboard</h1><p>Visão integrada de produtos, estoque, vendas, margem e auditoria.</p></div>
+        <div><span className="eyebrow">Centro de Operações</span><h1>Visão geral do ERP</h1><p>Acompanhe os principais números e acesse rapidamente cada área.</p></div>
         <Link href="/erp/catalog" className="primary-cta"><FilePlus2 size={16} /> Cadastro de Produto</Link>
       </div>
+
+      <section className="erp-quick-access" aria-labelledby="erp-quick-access-title">
+        <div className="erp-quick-access-heading"><h2 id="erp-quick-access-title">Acessos rápidos</h2><span>Áreas mais utilizadas</span></div>
+        <div className="erp-quick-access-grid">
+          {quickActions.map(({ label, detail, href, icon: Icon }) => <Link href={href} className="erp-quick-access-card" key={label}>
+            <span className="erp-quick-access-icon"><Icon size={18} /></span>
+            <span className="erp-quick-access-copy"><strong>{label}</strong><small>{detail}</small></span>
+            <ArrowUpRight size={16} className="erp-quick-access-arrow" />
+          </Link>)}
+        </div>
+      </section>
 
       <div className="erp-metrics-grid">{metrics.map(({ label, value, detail, icon: Icon, tone }) => <div key={label} className={`erp-metric ${tone}`}><div className="erp-metric-icon"><Icon size={18} /></div><strong>{value}</strong><span>{label}</span><small>{detail}</small></div>)}</div>
 

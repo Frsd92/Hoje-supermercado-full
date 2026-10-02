@@ -590,6 +590,87 @@
   background: rgba(255, 255, 255, 0.4);
 }
 
+.cpf-note-dialog {
+  width: min(430px, calc(100vw - 32px));
+  max-width: calc(100vw - 32px);
+  padding: 0;
+  border: 0;
+  border-radius: 18px;
+  color: #101826;
+  background: #fff;
+  box-shadow: 0 24px 70px rgba(15, 23, 42, 0.3);
+}
+
+.cpf-note-dialog::backdrop {
+  background: rgba(15, 23, 42, 0.62);
+  backdrop-filter: blur(3px);
+}
+
+.cpf-note-dialog-content {
+  display: grid;
+  gap: 12px;
+  padding: 26px;
+}
+
+.cpf-note-dialog-content h2,
+.cpf-note-dialog-content p {
+  margin: 0;
+}
+
+.cpf-note-dialog .settings-kicker {
+  color: #15803d;
+  font-size: 0.68rem;
+  font-weight: 850;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+}
+
+.cpf-note-dialog-content h2 {
+  color: #101826;
+  font-size: 1.25rem;
+}
+
+.cpf-note-dialog-content p {
+  color: #64748b;
+  font-size: 0.9rem;
+  line-height: 1.5;
+}
+
+.cpf-note-dialog-actions {
+  display: grid;
+  gap: 9px;
+  margin-top: 4px;
+}
+
+.cpf-note-choice,
+.cpf-note-cancel {
+  min-height: 44px;
+  padding: 10px 14px;
+  border-radius: 10px;
+  font: inherit;
+  font-weight: 800;
+  cursor: pointer;
+}
+
+.cpf-note-no {
+  border: 1px solid #15803d;
+  color: #fff;
+  background: #15803d;
+  box-shadow: 0 5px 14px rgba(21, 128, 61, 0.22);
+}
+
+.cpf-note-yes {
+  border: 1px solid #d1d5db;
+  color: #334155;
+  background: #fff;
+}
+
+.cpf-note-cancel {
+  border: 0;
+  color: #64748b;
+  background: transparent;
+}
+
 /* ===================================================== */
 /* CABEÇALHO PRINCIPAL: logo + barra de busca + endereço */
 /* ===================================================== */
@@ -741,6 +822,15 @@ body {
 .delivery-address-field select:focus {
   border-color: rgba(26, 122, 60, 0.55);
   box-shadow: 0 0 0 3px rgba(34, 197, 94, 0.1);
+}
+
+.checkout-field-hint {
+  display: block;
+  margin: -8px 0 10px;
+  color: var(--muted);
+  font-size: 11px;
+  font-weight: 500;
+  line-height: 1.45;
 }
 
 /* ===================================================== */
@@ -2152,7 +2242,7 @@ body {
   display: flex;
   align-items: center;
   justify-content: flex-end;
-  min-width: 82px;
+  min-width: 110px;
 }
 
 .search-buy,
@@ -2186,12 +2276,30 @@ body {
 }
 
 .search-qty-controls button {
-  width: 23px;
-  height: 23px;
+  width: 32px;
+  height: 32px;
   display: grid;
   place-items: center;
   color: var(--green-900);
   background: transparent;
+}
+
+.search-qty-controls .search-qty-remove {
+  color: #b91c1c;
+}
+
+.search-qty-controls .search-qty-remove:hover {
+  background: rgba(185, 28, 28, 0.1);
+}
+
+.search-qty-controls button:focus-visible {
+  outline: 2px solid var(--green-700);
+  outline-offset: 1px;
+}
+
+.search-qty-controls .search-qty-remove svg {
+  width: 16px;
+  height: 16px;
 }
 
 .search-qty-controls button:hover {
@@ -2879,7 +2987,7 @@ body {
 
   .cart-panel-footer {
     flex: 0 1 auto;
-    max-height: 55%;
+    max-height: 70%;
     overflow-y: auto;
     padding-bottom: 4px;
     overscroll-behavior-y: contain;

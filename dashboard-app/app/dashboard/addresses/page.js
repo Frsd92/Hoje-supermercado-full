@@ -1,6 +1,6 @@
 'use client';
 
-import { Home, PencilLine, Trash2 } from 'lucide-react';
+import { Home, PencilLine, Plus, Trash2 } from 'lucide-react';
 import { useEffect, useState } from 'react';
 import { useSession } from 'next-auth/react';
 
@@ -150,13 +150,13 @@ export default function AddressesPage() {
   };
 
   return (
-    <div className="section-shell">
-      <div className="section-header">
+    <div className="section-shell addresses-page">
+      <div className="section-header addresses-header">
         <div>
           <h1>Meus Endereços</h1>
           <p>Gerencie seus endereços de entrega</p>
         </div>
-        <button type="button" className="primary-cta" onClick={openCreateForm}>+ Novo Endereço</button>
+        <button type="button" className="primary-cta" onClick={openCreateForm}><Plus size={17} /> Novo Endereço</button>
       </div>
 
       {isFormOpen && (

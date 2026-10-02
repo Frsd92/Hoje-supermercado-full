@@ -1,6 +1,6 @@
 'use client';
 
-import { Activity, BarChart3, CircleDollarSign, Clock3, MapPin, ShoppingBag, Tag, Users } from 'lucide-react';
+import { Activity, BarChart3, CircleDollarSign, Clock3, FileText, MapPin, ShoppingBag, Tag, Users } from 'lucide-react';
 import { useEffect, useState } from 'react';
 import { formatCartQuantity } from '@/app/dashboard/cart-utils';
 
@@ -54,6 +54,41 @@ function DemographicInsights({ insights }) {
   </section>;
 }
 
+function InvoiceCpfInsights({ insights }) {
+  const genderGroups = insights.gender || [];
+  const requesters = insights.requesters || [];
+  const informedGroups = genderGroups.filter((group) => group.label !== 'Não informado');
+  const leadingGroup = [...informedGroups].sort((first, second) => second.customers - first.customers)[0];
+
+  return <section className="analytics-section">
+    <div className="analytics-section-heading">
+      <div><span className="eyebrow">Notas fiscais</span><h2>Clientes que pedem CPF na nota</h2></div>
+      <span>Histórico de pedidos ativos com consentimento explícito.</span>
+    </div>
+    <div className="erp-customer-metrics">
+      <div className="erp-customer-metric"><FileText size={17} /><strong>{insights.totalOrders || 0}</strong><span>Pedidos com CPF na nota</span></div>
+      <div className="erp-customer-metric"><Users size={17} /><strong>{insights.totalCustomers || 0}</strong><span>Clientes solicitantes</span></div>
+      <div className="erp-customer-metric"><Users size={17} /><strong>{leadingGroup?.label || 'Sem dados'}</strong><span>Mais clientes solicitantes</span><small>{leadingGroup ? `${leadingGroup.customers} cliente(s)` : 'Gênero não informado'}</small></div>
+    </div>
+    {!insights.demographicsAvailable && <div className="erp-budget-warning" role="status">Não foi possível carregar os gêneros do perfil; os pedidos e clientes solicitantes continuam contabilizados.</div>}
+    <div className="analytics-grid">
+      <section className="analytics-panel">
+        <h3>Solicitações por gênero do perfil</h3>
+        {genderGroups.length
+          ? <div className="analytics-category-list">{genderGroups.map((group) => <div key={group.label}><div><strong>{group.label}</strong><span>{group.customers} cliente(s) · {group.orders} pedido(s)</span></div></div>)}</div>
+          : <div className="erp-empty-data">Ainda não há pedidos com CPF na nota.</div>}
+        <p className="analytics-source-note">A comparação de gênero conta clientes únicos e também mostra o total de pedidos. Perfis sem gênero informado ficam separados.</p>
+      </section>
+      <section className="analytics-panel">
+        <div className="erp-panel-title"><Users size={17} /><div><h3>Quem solicitou</h3><p>Clientes com ao menos um pedido ativo que inclui CPF na nota.</p></div></div>
+        {requesters.length
+          ? <div className="erp-table-scroll"><table className="erp-table"><thead><tr><th>Cliente</th><th>Gênero</th><th>Pedidos</th></tr></thead><tbody>{requesters.map((customer) => <tr key={customer.key}><td><strong>{customer.name}</strong><small>{customer.email || 'E-mail não informado'}</small></td><td>{customer.gender}</td><td>{customer.requests}</td></tr>)}</tbody></table></div>
+          : <div className="erp-empty-data">Nenhum cliente solicitou CPF na nota até agora.</div>}
+      </section>
+    </div>
+  </section>;
+}
+
 export default function AnalyticsPage() {
   const [data, setData] = useState(null);
   const [tab, setTab] = useState('overview');
@@ -83,10 +118,11 @@ export default function AnalyticsPage() {
   const inventory = data?.inventory || { stockValue: 0, outOfStock: [], lowStock: [], nearExpiry: [] };
   const customers = data?.customers || { total: 0, newCustomers: 0, recurringCustomers: 0, purchaseFrequency: 0, averageTicket: 0, totalSpent: 0, spending: [], topProducts: [], pairs: [] };
   const customerInsights = data?.customerInsights || { available: true, gender: [], ageGroups: [], customersWithGender: 0, customersWithBirthDate: 0, customersWithOrders: 0 };
+  const invoiceCpf = data?.invoiceCpf || { totalOrders: 0, totalCustomers: 0, gender: [], requesters: [], demographicsAvailable: true };
   const abandonedCarts = data?.abandonedCarts || { available: true, idleThresholdHours: 24, total: 0, customers: [], cartsWithoutActivityDate: 0, topProducts: [] };
   const geography = data?.geography || { totalOrders: 0, unlocatedOrders: 0, states: [], municipalities: [], neighborhoods: [] };
   const periods = sales.periods || { today: { revenue: 0, orders: 0, averageTicket: 0 }, week: { revenue: 0, orders: 0, averageTicket: 0 }, month: { revenue: 0, orders: 0, averageTicket: 0 }, previousWeek: { revenue: 0 }, previousMonth: { revenue: 0 } };
-  const tabs = [['overview', 'Visão geral'], ['sales', 'Vendas'], ['profitability', 'Lucratividade'], ['inventory', 'Estoque'], ['customers', 'Clientes'], ['demographics', 'Sexo e idade'], ['promotions', 'Promoções']];
+  const tabs = [['overview', 'Visão geral'], ['sales', 'Vendas'], ['profitability', 'Lucratividade'], ['inventory', 'Estoque'], ['customers', 'Clientes'], ['demographics', 'Sexo e idade'], ['invoiceCpf', 'CPF na nota'], ['promotions', 'Promoções']];
   const metrics = [['Receita', money(sales.revenue), `${sales.orders || 0} pedidos`, CircleDollarSign], ['Lucro bruto', money(profitability.grossProfit), `CMV ${money(profitability.cmv)}`, Activity], ['Margem', percent(profitability.margin), 'Sobre vendas registradas', BarChart3], ['Ticket médio', money(sales.averageTicket), 'Por pedido', ShoppingBag]];
 
   return <div className="erp-module-page analytics-page">
@@ -94,6 +130,7 @@ export default function AnalyticsPage() {
     <div className="analytics-tabs" role="tablist">{tabs.map(([value, label]) => <button type="button" role="tab" aria-selected={tab === value} className={tab === value ? 'active' : ''} onClick={() => setTab(value)} key={value}>{label}</button>)}</div>
     {loading ? <div className="erp-empty-data">Carregando indicadores reais...</div> : <>
       {tab === 'demographics' && <DemographicInsights insights={customerInsights} />}
+      {tab === 'invoiceCpf' && <InvoiceCpfInsights insights={invoiceCpf} />}
       {(tab === 'overview' || tab === 'sales') && <section className="analytics-section"><div className="analytics-section-heading"><div><span className="eyebrow">Vendas</span><h2>{startDate || endDate ? `Vendas de ${startDate || 'início'} até ${endDate || 'hoje'}` : 'Ritmo comercial'}</h2></div><span>{sales.currentRevenue ? `Últimos 30 dias: ${money(sales.currentRevenue)}` : 'Sem vendas no período'}</span></div>{tab === 'overview' && <div className="erp-customer-metrics">{metrics.map(([label, value, detail, Icon]) => <div className="erp-customer-metric" key={label}><Icon size={17} /><strong>{value}</strong><span>{label}</span><small>{detail}</small></div>)}</div>}<div className="analytics-period-grid"><PeriodCard label="Hoje" summary={periods.today} /><PeriodCard label="Esta semana" summary={periods.week} comparison={periods.previousWeek} /><PeriodCard label="Este mês" summary={periods.month} comparison={periods.previousMonth} /></div><div className="analytics-grid"><section className="analytics-panel"><div className="erp-panel-title"><BarChart3 size={17} /><div><h3>Faturamento por dia</h3><p>{startDate || endDate ? 'Filtro aplicado ao período selecionado.' : 'Últimos 31 dias.'}</p></div></div><Bars items={sales.daily} /></section><section className="analytics-panel"><div className="erp-panel-title"><Clock3 size={17} /><div><h3>Vendas por horário</h3><p>{startDate || endDate ? 'Todos os horários com venda no período.' : 'Distribuição dos pedidos registrados.'}</p></div></div><Bars items={sales.hourly} /></section></div><section className="analytics-panel analytics-hour-table"><div className="erp-panel-title"><Clock3 size={17} /><div><h3>Resumo horário</h3><p>O filtro mostra cada faixa horária dentro do período.</p></div></div>{sales.hourly.length ? <div className="erp-table-scroll"><table className="erp-table"><thead><tr><th>Horário</th><th>Faturamento</th></tr></thead><tbody>{sales.hourly.map((item) => <tr key={item.label}><td>{item.label}</td><td><strong>{money(item.value)}</strong></td></tr>)}</tbody></table></div> : <div className="erp-empty-data">Nenhuma venda no período selecionado.</div>}</section><div className="analytics-grid"><section className="analytics-panel"><div className="erp-panel-title"><ShoppingBag size={17} /><div><h3>Produtos vendidos</h3><p>Unidades e faturamento no período.</p></div></div>{sales.products?.length ? <div className="erp-table-scroll"><table className="erp-table"><thead><tr><th>Produto</th><th>Unidades</th><th>Faturamento</th></tr></thead><tbody>{sales.products.map((item) => <tr key={item.title}><td><strong>{item.title}</strong><small>{item.category}</small></td><td>{item.quantity}</td><td>{money(item.revenue)}</td></tr>)}</tbody></table></div> : <div className="erp-empty-data">Nenhum produto vendido no período.</div>}</section><section className="analytics-panel"><div className="erp-panel-title"><CircleDollarSign size={17} /><div><h3>Formas de pagamento</h3><p>Valor e quantidade de compras.</p></div></div>{sales.payments?.length ? <div className="analytics-category-list">{sales.payments.map((item) => <div key={item.method}><div><strong>{item.label}</strong><span>{money(item.value)} · {item.orders} compra(s)</span></div></div>)}</div> : <div className="erp-empty-data">Nenhum pagamento no período.</div>}</section></div><section className="analytics-panel"><div className="erp-panel-title"><ShoppingBag size={17} /><div><h3>Compras registradas</h3><p>Pedido, horário, cliente, pagamento e valor.</p></div></div>{sales.purchases?.length ? <div className="erp-table-scroll"><table className="erp-table"><thead><tr><th>Pedido</th><th>Data e hora</th><th>Cliente</th><th>Pagamento</th><th>Itens</th><th>Valor</th></tr></thead><tbody>{sales.purchases.map((item) => <tr key={item.id}><td><strong>{item.id}</strong></td><td>{item.date}</td><td>{item.customer}</td><td>{item.paymentLabel}</td><td>{item.items}</td><td><strong>{money(item.value)}</strong></td></tr>)}</tbody></table></div> : <div className="erp-empty-data">Nenhuma compra registrada no período.</div>}</section></section>}
   {(tab === 'overview' || tab === 'profitability') && <section className="analytics-section"><div className="analytics-section-heading"><div><span className="eyebrow">Lucratividade</span><h2>Resultado e margem</h2></div></div><div className="analytics-grid"><section className="analytics-panel"><h3>Margem por categoria</h3><Ranking items={profitability.categories} moneyValues /></section><section className="analytics-panel"><h3>Margem por marca</h3><Ranking items={profitability.brands} moneyValues /></section></div><div className="erp-customer-metrics"><div className="erp-customer-metric"><CircleDollarSign size={17} /><strong>{money(profitability.grossProfit)}</strong><span>Lucro bruto</span><small>Receita menos CMV</small></div><div className="erp-customer-metric"><Activity size={17} /><strong>{percent(profitability.margin)}</strong><span>Margem</span><small>Sobre vendas registradas</small></div></div></section>}
   {(tab === 'overview' || tab === 'inventory') && <section className="analytics-section"><div className="analytics-section-heading"><div><span className="eyebrow">Estoque</span><h2>Risco e capital parado</h2></div><span>Em estoque: {money(inventory.stockValue)}</span></div><div className="erp-customer-metrics"><div className="erp-customer-metric"><strong>{inventory.outOfStock.length}</strong><span>Rupturas</span><small>Produtos sem estoque</small></div><div className="erp-customer-metric"><strong>{inventory.lowStock.length}</strong><span>Estoque mínimo</span><small>Abaixo do limite cadastrado</small></div><div className="erp-customer-metric"><strong>{inventory.nearExpiry.length}</strong><span>Vencimento próximo</span><small>Até 30 dias</small></div></div></section>}

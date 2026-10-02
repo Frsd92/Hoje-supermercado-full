@@ -303,7 +303,7 @@ export default function ProfilePage() {
               <input type="date" value={profile.birthDate || ''} disabled={loading || savingProfile || !profileLoaded} onChange={(event) => handleChange('birthDate', event.target.value)} />
             </label>
             <label className="form-field">
-              <span>Membro desde <small className="fixed-field-label">inalterável</small></span>
+              <span>Membro desde</span>
               <input type="text" value={loading ? 'Carregando...' : memberSince} readOnly />
             </label>
           </div>

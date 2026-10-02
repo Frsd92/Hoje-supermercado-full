@@ -66,7 +66,7 @@ export default function PaymentMethodsPage() {
       <header className="page-header-block settings-page-header">
         <span className="settings-kicker">Preferências de compra</span>
         <h1>Formas de pagamento</h1>
-        <p>Escolha qual opção deve aparecer selecionada ao finalizar seu pedido. Você pode alterá-la no carrinho sempre que precisar.</p>
+        <p>Escolha uma forma de pagamento preferida. É obrigatório selecionar uma opção antes de finalizar qualquer pedido; você pode alterá-la no carrinho.</p>
       </header>
 
       <section className="settings-panel payment-methods-panel" aria-labelledby="payment-methods-heading">
@@ -78,7 +78,7 @@ export default function PaymentMethodsPage() {
           </div>
         </div>
 
-        <p className="payment-methods-note">Esta configuração apenas define a opção padrão; nenhum dado de cartão é armazenado.</p>
+        <p className="payment-methods-note">Esta configuração define sua forma de pagamento preferida; nenhum dado de cartão é armazenado.</p>
 
         <fieldset className="payment-method-list" disabled={!isReady}>
           <legend>Selecione uma forma de pagamento</legend>
@@ -109,6 +109,7 @@ export default function PaymentMethodsPage() {
           })}
         </fieldset>
 
+        {isReady && !paymentMethod && <p className="payment-method-feedback error" role="status">Selecione uma forma de pagamento antes de finalizar seu primeiro pedido.</p>}
         {feedback && <p className={`payment-method-feedback ${feedback.type}`} role="status" aria-live="polite">{feedback.message}</p>}
       </section>
     </div>

@@ -5,6 +5,7 @@ import { authOptions } from '@/auth';
 import { hasErpAccess } from '@/features/erp/access';
 import { getDeliveryLocation } from '@/lib/delivery-location';
 import { prisma } from '@/lib/prisma';
+import { buildInvoiceCpfAnalytics } from './invoice-cpf-analytics.js';
 
 const dataDirectory = path.join(process.cwd(), 'data');
 const staleCartAfterMs = 24 * 60 * 60 * 1000;
@@ -272,6 +273,10 @@ export async function GET(request) {
   const recurringCustomers = customerStats.filter((customer) => customer.orders > 1).length;
   const totalCustomerOrders = customerStats.reduce((sum, customer) => sum + customer.orders, 0);
   const pairs = new Map(); orders.forEach((order) => { const names = [...new Set((order.items || []).map((item) => String(item.name || '').trim()).filter(Boolean))]; names.forEach((first, index) => names.slice(index + 1).forEach((second) => addToMap(pairs, [first, second].sort().join(' + '), 1))); });
+  const invoiceCpf = {
+    ...buildInvoiceCpfAnalytics(orders, customerProfiles),
+    demographicsAvailable,
+  };
 
   return Response.json({
     generatedAt: now.toISOString(),
@@ -296,6 +301,7 @@ export async function GET(request) {
       topProducts: [...abandonedCartProducts.values()].sort((first, second) => second.carts - first.carts || second.quantity - first.quantity).slice(0, 10),
     },
     geography,
+    invoiceCpf,
     promotions: { available: false, message: 'Ainda não há histórico de preço promocional antes e durante da promoção para comparar.' },
   });
 }

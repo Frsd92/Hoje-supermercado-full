@@ -37,6 +37,33 @@ export async function POST(request) {
 
   const body = await request.json();
   if (!Array.isArray(body?.items) || !body.items.length || !body?.address) return Response.json({ error: 'Itens e endereço são obrigatórios.' }, { status: 400, headers: corsHeaders(request) });
+  if (!['pix', 'cartao', 'dinheiro', 'outro'].includes(body.paymentMethod)) {
+    return Response.json({ error: 'Selecione uma forma de pagamento válida antes de finalizar.' }, { status: 400, headers: corsHeaders(request) });
+  }
+  if (typeof body.includeCpfOnReceipt !== 'boolean') {
+    return Response.json({ error: 'Informe se deseja CPF na nota para continuar.' }, { status: 400, headers: corsHeaders(request) });
+  }
+
+  const email = String(session.user.email || '').trim().toLowerCase();
+  let invoiceCpf = '';
+  if (body.includeCpfOnReceipt) {
+    if (!email) return Response.json({ error: 'Não foi possível identificar a conta para consultar o CPF do perfil.' }, { status: 400, headers: corsHeaders(request) });
+
+    let profile;
+    try {
+      profile = await prisma.customerProfile.findUnique({
+        where: { email },
+        select: { cpf: true },
+      });
+    } catch (error) {
+      console.error('Não foi possível consultar o CPF do perfil para o pedido:', error);
+      return Response.json({ error: 'Não foi possível consultar o CPF do perfil agora.' }, { status: 500, headers: corsHeaders(request) });
+    }
+    invoiceCpf = String(profile?.cpf || '').replace(/\D/g, '');
+    if (invoiceCpf.length !== 11) {
+      return Response.json({ error: 'Cadastre um CPF com 11 dígitos no seu perfil antes de solicitar CPF na nota.' }, { status: 400, headers: corsHeaders(request) });
+    }
+  }
 
   let orders = [];
   try {
@@ -44,7 +71,6 @@ export async function POST(request) {
     orders = Array.isArray(savedOrders) ? savedOrders : [];
   } catch { orders = []; }
 
-  const email = String(session.user.email || '').trim().toLowerCase();
   const couponCode = String(body.couponCode || '').trim().toUpperCase();
   let campaignCoupon = null;
   if (couponCode) {
@@ -78,7 +104,7 @@ export async function POST(request) {
   });
   const subtotal = orderItems.reduce((sum, item) => sum + money(item.price) * item.quantity, 0);
   const total = subtotal * (1 - appliedDiscountPercent / 100);
-  const paymentMethod = ['pix', 'cartao', 'dinheiro', 'outro'].includes(body.paymentMethod) ? body.paymentMethod : 'outro';
+  const paymentMethod = body.paymentMethod;
   const addressDetails = body.addressDetails && typeof body.addressDetails === 'object'
     ? normalizeDeliveryLocation(body.addressDetails)
     : null;
@@ -92,6 +118,8 @@ export async function POST(request) {
     total: `R$ ${total.toFixed(2).replace('.', ',')}`,
     ...(couponCode ? { couponCode, couponDiscountPercent: appliedDiscountPercent } : {}),
     paymentMethod,
+    includeCpfOnReceipt: body.includeCpfOnReceipt,
+    ...(body.includeCpfOnReceipt ? { invoiceCpf } : {}),
     status: 'Recebido',
     createdAt: new Date().toLocaleString('pt-BR'),
   };
