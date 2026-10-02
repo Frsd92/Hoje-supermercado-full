@@ -4452,6 +4452,16 @@ button.metric-mini:focus-visible {
   color: #86efac;
 }
 
+.address-save-error {
+  margin: 0;
+  color: #fca5a5;
+  font-size: 0.82rem;
+}
+
+.dashboard-shell[data-dashboard-theme="light"] .address-save-error {
+  color: #b91c1c;
+}
+
 .address-form-wide {
   grid-column: 1 / -1;
 }

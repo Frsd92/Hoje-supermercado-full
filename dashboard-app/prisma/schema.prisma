@@ -31,6 +31,12 @@ model CustomerProfile {
   updatedAt     DateTime @updatedAt
 }
 
+model CustomerAddressBook {
+  email     String   @id
+  addresses Json     @default("[]")
+  updatedAt DateTime @updatedAt
+}
+
 model CustomerCart {
   email     String   @id
   items     Json     @default("[]")

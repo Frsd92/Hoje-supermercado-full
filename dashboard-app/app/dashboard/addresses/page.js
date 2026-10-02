@@ -18,6 +18,8 @@ export default function AddressesPage() {
   });
   const [cepStatus, setCepStatus] = useState('');
   const [addressesError, setAddressesError] = useState('');
+  const [addressActionError, setAddressActionError] = useState('');
+  const [isSavingAddress, setIsSavingAddress] = useState(false);
   const cepLookupTimer = useRef(null);
   const cepLookupController = useRef(null);
 
@@ -31,9 +33,11 @@ export default function AddressesPage() {
   useEffect(() => {
     if (status !== 'authenticated') return;
     fetch(addressesApi)
-      .then((response) => {
-        if (!response.ok) throw new Error('Não foi possível carregar seus endereços.');
-        return response.json();
+      .then(async (response) => {
+        const result = await response.json();
+        if (!response.ok) throw new Error(result.error || 'Não foi possível carregar seus endereços.');
+        if (!Array.isArray(result.addresses)) throw new Error('A resposta de endereços é inválida.');
+        return result;
       })
       .then(({ addresses: savedAddresses = [] }) => {
         setAddresses(savedAddresses);
@@ -66,24 +70,32 @@ export default function AddressesPage() {
   }, []);
 
   const persistAddresses = async (nextAddresses) => {
-    setAddresses(nextAddresses);
     const response = await fetch(addressesApi, {
       method: 'PUT',
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify({ addresses: nextAddresses }),
     });
-    if (!response.ok) throw new Error('Não foi possível salvar os endereços.');
+    const result = await response.json();
+    if (!response.ok) throw new Error(result.error || 'Não foi possível salvar os endereços.');
+    if (!Array.isArray(result.addresses)) throw new Error('O servidor não confirmou o salvamento dos endereços.');
+
+    const savedAddresses = result.addresses;
+    setAddresses(savedAddresses);
     const storageKey = deliveryAddressStorageKey(session?.user?.email);
-    const currentSelectionExists = nextAddresses.some((address) => String(address.id) === selectedAddressId);
+    const currentSelectionExists = savedAddresses.some((address) => String(address.id) === selectedAddressId);
     if (!currentSelectionExists) {
-      const selected = nextAddresses.find((address) => address.type === 'Padrão') || nextAddresses[0];
+      const selected = savedAddresses.find((address) => address.type === 'Padrão') || savedAddresses[0];
       const nextId = selected ? String(selected.id) : '';
       setSelectedAddressId(nextId);
       if (nextId) localStorage.setItem(storageKey, nextId);
       else localStorage.removeItem(storageKey);
     }
     window.dispatchEvent(new CustomEvent('dashboard-address-selected', {
-      detail: { addressId: currentSelectionExists ? selectedAddressId : String(nextAddresses.find((address) => address.type === 'Padrão')?.id || nextAddresses[0]?.id || '') },
+      detail: {
+        addressId: currentSelectionExists
+          ? selectedAddressId
+          : String(savedAddresses.find((address) => address.type === 'Padrão')?.id || savedAddresses[0]?.id || ''),
+      },
     }));
   };
 
@@ -101,6 +113,7 @@ export default function AddressesPage() {
       title: '', street: '', number: '', neighborhood: '', city: '', state: '', country: '', cep: '', type: 'Alternativo',
     });
     setCepStatus('');
+    setAddressActionError('');
     setIsFormOpen(true);
   };
 
@@ -116,6 +129,7 @@ export default function AddressesPage() {
       cep: address.cep.replace(/^CEP:\s*/, ''),
     });
     setCepStatus('');
+    setAddressActionError('');
     setIsFormOpen(true);
   };
 
@@ -174,8 +188,9 @@ export default function AddressesPage() {
     }
   };
 
-  const saveAddress = (event) => {
+  const saveAddress = async (event) => {
     event.preventDefault();
+    if (isSavingAddress) return;
     if (!form.title.trim() || !form.street.trim() || !form.city.trim() || !form.cep.trim()) return;
 
     const savedAddress = {
@@ -193,13 +208,31 @@ export default function AddressesPage() {
     const nextAddresses = editingId
       ? addresses.map((address) => address.id === editingId ? { ...address, ...savedAddress } : address)
       : [...addresses, { id: `address-${Date.now()}`, ...savedAddress }];
-    persistAddresses(nextAddresses).catch(() => setAddresses(addresses));
-    setIsFormOpen(false);
+
+    setAddressActionError('');
+    setIsSavingAddress(true);
+    try {
+      await persistAddresses(nextAddresses);
+      setIsFormOpen(false);
+    } catch (error) {
+      setAddressActionError(error.message);
+    } finally {
+      setIsSavingAddress(false);
+    }
   };
 
-  const removeAddress = (id) => {
+  const removeAddress = async (id) => {
+    if (isSavingAddress) return;
     const nextAddresses = addresses.filter((address) => address.id !== id);
-    persistAddresses(nextAddresses).catch(() => setAddresses(addresses));
+    setAddressActionError('');
+    setIsSavingAddress(true);
+    try {
+      await persistAddresses(nextAddresses);
+    } catch (error) {
+      setAddressActionError(error.message);
+    } finally {
+      setIsSavingAddress(false);
+    }
   };
 
   return (
@@ -209,7 +242,7 @@ export default function AddressesPage() {
           <h1>Meus Endereços</h1>
           <p>Gerencie seus endereços de entrega</p>
         </div>
-        <button type="button" className="primary-cta" onClick={openCreateForm}><Plus size={17} /> Novo Endereço</button>
+        <button type="button" className="primary-cta" onClick={openCreateForm} disabled={isSavingAddress}><Plus size={17} /> Novo Endereço</button>
       </div>
 
       {isFormOpen && (
@@ -219,7 +252,7 @@ export default function AddressesPage() {
               <h3>{editingId ? 'Editar endereço' : 'Adicionar endereço'}</h3>
               <p>Preencha os dados para entrega.</p>
             </div>
-            <button type="button" className="ghost-link" onClick={() => setIsFormOpen(false)}>Cancelar</button>
+            <button type="button" className="ghost-link" onClick={() => setIsFormOpen(false)} disabled={isSavingAddress}>Cancelar</button>
           </div>
           <div className="address-form-grid">
             <label>CEP<input name="cep" value={form.cep} onChange={handleChange} placeholder="00000-000" required /></label>
@@ -233,9 +266,12 @@ export default function AddressesPage() {
             <label className="address-form-wide">País<input name="country" value={form.country} onChange={handleChange} placeholder="Ex.: Brasil" /></label>
           </div>
           {cepStatus && <p className={`cep-status ${cepStatus.startsWith('Endereço') ? 'success' : ''}`} role="status">{cepStatus}</p>}
-          <button type="submit" className="primary-cta">Salvar endereço</button>
+          <button type="submit" className="primary-cta" disabled={isSavingAddress}>
+            {isSavingAddress ? 'Salvando...' : 'Salvar endereço'}
+          </button>
         </form>
       )}
+      {addressActionError && <p className="address-save-error" role="alert">{addressActionError}</p>}
 
       {addressesError ? (
         <div className="empty-state" role="alert">
@@ -254,8 +290,8 @@ export default function AddressesPage() {
               <div className="address-card-header">
                 <div className="address-tag"><Home size={14} /> {address.title}</div>
                 <div className="address-actions-inline">
-                  <button type="button" className="icon-button-small" aria-label="Editar endereço" onClick={() => openEditForm(address)}><PencilLine size={14} /></button>
-                  <button type="button" className="icon-button-small" aria-label="Excluir endereço" onClick={() => removeAddress(address.id)}>
+                  <button type="button" className="icon-button-small" aria-label="Editar endereço" onClick={() => openEditForm(address)} disabled={isSavingAddress}><PencilLine size={14} /></button>
+                  <button type="button" className="icon-button-small" aria-label="Excluir endereço" onClick={() => removeAddress(address.id)} disabled={isSavingAddress}>
                     <Trash2 size={14} />
                   </button>
                 </div>
