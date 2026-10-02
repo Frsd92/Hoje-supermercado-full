@@ -93,7 +93,7 @@ export const STORE_LAYOUT_SLOTS = [
     placement: 'Carrossel Marcas em destaque',
     recommendedWidth: 480,
     recommendedHeight: 200,
-    fallbackImage: '/imagens/marcas_em_destaque/coca-cola.png',
+    fallbackImage: '/imagens/marcas_em_destaque/Coca-Cola.png',
     group: 'brands',
   },
   {
@@ -120,7 +120,7 @@ export const STORE_LAYOUT_SLOTS = [
     placement: 'Carrossel Marcas em destaque',
     recommendedWidth: 480,
     recommendedHeight: 200,
-    fallbackImage: '/imagens/marcas_em_destaque/danone.png',
+    fallbackImage: '/imagens/marcas_em_destaque/Danone.png',
     group: 'brands',
   },
   {
@@ -129,7 +129,7 @@ export const STORE_LAYOUT_SLOTS = [
     placement: 'Carrossel Marcas em destaque',
     recommendedWidth: 480,
     recommendedHeight: 200,
-    fallbackImage: '/imagens/marcas_em_destaque/p-g.png',
+    fallbackImage: '/imagens/marcas_em_destaque/P-G.png',
     group: 'brands',
   },
   {
@@ -138,7 +138,7 @@ export const STORE_LAYOUT_SLOTS = [
     placement: 'Carrossel Marcas em destaque',
     recommendedWidth: 480,
     recommendedHeight: 200,
-    fallbackImage: '/imagens/marcas_em_destaque/unilever.png',
+    fallbackImage: '/imagens/marcas_em_destaque/Unilever.png',
     group: 'brands',
   },
   {
@@ -156,7 +156,7 @@ export const STORE_LAYOUT_SLOTS = [
     placement: 'Carrossel Marcas em destaque',
     recommendedWidth: 480,
     recommendedHeight: 200,
-    fallbackImage: '/imagens/marcas_em_destaque/omo.png',
+    fallbackImage: '/imagens/marcas_em_destaque/OMO.png',
     group: 'brands',
   },
   {
@@ -165,7 +165,7 @@ export const STORE_LAYOUT_SLOTS = [
     placement: 'Carrossel Marcas em destaque',
     recommendedWidth: 480,
     recommendedHeight: 200,
-    fallbackImage: '/imagens/marcas_em_destaque/colgate.png',
+    fallbackImage: '/imagens/marcas_em_destaque/Colgate.png',
     group: 'brands',
   },
 ];
