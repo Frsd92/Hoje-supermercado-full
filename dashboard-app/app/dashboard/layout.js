@@ -63,7 +63,10 @@ function getAddressLabel(address) {
 }
 
 function getAddressHeading(address) {
-  return address?.city || getAddressStreet(address) || 'Escolher endereço';
+  return [
+    getAddressStreet(address),
+    address?.city,
+  ].filter(Boolean).join(', ') || address?.neighborhood || 'Escolher endereço';
 }
 
 export default function DashboardLayout({ children }) {

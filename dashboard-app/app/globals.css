@@ -866,12 +866,15 @@ body {
 }
 
 .topbar-delivery-copy strong {
+  display: -webkit-box;
   overflow: hidden;
   color: #e2e8f0;
   font-size: 0.76rem;
   line-height: 1.3;
   text-overflow: ellipsis;
-  white-space: nowrap;
+  white-space: normal;
+  -webkit-box-orient: vertical;
+  -webkit-line-clamp: 2;
 }
 
 .delivery-address-picker {
