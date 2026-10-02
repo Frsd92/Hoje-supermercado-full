@@ -6,9 +6,18 @@ import { signOut, useSession } from 'next-auth/react';
 import { useEffect, useMemo, useRef, useState } from 'react';
 import { adjustCartQuantity, formatCartQuantity, getCartItemCount, normalizeCartItems } from './cart-utils';
 import {
+  DEFAULT_PAYMENT_METHOD,
+  PAYMENT_METHODS,
+  PAYMENT_METHOD_UPDATED_EVENT,
+  isPaymentMethod,
+  readPaymentMethod,
+  savePaymentMethod,
+} from './payment-methods';
+import {
   Bell,
   ChevronDown,
   CircleDollarSign,
+  CreditCard,
   Home,
   MapPin,
   Settings,
@@ -32,6 +41,7 @@ const navItems = [
   { label: 'Início', href: '/dashboard', icon: Home },
   { label: 'Perfil', href: '/dashboard/profile', icon: UserRound },
   { label: 'Endereços', href: '/dashboard/addresses', icon: MapPin },
+  { label: 'Formas de pagamento', href: '/dashboard/payment-methods', icon: CreditCard },
   { label: 'Favoritos', href: '/dashboard/favorites', icon: Star },
   { label: 'Meus Pedidos', href: '/dashboard/orders', icon: ShoppingBag },
   { label: 'Orçamento', href: '/dashboard/budget', icon: CircleDollarSign },
@@ -39,9 +49,6 @@ const navItems = [
 ];
 
 const deliveryAddressStorageKey = (email) => `hoje-dashboard-delivery-address-${email || 'guest'}`;
-const paymentMethodStorageKey = (email) => `hoje-dashboard-payment-method-${email || 'guest'}`;
-const paymentMethods = ['pix', 'cartao', 'dinheiro', 'outro'];
-
 function getAddressValue(address) {
   return `${address.title || 'Endereço'} | ${[address.street, address.city, address.state].filter(Boolean).join(' | ')}`;
 }
@@ -67,7 +74,7 @@ export default function DashboardLayout({ children }) {
   const [savedAddresses, setSavedAddresses] = useState([]);
   const [selectedAddressId, setSelectedAddressId] = useState('');
   const [deliveryAddressOpen, setDeliveryAddressOpen] = useState(false);
-  const [paymentMethod, setPaymentMethod] = useState('pix');
+  const [paymentMethod, setPaymentMethod] = useState(DEFAULT_PAYMENT_METHOD);
   const [coupon, setCoupon] = useState('');
   const [couponDiscountPercent, setCouponDiscountPercent] = useState(0);
   const [appliedCouponCode, setAppliedCouponCode] = useState('');
@@ -92,8 +99,26 @@ export default function DashboardLayout({ children }) {
   const searchProductsLoadedRef = useRef(false);
 
   useEffect(() => {
-    const storedMethod = localStorage.getItem(paymentMethodStorageKey(session?.user?.email));
-    if (storedMethod && paymentMethods.includes(storedMethod)) setPaymentMethod(storedMethod);
+    const accountEmail = session?.user?.email || 'guest';
+    const applyStoredMethod = () => {
+      try {
+        setPaymentMethod(readPaymentMethod(session?.user?.email));
+      } catch (error) {
+        setCheckoutStatus(`Não foi possível carregar a forma de pagamento salva: ${error.message}`);
+      }
+    };
+    const applyPaymentMethodUpdate = (event) => {
+      if (event.detail?.email !== accountEmail || !isPaymentMethod(event.detail?.method)) return;
+      setPaymentMethod(event.detail.method);
+    };
+
+    applyStoredMethod();
+    window.addEventListener(PAYMENT_METHOD_UPDATED_EVENT, applyPaymentMethodUpdate);
+    window.addEventListener('storage', applyStoredMethod);
+    return () => {
+      window.removeEventListener(PAYMENT_METHOD_UPDATED_EVENT, applyPaymentMethodUpdate);
+      window.removeEventListener('storage', applyStoredMethod);
+    };
   }, [session?.user?.email]);
 
   useEffect(() => {
@@ -809,8 +834,62 @@ export default function DashboardLayout({ children }) {
           <div className="cart-panel-header"><div className="cart-panel-title-wrap"><span className="cart-panel-icon"><ShoppingCart size={18} /></span><h3 id="cart-panel-title">Meu Carrinho ({cartCount} {cartCount === 1 ? 'item' : 'itens'})</h3></div><button type="button" className="cart-close" aria-label="Fechar carrinho" onClick={() => setCartOpen(false)}>×</button></div>
           <p className="cart-subtitle">Revise seus itens antes de finalizar</p>
           <div className="cart-items">{cartItems.length ? cartItems.map((item) => <div className="cart-item" key={item.productId || item.name}><div className="cart-item-thumb">{item.image ? <img src={item.image} alt={item.name} /> : <div className="cart-thumb-placeholder" />}</div><div className="cart-item-info"><div className="cart-item-name">{item.name}</div><div className="cart-item-category">{item.category || 'Produtos'}</div><div className="cart-item-price">{item.saleUnit === 'Quilograma' && !String(item.price || '').includes('/kg') ? `${item.price} / kg` : item.price}</div></div><div className="cart-item-controls"><button type="button" aria-label={`Diminuir ${item.saleUnit === 'Quilograma' ? '100 gramas' : 'quantidade'} de ${item.name}`} onClick={() => changeCartQuantity(item, -1)}><Minus size={16} /></button><span className="cart-item-qty">{formatCartQuantity(item)}</span><button type="button" aria-label={`Aumentar ${item.saleUnit === 'Quilograma' ? '100 gramas' : 'quantidade'} de ${item.name}`} onClick={() => changeCartQuantity(item, 1)}><Plus size={16} /></button></div><button type="button" className="cart-item-remove" aria-label={`Remover ${item.name}`} onClick={() => removeCartItem(item)}><Trash2 size={16} /></button></div>) : <div className="cart-empty"><ShoppingCart size={28} /><strong>Seu carrinho está vazio</strong></div>}</div>
-          <form className="cart-panel-footer" onSubmit={finishPurchase}><div className="cart-summary-box"><div className="summary-row"><span>Subtotal ({cartCount} itens)</span><strong>R$ {cartItems.reduce((sum, item) => sum + (Number(String(item.price || '').replace(/[^0-9,]/g, '').replace(',', '.')) || 0) * (item.quantity || 1), 0).toFixed(2).replace('.', ',')}</strong></div><div className="summary-row"><span>Descontos</span><strong>R$ {(cartItems.reduce((sum, item) => sum + (Number(String(item.price || '').replace(/[^0-9,]/g, '').replace(',', '.')) || 0) * (item.quantity || 1), 0) * (validCoupons[coupon.trim().toUpperCase()] || 0)).toFixed(2).replace('.', ',')}</strong></div><div className="summary-row"><span>Frete</span><strong>R$ 0,00</strong></div><div className="summary-row total"><span>Total</span><strong>R$ {(cartItems.reduce((sum, item) => sum + (Number(String(item.price || '').replace(/[^0-9,]/g, '').replace(',', '.')) || 0) * (item.quantity || 1), 0) * (1 - (validCoupons[coupon.trim().toUpperCase()] || 0))).toFixed(2).replace('.', ',')}</strong></div></div><div className="cart-coupon"><input value={coupon} onChange={(event) => { setCoupon(event.target.value); setCouponDiscountPercent(0); setAppliedCouponCode(''); setCouponStatus(''); }} placeholder="Insira seu Cupom" maxLength={24} /><button className="btn-coupon" type="button" onClick={applyCoupon}>Aplicar</button></div><p className={`coupon-feedback ${couponStatus.includes('sucesso') ? 'success' : couponStatus ? 'error' : ''}`}>{couponStatus}</p>          <label className="delivery-address-field">Endereço de entrega<select value={checkoutAddress} onChange={(event) => setCheckoutAddress(event.target.value)}><option value="">Selecione seu endereço</option>{addressOptions.map((option) => <option key={option.value} value={option.value}>{option.label}</option>)}</select></label><label className="delivery-address-field">Forma de pagamento<select value={paymentMethod} onChange={(event) => { setPaymentMethod(event.target.value); localStorage.setItem(paymentMethodStorageKey(session?.user?.email), event.target.value); }}><option value="pix">Pix</option><option value="cartao">Cartão</option><option value="dinheiro">Dinheiro</option><option value="outro">Outro / combinar</option></select></label><button className="btn-finalizar" type="submit" disabled={checkoutLoading ||
- !cartItems.length}>{checkoutLoading ? 'Finalizando...' : 'Finalizar Pedido'}</button><button type="button" className="btn-limpar" onClick={() => saveCart([])}>Limpar Carrinho</button>{checkoutStatus && <p className={`coupon-feedback ${checkoutStatus.includes('sucesso') ? 'success' : 'error'}`}>{checkoutStatus}</p>}</form>        </aside>
+          <form className="cart-panel-footer" onSubmit={finishPurchase}>
+            <div className="cart-summary-box">
+              <div className="summary-row">
+                <span>Subtotal ({cartCount} itens)</span>
+                <strong>R$ {cartItems.reduce((sum, item) => sum + (Number(String(item.price || '').replace(/[^0-9,]/g, '').replace(',', '.')) || 0) * (item.quantity || 1), 0).toFixed(2).replace('.', ',')}</strong>
+              </div>
+              <div className="summary-row">
+                <span>Descontos</span>
+                <strong>R$ {(cartItems.reduce((sum, item) => sum + (Number(String(item.price || '').replace(/[^0-9,]/g, '').replace(',', '.')) || 0) * (item.quantity || 1), 0) * (validCoupons[coupon.trim().toUpperCase()] || 0)).toFixed(2).replace('.', ',')}</strong>
+              </div>
+              <div className="summary-row"><span>Frete</span><strong>R$ 0,00</strong></div>
+              <div className="summary-row total">
+                <span>Total</span>
+                <strong>R$ {(cartItems.reduce((sum, item) => sum + (Number(String(item.price || '').replace(/[^0-9,]/g, '').replace(',', '.')) || 0) * (item.quantity || 1), 0) * (1 - (validCoupons[coupon.trim().toUpperCase()] || 0))).toFixed(2).replace('.', ',')}</strong>
+              </div>
+            </div>
+            <div className="cart-coupon">
+              <input
+                value={coupon}
+                onChange={(event) => { setCoupon(event.target.value); setCouponDiscountPercent(0); setAppliedCouponCode(''); setCouponStatus(''); }}
+                placeholder="Insira seu Cupom"
+                maxLength={24}
+              />
+              <button className="btn-coupon" type="button" onClick={applyCoupon}>Aplicar</button>
+            </div>
+            <p className={`coupon-feedback ${couponStatus.includes('sucesso') ? 'success' : couponStatus ? 'error' : ''}`}>{couponStatus}</p>
+            <label className="delivery-address-field">
+              Endereço de entrega
+              <select value={checkoutAddress} onChange={(event) => setCheckoutAddress(event.target.value)}>
+                <option value="">Selecione seu endereço</option>
+                {addressOptions.map((option) => <option key={option.value} value={option.value}>{option.label}</option>)}
+              </select>
+            </label>
+            <label className="delivery-address-field">
+              Forma de pagamento
+              <select
+                value={paymentMethod}
+                onChange={(event) => {
+                  try {
+                    savePaymentMethod(session?.user?.email, event.target.value);
+                    setCheckoutStatus('');
+                  } catch (error) {
+                    setCheckoutStatus(`Não foi possível salvar a preferência de pagamento: ${error.message}`);
+                  }
+                }}
+              >
+                {PAYMENT_METHODS.map(({ value, label }) => <option key={value} value={value}>{label}</option>)}
+              </select>
+            </label>
+            <button className="btn-finalizar" type="submit" disabled={checkoutLoading || !cartItems.length}>
+              {checkoutLoading ? 'Finalizando...' : 'Finalizar Pedido'}
+            </button>
+            <button type="button" className="btn-limpar" onClick={() => saveCart([])}>Limpar Carrinho</button>
+            {checkoutStatus && <p className={`coupon-feedback ${checkoutStatus.includes('sucesso') ? 'success' : 'error'}`}>{checkoutStatus}</p>}
+          </form>
+        </aside>
       </div>}
     </div>
   );
