@@ -68,7 +68,7 @@ function getAddressHeading(address) {
 
 export default function DashboardLayout({ children }) {
   const pathname = usePathname();
-  const { data: session } = useSession();
+  const { data: session, status: sessionStatus } = useSession();
   const [search, setSearch] = useState('');
   const [theme, setTheme] = useState('dark');
   const [searchFocused, setSearchFocused] = useState(false);
@@ -77,6 +77,8 @@ export default function DashboardLayout({ children }) {
   const [cartOpen, setCartOpen] = useState(false);
   const [checkoutAddress, setCheckoutAddress] = useState('');
   const [savedAddresses, setSavedAddresses] = useState([]);
+  const [addressesLoading, setAddressesLoading] = useState(true);
+  const [addressLoadError, setAddressLoadError] = useState('');
   const [selectedAddressId, setSelectedAddressId] = useState('');
   const [deliveryAddressOpen, setDeliveryAddressOpen] = useState(false);
   const [paymentMethod, setPaymentMethod] = useState(DEFAULT_PAYMENT_METHOD);
@@ -202,10 +204,27 @@ export default function DashboardLayout({ children }) {
 
   useEffect(() => {
     const addressStorageKey = deliveryAddressStorageKey(session?.user?.email);
+    let active = true;
+    let latestRequest = 0;
+
+    if (sessionStatus !== 'authenticated' || !session?.user?.email) {
+      savedAddressesRef.current = [];
+      setSavedAddresses([]);
+      setSelectedAddressId('');
+      setCheckoutAddress('');
+      setAddressLoadError('');
+      setAddressesLoading(sessionStatus === 'loading');
+      return () => {
+        active = false;
+      };
+    }
+
     const applyAddresses = (addresses) => {
-      if (!Array.isArray(addresses)) return;
+      if (!active || !Array.isArray(addresses)) return;
       savedAddressesRef.current = addresses;
       setSavedAddresses(addresses);
+      setAddressLoadError('');
+      setAddressesLoading(false);
       let preferredId = localStorage.getItem(addressStorageKey) || '';
       let selectedAddress = addresses.find((address) => String(address.id) === preferredId);
       if (!selectedAddress) {
@@ -218,16 +237,33 @@ export default function DashboardLayout({ children }) {
       if (preferredId) localStorage.setItem(addressStorageKey, preferredId);
       else localStorage.removeItem(addressStorageKey);
     };
-    const loadAddresses = () => fetch('/api/addresses', { cache: 'no-store' })
-      .then((response) => {
-        if (!response.ok) throw new Error('Não foi possível carregar os endereços.');
-        return response.json();
-      })
-      .then(({ addresses = [] }) => applyAddresses(addresses))
-      .catch((error) => console.error(error));
+    const loadAddresses = () => {
+      const requestId = ++latestRequest;
+      setAddressLoadError('');
+      setAddressesLoading(true);
+      fetch('/api/addresses', { cache: 'no-store' })
+        .then(async (response) => {
+          const result = await response.json();
+          if (!response.ok) throw new Error(result.error || 'Não foi possível carregar os endereços.');
+          if (!Array.isArray(result.addresses)) throw new Error('A resposta de endereços é inválida.');
+          return result.addresses;
+        })
+        .then((addresses) => {
+          if (active && requestId === latestRequest) applyAddresses(addresses);
+        })
+        .catch((error) => {
+          if (!active || requestId !== latestRequest) return;
+          setAddressLoadError(error.message || 'Não foi possível carregar os endereços.');
+          setAddressesLoading(false);
+          console.error('Não foi possível carregar os endereços de entrega:', error);
+        });
+    };
     const selectAddress = (addressId) => {
       const selected = savedAddressesRef.current.find((address) => String(address.id) === String(addressId));
-      if (!selected) return;
+      if (!selected) {
+        loadAddresses();
+        return;
+      }
       setSelectedAddressId(String(selected.id));
       setCheckoutAddress(getAddressValue(selected));
       localStorage.setItem(addressStorageKey, String(selected.id));
@@ -242,8 +278,11 @@ export default function DashboardLayout({ children }) {
     };
     loadAddresses();
     window.addEventListener('dashboard-address-selected', handleAddressSelected);
-    return () => window.removeEventListener('dashboard-address-selected', handleAddressSelected);
-  }, [session?.user?.email]);
+    return () => {
+      active = false;
+      window.removeEventListener('dashboard-address-selected', handleAddressSelected);
+    };
+  }, [sessionStatus, session?.user?.email]);
 
   useEffect(() => {
     const cartStorageKey = `hoje-dashboard-cart-${session?.user?.email || 'guest'}`;
@@ -822,7 +861,11 @@ export default function DashboardLayout({ children }) {
               </button>
               {deliveryAddressOpen && (
                 <div className="delivery-address-menu">
-                  {savedAddresses.length ? savedAddresses.map((address) => (
+                  {addressLoadError ? (
+                    <span className="delivery-address-menu-empty" role="alert">{addressLoadError}</span>
+                  ) : addressesLoading ? (
+                    <span className="delivery-address-menu-empty" role="status">Carregando endereços...</span>
+                  ) : savedAddresses.length ? savedAddresses.map((address) => (
                     <button
                       type="button"
                       key={address.id}
