@@ -28,6 +28,28 @@ let enderecosDaLoja = [];
 let favoritosLoja = new Set();
 let toastCarrinhoTimer;
 
+function chaveEnderecoEntregaDashboard() {
+  return `hoje-dashboard-delivery-address-${sessaoLoja.user?.email || 'guest'}`;
+}
+
+function persistirEnderecoEntregaSelecionado(addressId) {
+  const selectedId = String(addressId || '');
+  const storageKey = chaveEnderecoEntregaDashboard();
+  if (selectedId) {
+    localStorage.setItem(storageKey, selectedId);
+    localStorage.setItem('hoje-delivery-address-id', selectedId);
+  } else {
+    localStorage.removeItem(storageKey);
+    localStorage.removeItem('hoje-delivery-address-id');
+  }
+}
+
+function obterEnderecoEntregaSelecionado() {
+  const selectedId = document.getElementById('store-address-select')?.value || '';
+  if (!selectedId) return null;
+  return enderecosDaLoja.find((address) => String(address.id) === selectedId) || null;
+}
+
 function idCarrinhoVisitante() {
   const storageKey = 'hoje-cart-id';
   let id = localStorage.getItem(storageKey);
@@ -341,9 +363,8 @@ async function carregarSessaoDaLoja() {
 }
 
 async function carregarEnderecosDaApi() {
-  const select = document.getElementById('delivery-address');
   const headerSelect = document.getElementById('store-address-select');
-  if (!select && !headerSelect) return;
+  if (!headerSelect) return;
   try {
     const response = await fetch(ADDRESSES_API, { credentials: 'include' });
     if (!response.ok) throw new Error(`Falha ao carregar endereços (${response.status})`);
@@ -352,25 +373,28 @@ async function carregarEnderecosDaApi() {
     const { addresses } = data;
     erroEnderecosDaApi = '';
     enderecosDaLoja = addresses;
-    if (select) select.innerHTML = '<option value="">Selecione um endereço para continuar</option>';
-    if (headerSelect) headerSelect.innerHTML = '<option value="">Selecione seu endereço</option>';
+    headerSelect.innerHTML = '<option value="">Selecione seu endereço</option>';
     addresses.forEach((address) => {
       const option = document.createElement('option');
       const streetAndNumber = [address.street, address.number].filter(Boolean).join(', ');
       const location = [address.neighborhood, address.city, address.state, address.country].filter(Boolean).join(', ');
-      option.value = address.id;
+      option.value = String(address.id);
       option.textContent = `${address.title} · ${[streetAndNumber, location].filter(Boolean).join(' · ')}`;
       option.dataset.address = [address.title, streetAndNumber, location].filter(Boolean).join(' | ');
-      if (select) select.appendChild(option.cloneNode(true));
-      if (headerSelect) headerSelect.appendChild(option);
+      headerSelect.appendChild(option);
     });
-    const savedAddress = localStorage.getItem('hoje-delivery-address-id') || '';
-    if (select && [...select.options].some((option) => option.value === savedAddress)) select.value = savedAddress;
-    if (headerSelect && [...headerSelect.options].some((option) => option.value === savedAddress)) headerSelect.value = savedAddress;
-    if (headerSelect && !headerSelect.dataset.bound) {
+    const savedAddressId = localStorage.getItem(chaveEnderecoEntregaDashboard())
+      || localStorage.getItem('hoje-delivery-address-id')
+      || '';
+    const selectedAddress = addresses.find((address) => String(address.id) === savedAddressId)
+      || addresses.find((address) => address.type === 'Padrão')
+      || addresses[0];
+    const selectedId = selectedAddress ? String(selectedAddress.id) : '';
+    headerSelect.value = selectedId;
+    persistirEnderecoEntregaSelecionado(selectedId);
+    if (!headerSelect.dataset.bound) {
       headerSelect.addEventListener('change', () => {
-        if (select) select.value = headerSelect.value;
-        localStorage.setItem('hoje-delivery-address-id', headerSelect.value);
+        persistirEnderecoEntregaSelecionado(headerSelect.value);
         updateAddressSummaryFromSelection();
       });
       headerSelect.dataset.bound = 'true';
@@ -384,11 +408,12 @@ async function carregarEnderecosDaApi() {
 }
 
 function updateAddressSummaryFromSelection() {
-  const select = document.getElementById('delivery-address');
   const headerSelect = document.getElementById('store-address-select');
-  const selectedValue = select?.value || headerSelect?.value || '';
-  if (select) select.value = selectedValue;
-  if (headerSelect) headerSelect.value = selectedValue;
+  const selected = headerSelect?.selectedOptions[0];
+  const locationSummary = document.getElementById('location-summary');
+  if (locationSummary) {
+    locationSummary.setAttribute('aria-label', selected?.value ? selected.textContent.trim() : 'Selecione seu endereço');
+  }
   atualizarOrientacaoCheckout();
 }
 
@@ -450,21 +475,19 @@ function atualizarOrientacaoCheckout() {
   const guide = document.getElementById('checkout-guide');
   if (!guide) return;
 
-  const step = document.getElementById('checkout-guide-step');
   const title = document.getElementById('checkout-guide-title');
   const message = document.getElementById('checkout-guide-message');
   const addressLink = document.getElementById('checkout-address-link');
   const retryButton = document.getElementById('checkout-retry');
-  const addressSelect = document.getElementById('delivery-address');
+  const selectedAddress = obterEnderecoEntregaSelecionado();
   const paymentSelect = document.getElementById('payment-method');
-  const addressText = addressSelect?.selectedOptions[0]?.textContent.trim() || '';
   const totalText = document.querySelector('.cart-summary-box .summary-row.total strong')?.textContent.trim() || '';
   const hasApiError = Boolean(erroSessaoDaLoja || erroCarrinhoDaApi || erroEnderecosDaApi);
 
-  let currentStep = '';
   let currentTitle = '';
   let currentMessage = '';
   let state = 'info';
+  let hideGuide = false;
   let showAddressLink = false;
 
   if (hasApiError) {
@@ -477,37 +500,31 @@ function atualizarOrientacaoCheckout() {
     state = 'error';
   } else if (!carrinhoItens.length) {
     currentTitle = 'Monte seu carrinho';
-    currentMessage = 'Adicione os produtos desejados. Depois, confirme seu endereço e forma de pagamento.';
+    currentMessage = 'Adicione os produtos desejados para começar seu pedido.';
   } else if (!sessaoLoja.authenticated) {
-    currentStep = 'Etapa 1 de 3';
-    currentTitle = 'Entre na sua conta';
-    currentMessage = 'Assim carregamos seus endereços e você pode acompanhar o pedido.';
-  } else if (!enderecosDaLoja.length) {
-    currentStep = 'Etapa 2 de 3';
+    hideGuide = true;
+  } else if (!selectedAddress && !enderecosDaLoja.length) {
     currentTitle = 'Cadastre um endereço de entrega';
-    currentMessage = 'Seu pedido precisa de um endereço atendido pela loja.';
+    currentMessage = 'Adicione um endereço no painel do cliente para continuar.';
     showAddressLink = true;
-  } else if (!addressSelect?.value) {
-    currentStep = 'Etapa 2 de 3';
+  } else if (!selectedAddress) {
     currentTitle = 'Selecione onde entregar';
-    currentMessage = 'Escolha um dos endereços cadastrados para continuar.';
+    currentMessage = 'Escolha o endereço no seletor do topo da loja.';
   } else if (!paymentSelect?.value) {
-    currentStep = 'Etapa 3 de 3';
     currentTitle = 'Escolha como pagar';
-    currentMessage = `Entrega selecionada: ${addressText}. Escolha a forma de pagamento para continuar.`;
+    currentMessage = 'Usaremos o endereço selecionado no painel do cliente. Escolha a forma de pagamento.';
   } else {
-    currentStep = 'Pronto para finalizar';
     currentTitle = 'Revise seu pedido';
-    currentMessage = `Entrega: ${addressText}. Total do pedido: ${totalText}. Confira os itens antes de finalizar.`;
+    currentMessage = `Endereço do painel confirmado. Total do pedido: ${totalText}. Confira os itens antes de finalizar.`;
     state = 'ready';
   }
 
-  if (step) step.textContent = currentStep;
   if (title) title.textContent = currentTitle;
   if (message) message.textContent = currentMessage;
   if (addressLink) addressLink.hidden = !showAddressLink;
   if (retryButton) retryButton.hidden = !hasApiError;
   guide.dataset.state = state;
+  guide.hidden = hideGuide;
 }
 
 function obterDadosFavorito(card) {
@@ -703,19 +720,20 @@ function renderizarCarrinho(persistir = true) {
 
       <div class="cart-item-info">
         <div class="cart-item-name">${escapeStoreHtml(item.nome)}</div>
-        <div class="cart-item-category">${escapeStoreHtml(item.categoria)} · ${formatarPreco(item.preco)} ${item.saleUnit === 'Quilograma' ? 'por kg' : 'por unidade'}</div>
+        <div class="cart-item-unit-price">${formatarPreco(item.preco)} ${item.saleUnit === 'Quilograma' ? 'por kg' : 'por unidade'}</div>
         <div class="cart-item-price">${formatarPreco(item.preco * item.qty)}</div>
       </div>
 
-      <div class="cart-item-controls">
-        <button class="qty-minus" data-action="decrement" data-name="${escapeStoreHtml(item.nome)}" aria-label="Diminuir quantidade">−</button>
-        <span class="cart-item-qty">${formatarQuantidade(item.qty, item.saleUnit === 'Quilograma')}</span>
-        <button class="qty-plus" data-action="increment" data-name="${escapeStoreHtml(item.nome)}" aria-label="Aumentar quantidade">+</button>
+      <div class="cart-item-actions">
+        <div class="cart-item-controls">
+          <button class="qty-minus" data-action="decrement" data-name="${escapeStoreHtml(item.nome)}" aria-label="Diminuir quantidade de ${escapeStoreHtml(item.nome)}">−</button>
+          <span class="cart-item-qty">${formatarQuantidade(item.qty, item.saleUnit === 'Quilograma')}</span>
+          <button class="qty-plus" data-action="increment" data-name="${escapeStoreHtml(item.nome)}" aria-label="Aumentar quantidade de ${escapeStoreHtml(item.nome)}">+</button>
+        </div>
+        <button class="cart-item-remove" data-action="remove" data-name="${escapeStoreHtml(item.nome)}" aria-label="Remover ${escapeStoreHtml(item.nome)}">
+          <i data-lucide="trash-2"></i>
+        </button>
       </div>
-
-      <button class="cart-item-remove" data-action="remove" data-name="${escapeStoreHtml(item.nome)}" aria-label="Remover ${escapeStoreHtml(item.nome)}">
-        <i data-lucide="trash-2"></i>
-      </button>
     </div>
   `).join('');
 
@@ -1047,10 +1065,9 @@ function inicializarCarrinho() {
   const couponInput = document.getElementById('coupon-input');
   const applyCouponBtn = document.getElementById('apply-coupon');
   const feedback = document.getElementById('coupon-feedback');
-  const deliveryAddress = document.getElementById('delivery-address');
+  const storeAddressSelect = document.getElementById('store-address-select');
   const finalizeButton = document.getElementById('finalizar-compra');
   const paymentSelect = garantirSeletorPagamento(finalizeButton);
-  const locationSummary = document.getElementById('location-summary');
   const checkoutRetryButton = document.getElementById('checkout-retry');
 
   if (paymentSelect) {
@@ -1075,22 +1092,19 @@ function inicializarCarrinho() {
     atualizarPreferenciaPagamentoLoja();
   }
 
-  const updateAddressSummary = () => {
-    const selected = deliveryAddress?.selectedOptions[0];
-    const headerSelect = document.getElementById('store-address-select');
-    if (headerSelect) headerSelect.value = selected?.value || '';
-    if (locationSummary) locationSummary.setAttribute('aria-label', selected?.value ? selected.textContent : 'Selecione seu endereço');
-    atualizarOrientacaoCheckout();
-  };
-
-  if (deliveryAddress) {
-    deliveryAddress.value = localStorage.getItem('hoje-delivery-address-id') || '';
-    deliveryAddress.addEventListener('change', () => {
-      localStorage.setItem('hoje-delivery-address-id', deliveryAddress.value);
-      updateAddressSummary();
-    });
-    updateAddressSummary();
-  }
+  window.addEventListener('storage', (event) => {
+    const storageKey = chaveEnderecoEntregaDashboard();
+    if (!sessaoLoja.authenticated || (event.key !== storageKey && event.key !== 'hoje-delivery-address-id')) return;
+    const selectedId = event.key === storageKey
+      ? event.newValue || ''
+      : localStorage.getItem(storageKey) || event.newValue || '';
+    if (selectedId && !enderecosDaLoja.some((address) => String(address.id) === selectedId)) {
+      void carregarEnderecosDaApi();
+      return;
+    }
+    if (storeAddressSelect) storeAddressSelect.value = selectedId;
+    updateAddressSummaryFromSelection();
+  });
 
   if (checkoutRetryButton) {
     checkoutRetryButton.addEventListener('click', async () => {
@@ -1132,12 +1146,18 @@ function inicializarCarrinho() {
         return;
       }
 
-      if (!deliveryAddress?.value) {
+      const selectedAddressId = storeAddressSelect?.value || '';
+      const selectedAddress = enderecosDaLoja.find((address) => String(address.id) === selectedAddressId);
+      const selectedAddressText = storeAddressSelect?.selectedOptions[0]?.textContent.trim() || '';
+      if (!selectedAddress || !selectedAddressText) {
         if (feedback) {
-          feedback.textContent = 'Selecione um endereço de entrega antes de finalizar.';
+          feedback.textContent = enderecosDaLoja.length
+            ? 'Escolha o endereço de entrega no seletor do topo da loja.'
+            : 'Cadastre um endereço no painel do cliente antes de finalizar.';
           feedback.className = 'coupon-feedback error';
         }
-        deliveryAddress?.focus();
+        if (enderecosDaLoja.length) storeAddressSelect?.focus();
+        else document.getElementById('checkout-address-link')?.focus();
         return;
       }
 
@@ -1192,7 +1212,7 @@ function inicializarCarrinho() {
         `Desconto: ${formatarPreco(desconto)}`,
         'Frete: R$ 0,00',
         `Total: ${formatarPreco(total)}`,
-        `Endereço: ${deliveryAddress.selectedOptions[0].textContent}`,
+        `Endereço: ${selectedAddressText}`,
         `Pagamento: ${paymentMethodLabels[paymentSelect.value]}`,
         `CPF na nota: ${includeCpfOnReceipt ? 'Sim' : 'Não'}`,
         '',
@@ -1201,7 +1221,7 @@ function inicializarCarrinho() {
       if (!window.confirm(resumoPedido)) return;
 
       try {
-        const response = await fetch('/api/erp/orders', { method: 'POST', credentials: 'include', headers: { 'Content-Type': 'text/plain' }, body: JSON.stringify({ items, address: deliveryAddress.selectedOptions[0].textContent, addressId: deliveryAddress.value, paymentMethod: paymentSelect.value, includeCpfOnReceipt, couponCode }) });
+        const response = await fetch('/api/erp/orders', { method: 'POST', credentials: 'include', headers: { 'Content-Type': 'text/plain' }, body: JSON.stringify({ items, address: selectedAddressText, addressId: selectedAddressId, paymentMethod: paymentSelect.value, includeCpfOnReceipt, couponCode }) });
         const data = await response.json();
         if (!response.ok) throw new Error(data.error || 'Não foi possível registrar o pedido.');
         limparCarrinho();

@@ -57,11 +57,6 @@ function getAddressValue(address) {
   ].filter(Boolean).join(' | ')}`;
 }
 
-function getAddressLabel(address) {
-  const location = [address.neighborhood, address.city, address.state, address.country].filter(Boolean).join(', ');
-  return `${address.title || 'Endereço'} · ${getAddressStreet(address)}${location ? ` · ${location}` : ''}`;
-}
-
 function getAddressHeading(address) {
   return [
     getAddressStreet(address),
@@ -78,7 +73,6 @@ export default function DashboardLayout({ children }) {
   const [cartCount, setCartCount] = useState(0);
   const [cartItems, setCartItems] = useState([]);
   const [cartOpen, setCartOpen] = useState(false);
-  const [checkoutAddress, setCheckoutAddress] = useState('');
   const [savedAddresses, setSavedAddresses] = useState([]);
   const [addressesLoading, setAddressesLoading] = useState(true);
   const [addressLoadError, setAddressLoadError] = useState('');
@@ -97,6 +91,7 @@ export default function DashboardLayout({ children }) {
   const [checkoutStatus, setCheckoutStatus] = useState('');
   const [checkoutLoading, setCheckoutLoading] = useState(false);
   const [searchableProducts, setSearchableProducts] = useState([]);
+  const [failedSearchImages, setFailedSearchImages] = useState({});
   const [notificationCount, setNotificationCount] = useState(0);
   const [favoritesCount, setFavoritesCount] = useState(null);
   const [profilePhoto, setProfilePhoto] = useState('');
@@ -214,7 +209,6 @@ export default function DashboardLayout({ children }) {
       savedAddressesRef.current = [];
       setSavedAddresses([]);
       setSelectedAddressId('');
-      setCheckoutAddress('');
       setAddressLoadError('');
       setAddressesLoading(sessionStatus === 'loading');
       return () => {
@@ -235,8 +229,6 @@ export default function DashboardLayout({ children }) {
         preferredId = selectedAddress ? String(selectedAddress.id) : '';
       }
       setSelectedAddressId(preferredId);
-      const value = selectedAddress ? getAddressValue(selectedAddress) : '';
-      setCheckoutAddress(value);
       if (preferredId) localStorage.setItem(addressStorageKey, preferredId);
       else localStorage.removeItem(addressStorageKey);
     };
@@ -268,7 +260,6 @@ export default function DashboardLayout({ children }) {
         return;
       }
       setSelectedAddressId(String(selected.id));
-      setCheckoutAddress(getAddressValue(selected));
       localStorage.setItem(addressStorageKey, String(selected.id));
       setDeliveryAddressOpen(false);
     };
@@ -432,14 +423,6 @@ export default function DashboardLayout({ children }) {
   const quickSuggestions = useMemo(() => searchableProducts.slice(0, 4), [searchableProducts]);
   const selectedDeliveryAddress = savedAddresses.find((address) => String(address.id) === selectedAddressId);
 
-  const addressOptions = useMemo(() => {
-    const options = savedAddresses.map((address) => ({
-      value: getAddressValue(address),
-      label: getAddressLabel(address),
-    }));
-    return options.filter((option) => option.value && option.label);
-  }, [savedAddresses]);
-
   const saveCart = async (nextCart) => {
     const cartStorageKey = `hoje-dashboard-cart-${session?.user?.email || 'guest'}`;
     const normalizedCart = normalizeCartItems(nextCart);
@@ -537,8 +520,10 @@ export default function DashboardLayout({ children }) {
   const finishPurchase = (event) => {
     event.preventDefault();
     if (!cartItems.length) return setCheckoutStatus('Adicione produtos antes de finalizar.');
-    if (!checkoutAddress.trim()) return setCheckoutStatus('Cadastre ou selecione um endereço antes de concluir a compra.');
     if (!session?.user?.email) return setCheckoutStatus('É necessário estar autenticado para finalizar a compra.');
+    if (addressesLoading) return setCheckoutStatus('Estamos verificando seus endereços. Aguarde um instante.');
+    if (addressLoadError) return setCheckoutStatus(`Não foi possível confirmar seus endereços: ${addressLoadError}`);
+    if (!selectedDeliveryAddress) return setCheckoutStatus('Cadastre um endereço no painel do cliente antes de concluir a compra.');
     if (!isPaymentMethod(paymentMethod)) return setCheckoutStatus('Selecione uma forma no campo Forma de pagamento; você também pode defini-la na aba Formas de pagamento.');
 
     setCheckoutStatus('');
@@ -546,6 +531,15 @@ export default function DashboardLayout({ children }) {
   };
 
   const submitPurchase = async (includeCpfOnReceipt) => {
+    if (addressesLoading || addressLoadError || !selectedDeliveryAddress) {
+      setCheckoutStatus(addressesLoading
+        ? 'Estamos verificando seus endereços. Aguarde um instante.'
+        : addressLoadError
+        ? `Não foi possível confirmar seus endereços: ${addressLoadError}`
+        : 'O endereço salvo não está mais disponível. Atualize os endereços no painel e tente novamente.');
+      setCpfNoteDialogOpen(false);
+      return;
+    }
     setCpfNoteDialogOpen(false);
     setCheckoutLoading(true);
     setCheckoutStatus('');
@@ -559,7 +553,7 @@ export default function DashboardLayout({ children }) {
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
           items: cartItems,
-          address: checkoutAddress.trim(),
+          address: getAddressValue(selectedDeliveryAddress),
           addressId: selectedAddressId,
           addressDetails: selectedDeliveryAddress,
           paymentMethod,
@@ -571,7 +565,6 @@ export default function DashboardLayout({ children }) {
       const data = await response.json();
       if (!response.ok) throw new Error(data.error || 'Não foi possível finalizar a compra.');
       await saveCart([]);
-      setCheckoutAddress('');
       setCoupon('');
       setCouponDiscountPercent(0);
       setAppliedCouponCode('');
@@ -762,15 +755,26 @@ export default function DashboardLayout({ children }) {
                         {searchResults.length ? searchResults.map((product) => {
                           const price = Number(product.salePrice ?? product.price ?? 0);
                           const originalPrice = Number(product.price ?? price);
+                          const configuredDiscount = Number(product.discount) || 0;
+                          const calculatedDiscount = originalPrice > 0 ? ((originalPrice - price) / originalPrice) * 100 : 0;
+                          const discountPercent = configuredDiscount > 0 ? configuredDiscount : calculatedDiscount;
+                          const isOnOffer = originalPrice > price && discountPercent > 0;
                           const cartItem = cartItems.find((item) => String(item.productId || '') === String(product.id) || item.name === product.title);
                           const quantity = cartItem?.quantity || 0;
+                          const imageKey = String(product.id);
+                          const hasImage = Boolean(product.image) && !failedSearchImages[imageKey];
                           return (
                             <div key={product.id} className="dashboard-search-product">
                               <span className="dashboard-search-product-image">
-                                {product.image ? <img src={product.image} alt="" /> : <ShoppingBag size={18} />}
+                                {hasImage
+                                  ? <img src={product.image} alt="" loading="lazy" decoding="async" onError={() => setFailedSearchImages((current) => ({ ...current, [imageKey]: true }))} />
+                                  : <ShoppingBag size={18} aria-hidden="true" />}
                               </span>
                               <span className="dashboard-search-product-info">
-                                <strong>{product.title}</strong>
+                                <span className="dashboard-search-product-title">
+                                  <strong>{product.title}</strong>
+                                  {isOnOffer && <span className="dashboard-search-offer-badge">OFERTA -{discountPercent.toLocaleString('pt-BR', { maximumFractionDigits: 1 })}%</span>}
+                                </span>
                                 <small>{product.categories?.join(', ') || product.subcategory || 'Mercearia'}</small>
                                 <span className="dashboard-search-price">
                                   R$ {price.toFixed(2).replace('.', ',')}{product.saleUnit === 'Quilograma' ? ' / kg' : ''}
@@ -877,7 +881,6 @@ export default function DashboardLayout({ children }) {
                       onClick={() => {
                         const addressId = String(address.id);
                         setSelectedAddressId(addressId);
-                        setCheckoutAddress(getAddressValue(address));
                         localStorage.setItem(deliveryAddressStorageKey(session?.user?.email), addressId);
                         window.dispatchEvent(new CustomEvent('dashboard-address-selected', { detail: { addressId } }));
                         setDeliveryAddressOpen(false);
@@ -934,16 +937,17 @@ export default function DashboardLayout({ children }) {
               <button className="btn-coupon" type="button" onClick={applyCoupon}>Aplicar</button>
             </div>
             <p className={`coupon-feedback ${couponStatus.includes('sucesso') ? 'success' : couponStatus ? 'error' : ''}`}>{couponStatus}</p>
-            <label className="delivery-address-field">
-              Endereço de entrega
-              <select required value={checkoutAddress} onChange={(event) => setCheckoutAddress(event.target.value)}>
-                <option value="">Selecione seu endereço</option>
-                {addressOptions.map((option) => <option key={option.value} value={option.value}>{option.label}</option>)}
-              </select>
-            </label>
-            <small className="checkout-field-hint">
-              {addressOptions.length ? 'O pedido será entregue no endereço selecionado.' : <>Cadastre um endereço antes de continuar. <Link href="/dashboard/addresses">Gerenciar endereços</Link></>}
-            </small>
+            {addressLoadError ? (
+              <small className="checkout-field-hint" role="alert">Não foi possível confirmar seus endereços: {addressLoadError}</small>
+            ) : addressesLoading ? (
+              <small className="checkout-field-hint" role="status">Verificando o endereço salvo no painel...</small>
+            ) : !selectedDeliveryAddress ? (
+              <small className="checkout-field-hint" role="status">
+                {savedAddresses.length
+                  ? 'Escolha o endereço no seletor do painel.'
+                  : <>Nenhum endereço cadastrado. <Link href="/dashboard/addresses">Adicionar endereço</Link></>}
+              </small>
+            ) : null}
             <label className="delivery-address-field">
               Forma de pagamento
               <select

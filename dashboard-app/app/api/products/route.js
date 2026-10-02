@@ -256,6 +256,7 @@ export async function GET(request) {
         subcategory: product.subcategory || '',
         brand: product.brand || '',
         description: product.description || '',
+        image: product.image || '',
         price: Number(product.price) || 0,
         salePrice: calculateSalePrice(product),
         discount: Number(product.discount) || 0,
