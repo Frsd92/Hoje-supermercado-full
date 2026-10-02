@@ -5783,6 +5783,52 @@ button.metric-mini:focus-visible {
 .erp-order-items span { color: #64748b; }
 .erp-advance-button { width: 100%; margin-top: 16px; font-size: .75rem; }
 
+.service-region-page { display: grid; max-width: 1180px; margin: 0 auto; gap: 16px; align-content: start; }
+.service-region-header { align-items: center; margin: 0; }
+.service-region-header > svg { flex: 0 0 auto; color: #15803d; }
+.service-region-instructions,
+.service-region-add-form,
+.service-region-state-card {
+  padding: 16px;
+  border: 1px solid #e2e8f0;
+  border-radius: 12px;
+  background: #fff;
+  box-shadow: 0 8px 20px rgba(15,23,42,.04);
+}
+.service-region-instructions strong { font-size: .83rem; }
+.service-region-instructions p { margin: 5px 0 0; color: #64748b; font-size: .76rem; line-height: 1.5; }
+.service-region-add-form { display: grid; grid-template-columns: minmax(0, 1fr) minmax(0, 1.5fr) auto; gap: 12px; align-items: end; }
+.service-region-add-form label { display: grid; gap: 6px; color: #334155; font-size: .72rem; font-weight: 750; }
+.service-region-add-form input,
+.service-region-add-form select { width: 100%; min-width: 0; min-height: 40px; padding: 9px 11px; border: 1px solid #cbd5e1; border-radius: 9px; background: #fff; color: #1e293b; font: inherit; font-size: .78rem; }
+.service-region-add-form input:focus,
+.service-region-add-form select:focus { outline: 3px solid rgba(34,197,94,.18); border-color: #16a34a; }
+.service-region-add-form .primary-cta { white-space: nowrap; }
+.service-region-form-help { grid-column: 1 / -1; margin: -3px 0 0; color: #64748b; font-size: .72rem; }
+.service-region-feedback { margin: 0; padding: 10px 12px; border-radius: 9px; font-size: .78rem; }
+.service-region-feedback.success { color: #166534; background: #dcfce7; }
+.service-region-feedback.error { color: #991b1b; background: #fee2e2; }
+.service-region-list-heading { display: flex; align-items: baseline; justify-content: space-between; gap: 12px; }
+.service-region-list-heading h2 { margin: 0; font-size: 1rem; }
+.service-region-list-heading span { color: #64748b; font-size: .73rem; }
+.service-region-state-list { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 12px; }
+.service-region-state-card { min-width: 0; padding: 14px; }
+.service-region-state-card.is-enabled { border-color: #bbf7d0; }
+.service-region-state-heading { display: flex; align-items: center; justify-content: space-between; gap: 10px; }
+.service-region-state-heading h3 { margin: 0; font-size: .86rem; }
+.service-region-state-heading h3 span { margin-left: 4px; color: #64748b; font-size: .72rem; font-weight: 650; }
+.service-region-state-heading p { margin: 4px 0 0; color: #64748b; font-size: .68rem; }
+.service-region-switch { display: inline-flex; align-items: center; gap: 7px; color: #334155; font-size: .7rem; font-weight: 750; cursor: pointer; white-space: nowrap; }
+.service-region-switch input { width: 16px; height: 16px; margin: 0; accent-color: #16a34a; }
+.service-region-switch input:disabled { cursor: not-allowed; }
+.service-region-municipality-list { display: grid; gap: 0; margin: 12px 0 0; padding: 0; list-style: none; border-top: 1px solid #f1f5f9; }
+.service-region-municipality-list li { display: flex; align-items: center; justify-content: space-between; gap: 10px; padding: 9px 0; border-bottom: 1px solid #f1f5f9; color: #334155; font-size: .75rem; }
+.service-region-switch.compact { color: #64748b; font-size: .67rem; }
+.service-region-no-municipalities { margin: 12px 0 0; padding-top: 10px; border-top: 1px solid #f1f5f9; color: #64748b; font-size: .72rem; }
+.service-region-empty { display: flex; min-height: 92px; align-items: center; justify-content: center; gap: 9px; padding: 14px; border: 1px dashed #cbd5e1; border-radius: 12px; color: #64748b; font-size: .78rem; }
+.service-region-empty.error { flex-direction: column; color: #991b1b; }
+.service-region-empty.error p { margin: 0; }
+
 @media (max-width: 980px) {
   .erp-shell { display: block; }
   .erp-sidebar { width: 100%; padding: 10px; }
@@ -5803,6 +5849,7 @@ button.metric-mini:focus-visible {
   .erp-order-detail { position: static; }
   .erp-module-grid { grid-template-columns: 1fr; }
   .supplier-metrics { grid-template-columns: repeat(2, minmax(0, 1fr)); }
+  .service-region-state-list { grid-template-columns: 1fr; }
 }
 
 @media (max-width: 640px) {
@@ -5832,6 +5879,9 @@ button.metric-mini:focus-visible {
   .purchase-order-item-form > strong, .purchase-order-item-form label:first-of-type { grid-column: 1 / -1; }
   .purchase-order-item-form > .supplier-secondary-button { grid-column: 2; }
   .purchase-order-total { align-items: flex-start; }
+  .service-region-add-form { grid-template-columns: 1fr; }
+  .service-region-add-form .primary-cta { width: 100%; }
+  .service-region-list-heading { align-items: flex-start; flex-direction: column; }
 }
 
 @media (max-width: 480px) {
@@ -6245,6 +6295,47 @@ button.metric-mini:focus-visible {
 .dashboard-shell[data-dashboard-theme="light"] .addresses-page .address-form .cep-status.success {
   color: #15803d;
 }
+
+.service-area-notice {
+  display: flex;
+  align-items: flex-start;
+  gap: 12px;
+  margin-bottom: 18px;
+  padding: 14px 16px;
+  border: 1px solid rgba(52,211,153,.25);
+  border-radius: 12px;
+  background: rgba(16,185,129,.09);
+}
+
+.service-area-notice-icon {
+  display: grid;
+  width: 34px;
+  height: 34px;
+  flex: 0 0 34px;
+  place-items: center;
+  border-radius: 10px;
+  color: #059669;
+  background: rgba(52,211,153,.14);
+}
+
+.service-area-notice strong { display: block; margin: 1px 0 4px; font-size: .86rem; }
+.service-area-notice p { margin: 0; font-size: .8rem; line-height: 1.5; }
+.service-area-notice small { display: block; margin-top: 5px; color: #64748b; font-size: .72rem; }
+.address-region-status { margin: -8px 0 0; font-size: .78rem; }
+.address-region-status.allowed { color: #15803d; }
+.address-region-status.blocked, .address-region-status.error { color: #b91c1c; }
+.address-region-status.checking { color: #a16207; }
+.dashboard-shell[data-dashboard-theme="light"] .service-area-notice {
+  color: #24372d;
+  border-color: #a7f3d0;
+  background: #ecfdf5;
+}
+.dashboard-shell[data-dashboard-theme="light"] .service-area-notice p { color: #334155; }
+.dashboard-shell[data-dashboard-theme="light"] .service-area-notice small { color: #475569; }
+.dashboard-shell[data-dashboard-theme="light"] .address-region-status.allowed { color: #15803d; }
+.dashboard-shell[data-dashboard-theme="light"] .address-region-status.blocked,
+.dashboard-shell[data-dashboard-theme="light"] .address-region-status.error { color: #b91c1c; }
+.dashboard-shell[data-dashboard-theme="light"] .address-region-status.checking { color: #92400e; }
 
 .dashboard-shell[data-dashboard-theme="light"] .notification-inbox {
   color: #24372d;

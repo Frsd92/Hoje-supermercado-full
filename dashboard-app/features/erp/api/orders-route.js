@@ -5,6 +5,11 @@ import { authOptions } from '@/auth';
 import { sortOrdersNewestFirst } from '@/lib/order-sort';
 import { erpActorLabel, hasErpAccess } from '@/features/erp/access';
 import { normalizeDeliveryLocation } from '@/lib/delivery-location';
+import {
+  getServiceRegionError,
+  getServiceRegionMatch,
+  normalizeSavedAddress,
+} from '@/features/service-regions/region-utils';
 import { prisma } from '@/lib/prisma';
 import { randomUUID } from 'crypto';
 
@@ -36,7 +41,9 @@ export async function POST(request) {
   if (!session?.user) return Response.json({ error: 'Login necessário.' }, { status: 401, headers: corsHeaders(request) });
 
   const body = await request.json();
-  if (!Array.isArray(body?.items) || !body.items.length || !body?.address) return Response.json({ error: 'Itens e endereço são obrigatórios.' }, { status: 400, headers: corsHeaders(request) });
+  if (!Array.isArray(body?.items) || !body.items.length || !String(body?.addressId || '').trim()) {
+    return Response.json({ error: 'Itens e endereço de entrega são obrigatórios.' }, { status: 400, headers: corsHeaders(request) });
+  }
   if (!['pix', 'cartao', 'dinheiro', 'outro'].includes(body.paymentMethod)) {
     return Response.json({ error: 'Selecione uma forma de pagamento válida antes de finalizar.' }, { status: 400, headers: corsHeaders(request) });
   }
@@ -45,10 +52,54 @@ export async function POST(request) {
   }
 
   const email = String(session.user.email || '').trim().toLowerCase();
+  if (!email) return Response.json({ error: 'Não foi possível identificar sua conta para validar o endereço.' }, { status: 400, headers: corsHeaders(request) });
+
+  let savedAddress;
+  let serviceRegions;
+  try {
+    const [addressBook, states] = await Promise.all([
+      prisma.customerAddressBook.findUnique({ where: { email } }),
+      prisma.serviceRegionState.findMany({
+        include: { municipalities: true },
+        orderBy: { name: 'asc' },
+      }),
+    ]);
+    const addresses = addressBook?.addresses ?? [];
+    if (!Array.isArray(addresses)) throw new Error('A lista de endereços armazenada possui um formato inválido.');
+    savedAddress = addresses.find((address) => String(address?.id || '') === String(body.addressId).trim());
+    serviceRegions = states;
+  } catch (error) {
+    console.error('Não foi possível validar a região do pedido:', error);
+    return Response.json({ error: 'Não foi possível validar o endereço de entrega agora.' }, { status: 500, headers: corsHeaders(request) });
+  }
+  if (!savedAddress) {
+    return Response.json({ error: 'O endereço selecionado não está mais cadastrado. Atualize a página e escolha outro endereço.' }, { status: 422, headers: corsHeaders(request) });
+  }
+
+  const normalizedAddress = normalizeSavedAddress(savedAddress, serviceRegions);
+  const regionMatch = getServiceRegionMatch(normalizedAddress, serviceRegions);
+  if (!regionMatch.allowed) {
+    return Response.json({
+      error: getServiceRegionError(normalizedAddress, regionMatch, serviceRegions),
+      code: 'SERVICE_AREA_UNAVAILABLE',
+    }, { status: 422, headers: corsHeaders(request) });
+  }
+
+  const addressLabel = [
+    normalizedAddress.title,
+    [normalizedAddress.street, normalizedAddress.number].filter(Boolean).join(', '),
+    normalizedAddress.neighborhood,
+    [normalizedAddress.city, normalizedAddress.stateCode || normalizedAddress.state].filter(Boolean).join(' - '),
+    normalizedAddress.country,
+    normalizedAddress.cep,
+  ].filter(Boolean).join(' | ');
+  const addressDetails = normalizeDeliveryLocation({
+    ...normalizedAddress,
+    state: normalizedAddress.stateCode || normalizedAddress.state,
+  });
+
   let invoiceCpf = '';
   if (body.includeCpfOnReceipt) {
-    if (!email) return Response.json({ error: 'Não foi possível identificar a conta para consultar o CPF do perfil.' }, { status: 400, headers: corsHeaders(request) });
-
     let profile;
     try {
       profile = await prisma.customerProfile.findUnique({
@@ -105,16 +156,13 @@ export async function POST(request) {
   const subtotal = orderItems.reduce((sum, item) => sum + money(item.price) * item.quantity, 0);
   const total = subtotal * (1 - appliedDiscountPercent / 100);
   const paymentMethod = body.paymentMethod;
-  const addressDetails = body.addressDetails && typeof body.addressDetails === 'object'
-    ? normalizeDeliveryLocation(body.addressDetails)
-    : null;
   const order = {
     id: `PED-${Date.now()}`,
     customerName: session.user.name || 'Cliente',
     customerEmail: session.user.email || '',
     items: orderItems,
-    address: body.address,
-    ...(addressDetails && (addressDetails.state || addressDetails.municipality || addressDetails.neighborhood) ? { addressDetails } : {}),
+    address: addressLabel,
+    ...(addressDetails.state || addressDetails.municipality || addressDetails.neighborhood ? { addressDetails } : {}),
     total: `R$ ${total.toFixed(2).replace('.', ',')}`,
     ...(couponCode ? { couponCode, couponDiscountPercent: appliedDiscountPercent } : {}),
     paymentMethod,

@@ -560,6 +560,7 @@ export default function DashboardLayout({ children }) {
         body: JSON.stringify({
           items: cartItems,
           address: checkoutAddress.trim(),
+          addressId: selectedAddressId,
           addressDetails: selectedDeliveryAddress,
           paymentMethod,
           includeCpfOnReceipt,

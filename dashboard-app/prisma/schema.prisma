@@ -37,6 +37,28 @@ model CustomerAddressBook {
   updatedAt DateTime @updatedAt
 }
 
+model ServiceRegionState {
+  uf             String                      @id
+  name           String
+  enabled        Boolean                     @default(false)
+  municipalities ServiceRegionMunicipality[]
+  createdAt      DateTime                    @default(now())
+  updatedAt      DateTime                    @updatedAt
+}
+
+model ServiceRegionMunicipality {
+  id        String            @id @default(cuid())
+  name      String
+  stateUf   String
+  enabled   Boolean           @default(false)
+  state     ServiceRegionState @relation(fields: [stateUf], references: [uf], onDelete: Cascade)
+  createdAt DateTime          @default(now())
+  updatedAt DateTime          @updatedAt
+
+  @@unique([stateUf, name])
+  @@index([stateUf, enabled])
+}
+
 model CustomerCart {
   email     String   @id
   items     Json     @default("[]")

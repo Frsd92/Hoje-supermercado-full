@@ -2,7 +2,7 @@
 
 import Link from 'next/link';
 import { usePathname } from 'next/navigation';
-import { Activity, BarChart3, Bell, FileText, History, LayoutDashboard, LayoutTemplate, Package, ShoppingCart, TicketPercent, Truck, Users } from 'lucide-react';
+import { Activity, BarChart3, Bell, FileText, History, LayoutDashboard, LayoutTemplate, MapPin, Package, ShoppingCart, TicketPercent, Truck, Users } from 'lucide-react';
 import { useEffect, useState } from 'react';
 
 const erpNavigationGroups = [
@@ -31,6 +31,10 @@ const erpNavigationGroups = [
   {
     label: 'Suprimentos',
     items: [{ label: 'Fornecedores', href: '/erp/suppliers', icon: Truck }],
+  },
+  {
+    label: 'Operação',
+    items: [{ label: 'Regiões atendidas', href: '/erp/service-regions', icon: MapPin }],
   },
   {
     label: 'Inteligência',

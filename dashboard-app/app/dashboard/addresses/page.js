@@ -3,6 +3,7 @@
 import { Home, PencilLine, Plus, Trash2 } from 'lucide-react';
 import { useEffect, useRef, useState } from 'react';
 import { useSession } from 'next-auth/react';
+import { formatServiceRegions, getServiceRegionMatch } from '@/features/service-regions/region-utils';
 
 const addressesApi = '/api/addresses';
 const deliveryAddressStorageKey = (email) => `hoje-dashboard-delivery-address-${email || 'guest'}`;
@@ -14,9 +15,14 @@ export default function AddressesPage() {
   const [isFormOpen, setIsFormOpen] = useState(false);
   const [editingId, setEditingId] = useState(null);
   const [form, setForm] = useState({
-    title: '', street: '', number: '', neighborhood: '', city: '', state: '', country: '', cep: '', type: 'Alternativo',
+    title: '', street: '', number: '', neighborhood: '', city: '', state: '', stateCode: '', country: '', cep: '', type: 'Alternativo',
   });
   const [cepStatus, setCepStatus] = useState('');
+  const [regionStatus, setRegionStatus] = useState('');
+  const [regionMessage, setRegionMessage] = useState('');
+  const [serviceRegions, setServiceRegions] = useState([]);
+  const [serviceRegionsLoading, setServiceRegionsLoading] = useState(true);
+  const [serviceRegionsError, setServiceRegionsError] = useState('');
   const [addressesError, setAddressesError] = useState('');
   const [addressActionError, setAddressActionError] = useState('');
   const [isSavingAddress, setIsSavingAddress] = useState(false);
@@ -29,6 +35,30 @@ export default function AddressesPage() {
     cepLookupController.current?.abort();
     cepLookupController.current = null;
   };
+
+  useEffect(() => {
+    let active = true;
+    fetch('/api/service-regions', { cache: 'no-store' })
+      .then(async (response) => {
+        const result = await response.json();
+        if (!response.ok) throw new Error(result.error || 'Não foi possível consultar as regiões atendidas.');
+        if (!Array.isArray(result.states)) throw new Error('A resposta das regiões atendidas é inválida.');
+        return result.states;
+      })
+      .then((states) => {
+        if (!active) return;
+        setServiceRegions(states);
+        setServiceRegionsError('');
+      })
+      .catch((error) => {
+        if (!active) return;
+        setServiceRegionsError(error.message);
+      })
+      .finally(() => {
+        if (active) setServiceRegionsLoading(false);
+      });
+    return () => { active = false; };
+  }, []);
 
   useEffect(() => {
     if (status !== 'authenticated') return;
@@ -110,9 +140,11 @@ export default function AddressesPage() {
     cancelCepLookup();
     setEditingId(null);
     setForm({
-      title: '', street: '', number: '', neighborhood: '', city: '', state: '', country: '', cep: '', type: 'Alternativo',
+      title: '', street: '', number: '', neighborhood: '', city: '', state: '', stateCode: '', country: '', cep: '', type: 'Alternativo',
     });
     setCepStatus('');
+    setRegionStatus('');
+    setRegionMessage('');
     setAddressActionError('');
     setIsFormOpen(true);
   };
@@ -125,10 +157,13 @@ export default function AddressesPage() {
       number: address.number || '',
       neighborhood: address.neighborhood || '',
       state: address.state || '',
+      stateCode: address.stateCode || '',
       country: address.country || '',
       cep: address.cep.replace(/^CEP:\s*/, ''),
     });
     setCepStatus('');
+    setRegionStatus('');
+    setRegionMessage('');
     setAddressActionError('');
     setIsFormOpen(true);
   };
@@ -136,10 +171,16 @@ export default function AddressesPage() {
   const handleChange = (event) => {
     const { name, value } = event.target;
     setForm((current) => ({ ...current, [name]: value }));
+    if (['city', 'state', 'stateCode', 'country'].includes(name)) {
+      setRegionStatus('');
+      setRegionMessage('');
+    }
     if (name !== 'cep') return;
 
     cancelCepLookup();
     setCepStatus('');
+    setRegionStatus('');
+    setRegionMessage('');
     const cep = value.replace(/\D/g, '');
     if (cep.length !== 8) return;
 
@@ -156,6 +197,8 @@ export default function AddressesPage() {
     const controller = new AbortController();
     cepLookupController.current = controller;
     setCepStatus('Buscando endereço...');
+    setRegionStatus('checking');
+    setRegionMessage('Verificando se atendemos neste município...');
     try {
       const response = await fetch(`https://viacep.com.br/ws/${cep}/json/`, { signal: controller.signal });
       if (!response.ok) throw new Error('Serviço de CEP indisponível.');
@@ -164,8 +207,31 @@ export default function AddressesPage() {
 
       if (data.erro) {
         setCepStatus('CEP não encontrado. Você pode preencher manualmente.');
+        setRegionStatus('');
+        setRegionMessage('');
         return;
       }
+
+      const regionsResponse = await fetch('/api/service-regions', { cache: 'no-store', signal: controller.signal });
+      const regionsResult = await regionsResponse.json();
+      if (!regionsResponse.ok || !Array.isArray(regionsResult.states)) {
+        throw new Error(regionsResult.error || 'Não foi possível verificar as regiões atendidas.');
+      }
+      if (controller.signal.aborted) return;
+      setServiceRegions(regionsResult.states);
+      setServiceRegionsError('');
+
+      const addressRegion = {
+        city: data.localidade || '',
+        state: data.estado || data.uf || '',
+        stateCode: data.uf || '',
+        country: 'Brasil',
+      };
+      const regionMatch = getServiceRegionMatch(addressRegion, regionsResult.states);
+      setRegionStatus(regionMatch.allowed ? 'allowed' : 'blocked');
+      setRegionMessage(regionMatch.allowed
+        ? `Atendemos em ${data.localidade} (${data.uf}).`
+        : `Ainda não atendemos em ${data.localidade} (${data.uf}). Confira as regiões disponíveis acima.`);
 
       setForm((current) => {
         if (current.cep.replace(/\D/g, '') !== cep) return current;
@@ -176,6 +242,7 @@ export default function AddressesPage() {
           neighborhood: data.bairro || '',
           city: data.localidade || '',
           state: data.estado || data.uf || '',
+          stateCode: data.uf || '',
           country: 'Brasil',
         };
       });
@@ -183,6 +250,8 @@ export default function AddressesPage() {
     } catch (error) {
       if (error.name === 'AbortError') return;
       setCepStatus('Não foi possível consultar agora. Preencha manualmente.');
+      setRegionStatus('error');
+      setRegionMessage('Não foi possível confirmar a cobertura pelo CEP. O servidor validará a região ao salvar.');
     } finally {
       if (cepLookupController.current === controller) cepLookupController.current = null;
     }
@@ -201,6 +270,7 @@ export default function AddressesPage() {
       neighborhood: form.neighborhood.trim(),
       city: form.city.trim(),
       state: form.state.trim(),
+      stateCode: form.stateCode.trim().toUpperCase(),
       country: form.country.trim(),
       cep: `CEP: ${form.cep.trim()}`,
     };
@@ -235,6 +305,8 @@ export default function AddressesPage() {
     }
   };
 
+  const servedRegions = formatServiceRegions(serviceRegions);
+
   return (
     <div className="section-shell addresses-page">
       <div className="section-header addresses-header">
@@ -244,6 +316,23 @@ export default function AddressesPage() {
         </div>
         <button type="button" className="primary-cta" onClick={openCreateForm} disabled={isSavingAddress}><Plus size={17} /> Novo Endereço</button>
       </div>
+
+      <aside className="service-area-notice" aria-live="polite">
+        <div className="service-area-notice-icon" aria-hidden="true"><Home size={18} /></div>
+        <div>
+          <strong>Regiões atendidas</strong>
+          {serviceRegionsLoading ? (
+            <p>Consultando cidades disponíveis...</p>
+          ) : serviceRegionsError ? (
+            <p role="alert">Não foi possível consultar as regiões atendidas. {serviceRegionsError}</p>
+          ) : (
+            <p>{servedRegions.length
+              ? servedRegions.join(', ')
+              : 'Nenhuma cidade está liberada para entrega no momento.'}</p>
+          )}
+          <small>Em breve expandiremos para outras cidades e estados.</small>
+        </div>
+      </aside>
 
       {isFormOpen && (
         <form className="address-form panel-box" onSubmit={saveAddress}>
@@ -266,7 +355,8 @@ export default function AddressesPage() {
             <label className="address-form-wide">País<input name="country" value={form.country} onChange={handleChange} placeholder="Ex.: Brasil" /></label>
           </div>
           {cepStatus && <p className={`cep-status ${cepStatus.startsWith('Endereço') ? 'success' : ''}`} role="status">{cepStatus}</p>}
-          <button type="submit" className="primary-cta" disabled={isSavingAddress}>
+          {regionMessage && <p className={`address-region-status ${regionStatus}`} role={regionStatus === 'blocked' ? 'alert' : 'status'}>{regionMessage}</p>}
+          <button type="submit" className="primary-cta" disabled={isSavingAddress || regionStatus === 'blocked' || regionStatus === 'checking'}>
             {isSavingAddress ? 'Salvando...' : 'Salvar endereço'}
           </button>
         </form>

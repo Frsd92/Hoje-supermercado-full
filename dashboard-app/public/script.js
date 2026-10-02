@@ -1009,7 +1009,7 @@ function inicializarCarrinho() {
       if (!window.confirm(resumoPedido)) return;
 
       try {
-        const response = await fetch('/api/erp/orders', { method: 'POST', credentials: 'include', headers: { 'Content-Type': 'text/plain' }, body: JSON.stringify({ items, address: deliveryAddress.selectedOptions[0].textContent, paymentMethod: paymentSelect.value, includeCpfOnReceipt, couponCode }) });
+        const response = await fetch('/api/erp/orders', { method: 'POST', credentials: 'include', headers: { 'Content-Type': 'text/plain' }, body: JSON.stringify({ items, address: deliveryAddress.selectedOptions[0].textContent, addressId: deliveryAddress.value, paymentMethod: paymentSelect.value, includeCpfOnReceipt, couponCode }) });
         const data = await response.json();
         if (!response.ok) throw new Error(data.error || 'Não foi possível registrar o pedido.');
         limparCarrinho();
