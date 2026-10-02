@@ -1,7 +1,7 @@
 'use client';
 
 import { Home, PencilLine, Plus, Trash2 } from 'lucide-react';
-import { useEffect, useState } from 'react';
+import { useEffect, useRef, useState } from 'react';
 import { useSession } from 'next-auth/react';
 
 const addressesApi = '/api/addresses';
@@ -16,6 +16,15 @@ export default function AddressesPage() {
   const [form, setForm] = useState({ title: '', street: '', city: '', cep: '', type: 'Alternativo' });
   const [cepStatus, setCepStatus] = useState('');
   const [addressesError, setAddressesError] = useState('');
+  const cepLookupTimer = useRef(null);
+  const cepLookupController = useRef(null);
+
+  const cancelCepLookup = () => {
+    window.clearTimeout(cepLookupTimer.current);
+    cepLookupTimer.current = null;
+    cepLookupController.current?.abort();
+    cepLookupController.current = null;
+  };
 
   useEffect(() => {
     if (status !== 'authenticated') return;
@@ -49,6 +58,11 @@ export default function AddressesPage() {
       });
   }, [status, session?.user?.email]);
 
+  useEffect(() => () => {
+    window.clearTimeout(cepLookupTimer.current);
+    cepLookupController.current?.abort();
+  }, []);
+
   const persistAddresses = async (nextAddresses) => {
     setAddresses(nextAddresses);
     const response = await fetch(addressesApi, {
@@ -79,6 +93,7 @@ export default function AddressesPage() {
   };
 
   const openCreateForm = () => {
+    cancelCepLookup();
     setEditingId(null);
     setForm({ title: '', street: '', city: '', cep: '', type: 'Alternativo' });
     setCepStatus('');
@@ -86,6 +101,7 @@ export default function AddressesPage() {
   };
 
   const openEditForm = (address) => {
+    cancelCepLookup();
     setEditingId(address.id);
     setForm({ ...address, cep: address.cep.replace(/^CEP:\s*/, '') });
     setCepStatus('');
@@ -95,33 +111,54 @@ export default function AddressesPage() {
   const handleChange = (event) => {
     const { name, value } = event.target;
     setForm((current) => ({ ...current, [name]: value }));
-  };
+    if (name !== 'cep') return;
 
-  const lookupCep = async () => {
-    const cep = form.cep.replace(/\D/g, '');
+    cancelCepLookup();
+    setCepStatus('');
+    const cep = value.replace(/\D/g, '');
     if (cep.length !== 8) return;
 
+    cepLookupTimer.current = window.setTimeout(() => {
+      cepLookupTimer.current = null;
+      void lookupCep(cep);
+    }, 300);
+  };
+
+  const lookupCep = async (value) => {
+    const cep = String(value || '').replace(/\D/g, '');
+    if (cep.length !== 8) return;
+
+    const controller = new AbortController();
+    cepLookupController.current = controller;
     setCepStatus('Buscando endereço...');
     try {
-      const response = await fetch(`https://viacep.com.br/ws/${cep}/json/`);
+      const response = await fetch(`https://viacep.com.br/ws/${cep}/json/`, { signal: controller.signal });
+      if (!response.ok) throw new Error('Serviço de CEP indisponível.');
       const data = await response.json();
+      if (controller.signal.aborted) return;
 
       if (data.erro) {
         setCepStatus('CEP não encontrado. Você pode preencher manualmente.');
         return;
       }
 
-      setForm((current) => ({
-        ...current,
-        cep: `${cep.slice(0, 5)}-${cep.slice(5)}`,
-        street: data.logradouro || current.street,
-        city: [data.bairro, data.localidade && data.uf ? `${data.localidade} - ${data.uf}` : data.localidade]
-          .filter(Boolean)
-          .join(', '),
-      }));
+      setForm((current) => {
+        if (current.cep.replace(/\D/g, '') !== cep) return current;
+        return {
+          ...current,
+          cep: `${cep.slice(0, 5)}-${cep.slice(5)}`,
+          street: data.logradouro || current.street,
+          city: [data.bairro, data.localidade && data.uf ? `${data.localidade} - ${data.uf}` : data.localidade]
+            .filter(Boolean)
+            .join(', '),
+        };
+      });
       setCepStatus('Endereço encontrado.');
-    } catch {
+    } catch (error) {
+      if (error.name === 'AbortError') return;
       setCepStatus('Não foi possível consultar agora. Preencha manualmente.');
+    } finally {
+      if (cepLookupController.current === controller) cepLookupController.current = null;
     }
   };
 
@@ -169,13 +206,13 @@ export default function AddressesPage() {
             <button type="button" className="ghost-link" onClick={() => setIsFormOpen(false)}>Cancelar</button>
           </div>
           <div className="address-form-grid">
-            <label>CEP<input name="cep" value={form.cep} onChange={handleChange} onBlur={lookupCep} placeholder="00000-000" required /></label>
+            <label>CEP<input name="cep" value={form.cep} onChange={handleChange} placeholder="00000-000" required /></label>
             <label>Tipo<select name="type" value={form.type} onChange={handleChange}><option>Padrão</option><option>Alternativo</option></select></label>
             <label>Identificação do endereço<input name="title" value={form.title} onChange={handleChange} placeholder="Casa, trabalho..." required /></label>
             <label className="address-form-wide">Rua e número<input name="street" value={form.street} onChange={handleChange} placeholder="Rua, número e complemento" required /></label>
             <label>Bairro, cidade e estado<input name="city" value={form.city} onChange={handleChange} placeholder="Bairro, cidade - UF" required /></label>
           </div>
-          {cepStatus && <p className={`cep-status ${cepStatus.startsWith('Endereço') ? 'success' : ''}`}>{cepStatus}</p>}
+          {cepStatus && <p className={`cep-status ${cepStatus.startsWith('Endereço') ? 'success' : ''}`} role="status">{cepStatus}</p>}
           <button type="submit" className="primary-cta">Salvar endereço</button>
         </form>
       )}

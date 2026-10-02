@@ -6198,6 +6198,20 @@ button.metric-mini:focus-visible {
   color: #24372d;
 }
 
+.dashboard-shell[data-dashboard-theme="light"] .addresses-page .address-form input,
+.dashboard-shell[data-dashboard-theme="light"] .addresses-page .address-form select {
+  color: #1f3328;
+  color-scheme: light;
+  background: #fff;
+  border-color: rgba(23,63,49,0.2);
+  caret-color: #1f3328;
+}
+
+.dashboard-shell[data-dashboard-theme="light"] .addresses-page .address-form input::placeholder {
+  color: #64748b;
+  opacity: 1;
+}
+
 .dashboard-shell[data-dashboard-theme="light"] .notification-inbox {
   color: #24372d;
   background: rgba(255,255,255,0.98);
