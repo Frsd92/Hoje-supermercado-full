@@ -67,7 +67,7 @@ export default function StoreLayoutPage() {
   const [slots, setSlots] = useState([]);
   const [drafts, setDrafts] = useState({});
   const [actualSizes, setActualSizes] = useState({});
-  const [activeView, setActiveView] = useState('banners');
+  const [activeView, setActiveView] = useState('main');
   const [loading, setLoading] = useState(true);
   const [savingKey, setSavingKey] = useState('');
   const [error, setError] = useState('');
@@ -169,27 +169,41 @@ export default function StoreLayoutPage() {
 
   const bannerSlots = slots.filter((slot) => slot.group !== 'brands');
   const brandSlots = slots.filter((slot) => slot.group === 'brands');
-  const bannerGroups = [
+  const bannerCategories = [
     {
-      key: 'highlights',
-      title: 'Destaques da página inicial',
-      description: 'Banner principal e destaque de Produtos Hoje.',
-      slots: bannerSlots.filter((slot) => ['main-hero', 'vendor-feature'].includes(slot.key)),
+      key: 'main',
+      label: 'Banner principal',
+      title: 'Banner principal',
+      description: 'Imagem de destaque no topo da página inicial.',
+      slots: bannerSlots.filter((slot) => slot.group === 'main'),
     },
     {
       key: 'carousels',
-      title: 'Carrosséis por categoria',
-      description: 'Painéis laterais dos carrosséis de produtos.',
-      slots: bannerSlots.filter((slot) => slot.key.startsWith('carousel-')),
+      label: 'Banners dos carrosséis',
+      title: 'Banners dos carrosséis',
+      description: 'Painéis laterais exibidos ao lado dos produtos nos carrosséis de categoria.',
+      slots: bannerSlots.filter((slot) => slot.group === 'carousels'),
     },
     {
-      key: 'departments',
-      title: 'Banners por departamento',
-      description: 'Artes promocionais exibidas nas seções da Loja.',
-      slots: bannerSlots.filter((slot) => slot.key.startsWith('promo-')),
+      key: 'wide-banners',
+      label: 'Banners largos',
+      title: 'Banners largos acima dos carrosséis',
+      description: 'Faixas horizontais posicionadas antes dos carrosséis ou seções de produtos.',
+      slots: bannerSlots.filter((slot) => slot.group === 'wide-banners'),
     },
   ].filter((group) => group.slots.length > 0);
-  const activeSlots = activeView === 'brands' ? brandSlots : bannerSlots;
+  const layoutCategories = [
+    ...bannerCategories,
+    {
+      key: 'brands',
+      label: 'Marcas em destaque',
+      title: 'Logos das marcas em destaque',
+      description: 'A mesma logo será atualizada nas duas repetições do carrossel da página inicial.',
+      slots: brandSlots,
+    },
+  ];
+  const activeCategory = layoutCategories.find((category) => category.key === activeView) || layoutCategories[0];
+  const activeSlots = activeCategory.slots;
   const customizedActiveCount = activeSlots.filter((slot) => slot.imageUrl).length;
   const pendingActiveCount = activeSlots.filter((slot) => drafts[slot.key]).length;
   const renderSlots = (items) => items.map((slot) => {
@@ -237,37 +251,28 @@ export default function StoreLayoutPage() {
     {!loading && !error && <>
       <div className="store-layout-toolbar">
         <div className="store-layout-view-switch" role="group" aria-label="Categoria de imagens">
-          <button type="button" className="store-layout-view-button" aria-pressed={activeView === 'banners'} onClick={() => setActiveView('banners')}>
-            <LayoutTemplate size={16} /> Banners <span className="store-layout-tab-count">{bannerSlots.length}</span>
-          </button>
-          <button type="button" className="store-layout-view-button" aria-pressed={activeView === 'brands'} onClick={() => setActiveView('brands')}>
-            <ImagePlus size={16} /> Marcas em destaque <span className="store-layout-tab-count">{brandSlots.length}</span>
-          </button>
+          {layoutCategories.map((category) => (
+            <button type="button" className="store-layout-view-button" aria-pressed={activeView === category.key} onClick={() => setActiveView(category.key)} key={category.key}>
+              {category.key === 'brands' ? <ImagePlus size={16} /> : <LayoutTemplate size={16} />}
+              {category.label}
+              <span className="store-layout-tab-count">{category.slots.length}</span>
+            </button>
+          ))}
         </div>
         <p className="store-layout-view-summary">
-          <strong>{activeSlots.length}</strong> {activeView === 'brands' ? 'logos' : 'espaços para banners'}
+          <strong>{activeSlots.length}</strong> {activeCategory.key === 'brands' ? 'logos' : activeSlots.length === 1 ? 'banner' : 'banners'}
           <span>{customizedActiveCount} com imagem personalizada</span>
           {pendingActiveCount > 0 && <span className="store-layout-pending-count">{pendingActiveCount} {pendingActiveCount === 1 ? 'alteração não salva' : 'alterações não salvas'}</span>}
         </p>
       </div>
 
-      {activeView === 'banners' ? <div className="store-layout-groups">
-        {bannerGroups.map((group) => (
-          <section className="store-layout-section" key={group.key}>
-            <header className="store-layout-section-heading store-layout-group-heading">
-              <div><h2>{group.title}</h2><p>{group.description}</p></div>
-              <span className="store-layout-group-count">{group.slots.length} {group.slots.length === 1 ? 'banner' : 'banners'}</span>
-            </header>
-            <div className="store-layout-grid" aria-label={group.title}>{renderSlots(group.slots)}</div>
-          </section>
-        ))}
-      </div> : <section className="store-layout-section">
+      <section className="store-layout-section">
         <header className="store-layout-section-heading">
-          <h2>Logos do carrossel</h2>
-          <p>A mesma logo será atualizada nas duas repetições do carrossel da página inicial.</p>
+          <h2>{activeCategory.title}</h2>
+          <p>{activeCategory.description}</p>
         </header>
-        <div className="store-layout-grid store-layout-grid--brands" aria-label="Logos de marcas disponíveis para personalização">{renderSlots(brandSlots)}</div>
-      </section>}
+        <div className={`store-layout-grid ${activeCategory.key === 'brands' ? 'store-layout-grid--brands' : ''} ${activeSlots.length === 1 ? 'store-layout-grid--single' : ''}`} aria-label={activeCategory.title}>{renderSlots(activeSlots)}</div>
+      </section>
     </>}
   </div>;
 }

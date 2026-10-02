@@ -9,6 +9,9 @@ test('defines uniquely identified store banners and brand logos with recommended
   const brandSlots = STORE_LAYOUT_SLOTS.filter((slot) => slot.group === 'brands');
   assert.equal(brandSlots.length, 9);
   assert.ok(brandSlots.every((slot) => slot.recommendedWidth === 480 && slot.recommendedHeight === 200));
+  assert.equal(STORE_LAYOUT_SLOTS.filter((slot) => slot.group === 'main').length, 1);
+  assert.equal(STORE_LAYOUT_SLOTS.filter((slot) => slot.group === 'carousels').length, 3);
+  assert.equal(STORE_LAYOUT_SLOTS.filter((slot) => slot.group === 'wide-banners').length, 7);
   assert.equal(getStoreLayoutSlot('main-hero')?.recommendedWidth, 1600);
   assert.equal(getStoreLayoutSlot('carousel-hortifruti')?.recommendedHeight, 700);
   assert.equal(getStoreLayoutSlot('carousel-mercearia')?.recommendedWidth, 520);

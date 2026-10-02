@@ -6,6 +6,7 @@ export const STORE_LAYOUT_SLOTS = [
     recommendedWidth: 1600,
     recommendedHeight: 500,
     fallbackImage: '/imagens/tudo_o_que_vc_precisa.png',
+    group: 'main',
   },
   {
     key: 'vendor-feature',
@@ -14,6 +15,7 @@ export const STORE_LAYOUT_SLOTS = [
     recommendedWidth: 1400,
     recommendedHeight: 360,
     fallbackImage: '',
+    group: 'wide-banners',
   },
   {
     key: 'carousel-hortifruti',
@@ -22,6 +24,7 @@ export const STORE_LAYOUT_SLOTS = [
     recommendedWidth: 520,
     recommendedHeight: 700,
     fallbackImage: '',
+    group: 'carousels',
   },
   {
     key: 'carousel-mercearia',
@@ -30,6 +33,7 @@ export const STORE_LAYOUT_SLOTS = [
     recommendedWidth: 520,
     recommendedHeight: 700,
     fallbackImage: '',
+    group: 'carousels',
   },
   {
     key: 'carousel-limpeza',
@@ -38,6 +42,7 @@ export const STORE_LAYOUT_SLOTS = [
     recommendedWidth: 520,
     recommendedHeight: 700,
     fallbackImage: '',
+    group: 'carousels',
   },
   {
     key: 'promo-fresco',
@@ -46,6 +51,7 @@ export const STORE_LAYOUT_SLOTS = [
     recommendedWidth: 1400,
     recommendedHeight: 360,
     fallbackImage: '',
+    group: 'wide-banners',
   },
   {
     key: 'promo-limpeza',
@@ -54,6 +60,7 @@ export const STORE_LAYOUT_SLOTS = [
     recommendedWidth: 1400,
     recommendedHeight: 360,
     fallbackImage: '',
+    group: 'wide-banners',
   },
   {
     key: 'promo-roupas',
@@ -62,6 +69,7 @@ export const STORE_LAYOUT_SLOTS = [
     recommendedWidth: 1400,
     recommendedHeight: 360,
     fallbackImage: '',
+    group: 'wide-banners',
   },
   {
     key: 'promo-vinho1',
@@ -70,6 +78,7 @@ export const STORE_LAYOUT_SLOTS = [
     recommendedWidth: 1400,
     recommendedHeight: 360,
     fallbackImage: '',
+    group: 'wide-banners',
   },
   {
     key: 'promo-vinho2',
@@ -78,6 +87,7 @@ export const STORE_LAYOUT_SLOTS = [
     recommendedWidth: 1400,
     recommendedHeight: 360,
     fallbackImage: '',
+    group: 'wide-banners',
   },
   {
     key: 'promo-acougue',
@@ -86,6 +96,7 @@ export const STORE_LAYOUT_SLOTS = [
     recommendedWidth: 1400,
     recommendedHeight: 360,
     fallbackImage: '',
+    group: 'wide-banners',
   },
   {
     key: 'brand-coca-cola',

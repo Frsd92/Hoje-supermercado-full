@@ -5738,6 +5738,7 @@ button.metric-mini:focus-visible {
 .store-layout-message.error { border-color: #fecaca; background: #fff7f7; color: #b91c1c; }
 .store-layout-grid { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 16px; }
 .store-layout-grid--brands { grid-template-columns: repeat(auto-fit, minmax(220px, 1fr)); gap: 14px; }
+.store-layout-grid--single { grid-template-columns: minmax(0, 1fr); }
 .store-layout-card { min-width: 0; padding: 16px; border: 1px solid #e2e8f0; border-radius: 12px; background: #fff; box-shadow: 0 8px 20px rgba(15,23,42,.035); }
 .store-layout-card-heading { display: flex; align-items: flex-start; justify-content: space-between; gap: 10px; min-height: 44px; }
 .store-layout-card-heading h2 { margin: 3px 0 0; color: #1e293b; font-size: .93rem; }
