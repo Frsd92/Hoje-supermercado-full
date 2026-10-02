@@ -3,7 +3,7 @@ import { prisma } from '@/lib/prisma';
 
 export async function GET(_request, { params }) {
   const { key } = await params;
-  if (!getStoreLayoutSlot(key)) return new Response('Banner não encontrado.', { status: 404 });
+  if (!getStoreLayoutSlot(key)) return new Response('Imagem do layout não encontrada.', { status: 404 });
 
   try {
     const asset = await prisma.storeLayoutAsset.findUnique({
@@ -20,7 +20,7 @@ export async function GET(_request, { params }) {
       },
     });
   } catch (error) {
-    console.error('Não foi possível carregar a imagem de banner da Loja:', error);
+    console.error('Não foi possível carregar a imagem do layout da Loja:', error);
     return new Response('Não foi possível carregar a imagem.', { status: 500 });
   }
 }

@@ -41,7 +41,7 @@ export async function PUT(request) {
   }
 
   const key = String(body?.key || '');
-  if (!getStoreLayoutSlot(key)) return Response.json({ error: 'Selecione um banner válido do layout da Loja.' }, { status: 400 });
+  if (!getStoreLayoutSlot(key)) return Response.json({ error: 'Selecione uma imagem válida do layout da Loja.' }, { status: 400 });
   const image = validateStoreLayoutImage(body?.imageData);
   if (!image) return Response.json({ error: 'Envie uma imagem PNG, JPEG ou WebP válida de até 2,5 MB após a compressão.' }, { status: 400 });
 
@@ -73,7 +73,7 @@ export async function DELETE(request) {
   if (!hasErpAccess(session?.user)) return Response.json({ error: 'Acesso negado.' }, { status: 403 });
 
   const key = new URL(request.url).searchParams.get('key') || '';
-  if (!getStoreLayoutSlot(key)) return Response.json({ error: 'Selecione um banner válido do layout da Loja.' }, { status: 400 });
+  if (!getStoreLayoutSlot(key)) return Response.json({ error: 'Selecione uma imagem válida do layout da Loja.' }, { status: 400 });
 
   try {
     const result = await prisma.storeLayoutAsset.deleteMany({ where: { key } });

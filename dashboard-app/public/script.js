@@ -1312,32 +1312,38 @@ async function carregarCatalogoReal() {
   }
 }
 
-async function carregarBannersGerenciados() {
+async function carregarLayoutGerenciado() {
   if (!document.querySelector('[data-store-layout]')) return;
 
   try {
     const response = await fetch('/api/store-layout', { cache: 'no-store' });
     const data = await response.json();
-    if (!response.ok) throw new Error(data.error || 'Não foi possível carregar os banners personalizados.');
+    if (!response.ok) throw new Error(data.error || 'Não foi possível carregar as imagens personalizadas.');
 
     (data.banners || []).forEach(({ key, imageUrl }) => {
-      const banner = document.querySelector(`[data-store-layout="${key}"]`);
-      if (!banner || !imageUrl) return;
+      const elements = document.querySelectorAll(`[data-store-layout="${key}"]`);
+      if (!elements.length || !imageUrl) return;
       const image = `url("${imageUrl}")`;
-      banner.style.backgroundImage = key.startsWith('carousel-')
-        ? `linear-gradient(180deg, rgba(0, 0, 0, 0.34), rgba(0, 0, 0, 0.48)), ${image}`
-        : key === 'main-hero'
-        ? `linear-gradient(90deg, rgba(7, 23, 15, 0.86), rgba(9, 34, 22, 0.58), rgba(10, 26, 18, 0.22)), ${image}`
-        : image;
+      elements.forEach((element) => {
+        if (element.tagName === 'IMG') {
+          element.src = imageUrl;
+          return;
+        }
+        element.style.backgroundImage = key.startsWith('carousel-')
+          ? `linear-gradient(180deg, rgba(0, 0, 0, 0.34), rgba(0, 0, 0, 0.48)), ${image}`
+          : key === 'main-hero'
+          ? `linear-gradient(90deg, rgba(7, 23, 15, 0.86), rgba(9, 34, 22, 0.58), rgba(10, 26, 18, 0.22)), ${image}`
+          : image;
+      });
     });
   } catch (error) {
-    console.warn('Banners personalizados indisponíveis:', error.message);
+    console.warn('Imagens personalizadas do layout indisponíveis:', error.message);
   }
 }
 
 window.addEventListener('DOMContentLoaded', () => {
   inicializarCarrinho();
-  carregarBannersGerenciados();
+  carregarLayoutGerenciado();
   adicionarBotoesFavorito();
   adicionarCategoriasProdutos();
   carregarCatalogoReal();

@@ -5715,6 +5715,9 @@ button.metric-mini:focus-visible {
 .store-layout-art-hint { display: grid; gap: 4px; padding: 13px 16px; border: 1px solid #bfdbfe; border-radius: 10px; background: #eff6ff; color: #1e3a8a; }
 .store-layout-art-hint strong { font-size: .78rem; }
 .store-layout-art-hint span { color: #475569; font-size: .74rem; line-height: 1.5; }
+.store-layout-section { display: grid; gap: 12px; }
+.store-layout-section-heading h2 { margin: 0; color: #1e293b; font-size: 1rem; }
+.store-layout-section-heading p { margin: 4px 0 0; color: #64748b; font-size: .76rem; line-height: 1.5; }
 .store-layout-message { padding: 11px 14px; border: 1px solid #bbf7d0; border-radius: 9px; background: #f0fdf4; color: #166534; font-size: .78rem; }
 .store-layout-message.error { border-color: #fecaca; background: #fff7f7; color: #b91c1c; }
 .store-layout-grid { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 16px; }
@@ -5725,6 +5728,7 @@ button.metric-mini:focus-visible {
 .store-layout-status { flex: 0 0 auto; padding: 5px 8px; border-radius: 999px; background: #f1f5f9; color: #475569; font-size: .61rem; font-weight: 800; }
 .store-layout-status.customized { background: #dcfce7; color: #166534; }
 .store-layout-preview { display: grid; width: 100%; aspect-ratio: 3.2 / 1; min-height: 110px; max-height: 220px; margin-top: 12px; place-items: center; overflow: hidden; border: 1px solid #e2e8f0; border-radius: 9px; background-color: #fff; background-image: linear-gradient(45deg, #edf1f5 25%, transparent 25%), linear-gradient(-45deg, #edf1f5 25%, transparent 25%), linear-gradient(45deg, transparent 75%, #edf1f5 75%), linear-gradient(-45deg, transparent 75%, #edf1f5 75%); background-position: 0 0, 0 10px, 10px -10px, -10px 0; background-size: 20px 20px; }
+.store-layout-brand-preview { aspect-ratio: 2.4 / 1; min-height: 90px; max-height: 160px; }
 .store-layout-preview img { display: block; width: 100%; height: 100%; object-fit: contain; }
 .store-layout-preview-empty { display: grid; justify-items: center; gap: 8px; color: #94a3b8; font-size: .72rem; }
 .store-layout-dimensions { display: grid; grid-template-columns: 1fr auto; align-items: center; gap: 5px 10px; margin-top: 12px; }

@@ -2,14 +2,18 @@ import test from 'node:test';
 import assert from 'node:assert/strict';
 import { getStoreLayoutSlot, STORE_LAYOUT_SLOTS, validateStoreLayoutImage } from './store-layout.js';
 
-test('defines uniquely identified store banners with recommended artwork dimensions', () => {
-  assert.equal(STORE_LAYOUT_SLOTS.length, 11);
+test('defines uniquely identified store banners and brand logos with recommended dimensions', () => {
+  assert.equal(STORE_LAYOUT_SLOTS.length, 20);
   assert.equal(new Set(STORE_LAYOUT_SLOTS.map((slot) => slot.key)).size, STORE_LAYOUT_SLOTS.length);
   assert.ok(STORE_LAYOUT_SLOTS.every((slot) => slot.recommendedWidth > 0 && slot.recommendedHeight > 0));
+  const brandSlots = STORE_LAYOUT_SLOTS.filter((slot) => slot.group === 'brands');
+  assert.equal(brandSlots.length, 9);
+  assert.ok(brandSlots.every((slot) => slot.recommendedWidth === 480 && slot.recommendedHeight === 200));
   assert.equal(getStoreLayoutSlot('main-hero')?.recommendedWidth, 1600);
   assert.equal(getStoreLayoutSlot('carousel-hortifruti')?.recommendedHeight, 700);
   assert.equal(getStoreLayoutSlot('carousel-mercearia')?.recommendedWidth, 520);
   assert.equal(getStoreLayoutSlot('carousel-limpeza')?.recommendedHeight, 700);
+  assert.equal(getStoreLayoutSlot('brand-coca-cola')?.group, 'brands');
   assert.equal(getStoreLayoutSlot('unknown'), null);
 });
 

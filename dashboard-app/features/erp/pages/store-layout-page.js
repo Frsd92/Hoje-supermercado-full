@@ -24,7 +24,7 @@ function loadImage(source) {
   });
 }
 
-function prepareBannerImage(image) {
+function prepareLayoutImage(image) {
   const initialScale = Math.min(1, 1800 / Math.max(image.width, image.height));
   let canvas = document.createElement('canvas');
   canvas.width = Math.max(1, Math.round(image.width * initialScale));
@@ -101,7 +101,7 @@ export default function StoreLayoutPage() {
     try {
       const source = await readFile(file);
       const image = await loadImage(source);
-      const imageData = prepareBannerImage(image);
+      const imageData = prepareLayoutImage(image);
       setDrafts((current) => ({
         ...current,
         [slot.key]: { imageData, originalName: file.name, width: image.width, height: image.height },
@@ -127,7 +127,7 @@ export default function StoreLayoutPage() {
         body: JSON.stringify({ key: slot.key, imageData: draft.imageData, originalName: draft.originalName }),
       });
       const data = await response.json();
-      if (!response.ok) throw new Error(data.error || 'Não foi possível salvar a imagem do banner.');
+      if (!response.ok) throw new Error(data.error || 'Não foi possível salvar esta imagem.');
       await loadSlots();
       setDrafts((current) => {
         const next = { ...current };
@@ -136,14 +136,14 @@ export default function StoreLayoutPage() {
       });
       setFeedback(`Imagem de “${slot.label}” atualizada na Loja.`);
     } catch (saveError) {
-      setError(saveError.message || 'Não foi possível salvar a imagem do banner.');
+      setError(saveError.message || 'Não foi possível salvar esta imagem.');
     } finally {
       setSavingKey('');
     }
   };
 
   const removeImage = async (slot) => {
-    if (!slot.imageUrl || !window.confirm(`Remover a arte personalizada de “${slot.label}” e voltar para o banner padrão?`)) return;
+    if (!slot.imageUrl || !window.confirm(`Remover a imagem personalizada de “${slot.label}” e voltar à imagem original?`)) return;
 
     setSavingKey(slot.key);
     setError('');
@@ -151,58 +151,71 @@ export default function StoreLayoutPage() {
     try {
       const response = await fetch(`/api/erp/store-layout?key=${encodeURIComponent(slot.key)}`, { method: 'DELETE' });
       const data = await response.json();
-      if (!response.ok) throw new Error(data.error || 'Não foi possível remover a imagem do banner.');
+      if (!response.ok) throw new Error(data.error || 'Não foi possível remover esta imagem.');
       await loadSlots();
       setDrafts((current) => {
         const next = { ...current };
         delete next[slot.key];
         return next;
       });
-      setFeedback(`Arte personalizada de “${slot.label}” removida. A Loja voltou ao banner padrão.`);
+      setFeedback(`Imagem personalizada de “${slot.label}” removida. A Loja voltou à imagem original.`);
     } catch (removeError) {
-      setError(removeError.message || 'Não foi possível remover a imagem do banner.');
+      setError(removeError.message || 'Não foi possível remover esta imagem.');
     } finally {
       setSavingKey('');
     }
   };
 
+  const bannerSlots = slots.filter((slot) => slot.group !== 'brands');
+  const brandSlots = slots.filter((slot) => slot.group === 'brands');
+  const renderSlots = (items) => items.map((slot) => {
+    const draft = drafts[slot.key];
+    const preview = draft?.imageData || slot.imageUrl || slot.fallbackImage;
+    const saving = savingKey === slot.key;
+    const isBrandLogo = slot.group === 'brands';
+    const imageLabel = isBrandLogo ? 'logo' : 'arte';
+    return <article className="store-layout-card" key={slot.key}>
+      <div className="store-layout-card-heading"><div><span className="store-layout-location">{slot.placement}</span><h2>{slot.label}</h2></div><span className={`store-layout-status ${slot.imageUrl || draft ? 'customized' : ''}`}>{draft ? 'Alteração pendente' : slot.imageUrl ? `${isBrandLogo ? 'Logo' : 'Arte'} personalizada` : `${isBrandLogo ? 'Logo' : 'Arte'} padrão`}</span></div>
+      <div className={`store-layout-preview ${isBrandLogo ? 'store-layout-brand-preview' : ''}`}>
+        {preview
+          ? <img src={preview} alt={`Prévia: ${slot.label}`} onLoad={(event) => {
+            const { naturalWidth, naturalHeight } = event.currentTarget;
+            setActualSizes((current) => ({ ...current, [slot.key]: `${naturalWidth} × ${naturalHeight} px` }));
+          }} />
+          : <div className="store-layout-preview-empty"><ImagePlus size={26} /><span>Nenhuma imagem personalizada</span></div>}
+      </div>
+      <div className="store-layout-dimensions"><span>{isBrandLogo ? 'Logo recomendada' : 'Arte recomendada'}</span><strong>{slot.recommendedWidth} × {slot.recommendedHeight} px</strong><small>{actualSizes[slot.key] ? `Imagem atual: ${actualSizes[slot.key]}` : isBrandLogo ? 'Preserve a proporção e prefira fundo transparente' : 'Proporção sugerida para melhor encaixe'}</small></div>
+      {slot.updatedAt && <p className="store-layout-updated">Atualizada em {formatUpdatedAt(slot.updatedAt)} por {slot.updatedBy || 'usuário ERP'}</p>}
+      <div className="store-layout-actions">
+        <label className="store-layout-upload"><ImagePlus size={15} /> {isBrandLogo ? 'Escolher logo' : 'Escolher arte'}<input type="file" accept="image/png,image/jpeg,image/webp" disabled={saving} onChange={(event) => {
+          selectImage(slot, event.target.files?.[0]);
+          event.target.value = '';
+        }} /></label>
+        <button type="button" className="primary-cta" disabled={!draft || saving} onClick={() => saveImage(slot)}>{saving ? <LoaderCircle size={15} className="store-layout-spinner" /> : <Save size={15} />}{saving ? 'Salvando...' : isBrandLogo ? 'Salvar logo' : 'Salvar na Loja'}</button>
+        {slot.imageUrl && <button type="button" className="store-layout-remove" disabled={saving} onClick={() => removeImage(slot)}><Trash2 size={15} />Remover {imageLabel}</button>}
+      </div>
+    </article>;
+  });
+
   return <div className="erp-page store-layout-page">
     <header className="store-layout-header">
-      <div><span className="eyebrow">Personalização da Loja</span><h1>Layout</h1><p>Troque as artes dos banners da Loja. Cada espaço está identificado com sua localização e dimensão recomendada em pixels.</p></div>
+      <div><span className="eyebrow">Personalização da Loja</span><h1>Layout</h1><p>Troque as artes dos banners e as logos das marcas em destaque. Cada espaço mostra sua localização e dimensão recomendada.</p></div>
       <span className="store-layout-header-icon"><LayoutTemplate size={22} /></span>
     </header>
 
-    <div className="store-layout-art-hint"><strong>Prepare sua arte</strong><span>Use as dimensões recomendadas em cada banner. Imagens transparentes são preservadas; no site, as artes são ajustadas para preencher o espaço e podem sofrer recorte em telas menores.</span></div>
+    <div className="store-layout-art-hint"><strong>Prepare suas imagens</strong><span>São aceitos PNG, JPEG e WebP de até 10 MB antes da compressão. A transparência é preservada; para logos, prefira PNG ou WebP com fundo transparente.</span></div>
     {error && <div className="store-layout-message error" role="alert">{error}</div>}
     {feedback && <div className="store-layout-message" role="status">{feedback}</div>}
-    {loading && <div className="erp-empty-data">Carregando banners da Loja...</div>}
-    {!loading && !error && <section className="store-layout-grid" aria-label="Banners disponíveis para personalização">
-      {slots.map((slot) => {
-        const draft = drafts[slot.key];
-        const preview = draft?.imageData || slot.imageUrl || slot.fallbackImage;
-        const saving = savingKey === slot.key;
-        return <article className="store-layout-card" key={slot.key}>
-          <div className="store-layout-card-heading"><div><span className="store-layout-location">{slot.placement}</span><h2>{slot.label}</h2></div><span className={`store-layout-status ${slot.imageUrl || draft ? 'customized' : ''}`}>{draft ? 'Alteração pendente' : slot.imageUrl ? 'Arte personalizada' : 'Arte padrão'}</span></div>
-          <div className="store-layout-preview">
-            {preview
-              ? <img src={preview} alt={`Prévia: ${slot.label}`} onLoad={(event) => {
-                const { naturalWidth, naturalHeight } = event.currentTarget;
-                setActualSizes((current) => ({ ...current, [slot.key]: `${naturalWidth} × ${naturalHeight} px` }));
-              }} />
-              : <div className="store-layout-preview-empty"><ImagePlus size={26} /><span>Nenhuma imagem personalizada</span></div>}
-          </div>
-          <div className="store-layout-dimensions"><span>Arte recomendada</span><strong>{slot.recommendedWidth} × {slot.recommendedHeight} px</strong><small>{actualSizes[slot.key] ? `Imagem atual: ${actualSizes[slot.key]}` : 'Proporção sugerida para melhor encaixe'}</small></div>
-          {slot.updatedAt && <p className="store-layout-updated">Atualizada em {formatUpdatedAt(slot.updatedAt)} por {slot.updatedBy || 'usuário ERP'}</p>}
-          <div className="store-layout-actions">
-            <label className="store-layout-upload"><ImagePlus size={15} /> Escolher arte<input type="file" accept="image/png,image/jpeg,image/webp" disabled={saving} onChange={(event) => {
-              selectImage(slot, event.target.files?.[0]);
-              event.target.value = '';
-            }} /></label>
-            <button type="button" className="primary-cta" disabled={!draft || saving} onClick={() => saveImage(slot)}>{saving ? <LoaderCircle size={15} className="store-layout-spinner" /> : <Save size={15} />}{saving ? 'Salvando...' : 'Salvar na Loja'}</button>
-            {slot.imageUrl && <button type="button" className="store-layout-remove" disabled={saving} onClick={() => removeImage(slot)}><Trash2 size={15} />Remover banner</button>}
-          </div>
-        </article>;
-      })}
-    </section>}
+    {loading && <div className="erp-empty-data">Carregando imagens da Loja...</div>}
+    {!loading && !error && <>
+      <section className="store-layout-section">
+        <header className="store-layout-section-heading"><h2>Banners da Loja</h2><p>Gerencie as artes dos espaços promocionais e painéis de categoria.</p></header>
+        <div className="store-layout-grid" aria-label="Banners disponíveis para personalização">{renderSlots(bannerSlots)}</div>
+      </section>
+      <section className="store-layout-section">
+        <header className="store-layout-section-heading"><h2>Marcas em destaque</h2><p>Substitua as logos exibidas no carrossel da página inicial. A mesma logo será atualizada nas duas repetições do carrossel.</p></header>
+        <div className="store-layout-grid" aria-label="Logos de marcas disponíveis para personalização">{renderSlots(brandSlots)}</div>
+      </section>
+    </>}
   </div>;
 }

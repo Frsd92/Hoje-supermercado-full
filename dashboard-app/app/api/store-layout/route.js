@@ -13,7 +13,7 @@ export async function GET() {
       headers: { 'Cache-Control': 'no-store' },
     });
   } catch (error) {
-    console.error('Não foi possível carregar os banners gerenciados da Loja:', error);
-    return Response.json({ error: 'Não foi possível carregar os banners da Loja.' }, { status: 500 });
+    console.error('Não foi possível carregar as imagens gerenciadas da Loja:', error);
+    return Response.json({ error: 'Não foi possível carregar as imagens da Loja.' }, { status: 500 });
   }
 }
