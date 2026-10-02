@@ -67,6 +67,7 @@ export default function StoreLayoutPage() {
   const [slots, setSlots] = useState([]);
   const [drafts, setDrafts] = useState({});
   const [actualSizes, setActualSizes] = useState({});
+  const [activeView, setActiveView] = useState('banners');
   const [loading, setLoading] = useState(true);
   const [savingKey, setSavingKey] = useState('');
   const [error, setError] = useState('');
@@ -168,6 +169,29 @@ export default function StoreLayoutPage() {
 
   const bannerSlots = slots.filter((slot) => slot.group !== 'brands');
   const brandSlots = slots.filter((slot) => slot.group === 'brands');
+  const bannerGroups = [
+    {
+      key: 'highlights',
+      title: 'Destaques da página inicial',
+      description: 'Banner principal e destaque de Produtos Hoje.',
+      slots: bannerSlots.filter((slot) => ['main-hero', 'vendor-feature'].includes(slot.key)),
+    },
+    {
+      key: 'carousels',
+      title: 'Carrosséis por categoria',
+      description: 'Painéis laterais dos carrosséis de produtos.',
+      slots: bannerSlots.filter((slot) => slot.key.startsWith('carousel-')),
+    },
+    {
+      key: 'departments',
+      title: 'Banners por departamento',
+      description: 'Artes promocionais exibidas nas seções da Loja.',
+      slots: bannerSlots.filter((slot) => slot.key.startsWith('promo-')),
+    },
+  ].filter((group) => group.slots.length > 0);
+  const activeSlots = activeView === 'brands' ? brandSlots : bannerSlots;
+  const customizedActiveCount = activeSlots.filter((slot) => slot.imageUrl).length;
+  const pendingActiveCount = activeSlots.filter((slot) => drafts[slot.key]).length;
   const renderSlots = (items) => items.map((slot) => {
     const draft = drafts[slot.key];
     const preview = draft?.imageData || slot.imageUrl || slot.fallbackImage;
@@ -199,23 +223,51 @@ export default function StoreLayoutPage() {
 
   return <div className="erp-page store-layout-page">
     <header className="store-layout-header">
-      <div><span className="eyebrow">Personalização da Loja</span><h1>Layout</h1><p>Troque as artes dos banners e as logos das marcas em destaque. Cada espaço mostra sua localização e dimensão recomendada.</p></div>
+      <div><span className="eyebrow">Personalização da Loja</span><h1>Layout da Loja</h1><p>Gerencie as imagens por área da Loja. Escolha uma categoria para encontrar e atualizar cada banner ou logo.</p></div>
       <span className="store-layout-header-icon"><LayoutTemplate size={22} /></span>
     </header>
 
-    <div className="store-layout-art-hint"><strong>Prepare suas imagens</strong><span>São aceitos PNG, JPEG e WebP de até 10 MB antes da compressão. A transparência é preservada; para logos, prefira PNG ou WebP com fundo transparente.</span></div>
+    <details className="store-layout-art-hint">
+      <summary><strong>Orientações para imagens</strong><span>Formatos aceitos e recomendações</span></summary>
+      <p>São aceitos PNG, JPEG e WebP de até 10 MB antes da compressão. SVG não é aceito. A transparência é preservada; para logos, prefira PNG ou WebP com fundo transparente. Use as dimensões indicadas em cada espaço como referência.</p>
+    </details>
     {error && <div className="store-layout-message error" role="alert">{error}</div>}
     {feedback && <div className="store-layout-message" role="status">{feedback}</div>}
     {loading && <div className="erp-empty-data">Carregando imagens da Loja...</div>}
     {!loading && !error && <>
-      <section className="store-layout-section">
-        <header className="store-layout-section-heading"><h2>Banners da Loja</h2><p>Gerencie as artes dos espaços promocionais e painéis de categoria.</p></header>
-        <div className="store-layout-grid" aria-label="Banners disponíveis para personalização">{renderSlots(bannerSlots)}</div>
-      </section>
-      <section className="store-layout-section">
-        <header className="store-layout-section-heading"><h2>Marcas em destaque</h2><p>Substitua as logos exibidas no carrossel da página inicial. A mesma logo será atualizada nas duas repetições do carrossel.</p></header>
-        <div className="store-layout-grid" aria-label="Logos de marcas disponíveis para personalização">{renderSlots(brandSlots)}</div>
-      </section>
+      <div className="store-layout-toolbar">
+        <div className="store-layout-view-switch" role="group" aria-label="Categoria de imagens">
+          <button type="button" className="store-layout-view-button" aria-pressed={activeView === 'banners'} onClick={() => setActiveView('banners')}>
+            <LayoutTemplate size={16} /> Banners <span className="store-layout-tab-count">{bannerSlots.length}</span>
+          </button>
+          <button type="button" className="store-layout-view-button" aria-pressed={activeView === 'brands'} onClick={() => setActiveView('brands')}>
+            <ImagePlus size={16} /> Marcas em destaque <span className="store-layout-tab-count">{brandSlots.length}</span>
+          </button>
+        </div>
+        <p className="store-layout-view-summary">
+          <strong>{activeSlots.length}</strong> {activeView === 'brands' ? 'logos' : 'espaços para banners'}
+          <span>{customizedActiveCount} com imagem personalizada</span>
+          {pendingActiveCount > 0 && <span className="store-layout-pending-count">{pendingActiveCount} {pendingActiveCount === 1 ? 'alteração não salva' : 'alterações não salvas'}</span>}
+        </p>
+      </div>
+
+      {activeView === 'banners' ? <div className="store-layout-groups">
+        {bannerGroups.map((group) => (
+          <section className="store-layout-section" key={group.key}>
+            <header className="store-layout-section-heading store-layout-group-heading">
+              <div><h2>{group.title}</h2><p>{group.description}</p></div>
+              <span className="store-layout-group-count">{group.slots.length} {group.slots.length === 1 ? 'banner' : 'banners'}</span>
+            </header>
+            <div className="store-layout-grid" aria-label={group.title}>{renderSlots(group.slots)}</div>
+          </section>
+        ))}
+      </div> : <section className="store-layout-section">
+        <header className="store-layout-section-heading">
+          <h2>Logos do carrossel</h2>
+          <p>A mesma logo será atualizada nas duas repetições do carrossel da página inicial.</p>
+        </header>
+        <div className="store-layout-grid store-layout-grid--brands" aria-label="Logos de marcas disponíveis para personalização">{renderSlots(brandSlots)}</div>
+      </section>}
     </>}
   </div>;
 }
