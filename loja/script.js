@@ -323,7 +323,7 @@ async function carregarEnderecosDaApi() {
     addresses.forEach((address) => {
       const option = document.createElement('option');
       const streetAndNumber = [address.street, address.number].filter(Boolean).join(', ');
-      const location = [address.city, address.state, address.country].filter(Boolean).join(', ');
+      const location = [address.neighborhood, address.city, address.state, address.country].filter(Boolean).join(', ');
       option.value = address.id;
       option.textContent = `${address.title} · ${[streetAndNumber, location].filter(Boolean).join(' · ')}`;
       option.dataset.address = [address.title, streetAndNumber, location].filter(Boolean).join(' | ');

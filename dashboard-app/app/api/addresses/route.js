@@ -27,6 +27,32 @@ async function getEmail() {
   return session?.user?.email?.toLowerCase() || '';
 }
 
+function normalizeAddress(address) {
+  const legacyCity = String(address.city || '').trim();
+  let city = legacyCity;
+  let neighborhood = String(address.neighborhood || '').trim();
+
+  if (!neighborhood) {
+    const separator = city.indexOf(',');
+    if (separator !== -1) {
+      neighborhood = city.slice(0, separator).trim();
+      city = city.slice(separator + 1).trim();
+    }
+  }
+
+  const stateSuffix = city.match(/^(.*?)\s+-\s+([A-Z]{2})$/i);
+  if (stateSuffix) city = stateSuffix[1].trim();
+
+  return {
+    ...address,
+    number: address.number || '',
+    neighborhood,
+    city,
+    state: address.state || stateSuffix?.[2]?.toUpperCase() || '',
+    country: address.country || (address.cep ? 'Brasil' : ''),
+  };
+}
+
 export async function OPTIONS(request) {
   return new Response(null, { status: 204, headers: headers(request) });
 }
@@ -35,7 +61,7 @@ export async function GET(request) {
   const email = await getEmail();
   if (!email) return Response.json({ addresses: [] }, { headers: headers(request) });
   const store = await readStore();
-  return Response.json({ addresses: store[email] || [] }, { headers: headers(request) });
+  return Response.json({ addresses: (store[email] || []).map(normalizeAddress) }, { headers: headers(request) });
 }
 
 export async function PUT(request) {

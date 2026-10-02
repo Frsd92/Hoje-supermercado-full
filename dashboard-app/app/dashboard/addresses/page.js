@@ -14,7 +14,7 @@ export default function AddressesPage() {
   const [isFormOpen, setIsFormOpen] = useState(false);
   const [editingId, setEditingId] = useState(null);
   const [form, setForm] = useState({
-    title: '', street: '', number: '', city: '', state: '', country: '', cep: '', type: 'Alternativo',
+    title: '', street: '', number: '', neighborhood: '', city: '', state: '', country: '', cep: '', type: 'Alternativo',
   });
   const [cepStatus, setCepStatus] = useState('');
   const [addressesError, setAddressesError] = useState('');
@@ -98,7 +98,7 @@ export default function AddressesPage() {
     cancelCepLookup();
     setEditingId(null);
     setForm({
-      title: '', street: '', number: '', city: '', state: '', country: '', cep: '', type: 'Alternativo',
+      title: '', street: '', number: '', neighborhood: '', city: '', state: '', country: '', cep: '', type: 'Alternativo',
     });
     setCepStatus('');
     setIsFormOpen(true);
@@ -110,6 +110,7 @@ export default function AddressesPage() {
     setForm({
       ...address,
       number: address.number || '',
+      neighborhood: address.neighborhood || '',
       state: address.state || '',
       country: address.country || '',
       cep: address.cep.replace(/^CEP:\s*/, ''),
@@ -158,8 +159,9 @@ export default function AddressesPage() {
           ...current,
           cep: `${cep.slice(0, 5)}-${cep.slice(5)}`,
           street: data.logradouro || current.street,
-          city: [data.bairro, data.localidade].filter(Boolean).join(', '),
-          state: data.estado || data.uf || current.state,
+          neighborhood: data.bairro || '',
+          city: data.localidade || '',
+          state: data.estado || data.uf || '',
           country: 'Brasil',
         };
       });
@@ -181,6 +183,7 @@ export default function AddressesPage() {
       title: form.title.trim(),
       street: form.street.trim(),
       number: form.number.trim(),
+      neighborhood: form.neighborhood.trim(),
       city: form.city.trim(),
       state: form.state.trim(),
       country: form.country.trim(),
@@ -224,7 +227,8 @@ export default function AddressesPage() {
             <label className="address-form-wide">Identificação do endereço<input name="title" value={form.title} onChange={handleChange} placeholder="Casa, trabalho..." required /></label>
             <label className="address-form-wide">Rua<input name="street" value={form.street} onChange={handleChange} placeholder="Nome da rua" required /></label>
             <label className="address-form-wide">Número<input name="number" value={form.number} onChange={handleChange} placeholder="Ex.: 123 ou S/N" /></label>
-            <label>Bairro e cidade<input name="city" value={form.city} onChange={handleChange} placeholder="Bairro, cidade" required /></label>
+            <label className="address-form-wide">Bairro<input name="neighborhood" value={form.neighborhood} onChange={handleChange} placeholder="Nome do bairro" /></label>
+            <label className="address-form-wide">Município<input name="city" value={form.city} onChange={handleChange} placeholder="Ex.: São Paulo" required /></label>
             <label>Estado<input name="state" value={form.state} onChange={handleChange} placeholder="Ex.: São Paulo" /></label>
             <label className="address-form-wide">País<input name="country" value={form.country} onChange={handleChange} placeholder="Ex.: Brasil" /></label>
           </div>
@@ -259,6 +263,7 @@ export default function AddressesPage() {
 
               <div>
                 <p>{[address.street, address.number].filter(Boolean).join(', ')}</p>
+                {address.neighborhood && <p>{address.neighborhood}</p>}
                 <p>{address.city}</p>
                 {(address.state || address.country) && <p>{[address.state, address.country].filter(Boolean).join(', ')}</p>}
                 <p>{address.cep}</p>

@@ -53,12 +53,12 @@ const getAddressStreet = (address) => [address?.street, address?.number].filter(
 
 function getAddressValue(address) {
   return `${address.title || 'Endereço'} | ${[
-    getAddressStreet(address), address.city, address.state, address.country,
+    getAddressStreet(address), address.neighborhood, address.city, address.state, address.country,
   ].filter(Boolean).join(' | ')}`;
 }
 
 function getAddressLabel(address) {
-  const location = [address.city, address.state, address.country].filter(Boolean).join(', ');
+  const location = [address.neighborhood, address.city, address.state, address.country].filter(Boolean).join(', ');
   return `${address.title || 'Endereço'} · ${getAddressStreet(address)}${location ? ` · ${location}` : ''}`;
 }
 
