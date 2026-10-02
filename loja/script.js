@@ -1204,11 +1204,24 @@ function getProductCardCategoryLabel(product) {
     || 'Produtos';
 }
 
+function getProductDiscountLabel(product) {
+  const originalPrice = Number(product.price);
+  const salePrice = Number(product.salePrice ?? originalPrice);
+  if (!Number.isFinite(originalPrice) || originalPrice <= 0 || !Number.isFinite(salePrice) || salePrice >= originalPrice) return '';
+
+  const configuredDiscount = Number(product.discount);
+  const discount = Number.isFinite(configuredDiscount) && configuredDiscount > 0
+    ? configuredDiscount
+    : ((originalPrice - salePrice) / originalPrice) * 100;
+  const roundedDiscount = Math.round(discount);
+  return roundedDiscount > 0 ? `-${roundedDiscount}%` : '';
+}
+
 function renderProductBadges(product) {
   const selectedTypes = Array.isArray(product.featuredPriceTypes) ? product.featuredPriceTypes : [];
   const badges = [];
-  const department = String(product.department || '').trim();
-  if (department) badges.push(`<span class="tag tag-department">${escapeStoreHtml(department)}</span>`);
+  const discountLabel = getProductDiscountLabel(product);
+  if (discountLabel) badges.push(`<span class="tag tag-discount">${discountLabel}</span>`);
 
   const showcaseTypes = [
     ['Oferta', 'tag-offer'],
@@ -1223,6 +1236,13 @@ function renderProductBadges(product) {
   });
 
   return badges.length ? `<div class="product-badges" aria-label="Destaques do produto">${badges.join('')}</div>` : '';
+}
+
+function renderProductDepartmentBadge(product) {
+  const department = String(product.department || '').trim();
+  if (!department) return '';
+  const label = escapeStoreHtml(department);
+  return `<div class="product-category product-department" aria-label="Departamento: ${label}">${label}</div>`;
 }
 
 function produtoTemSeloDeVitrine(product, type) {
@@ -1251,7 +1271,7 @@ function criarCardDoCatalogo(product) {
   const title = escapeStoreHtml(product.title);
   const image = escapeStoreHtml(product.image || '');
   const productId = escapeStoreHtml(product.id);
-  return `<article class="product-card" data-id="${productId}" data-sale-unit="${porKg ? 'Quilograma' : 'Unidade'}">${renderProductBadges(product)}<img src="${image}" alt="${title}" class="product-img"><div class="product-category">${category}</div><div class="product-name">${title}</div><div class="product-price">${price}${oldPrice}</div><div class="product-actions"><button class="btn-comprar" onclick="adicionarProduto(this)">Adicionar</button><div class="qty-controls"><button class="btn-remove" onclick="removerProduto(this)"><i data-lucide="trash-2"></i></button><span class="qty" data-quantity="${porKg ? '0.1' : '1'}">${porKg ? '100 g' : '1'}</span><button class="btn-add" onclick="aumentarQtd(this)">+</button></div></div></article>`;
+  return `<article class="product-card" data-id="${productId}" data-sale-unit="${porKg ? 'Quilograma' : 'Unidade'}">${renderProductBadges(product)}<img src="${image}" alt="${title}" class="product-img"><div class="product-category">${category}</div>${renderProductDepartmentBadge(product)}<div class="product-name">${title}</div><div class="product-price">${price}${oldPrice}</div><div class="product-actions"><button class="btn-comprar" onclick="adicionarProduto(this)">Adicionar</button><div class="qty-controls"><button class="btn-remove" onclick="removerProduto(this)"><i data-lucide="trash-2"></i></button><span class="qty" data-quantity="${porKg ? '0.1' : '1'}">${porKg ? '100 g' : '1'}</span><button class="btn-add" onclick="aumentarQtd(this)">+</button></div></div></article>`;
 }
 
 async function carregarCatalogoReal() {
@@ -1408,10 +1428,11 @@ function buscarProdutos() {
       const imagem = card.querySelector('.product-img')?.getAttribute('src');
       const categoria = card.querySelector('.product-category')?.textContent.trim() || inferirCategoria(nomeOriginal);
       const preco = card.querySelector('.product-price')?.textContent.trim() || '';
+      const discountLabel = card.querySelector('.tag-discount')?.textContent.trim() || '';
 
       item.innerHTML = `
         <span class="search-result-image">${imagem ? `<img src="${imagem}" alt="">` : '<i data-lucide="shopping-bag"></i>'}</span>
-        <span class="search-result-info"><strong>${nomeOriginal}</strong><small>${categoria}</small></span>
+        <span class="search-result-info"><strong>${nomeOriginal}</strong><small>${categoria}</small>${discountLabel ? `<span class="search-result-discount">${escapeStoreHtml(discountLabel)}</span>` : ''}</span>
         <span class="search-result-price">${preco}</span>
         <span class="search-result-actions">
           <button type="button" class="search-buy">Adicionar</button>

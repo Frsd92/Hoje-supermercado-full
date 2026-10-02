@@ -1425,8 +1425,8 @@ body {
   background: linear-gradient(135deg, #1a7a3c 0%, #0f5a2c 100%);
 }
 
-.tag-department {
-  background: linear-gradient(135deg, #334155 0%, #475569 100%);
+.tag-discount {
+  background: linear-gradient(135deg, #ef4444 0%, #dc2626 100%);
 }
 
 .tag-promotion {
@@ -1513,6 +1513,13 @@ body {
   border-radius: 999px;
   background: rgba(34, 197, 94, 0.08);
   border: 1px solid rgba(34, 197, 94, 0.12);
+}
+
+.product-department {
+  margin-top: 0;
+  color: #334155;
+  background: rgba(51, 65, 85, 0.08);
+  border-color: rgba(51, 65, 85, 0.14);
 }
 
 .product-name {
@@ -2265,6 +2272,17 @@ body {
 .search-result-info small {
   color: var(--muted);
   font-size: 0.72rem;
+}
+
+.search-result-discount {
+  display: inline-flex;
+  width: fit-content;
+  padding: 3px 7px;
+  border-radius: 999px;
+  color: #b91c1c;
+  background: #fef2f2;
+  font-size: 0.66rem;
+  font-weight: 900;
 }
 
 .search-result-price {
