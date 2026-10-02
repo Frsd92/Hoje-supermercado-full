@@ -2,7 +2,7 @@
 
 import Link from 'next/link';
 import { usePathname } from 'next/navigation';
-import { Activity, BarChart3, Bell, FileText, History, LayoutDashboard, LayoutTemplate, MapPin, Package, ShoppingCart, TicketPercent, Truck, Users } from 'lucide-react';
+import { Activity, BarChart3, Bell, FileText, History, LayoutDashboard, LayoutTemplate, MapPin, Package, ShoppingCart, TicketPercent, TrendingUp, Truck, Users } from 'lucide-react';
 import { useEffect, useState } from 'react';
 
 const erpNavigationGroups = [
@@ -24,6 +24,7 @@ const erpNavigationGroups = [
     items: [
       { label: 'Cadastro de Produto', href: '/erp/catalog', icon: Package },
       { label: 'Produtos', href: '/erp/products', icon: Package },
+      { label: 'Histórico de preços', href: '/erp/price-history', icon: TrendingUp },
       { label: 'Auditoria de produtos', href: '/erp/product-audit', icon: History },
       { label: 'Layout da loja', href: '/erp/layout', icon: LayoutTemplate },
     ],

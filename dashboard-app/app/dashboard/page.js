@@ -15,6 +15,7 @@ export default function DashboardHomePage() {
   const { data: session, status } = useSession();
   const router = useRouter();
   const [favorites, setFavorites] = useState([]);
+  const [failedFavoriteImages, setFailedFavoriteImages] = useState({});
   const [orders, setOrders] = useState([]);
   const [cart, setCart] = useState([]);
   const [profile, setProfile] = useState({ monthlyBudget: 0, photo: null, googlePhoto: '' });
@@ -219,7 +220,6 @@ export default function DashboardHomePage() {
           <h1>Olá, {(profile.fullName || session.user?.name || 'cliente').split(' ')[0]}!</h1>
           <p>Organize sua próxima compra, acompanhe pedidos e encontre tudo da sua conta em um só lugar.</p>
           <div className="hero-actions">
-            <Link href="/" className="primary-cta"><ShoppingCart size={16} /> Começar uma compra <ArrowRight size={16} /></Link>
             <Link href="/dashboard/orders" className="secondary-cta">Acompanhar pedidos</Link>
           </div>
         </div>
@@ -283,7 +283,19 @@ export default function DashboardHomePage() {
       <div className="bottom-grid">
         <div className="panel-box">
           <div className="panel-header compact"><h3>Produtos favoritos</h3><Link href="/dashboard/favorites" className="dashboard-panel-link">Ver todos</Link></div>
-          {favorites.length ? <div className="favorites-mini-list">{favorites.slice(0, 5).map((item) => <div key={item.name} className="favorite-mini-row"><div className="favorite-mini-icon">◫</div><div><strong>{item.name}</strong><span>{item.category || 'Categoria não informada'}</span></div><em>{item.price || 'Sem preço'}</em></div>)}</div> : <div className="dashboard-home-empty"><span>{dashboardLoading ? 'Carregando seus favoritos…' : dashboardError ? 'Favoritos indisponíveis no momento.' : 'Salve produtos para encontrá-los aqui.'}</span>{!dashboardLoading && !dashboardError && <Link href="/dashboard/favorites">Ver meus favoritos</Link>}</div>}
+          {favorites.length ? <div className="favorites-mini-list">{favorites.slice(0, 5).map((item) => {
+            const imageKey = String(item.productId || item.id || item.name);
+            const hasImage = item.image && !failedFavoriteImages[imageKey];
+            return <div key={item.name} className="favorite-mini-row">
+              <div className="favorite-mini-icon">
+                {hasImage
+                  ? <img src={item.image} alt="" loading="lazy" onError={() => setFailedFavoriteImages((current) => ({ ...current, [imageKey]: true }))} />
+                  : <Package size={17} aria-hidden="true" />}
+              </div>
+              <div><strong>{item.name}</strong><span>{item.category || 'Categoria não informada'}</span></div>
+              <em>{item.price || 'Sem preço'}</em>
+            </div>;
+          })}</div> : <div className="dashboard-home-empty"><span>{dashboardLoading ? 'Carregando seus favoritos…' : dashboardError ? 'Favoritos indisponíveis no momento.' : 'Salve produtos para encontrá-los aqui.'}</span>{!dashboardLoading && !dashboardError && <Link href="/dashboard/favorites">Ver meus favoritos</Link>}</div>}
         </div>
         <div className="panel-box">
           <div className="panel-header compact"><h3>Atalhos da conta</h3></div>
