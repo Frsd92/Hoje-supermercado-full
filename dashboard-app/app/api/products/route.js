@@ -6,6 +6,7 @@ import { erpActorLabel, hasErpAccess } from '@/features/erp/access';
 import { appendPriceHistory } from '@/features/erp/api/price-history';
 import { calculateSalePrice } from '@/features/erp/api/product-pricing';
 import { findProductIdentityConflict, getProductAuditChanges, productAuditSnapshot, productIdentityKeys } from '@/features/erp/api/product-audit';
+import { getProductOrganizationError } from '@/features/erp/product-organization';
 import { prisma } from '@/lib/prisma';
 
 const productsFile = path.join(process.cwd(), 'data', 'products.json');
@@ -300,6 +301,8 @@ export async function POST(request) {
     : [];
   const status = ['Ativo', 'Rascunho', 'Arquivado'].includes(product?.status) ? product.status : 'Ativo';
   if (!title || !Number.isFinite(price) || price <= 0 || !Number.isFinite(cost) || cost < 0 || !Number.isFinite(discount) || discount < 0 || discount > 100 || !Number.isFinite(quantity) || quantity < 0 || !categories.length) return Response.json({ error: 'Informe nome, preço, custo, desconto válido, estoque e ao menos uma categoria.' }, { status: 400, headers: corsHeaders(request) });
+  const organizationError = getProductOrganizationError({ ...product, categories });
+  if (organizationError) return Response.json({ error: organizationError }, { status: 400, headers: corsHeaders(request) });
 
   const savedProduct = {
     ...product,
@@ -309,6 +312,7 @@ export async function POST(request) {
     discount,
     quantity,
     categories,
+    department: String(product?.department || '').trim(),
     subcategory: String(product?.subcategory || '').trim(),
     status,
     id: `PROD-${Date.now()}`,
@@ -352,6 +356,8 @@ export async function PUT(request) {
     : [];
   const status = ['Ativo', 'Rascunho', 'Arquivado'].includes(product?.status) ? product.status : 'Ativo';
   if (!productId || !title || !Number.isFinite(price) || price <= 0 || !Number.isFinite(cost) || cost < 0 || !Number.isFinite(discount) || discount < 0 || discount > 100 || !Number.isFinite(quantity) || quantity < 0 || !categories.length) return Response.json({ error: 'Informe nome, preço, custo, desconto válido, estoque e ao menos uma categoria.' }, { status: 400, headers: corsHeaders(request) });
+  const organizationError = getProductOrganizationError({ ...product, categories });
+  if (organizationError) return Response.json({ error: organizationError }, { status: 400, headers: corsHeaders(request) });
 
   const products = await getProducts();
   const productIndex = products.findIndex((item) => String(item.id) === productId);
@@ -371,6 +377,7 @@ export async function PUT(request) {
     discount,
     quantity,
     categories,
+    department: String(product?.department || '').trim(),
     subcategory: String(product?.subcategory || '').trim(),
     status,
     updatedAt: new Date().toISOString(),

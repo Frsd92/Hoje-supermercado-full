@@ -492,8 +492,12 @@ function obterPrecoProduto(card) {
 function inferirCategoria(nome) {
   const texto = nome.toLowerCase();
 
-  if (texto.includes('banana') || texto.includes('maçã') || texto.includes('uva') || texto.includes('laranja') || texto.includes('morango') || texto.includes('tomate') || texto.includes('alface') || texto.includes('frutas')) {
-    return 'Frutas & Verduras';
+  if (texto.includes('banana') || texto.includes('maçã') || texto.includes('maça') || texto.includes('uva') || texto.includes('laranja') || texto.includes('morango') || texto.includes('fruta')) {
+    return 'Fruta';
+  }
+
+  if (texto.includes('tomate') || texto.includes('alface') || texto.includes('cenoura') || texto.includes('batata') || texto.includes('cebola') || texto.includes('verdura')) {
+    return 'Verdura';
   }
 
   if (texto.includes('leite') || texto.includes('queijo') || texto.includes('iogurte') || texto.includes('latic')) {
@@ -847,8 +851,10 @@ function adicionarCategoriasProdutos() {
     const nome = (nomeEl.textContent || '').toLowerCase();
     let categoria = 'Produtos';
 
-    if (nome.includes('banana') || nome.includes('maçã') || nome.includes('maça') || nome.includes('tomate') || nome.includes('alface') || nome.includes('cenoura') || nome.includes('batata') || nome.includes('laranja') || nome.includes('uva') || nome.includes('morango') || nome.includes('fruta')) {
-      categoria = 'Frutas & Verduras';
+    if (nome.includes('banana') || nome.includes('maçã') || nome.includes('maça') || nome.includes('laranja') || nome.includes('uva') || nome.includes('morango') || nome.includes('fruta')) {
+      categoria = 'Fruta';
+    } else if (nome.includes('tomate') || nome.includes('alface') || nome.includes('cenoura') || nome.includes('batata') || nome.includes('cebola') || nome.includes('verdura')) {
+      categoria = 'Verdura';
     } else if (nome.includes('leite') || nome.includes('queijo') || nome.includes('iogurte') || nome.includes('latic')) {
       categoria = 'Laticínios';
     } else if (nome.includes('coca') || nome.includes('refrigerante') || nome.includes('suco') || nome.includes('bebida') || nome.includes('cerveja') || nome.includes('vinho')) {
@@ -1178,10 +1184,57 @@ function normalizarCatalogo(valor) {
   return String(valor || '').toLowerCase().normalize('NFD').replace(/[\u0300-\u036f]/g, '');
 }
 
+function escapeStoreHtml(value) {
+  const entities = { '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' };
+  return String(value ?? '').replace(/[&<>"']/g, (character) => entities[character]);
+}
+
+function getProductCardCategoryLabel(product) {
+  const subcategory = String(product.subcategory || '').trim();
+  const productType = String(product.productType || '').trim();
+  const categories = Array.isArray(product.categories) ? product.categories : [];
+  const isBroadCategory = subcategory && (
+    normalizarCatalogo(subcategory) === normalizarCatalogo(product.department)
+    || categories.some((category) => normalizarCatalogo(category) === normalizarCatalogo(subcategory))
+  );
+  return (isBroadCategory ? productType : subcategory)
+    || productType
+    || String(product.collection || '').trim()
+    || categories[0]
+    || 'Produtos';
+}
+
+function renderProductBadges(product) {
+  const selectedTypes = Array.isArray(product.featuredPriceTypes) ? product.featuredPriceTypes : [];
+  const badges = [];
+  const department = String(product.department || '').trim();
+  if (department) badges.push(`<span class="tag tag-department">${escapeStoreHtml(department)}</span>`);
+
+  const showcaseTypes = [
+    ['Oferta', 'tag-offer'],
+    ['Promoção', 'tag-promotion'],
+    ['Clube Hoje', 'tag-club'],
+    ['Super Hoje', 'tag-super'],
+  ];
+  showcaseTypes.forEach(([type, className]) => {
+    if (selectedTypes.some((selected) => normalizarCatalogo(selected) === normalizarCatalogo(type))) {
+      badges.push(`<span class="tag ${className}">${escapeStoreHtml(type)}</span>`);
+    }
+  });
+
+  return badges.length ? `<div class="product-badges" aria-label="Destaques do produto">${badges.join('')}</div>` : '';
+}
+
+function produtoTemSeloDeVitrine(product, type) {
+  return Array.isArray(product.featuredPriceTypes)
+    && product.featuredPriceTypes.some((selected) => normalizarCatalogo(selected) === normalizarCatalogo(type));
+}
+
 function categoriaDoCarrossel(container) {
   const heading = container.closest('section')?.querySelector('h2, h3')?.textContent || '';
   const title = normalizarCatalogo(heading);
-  if (title.includes('ofertas em destaque') || title.includes('mais vendidos')) return 'mais vendidos';
+  if (title.includes('ofertas em destaque')) return 'ofertas';
+  if (title.includes('mais vendidos')) return 'mais vendidos';
   if (title.includes('produtos de lavar roupa')) return 'lavanderia';
   if (title.includes('cervejas')) return 'cervejas';
   if (title.includes('acougue')) return 'acougue';
@@ -1194,7 +1247,11 @@ function criarCardDoCatalogo(product) {
   const porKg = product.saleUnit === 'Quilograma';
   const price = `R$ ${salePrice.toFixed(2).replace('.', ',')}${porKg ? ' / kg' : ''}`;
   const oldPrice = salePrice < Number(product.price) ? ` <span class="old-price">R$ ${Number(product.price).toFixed(2).replace('.', ',')}${porKg ? ' / kg' : ''}</span>` : '';
-  return `<article class="product-card" data-id="${product.id}" data-sale-unit="${porKg ? 'Quilograma' : 'Unidade'}"><img src="${product.image || ''}" alt="${product.title}" class="product-img"><div class="product-name">${product.title}</div><div class="product-price">${price}${oldPrice}</div><div class="product-rating">${product.subcategory || product.categories.join(', ')}</div><div class="product-actions"><button class="btn-comprar" onclick="adicionarProduto(this)">Adicionar</button><div class="qty-controls"><button class="btn-remove" onclick="removerProduto(this)"><i data-lucide="trash-2"></i></button><span class="qty" data-quantity="${porKg ? '0.1' : '1'}">${porKg ? '100 g' : '1'}</span><button class="btn-add" onclick="aumentarQtd(this)">+</button></div></div></article>`;
+  const category = escapeStoreHtml(getProductCardCategoryLabel(product));
+  const title = escapeStoreHtml(product.title);
+  const image = escapeStoreHtml(product.image || '');
+  const productId = escapeStoreHtml(product.id);
+  return `<article class="product-card" data-id="${productId}" data-sale-unit="${porKg ? 'Quilograma' : 'Unidade'}">${renderProductBadges(product)}<img src="${image}" alt="${title}" class="product-img"><div class="product-category">${category}</div><div class="product-name">${title}</div><div class="product-price">${price}${oldPrice}</div><div class="product-actions"><button class="btn-comprar" onclick="adicionarProduto(this)">Adicionar</button><div class="qty-controls"><button class="btn-remove" onclick="removerProduto(this)"><i data-lucide="trash-2"></i></button><span class="qty" data-quantity="${porKg ? '0.1' : '1'}">${porKg ? '100 g' : '1'}</span><button class="btn-add" onclick="aumentarQtd(this)">+</button></div></div></article>`;
 }
 
 async function carregarCatalogoReal() {
@@ -1207,12 +1264,16 @@ async function carregarCatalogoReal() {
     carrossels.forEach((container) => {
       const category = categoriaDoCarrossel(container);
       const isSalesCarousel = category === 'mais vendidos';
+      const isOfferCarousel = category === 'ofertas';
       const heading = normalizarCatalogo(container.closest('section')?.querySelector('h2, h3')?.textContent || '');
       const visibleProducts = isSalesCarousel
         ? products.filter((product) => Number(product.salesCount) > 0).sort((first, second) => second.salesCount - first.salesCount)
+        : isOfferCarousel
+        ? products.filter((product) => produtoTemSeloDeVitrine(product, 'Oferta'))
         : products.filter((product) => {
           const hasCategory = category && product.categories?.some((item) => normalizarCatalogo(item) === category);
-          return hasCategory;
+          const hasDepartment = category && normalizarCatalogo(product.department) === category;
+          return hasCategory || hasDepartment;
         });
       container.innerHTML = visibleProducts.map(criarCardDoCatalogo).join('');
     });

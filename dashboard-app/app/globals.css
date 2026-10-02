@@ -5266,7 +5266,11 @@ button.metric-mini:focus-visible {
 .markup-suggestion span { font-weight: 800; }
 .markup-suggestion small { color: #92400e; font-size: .72rem; }
 .effective-price-note { display: grid; gap: 3px; margin: 14px 0; padding: 10px 12px; border-radius: 8px; background: #eff6ff; color: #1e3a8a; font-size: .78rem; }
-.effective-price-note small { color: #475569; font-size: .7rem; }
+.product-classification-guide, .product-organization-help { margin: 12px 0; padding: 12px 14px; border: 1px solid #bfdbfe; border-radius: 9px; background: #eff6ff; color: #1e3a8a; font-size: .76rem; line-height: 1.55; }
+.product-classification-guide p { margin: 0 0 6px; }
+.product-classification-guide p:last-of-type { margin-bottom: 4px; }
+.product-classification-guide ul { margin: 4px 0 0; padding-left: 20px; }
+.product-organization-help { border-color: #bbf7d0; background: #f0fdf4; color: #166534; }
 .markup-calculate-button { width: fit-content; padding: 9px 13px; border: 0; border-radius: 8px; color: #fff; background: #166534; cursor: pointer; font: inherit; font-size: .74rem; font-weight: 800; }
 .markup-calculate-button:hover { background: #14532d; }
 .editor-toggle-grid { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 8px; margin-top: 14px; }

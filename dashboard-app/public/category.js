@@ -1,5 +1,6 @@
 const categoryLabels = {
   hortifruti: 'Hortifruti',
+  ofertas: 'Ofertas em destaque',
   carnes: 'Carnes',
   padaria: 'Padaria',
   laticinios: 'Laticínios',
@@ -14,6 +15,9 @@ const categoryLabels = {
   higiene: 'Higiene Pessoal',
   pet: 'Pet Shop',
   bebes: 'Bebês',
+};
+const categoryDescriptions = {
+  ofertas: 'Produtos marcados com o selo Oferta no cadastro do ERP.',
 };
 
 function normalizeCategory(value) {
@@ -48,10 +52,15 @@ async function loadCategory() {
   const title = categoryLabels[category] || 'Categoria';
   document.title = `${title} | Hoje Supermercado`;
   document.getElementById('category-title').textContent = title;
+  document.getElementById('category-description').textContent = categoryDescriptions[category] || 'Todos os produtos disponíveis nesta categoria.';
 
   const response = await fetch('/api/products');
+  if (!response.ok) throw new Error('Não foi possível carregar os produtos desta categoria.');
   const { products = [] } = await response.json();
-  const filteredProducts = products.filter((product) => product.categories?.some((item) => categoryKey(item) === category));
+  const filteredProducts = category === 'ofertas'
+    ? products.filter((product) => produtoTemSeloDeVitrine(product, 'Oferta'))
+    : products.filter((product) => product.categories?.some((item) => categoryKey(item) === category)
+      || categoryKey(product.department || '') === category);
 
   const container = document.getElementById('category-products');
   filteredProducts.forEach((product) => {
@@ -61,7 +70,11 @@ async function loadCategory() {
     const price = `R$ ${salePrice.toFixed(2).replace('.', ',')}${porKg ? ' / kg' : ''}`;
     const oldPrice = salePrice < Number(product.price) ? ` <span class="old-price">R$ ${Number(product.price).toFixed(2).replace('.', ',')}${porKg ? ' / kg' : ''}</span>` : '';
     const imageSource = product.image || '';
-    container.insertAdjacentHTML('beforeend', `<article class="product-card" data-id="${product.id}" data-sale-unit="${porKg ? 'Quilograma' : 'Unidade'}"><img src="${imageSource}" alt="${name}" class="product-img"><div class="product-category">${product.subcategory || product.categories.join(', ')}</div><div class="product-name">${name}</div><div class="product-price">${price}${oldPrice}</div><div class="product-actions"><button class="btn-comprar" onclick="adicionarProduto(this)">Adicionar</button><div class="qty-controls"><button class="btn-remove" onclick="removerProduto(this)">×</button><span class="qty" data-quantity="${porKg ? '0.1' : '1'}">${porKg ? '100 g' : '1'}</span><button class="btn-add" onclick="aumentarQtd(this)">+</button></div></div></article>`);
+    const safeName = escapeStoreHtml(name);
+    const safeImage = escapeStoreHtml(imageSource);
+    const safeId = escapeStoreHtml(product.id);
+    const productCategory = escapeStoreHtml(getProductCardCategoryLabel(product));
+    container.insertAdjacentHTML('beforeend', `<article class="product-card" data-id="${safeId}" data-sale-unit="${porKg ? 'Quilograma' : 'Unidade'}">${renderProductBadges(product)}<img src="${safeImage}" alt="${safeName}" class="product-img"><div class="product-category">${productCategory}</div><div class="product-name">${safeName}</div><div class="product-price">${price}${oldPrice}</div><div class="product-actions"><button class="btn-comprar" onclick="adicionarProduto(this)">Adicionar</button><div class="qty-controls"><button class="btn-remove" onclick="removerProduto(this)"><i data-lucide="trash-2"></i></button><span class="qty" data-quantity="${porKg ? '0.1' : '1'}">${porKg ? '100 g' : '1'}</span><button class="btn-add" onclick="aumentarQtd(this)">+</button></div></div></article>`);
   });
 
   document.getElementById('category-empty').hidden = filteredProducts.length > 0;
@@ -71,6 +84,7 @@ async function loadCategory() {
   if (window.lucide) window.lucide.createIcons();
 }
 
-loadCategory().catch(() => {
+loadCategory().catch((error) => {
+  console.error('Não foi possível carregar a categoria da loja:', error);
   document.getElementById('category-empty').hidden = false;
 });

@@ -1425,6 +1425,42 @@ body {
   background: linear-gradient(135deg, #1a7a3c 0%, #0f5a2c 100%);
 }
 
+.tag-department {
+  background: linear-gradient(135deg, #334155 0%, #475569 100%);
+}
+
+.tag-promotion {
+  background: linear-gradient(135deg, #d97706 0%, #b45309 100%);
+}
+
+.tag-club {
+  background: linear-gradient(135deg, #2563eb 0%, #1d4ed8 100%);
+}
+
+.tag-super {
+  background: linear-gradient(135deg, #7c3aed 0%, #6d28d9 100%);
+}
+
+.product-badges {
+  position: absolute;
+  z-index: 2;
+  top: 10px;
+  right: 46px;
+  left: 10px;
+  display: flex;
+  flex-wrap: wrap;
+  gap: 5px;
+}
+
+.product-badges .tag {
+  position: static;
+  max-width: 100%;
+  overflow: hidden;
+  font-size: 10px;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
 /* Botão de coração (favoritar), flutuando no canto superior direito do card */
 .fav-btn {
   position: absolute;
