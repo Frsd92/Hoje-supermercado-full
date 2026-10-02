@@ -864,6 +864,18 @@ body {
   padding-bottom: 8px;
 }
 
+@media (min-width: 1181px) {
+  .main-content > .offers,
+  .main-content > .vendor-banner,
+  .main-content > .highlight-banner,
+  .main-content > .carousel-section,
+  .main-content > .promo-banner {
+    position: relative;
+    left: calc(30px - 10px - 220px - 12px);
+    width: calc(100vw - 60px);
+  }
+}
+
 @media (max-width: 1180px) {
   .content-wrapper {
     flex-direction: column;
