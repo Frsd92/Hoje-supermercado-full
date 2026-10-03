@@ -452,6 +452,12 @@ export async function GET(request) {
     const flashProducts = products.map((product) => ({
       id: product.id,
       title: product.title,
+      sku: product.sku || '',
+      barcode: product.barcode || '',
+      barcodes: Array.isArray(product.barcodes) ? product.barcodes : [],
+      categories: Array.isArray(product.categories) ? product.categories : [],
+      department: product.department || '',
+      subcategory: product.subcategory || '',
       price: Number(product.price) || 0,
       promotionalPrice: product.promotionalPrice || 0,
       discount: product.discount || 0,

@@ -1,7 +1,8 @@
 'use client';
 
-import { CalendarClock, Clock3, Search, Zap } from 'lucide-react';
+import { CalendarClock, Clock3, ExternalLink, Search, Zap } from 'lucide-react';
 import { useEffect, useMemo, useState } from 'react';
+import { matchesProductSearch } from '../api/product-search.js';
 import styles from './flash-offers-page.module.css';
 
 function formatCurrency(value) {
@@ -21,6 +22,28 @@ function formatDateTime(value) {
   if (!value) return 'Não definido';
   const date = new Date(value);
   return Number.isNaN(date.getTime()) ? 'Não definido' : date.toLocaleString('pt-BR');
+}
+
+function formatCompactDateTime(value) {
+  if (!value) return '';
+  const date = new Date(value);
+  return Number.isNaN(date.getTime())
+    ? ''
+    : date.toLocaleString('pt-BR', { day: '2-digit', month: '2-digit', hour: '2-digit', minute: '2-digit' });
+}
+
+function getOfferState(product) {
+  return product.flashOfferEnabled ? product.flashOfferStatus : 'disabled';
+}
+
+function getOfferWindowLabel(product) {
+  if (!product.flashOfferEnabled) return '';
+  if (product.flashOfferStatus === 'active') return `Até ${formatCompactDateTime(product.flashOfferEnd)}`;
+  if (product.flashOfferStatus === 'scheduled') {
+    return `De ${formatCompactDateTime(product.flashOfferStart)} a ${formatCompactDateTime(product.flashOfferEnd)}`;
+  }
+  if (product.flashOfferStatus === 'expired') return `Encerrou ${formatCompactDateTime(product.flashOfferEnd)}`;
+  return '';
 }
 
 function toDateTimeLocal(value) {
@@ -67,6 +90,7 @@ export default function FlashOffersPage() {
   const [products, setProducts] = useState([]);
   const [selectedId, setSelectedId] = useState('');
   const [search, setSearch] = useState('');
+  const [offerFilter, setOfferFilter] = useState('all');
   const [flashPrice, setFlashPrice] = useState('');
   const [startsAt, setStartsAt] = useState('');
   const [endsAt, setEndsAt] = useState('');
@@ -99,23 +123,37 @@ export default function FlashOffersPage() {
 
   const selectedProduct = products.find((product) => String(product.id) === selectedId);
   const filteredProducts = useMemo(() => {
-    const query = search.trim().toLocaleLowerCase('pt-BR');
     const statusPriority = { active: 0, scheduled: 1, expired: 2, invalid: 3, disabled: 4 };
     return products
-      .filter((product) => !query || String(product.title || '').toLocaleLowerCase('pt-BR').includes(query))
+      .filter((product) => (
+        (offerFilter === 'all' || getOfferState(product) === offerFilter)
+        && matchesProductSearch(product, search)
+      ))
       .sort((first, second) => (
-        (statusPriority[first.flashOfferEnabled ? first.flashOfferStatus : 'disabled'] ?? 4)
-        - (statusPriority[second.flashOfferEnabled ? second.flashOfferStatus : 'disabled'] ?? 4)
+        (statusPriority[getOfferState(first)] ?? 4)
+        - (statusPriority[getOfferState(second)] ?? 4)
         || String(first.title).localeCompare(String(second.title), 'pt-BR')
       ));
-  }, [products, search]);
+  }, [offerFilter, products, search]);
 
-  const totals = products.reduce((result, product) => {
-    if (product.flashOfferEnabled && product.flashOfferStatus === 'active') result.active += 1;
-    if (product.flashOfferEnabled && product.flashOfferStatus === 'scheduled') result.scheduled += 1;
-    if (product.flashOfferEnabled && product.flashOfferStatus === 'expired') result.expired += 1;
+  const totals = useMemo(() => products.reduce((result, product) => {
+    const state = getOfferState(product);
+    if (result[state] !== undefined) result[state] += 1;
     return result;
-  }, { active: 0, scheduled: 0, expired: 0 });
+  }, { active: 0, scheduled: 0, expired: 0, invalid: 0, disabled: 0 }), [products]);
+  const filterOptions = [
+    { value: 'all', label: 'Todos', count: products.length },
+    { value: 'active', label: 'Ativas', count: totals.active },
+    { value: 'scheduled', label: 'Agendadas', count: totals.scheduled },
+    { value: 'expired', label: 'Encerradas', count: totals.expired },
+    { value: 'invalid', label: 'Revisar', count: totals.invalid },
+    { value: 'disabled', label: 'Sem oferta', count: totals.disabled },
+  ];
+  const hasActiveFilters = search.trim() || offerFilter !== 'all';
+  const clearFilters = () => {
+    setSearch('');
+    setOfferFilter('all');
+  };
 
   useEffect(() => {
     if (!selectedProduct) return;
@@ -182,6 +220,11 @@ export default function FlashOffersPage() {
         <h1>Ofertas Relâmpago</h1>
         <p>Agende um preço especial por produto. Ao terminar o período, o preço de venda volta automaticamente ao valor regular.</p>
       </div>
+      <div className={styles.headerActions}>
+        <a className={styles.storePreviewLink} href="/categoria.html?categoria=ofertas-relampago" target="_blank" rel="noreferrer">
+          <ExternalLink size={16} aria-hidden="true" /> Ver vitrine da Loja
+        </a>
+      </div>
     </div>
 
     <div className={styles.summary} aria-label="Resumo das ofertas relâmpago">
@@ -195,16 +238,42 @@ export default function FlashOffersPage() {
     <div className={styles.managerGrid}>
       <section className={`editor-card ${styles.productPanel}`} aria-labelledby="flash-products-title">
         <div className={styles.panelHeading}>
-          <div><h2 id="flash-products-title">Produtos</h2><p>Escolha um produto para configurar ou acompanhar uma oferta.</p></div>
-          <span className={styles.resultCount}>{filteredProducts.length}</span>
+          <div><h2 id="flash-products-title">Produtos e ofertas</h2><p>Confira os preços e períodos ativos ou agendados, ou escolha um produto para configurar.</p></div>
+          <span className={styles.resultCount} aria-label={`${filteredProducts.length} produtos exibidos`}>{filteredProducts.length}</span>
         </div>
-        <label className={styles.search}>
+        <label className={styles.search} htmlFor="flash-products-search">
           <Search size={17} aria-hidden="true" />
-          <span className={styles.visuallyHidden}>Buscar produto</span>
-          <input value={search} onChange={(event) => setSearch(event.target.value)} placeholder="Buscar produto pelo nome" />
+          <span className={styles.visuallyHidden}>Buscar por nome, código de barras, SKU, categoria ou departamento</span>
+          <input
+            id="flash-products-search"
+            type="search"
+            value={search}
+            onChange={(event) => setSearch(event.target.value)}
+            placeholder="Nome, código de barras, SKU, categoria ou departamento"
+            autoComplete="off"
+          />
         </label>
+        <div className={styles.filterGroup} role="group" aria-label="Filtrar produtos pelo status da oferta">
+          {filterOptions.map((filter) => <button
+            key={filter.value}
+            className={styles.filterButton}
+            type="button"
+            aria-pressed={offerFilter === filter.value}
+            onClick={() => setOfferFilter(filter.value)}
+          >
+            {filter.label}<span>{filter.count}</span>
+          </button>)}
+        </div>
+        <div className={styles.resultsSummary}>
+          <span role="status" aria-live="polite">
+            {filteredProducts.length} {filteredProducts.length === 1 ? 'produto exibido' : 'produtos exibidos'}
+            {hasActiveFilters ? ` de ${products.length}` : ''}
+          </span>
+          {hasActiveFilters && <button type="button" className={styles.clearFilters} onClick={clearFilters}>Limpar filtros</button>}
+        </div>
         <div className={styles.productList} aria-label="Produtos disponíveis">
-          {loading ? <p className={styles.emptyState}>Carregando produtos...</p>
+          {loading ? <p className={styles.emptyState} role="status">Carregando produtos...</p>
+            : !products.length ? <p className={styles.emptyState}>Nenhum produto cadastrado para configurar uma oferta.</p>
             : filteredProducts.length ? filteredProducts.map((product) => (
               <button
                 key={product.id}
@@ -215,11 +284,18 @@ export default function FlashOffersPage() {
               >
                 <span className={styles.productName}>{product.title}</span>
                 <span className={styles.productMeta}>
-                  <span>{formatCurrency(getRegularPrice(product))}</span>
+                  <span className={styles.productPrices}>
+                    <span className={styles.regularPrice}>Regular: {formatCurrency(getRegularPrice(product))}{product.saleUnit === 'Quilograma' ? ' / kg' : ''}</span>
+                    {product.flashOfferEnabled && <strong className={styles.flashPrice}>Relâmpago: {formatCurrency(product.flashOfferPrice)}{product.saleUnit === 'Quilograma' ? ' / kg' : ''}</strong>}
+                    {getOfferWindowLabel(product) && <span className={styles.offerWindow}>{getOfferWindowLabel(product)}</span>}
+                  </span>
                   <span className={`${styles.status} ${getStatusClass(product)}`}>{getStatusLabel(product)}</span>
                 </span>
               </button>
-            )) : <p className={styles.emptyState}>Nenhum produto encontrado para esta busca.</p>}
+            )) : <div className={styles.emptyState}>
+              <p>Nenhum produto corresponde aos filtros selecionados.</p>
+              <button className={styles.clearFilters} type="button" onClick={clearFilters}>Limpar filtros</button>
+            </div>}
         </div>
       </section>
 
@@ -229,6 +305,9 @@ export default function FlashOffersPage() {
             <div><h2 id="flash-editor-title">{selectedProduct.title}</h2><p>Configure o preço e a janela de validade da oferta.</p></div>
             <Zap className={styles.headingIcon} size={22} aria-hidden="true" />
           </div>
+          {!filteredProducts.some((product) => String(product.id) === selectedId) && <p className={styles.selectionContext} role="note">
+            Este produto permanece selecionado, mas está fora dos filtros aplicados à lista.
+          </p>}
           <div className={styles.priceSummary}>
             <span>Preço de venda fora da oferta</span>
             <strong>{formatCurrency(getRegularPrice(selectedProduct))}{selectedProduct.saleUnit === 'Quilograma' ? ' / kg' : ''}</strong>
@@ -279,6 +358,5 @@ export default function FlashOffersPage() {
         </> : <div className={styles.emptyState}>{loading ? 'Carregando produtos...' : 'Selecione um produto para configurar a oferta.'}</div>}
       </section>
     </div>
-    <p className={styles.storeLink}><a href="/categoria.html?categoria=ofertas-relampago" target="_blank" rel="noreferrer">Abrir a vitrine de Ofertas Relâmpago da Loja</a></p>
   </div>;
 }

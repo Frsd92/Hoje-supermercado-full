@@ -1,6 +1,7 @@
 'use client';
 
 import styles from '../pages/expiry-page.module.css';
+import { matchesProductSearch } from '../api/product-search.js';
 
 export const emptyLotForm = {
   productId: '',
@@ -36,6 +37,10 @@ export default function InventoryLotFormFields({
   lotForm,
   setLotForm,
   selectedProduct,
+  selectableProducts = products,
+  productSearch,
+  onProductSearchChange,
+  searchResultCount,
   effectiveExpiry,
   editingLot = false,
   formError = '',
@@ -50,11 +55,33 @@ export default function InventoryLotFormFields({
   };
 
   return <>
+    {onProductSearchChange && <label className={styles.formWide}>
+      Buscar produto
+      <input
+        type="search"
+        value={productSearch}
+        onChange={(event) => onProductSearchChange(event.target.value)}
+        placeholder="Nome, código de barras, SKU, categoria ou departamento"
+        autoComplete="off"
+        aria-describedby="register-lot-product-search-results"
+      />
+      <small id="register-lot-product-search-results" role="status" aria-live="polite">
+        {searchResultCount} {searchResultCount === 1 ? 'produto encontrado' : 'produtos encontrados'}
+        {searchResultCount === 0 && lotForm.productId ? '. O produto selecionado continua disponível.' : '.'}
+      </small>
+    </label>}
     <label className={styles.formWide}>
       Produto
       <select value={lotForm.productId} onChange={selectProduct} required disabled={Boolean(editingLot)}>
         <option value="">Selecione um produto</option>
-        {products.map((product) => <option key={product.id} value={product.id}>{product.title} · {product.sku || product.externalId}</option>)}
+        {selectableProducts.map((product) => {
+          const isSelectedOutsideResults = String(product.id) === lotForm.productId
+            && productSearch?.trim()
+            && !matchesProductSearch(product, productSearch);
+          return <option key={product.id} value={product.id}>
+            {isSelectedOutsideResults ? 'Produto selecionado · ' : ''}{product.title} · {product.sku || product.externalId}
+          </option>;
+        })}
       </select>
       {selectedProduct && <small>Saldo agregado atual: {Number(selectedProduct.quantity || 0).toLocaleString('pt-BR', { maximumFractionDigits: 3 })} {selectedProduct.saleUnit}</small>}
     </label>
