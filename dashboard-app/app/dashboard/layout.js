@@ -3,7 +3,7 @@
 import Link from 'next/link';
 import { usePathname } from 'next/navigation';
 import { signOut, useSession } from 'next-auth/react';
-import { useEffect, useMemo, useRef, useState } from 'react';
+import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { adjustCartQuantity, formatCartQuantity, getCartItemCount, normalizeCartItems } from './cart-utils';
 import {
   DEFAULT_PAYMENT_METHOD,
@@ -37,15 +37,28 @@ import {
   Menu,
 } from 'lucide-react';
 
-const navItems = [
-  { label: 'Início', href: '/dashboard', icon: Home },
-  { label: 'Perfil', href: '/dashboard/profile', icon: UserRound },
-  { label: 'Endereços', href: '/dashboard/addresses', icon: MapPin },
-  { label: 'Formas de pagamento', href: '/dashboard/payment-methods', icon: CreditCard },
-  { label: 'Favoritos', href: '/dashboard/favorites', icon: Star },
-  { label: 'Meus Pedidos', href: '/dashboard/orders', icon: ShoppingBag },
-  { label: 'Orçamento', href: '/dashboard/budget', icon: CircleDollarSign },
-  { label: 'Configurações', href: '/dashboard/settings', icon: Settings },
+const navigationGroups = [
+  {
+    label: 'Visão geral',
+    items: [{ label: 'Início', href: '/dashboard', icon: Home }],
+  },
+  {
+    label: 'Minhas compras',
+    items: [
+      { label: 'Meus Pedidos', href: '/dashboard/orders', icon: ShoppingBag },
+      { label: 'Favoritos', href: '/dashboard/favorites', icon: Star },
+      { label: 'Orçamento', href: '/dashboard/budget', icon: CircleDollarSign },
+    ],
+  },
+  {
+    label: 'Minha conta',
+    items: [
+      { label: 'Perfil', href: '/dashboard/profile', icon: UserRound },
+      { label: 'Endereços', href: '/dashboard/addresses', icon: MapPin },
+      { label: 'Formas de pagamento', href: '/dashboard/payment-methods', icon: CreditCard },
+      { label: 'Configurações', href: '/dashboard/settings', icon: Settings },
+    ],
+  },
 ];
 
 const deliveryAddressStorageKey = (email) => `hoje-dashboard-delivery-address-${email || 'guest'}`;
@@ -99,12 +112,24 @@ export default function DashboardLayout({ children }) {
   const [notifications, setNotifications] = useState([]);
   const [notificationsOpen, setNotificationsOpen] = useState(false);
   const [mobileNavOpen, setMobileNavOpen] = useState(false);
+  const mobileNavToggleRef = useRef(null);
   const cpfNoteDialogRef = useRef(null);
   const cpfNoteNoButtonRef = useRef(null);
+  const cartPanelRef = useRef(null);
+  const cartOpenerRef = useRef(null);
   const cartItemsRef = useRef([]);
   const cartWriteQueueRef = useRef(Promise.resolve());
   const savedAddressesRef = useRef([]);
   const searchProductsLoadedRef = useRef(false);
+  const openCart = useCallback(() => {
+    cartOpenerRef.current = document.activeElement instanceof HTMLElement ? document.activeElement : null;
+    setCartOpen(true);
+    setCheckoutStatus('');
+  }, []);
+  const closeCart = useCallback(() => {
+    setCartOpen(false);
+    window.requestAnimationFrame(() => cartOpenerRef.current?.focus());
+  }, []);
 
   useEffect(() => {
     const dialog = cpfNoteDialogRef.current;
@@ -143,6 +168,52 @@ export default function DashboardLayout({ children }) {
   useEffect(() => {
     setMobileNavOpen(false);
   }, [pathname]);
+
+  useEffect(() => {
+    if (!mobileNavOpen) return undefined;
+    const closeOnEscape = (event) => {
+      if (event.key !== 'Escape') return;
+      setMobileNavOpen(false);
+      mobileNavToggleRef.current?.focus();
+    };
+    window.addEventListener('keydown', closeOnEscape);
+    return () => window.removeEventListener('keydown', closeOnEscape);
+  }, [mobileNavOpen]);
+
+  useEffect(() => {
+    if (!cartOpen) return undefined;
+    const panel = cartPanelRef.current;
+    const closeButton = panel?.querySelector('.cart-close');
+    const focusableElements = () => Array.from(panel?.querySelectorAll(
+      'a[href], button:not([disabled]), input:not([disabled]), select:not([disabled]), textarea:not([disabled])',
+    ) || []).filter((element) => element.getClientRects().length > 0);
+    closeButton?.focus();
+    const handleDialogKeys = (event) => {
+      if (cpfNoteDialogRef.current?.open) return;
+      if (event.key === 'Escape') {
+        event.preventDefault();
+        closeCart();
+        return;
+      }
+      if (event.key !== 'Tab') return;
+      const focusable = focusableElements();
+      if (!focusable.length) {
+        event.preventDefault();
+        panel?.focus();
+        return;
+      }
+      const currentIndex = focusable.indexOf(document.activeElement);
+      if (event.shiftKey && currentIndex <= 0) {
+        event.preventDefault();
+        focusable[focusable.length - 1].focus();
+      } else if (!event.shiftKey && (currentIndex === focusable.length - 1 || currentIndex === -1)) {
+        event.preventDefault();
+        focusable[0].focus();
+      }
+    };
+    window.addEventListener('keydown', handleDialogKeys);
+    return () => window.removeEventListener('keydown', handleDialogKeys);
+  }, [cartOpen, closeCart]);
 
   useEffect(() => {
     const colorScheme = window.matchMedia('(prefers-color-scheme: light)');
@@ -364,8 +435,7 @@ export default function DashboardLayout({ children }) {
     window.addEventListener('pageshow', refreshCartWhenVisible);
     document.addEventListener('visibilitychange', refreshCartWhenVisible);
     const handleOpenCart = () => {
-      setCartOpen(true);
-      setCheckoutStatus('');
+      openCart();
     };
     window.addEventListener('dashboard-open-cart', handleOpenCart);
     const handleShortcut = (event) => {
@@ -385,7 +455,7 @@ export default function DashboardLayout({ children }) {
       document.removeEventListener('visibilitychange', refreshCartWhenVisible);
       window.removeEventListener('dashboard-open-cart', handleOpenCart);
     };
-  }, [session?.user?.email]);
+  }, [session?.user?.email, openCart]);
 
   useEffect(() => {
     if (!searchFocused || searchProductsLoadedRef.current) return;
@@ -660,11 +730,12 @@ export default function DashboardLayout({ children }) {
 
   return (
     <div className="dashboard-shell" data-dashboard-theme={theme}>
-      <aside className="sidebar">
+      <a className="dashboard-skip-link" href="#dashboard-main-content">Pular para o conteúdo principal</a>
+      <aside className="sidebar" aria-label="Painel do cliente">
         <div>
           <div className="brand-wrap">
             <div className="brand-mark">
-              <img src="/logo-hj.webp" alt="Hoje Supermercado" />
+              <img src="/logo-hj.webp" alt="" />
             </div>
             <div>
               <p className="brand-kicker">Cliente</p>
@@ -673,7 +744,9 @@ export default function DashboardLayout({ children }) {
             <button
               type="button"
               className="sidebar-menu-toggle"
+              ref={mobileNavToggleRef}
               aria-label={mobileNavOpen ? 'Fechar menu' : 'Abrir menu'}
+              aria-controls="dashboard-primary-navigation"
               aria-expanded={mobileNavOpen}
               onClick={() => setMobileNavOpen((open) => !open)}
             >
@@ -681,19 +754,32 @@ export default function DashboardLayout({ children }) {
             </button>
           </div>
 
-          {mobileNavOpen && <div className="sidebar-nav-backdrop" onClick={() => setMobileNavOpen(false)} />}
+          {mobileNavOpen && <button type="button" className="sidebar-nav-backdrop" aria-label="Fechar navegação" onClick={() => { setMobileNavOpen(false); mobileNavToggleRef.current?.focus(); }} />}
 
-          <nav className={`sidebar-nav ${mobileNavOpen ? 'mobile-open' : ''}`}>
-            {navItems.map(({ label, href, icon: Icon }) => {
-              const active = pathname === href || (href !== '/dashboard' && pathname.startsWith(href));
+          <nav id="dashboard-primary-navigation" className={`sidebar-nav ${mobileNavOpen ? 'mobile-open' : ''}`} aria-label="Navegação principal do cliente">
+            {navigationGroups.map(({ label, items }) => (
+              <div key={label} className="sidebar-nav-group">
+                <span className="sidebar-nav-group-label">{label}</span>
+                <div className="sidebar-nav-group-items">
+                  {items.map(({ label: itemLabel, href, icon: Icon }) => {
+                    const active = pathname === href || (href !== '/dashboard' && pathname.startsWith(href));
 
-              return (
-                <Link key={label} href={href} className={`sidebar-item ${active ? 'active' : ''}`} onClick={() => setMobileNavOpen(false)}>
-                  <Icon size={18} />
-                  <span>{label}</span>
-                </Link>
-              );
-            })}
+                    return (
+                      <Link
+                        key={itemLabel}
+                        href={href}
+                        className={`sidebar-item ${active ? 'active' : ''}`}
+                        aria-current={active ? 'page' : undefined}
+                        onClick={() => setMobileNavOpen(false)}
+                      >
+                        <Icon size={18} aria-hidden="true" />
+                        <span>{itemLabel}</span>
+                      </Link>
+                    );
+                  })}
+                </div>
+              </div>
+            ))}
           </nav>
         </div>
 
@@ -711,7 +797,7 @@ export default function DashboardLayout({ children }) {
             </div>
           </div>
 
-          <button className="signout-btn" onClick={() => signOut({ callbackUrl: '/login' })}>
+          <button type="button" className="signout-btn" onClick={() => signOut({ callbackUrl: '/login' })}>
             <span style={{ display: 'inline-flex', alignItems: 'center', gap: 8 }}>
               <LogOut size={16} />
               Sair
@@ -733,7 +819,9 @@ export default function DashboardLayout({ children }) {
                   onFocus={() => setSearchFocused(true)}
                   onBlur={() => window.setTimeout(() => setSearchFocused(false), 120)}
                   placeholder="Buscar produtos, categorias e ofertas"
-                  aria-label="Buscar"
+                  aria-label="Buscar produtos"
+                  aria-controls="dashboard-product-search-results"
+                  aria-expanded={searchFocused}
                 />
                 {search ? (
                   <button type="button" className="search-clear" aria-label="Limpar busca" onMouseDown={(event) => event.preventDefault()} onClick={() => setSearch('')}>
@@ -742,7 +830,7 @@ export default function DashboardLayout({ children }) {
                 ) : <kbd>Ctrl K</kbd>}
 
                 {searchFocused && (
-                  <div className={`search-suggestions ${searchResults.length >= 7 ? 'has-many-results' : ''}`}>
+                  <div id="dashboard-product-search-results" className={`search-suggestions ${searchResults.length >= 7 ? 'has-many-results' : ''}`} role="region" aria-label="Resultados e sugestões de produtos">
                     {search.trim() ? (
                       <>
                         <div className="search-suggestions-heading">
@@ -825,19 +913,19 @@ export default function DashboardLayout({ children }) {
             </div>
 
             <div className="top-icons">
-              <button className="dashboard-cart-button" type="button" aria-label={`Carrinho com ${cartCount} itens`} onClick={() => { setCartOpen(true); setCheckoutStatus(''); }}>
+              <button className="dashboard-cart-button" type="button" aria-label={`Carrinho com ${cartCount} ${cartCount === 1 ? 'item' : 'itens'}`} onClick={openCart}>
                 <ShoppingCart size={18} />
                 <span className="dashboard-cart-count">{cartCount}</span>
               </button>
-              <Link href="/dashboard/favorites" className="icon-button favorites-icon-button" aria-label={`Favoritos, ${favoritesCount ?? 0} itens salvos`} title={`Favoritos (${favoritesCount ?? 0})`}>
+              <Link href="/dashboard/favorites" className="icon-button favorites-icon-button" aria-label={favoritesCount === null ? 'Favoritos, carregando quantidade de itens salvos' : `Favoritos, ${favoritesCount} itens salvos`} title={`Favoritos (${favoritesCount ?? 0})`}>
                 <Star size={18} />
                 <span className="favorites-icon-count">{favoritesCount === null ? '…' : favoritesCount > 99 ? '99+' : favoritesCount}</span>
               </Link>
-              <button className="icon-button notification-button" aria-label="Abrir notificações" onClick={() => setNotificationsOpen((current) => !current)}>
+              <button className="icon-button notification-button" type="button" aria-label={`Notificações${notificationCount ? `, ${notificationCount} não lidas` : ''}`} aria-expanded={notificationsOpen} aria-controls="dashboard-notification-inbox" onClick={() => setNotificationsOpen((current) => !current)}>
                 <Bell size={18} />
                 {notificationCount > 0 && <span className="notification-count">{notificationCount > 9 ? '9+' : notificationCount}</span>}
               </button>
-              {notificationsOpen && <div className="notification-inbox"><div className="notification-inbox-header"><div><strong>Notificações</strong><small>{notificationCount ? `${notificationCount} não lida(s)` : 'Tudo em dia'}</small></div><button type="button" aria-label="Fechar notificações" onClick={() => setNotificationsOpen(false)}><X size={15} /></button></div>{notifications.length ? <div className="notification-inbox-list">{notifications.map((notification) => { const seen = JSON.parse(localStorage.getItem(`hoje-notifications-seen-${session?.user?.email}`) || '[]').includes(notification.id); return <button type="button" key={notification.id} className={`notification-inbox-item ${seen ? 'is-read' : 'is-unread'}`} onClick={() => markNotificationRead(notification.id)}><span className="notification-inbox-dot" /><span><strong>{notification.title}</strong><small>{notification.message}</small><em>{notification.durationDays ? `${notification.durationDays} dias` : 'Mensagem ativa'}</em></span></button>; })}</div> : <div className="notification-inbox-empty"><Bell size={20} /><span>Nenhuma mensagem disponível.</span></div>}</div>}
+              {notificationsOpen && <div id="dashboard-notification-inbox" className="notification-inbox" role="region" aria-label="Notificações"><div className="notification-inbox-header"><div><strong>Notificações</strong><small>{notificationCount ? `${notificationCount} não lida(s)` : 'Tudo em dia'}</small></div><button type="button" aria-label="Fechar notificações" onClick={() => setNotificationsOpen(false)}><X size={15} /></button></div>{notifications.length ? <div className="notification-inbox-list">{notifications.map((notification) => { const seen = JSON.parse(localStorage.getItem(`hoje-notifications-seen-${session?.user?.email}`) || '[]').includes(notification.id); return <button type="button" key={notification.id} className={`notification-inbox-item ${seen ? 'is-read' : 'is-unread'}`} onClick={() => markNotificationRead(notification.id)}><span className="notification-inbox-dot" /><span><strong>{notification.title}</strong><small>{notification.message}</small><em>{notification.durationDays ? `${notification.durationDays} dias` : 'Mensagem ativa'}</em></span></button>; })}</div> : <div className="notification-inbox-empty"><Bell size={20} /><span>Nenhuma mensagem disponível.</span></div>}</div>}
               <button
                 className="icon-button theme-toggle"
                 type="button"
@@ -856,6 +944,7 @@ export default function DashboardLayout({ children }) {
               <button
                 type="button"
                 className="topbar-delivery-address"
+                aria-controls="dashboard-delivery-address-menu"
                 aria-expanded={deliveryAddressOpen}
                 aria-label={selectedDeliveryAddress ? `Endereço de entrega: ${getAddressHeading(selectedDeliveryAddress)}` : 'Escolher endereço de entrega'}
                 onClick={() => setDeliveryAddressOpen((open) => !open)}
@@ -868,7 +957,7 @@ export default function DashboardLayout({ children }) {
                 <ChevronDown size={16} />
               </button>
               {deliveryAddressOpen && (
-                <div className="delivery-address-menu">
+                <div id="dashboard-delivery-address-menu" className="delivery-address-menu">
                   {addressLoadError ? (
                     <span className="delivery-address-menu-empty" role="alert">{addressLoadError}</span>
                   ) : addressesLoading ? (
@@ -901,14 +990,14 @@ export default function DashboardLayout({ children }) {
           </div>
         </header>
 
-        <div className="page-container dashboard-page">
+        <div className="page-container dashboard-page" id="dashboard-main-content" tabIndex="-1">
           {children}
         </div>
       </main>
 
-      {cartOpen && <div className="cart-backdrop open" onMouseDown={() => setCartOpen(false)}>
-        <aside className="cart-panel open" onMouseDown={(event) => event.stopPropagation()}>
-          <div className="cart-panel-header"><div className="cart-panel-title-wrap"><span className="cart-panel-icon"><ShoppingCart size={18} /></span><h3 id="cart-panel-title">Meu Carrinho ({cartCount} {cartCount === 1 ? 'item' : 'itens'})</h3></div><button type="button" className="cart-close" aria-label="Fechar carrinho" onClick={() => setCartOpen(false)}>×</button></div>
+      {cartOpen && <div className="cart-backdrop open" onMouseDown={(event) => { if (event.target === event.currentTarget) closeCart(); }}>
+        <aside ref={cartPanelRef} tabIndex="-1" className="cart-panel open" role="dialog" aria-modal="true" aria-labelledby="cart-panel-title" onMouseDown={(event) => event.stopPropagation()}>
+          <div className="cart-panel-header"><div className="cart-panel-title-wrap"><span className="cart-panel-icon"><ShoppingCart size={18} /></span><h3 id="cart-panel-title">Meu Carrinho ({cartCount} {cartCount === 1 ? 'item' : 'itens'})</h3></div><button type="button" className="cart-close" aria-label="Fechar carrinho" onClick={closeCart}>×</button></div>
           <p className="cart-subtitle">Revise seus itens antes de finalizar</p>
           <div className="cart-items">{cartItems.length ? cartItems.map((item) => <div className="cart-item" key={item.productId || item.name}><div className="cart-item-thumb">{item.image ? <img src={item.image} alt={item.name} /> : <div className="cart-thumb-placeholder" />}</div><div className="cart-item-info"><div className="cart-item-name">{item.name}</div><div className="cart-item-category">{item.category || 'Produtos'}</div><div className="cart-item-price">{item.saleUnit === 'Quilograma' && !String(item.price || '').includes('/kg') ? `${item.price} / kg` : item.price}</div></div><div className="cart-item-controls"><button type="button" aria-label={`Diminuir ${item.saleUnit === 'Quilograma' ? '100 gramas' : 'quantidade'} de ${item.name}`} onClick={() => changeCartQuantity(item, -1)}><Minus size={16} /></button><span className="cart-item-qty">{formatCartQuantity(item)}</span><button type="button" aria-label={`Aumentar ${item.saleUnit === 'Quilograma' ? '100 gramas' : 'quantidade'} de ${item.name}`} onClick={() => changeCartQuantity(item, 1)}><Plus size={16} /></button></div><button type="button" className="cart-item-remove" aria-label={`Remover ${item.name}`} onClick={() => removeCartItem(item)}><Trash2 size={16} /></button></div>) : <div className="cart-empty"><ShoppingCart size={28} /><strong>Seu carrinho está vazio</strong></div>}</div>
           <form className="cart-panel-footer" onSubmit={finishPurchase}>
