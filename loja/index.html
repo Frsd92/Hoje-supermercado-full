@@ -258,7 +258,7 @@
       </section>
 
       <!-- Carrossel automático de logos de marcas (lista duplicada = efeito de loop infinito) -->
-      <section class="brands">
+      <section class="brands" id="brand-showcase" tabindex="-1">
         <h3>Marcas em destaque</h3>
         <div class="brands-carousel">
           <div class="brands-track">
@@ -1520,17 +1520,24 @@
     </main>
 
     <!-- ----- Coluna 3: Painel lateral direito (vitrine, ofertas, app, pedidos, ajuda) ----- -->
-    <aside class="right-panel">
+    <aside class="right-panel" aria-label="Promoções e atalhos da loja">
+      <section class="panel-box panel-dark panel-brand" aria-labelledby="brand-panel-title">
+        <div class="panel-heading-line">
+          <span class="panel-icon-wrap panel-icon-brand"><i data-lucide="store" aria-hidden="true"></i></span>
+          <h2 id="brand-panel-title">Vitrine de Marcas</h2>
+        </div>
+        <p>Sua marca em destaque no Hoje. Anuncie e alcance mais clientes.</p>
+        <a class="panel-cta panel-cta-brand" href="#brand-showcase">Ver exemplos <i data-lucide="arrow-up-right" aria-hidden="true"></i></a>
+      </section>
 
-      <!-- Box de destaque escuro, convidando marcas a anunciar -->
-      <div class="panel-box panel-dark">
-        <strong>Vitrine de Marcas</strong>
-        <p>Sua marca em destaque no Hoje! Anuncie e alcance mais clientes.</p>
-        <button>Saiba mais →</button>
-      </div>
-
-      <div class="panel-box" id="flash-offer-panel">
-        <strong>⚡ Ofertas Relâmpago</strong>
+      <section class="panel-box panel-offer" id="flash-offer-panel" aria-labelledby="flash-offer-title">
+        <div class="panel-heading-line">
+          <span class="panel-icon-wrap panel-icon-offer"><i data-lucide="zap" aria-hidden="true"></i></span>
+          <div class="panel-heading-copy">
+            <span class="panel-eyebrow">Preço por tempo limitado</span>
+            <h2 id="flash-offer-title">Ofertas Relâmpago</h2>
+          </div>
+        </div>
         <p id="flash-offer-message" aria-live="polite">Confira os produtos com preço especial por tempo limitado.</p>
         <div class="countdown" id="flash-offer-countdown" role="timer" aria-live="off" aria-label="Tempo restante até a mudança das ofertas" hidden>
           <span><span data-countdown-days>00</span><small>DIAS</small></span>
@@ -1539,51 +1546,34 @@
           <span><span data-countdown-seconds>00</span><small>SEG</small></span>
         </div>
         <a class="panel-flash-link" id="flash-offer-link" href="categoria.html?categoria=ofertas-relampago" hidden>Ver ofertas ativas</a>
-      </div>
+      </section>
 
-      <!-- Box com selos de download do app (App Store / Google Play) -->
-      <div class="panel-box">
-        <div class="panel-header">
-          <i data-lucide="smartphone" class="panel-icon"></i>
-          <div>
-            <strong>Compre pelo app</strong>
-            <p>Mais praticidade na sua rotina.</p>
-          </div>
+      <section class="panel-box panel-shopping" aria-labelledby="shopping-panel-title">
+        <div class="panel-heading-line">
+          <span class="panel-icon-wrap"><i data-lucide="shopping-basket" aria-hidden="true"></i></span>
+          <h2 id="shopping-panel-title">Comece suas compras</h2>
         </div>
-        <div class="panel-actions">
-          <a href="#"><img src="imagens/app-baixar/apple_store.png" alt="Baixar na App Store" class="store-badge" loading="lazy" decoding="async"></a>
-          <a href="#"><img src="imagens/app-baixar/android_play.webp" alt="Disponível no Google Play" class="store-badge" loading="lazy" decoding="async"></a>
-        </div>
-      </div>
+        <p>Compre direto pela loja online.</p>
+        <a class="panel-cta" href="#store-categories">Explorar categorias <i data-lucide="arrow-up-right" aria-hidden="true"></i></a>
+      </section>
 
-      <!-- Box de acesso rápido aos pedidos do cliente -->
-      <div class="panel-box">
-        <div class="panel-header">
-          <i data-lucide="package" class="panel-icon"></i>
-          <div>
-            <strong>Meus pedidos</strong>
-            <p>Acompanhe seus pedidos de forma fácil e rápida.</p>
-          </div>
+      <section class="panel-box" aria-labelledby="orders-panel-title">
+        <div class="panel-heading-line">
+          <span class="panel-icon-wrap"><i data-lucide="package-check" aria-hidden="true"></i></span>
+          <h2 id="orders-panel-title">Meus pedidos</h2>
         </div>
-        <div class="panel-actions">
-          <button>Acessar meus pedidos →</button>
-        </div>
-      </div>
+        <p>Veja o status dos seus pedidos.</p>
+        <a class="panel-cta" href="/dashboard/orders">Acompanhar pedidos <i data-lucide="arrow-up-right" aria-hidden="true"></i></a>
+      </section>
 
-      <!-- Box de atendimento ao cliente -->
-      <div class="panel-box">
-        <div class="panel-header">
-          <i data-lucide="headphones" class="panel-icon"></i>
-          <div>
-            <strong>Precisa de ajuda?</strong>
-            <p>Fale com a gente.</p>
-          </div>
+      <section class="panel-box" aria-labelledby="help-panel-title">
+        <div class="panel-heading-line">
+          <span class="panel-icon-wrap"><i data-lucide="circle-help" aria-hidden="true"></i></span>
+          <h2 id="help-panel-title">Precisa de ajuda?</h2>
         </div>
-        <div class="panel-actions">
-          <button>Atendimento online</button>
-        </div>
-      </div>
-
+        <p>Gerencie seus dados e endereços.</p>
+        <a class="panel-cta" href="/dashboard">Abrir painel do cliente <i data-lucide="arrow-up-right" aria-hidden="true"></i></a>
+      </section>
     </aside>
 
   </div>

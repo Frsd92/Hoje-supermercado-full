@@ -1819,86 +1819,217 @@ body {
   flex-shrink: 0;
   display: flex;
   flex-direction: column;
-  gap: 15px;
+  gap: 10px;
 }
 
-/* Estilo base de cada "caixinha" do painel lateral */
 .panel-box {
-  border: 1px solid #eee;
-  border-radius: 8px;
-  padding: 18px;
+  min-width: 0;
+  border: 1px solid #e2ebe5;
+  border-radius: 16px;
+  padding: 12px;
+  background: #fff;
   display: flex;
   flex-direction: column;
-  gap: 8px;
+  gap: 7px;
+  box-shadow: 0 8px 20px rgba(15, 42, 27, .045);
+  transition: border-color .18s ease, box-shadow .18s ease, transform .18s ease;
 }
 
-/* Linha com ícone grande + bloco de texto (título/descrição), usada em 3 das caixinhas */
-.panel-header {
+.panel-box:not(.panel-dark):hover {
+  border-color: #c2d9c9;
+  box-shadow: 0 12px 24px rgba(15, 42, 27, .08);
+  transform: translateY(-1px);
+}
+
+.panel-heading-line {
   display: flex;
-  align-items: flex-start;
-  gap: 12px;
+  align-items: center;
+  gap: 10px;
 }
 
-.panel-icon {
-  width: 32px !important; /* !important força vencer a regra geral de 16px dos ícones */
-  height: 32px !important;
-  color: #1a7a3c;
+.panel-icon-wrap {
+  display: grid;
+  width: 30px;
+  height: 30px;
   flex-shrink: 0;
+  place-items: center;
+  border-radius: 10px;
+  background: #eaf6ee;
+  color: #17643a;
+}
+
+.panel-icon-wrap [data-lucide] {
+  width: 18px;
+  height: 18px;
+}
+
+.panel-heading-copy {
+  display: grid;
+  gap: 2px;
+  min-width: 0;
+}
+
+.panel-box h2 {
+  min-width: 0;
+  margin: 0;
+  color: #123c26;
+  font-size: .92rem;
+  font-weight: 850;
+  line-height: 1.25;
+  letter-spacing: -.015em;
+}
+
+.panel-eyebrow {
+  display: inline-flex;
+  align-items: center;
+  gap: 5px;
+  color: #63746a;
+  font-size: .62rem;
+  font-weight: 800;
+  letter-spacing: .055em;
+  line-height: 1.2;
+  text-transform: uppercase;
+}
+
+.panel-eyebrow [data-lucide] {
+  width: 13px;
+  height: 13px;
 }
 
 .panel-box p {
-  font-size: 13px;
-  color: #666;
+  margin: 0;
+  color: #5f6d7a;
+  font-size: .76rem;
+  line-height: 1.45;
 }
 
-.panel-box button {
-  background-color: #1a7a3c;
-  color: white;
-  border: none;
-  padding: 8px 14px;
-  border-radius: 4px;
-  font-size: 13px;
-  cursor: pointer;
-  margin-top: 4px;
-}
-
-/* Variação escura da caixinha (usada na "Vitrine de Marcas") */
-.panel-dark {
-  background-color: #1a7a3c;
-  color: white;
-  border: none;
-}
-
-.panel-dark p {
-  color: #e0f0e5;
-}
-
-.panel-dark button {
-  background-color: #f5c518;
-  color: #1a1a1a;
-  font-weight: bold;
-}
-
-/* Contador regressivo (dias/horas/min/seg) das Ofertas Relâmpago */
-.countdown {
+.panel-cta {
   display: flex;
+  min-width: 0;
+  min-height: 36px;
+  align-items: center;
+  justify-content: space-between;
   gap: 8px;
+  padding: 8px 11px;
+  border: 1px solid #d9eade;
+  border-radius: 10px;
+  background: #f0f8f2;
+  color: #145c32;
+  font-size: .74rem;
+  font-weight: 800;
+  line-height: 1.25;
+  text-decoration: none;
+  transition: background .18s ease, border-color .18s ease, color .18s ease;
+}
+
+.panel-cta [data-lucide] {
+  width: 15px;
+  height: 15px;
+  flex: 0 0 auto;
+}
+
+.panel-cta:hover {
+  border-color: #145c32;
+  background: #145c32;
+  color: #fff;
+}
+
+.panel-cta:focus-visible,
+.panel-flash-link:focus-visible {
+  outline: 3px solid #b18127;
+  outline-offset: 3px;
+}
+
+.panel-dark {
+  border-color: #145c32;
+  background: linear-gradient(135deg, #0d3b22 0%, #17643a 100%);
+  color: white;
+  box-shadow: 0 12px 24px rgba(13, 59, 34, .16);
+}
+
+.panel-dark h2 { color: #fff; }
+.panel-dark p { color: #e0f0e5; }
+.panel-dark .panel-eyebrow { color: #c7efd4; }
+.panel-dark .panel-cta-brand {
+  border-color: #f5c518;
+  background: #f5c518;
+  color: #173d28;
+}
+
+.panel-dark .panel-cta-brand:hover {
+  border-color: #ffe276;
+  background: #ffe276;
+}
+
+.panel-icon-brand {
+  background: rgba(255, 255, 255, .13);
+  color: #ffe48a;
+}
+
+.panel-offer {
+  border-color: #f0dfb7;
+  background: linear-gradient(180deg, #fffdf7 0%, #fff 100%);
+}
+
+.panel-icon-offer {
+  background: #fff0cc;
+  color: #875600;
+}
+
+.countdown {
+  display: grid;
+  grid-template-columns: repeat(4, minmax(0, 1fr));
+  gap: 6px;
 }
 
 .countdown > span {
-  background-color: #1a1a1a;
-  color: white;
-  padding: 8px 10px;
-  border-radius: 4px;
+  display: grid;
+  min-width: 0;
+  justify-items: center;
+  gap: 3px;
+  padding: 7px 3px;
+  border: 1px solid #e7ecdf;
+  border-radius: 9px;
+  background: #f3f7ee;
+  color: #173d28;
   text-align: center;
-  font-weight: bold;
-  font-size: 14px;
-  flex: 1;
+}
+
+.countdown > span > span {
+  font-size: .84rem;
+  font-variant-numeric: tabular-nums;
+  font-weight: 900;
+  line-height: 1;
 }
 
 .countdown small {
-  font-size: 9px;
-  font-weight: normal;
+  color: #64736a;
+  font-size: .52rem;
+  font-weight: 800;
+  letter-spacing: .04em;
+}
+
+.panel-flash-link {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  min-height: 36px;
+  padding: 8px 11px;
+  border: 1px solid #145c32;
+  border-radius: 10px;
+  background: #145c32;
+  color: #fff;
+  font-size: .74rem;
+  font-weight: 800;
+  text-align: center;
+  text-decoration: none;
+  transition: background .18s ease, border-color .18s ease;
+}
+
+.panel-flash-link:hover {
+  border-color: #0d3b22;
+  background: #14532d;
+  color: #fff;
 }
 
 #flash-offer-countdown[hidden],
@@ -1906,47 +2037,9 @@ body {
   display: none;
 }
 
-.panel-flash-link {
-  display: inline-flex;
-  align-items: center;
-  justify-content: center;
-  min-height: 40px;
-  padding: 8px 12px;
-  border-radius: 6px;
-  background: #1a7a3c;
-  color: #fff;
-  font-size: 13px;
-  font-weight: 700;
-  text-align: center;
-  text-decoration: none;
-}
-
-.panel-flash-link:hover,
-.panel-flash-link:focus-visible {
-  background: #14532d;
-  color: #fff;
-}
-
 .tag-flash-offer {
   background: #b91c1c;
   color: #fff;
-}
-
-/* Alinha os botões/selos com o texto (não com o ícone) nas caixinhas com panel-header */
-.panel-actions {
-  display: flex;
-  flex-direction: column;
-  gap: 8px;
-  margin-left: 44px; /* largura do ícone (32px) + espaço entre ícone e texto (12px) */
-}
-
-/* Selos de "Baixar na App Store" / "Disponível no Google Play", com tamanho fixo idêntico */
-.store-badge {
-  width: 160px;
-  height: 48px;
-  object-fit: contain;
-  object-position: center;
-  display: block;
 }
 
 /* ===================================================== */
@@ -3796,6 +3889,61 @@ body {
   .brands-track {
     animation: none;
     transform: none;
+  }
+
+  .panel-box,
+  .panel-cta,
+  .panel-flash-link {
+    transition: none;
+  }
+
+  .panel-box:not(.panel-dark):hover {
+    transform: none;
+  }
+}
+
+@media (min-width: 641px) and (max-width: 1180px) {
+  .right-panel {
+    width: 100%;
+    min-width: 0;
+    display: grid;
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+    align-items: start;
+    gap: 12px;
+  }
+
+  .panel-offer {
+    grid-column: 1 / -1;
+  }
+}
+
+@media (max-width: 640px) {
+  .right-panel {
+    width: 100%;
+    min-width: 0;
+    display: grid;
+    grid-template-columns: minmax(0, 1fr);
+    gap: 8px;
+  }
+
+  .panel-box {
+    padding: 12px;
+    gap: 7px;
+    border-radius: 14px;
+  }
+
+  .panel-heading-line {
+    gap: 8px;
+  }
+
+  .panel-icon-wrap {
+    width: 30px;
+    height: 30px;
+  }
+
+  .panel-cta,
+  .panel-flash-link {
+    min-height: 40px;
   }
 }
 
