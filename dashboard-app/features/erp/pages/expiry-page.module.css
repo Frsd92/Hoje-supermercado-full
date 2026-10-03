@@ -699,6 +699,124 @@
   font-weight: 500;
 }
 
+.productSearchResults {
+  display: grid;
+  gap: 5px;
+  max-height: 320px;
+  overflow-y: auto;
+  overscroll-behavior: contain;
+  padding: 5px;
+  border: 1px solid #dce6de;
+  border-radius: 10px;
+  background: #fff;
+}
+
+.productSearchResult {
+  display: grid;
+  gap: 4px;
+  width: 100%;
+  min-height: 58px;
+  padding: 9px 11px;
+  border: 1px solid transparent;
+  border-radius: 8px;
+  background: #f8fbf8;
+  color: #25362b;
+  cursor: pointer;
+  text-align: left;
+}
+
+.productSearchResult:hover,
+.productSearchResult:focus-visible {
+  border-color: #79a78a;
+  background: #f0f8f2;
+  outline: 2px solid rgb(56 132 86 / 14%);
+  outline-offset: 1px;
+}
+
+.productSearchResultName {
+  font-size: 0.83rem;
+  font-weight: 750;
+  line-height: 1.35;
+  overflow-wrap: anywhere;
+}
+
+.productSearchResultMeta {
+  color: #6c7a70;
+  font-size: 0.7rem;
+  font-weight: 500;
+  line-height: 1.4;
+  overflow-wrap: anywhere;
+}
+
+.productSearchEmpty {
+  margin: 0;
+  padding: 12px;
+  color: #6c7a70;
+  font-size: 0.78rem;
+  line-height: 1.5;
+}
+
+.selectedProductSummary {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 14px;
+  padding: 12px;
+  border: 1px solid #cfe3d4;
+  border-radius: 10px;
+  background: #f3faf4;
+}
+
+.selectedProductDetails {
+  display: grid;
+  min-width: 0;
+  gap: 4px;
+}
+
+.selectedProductLabel {
+  color: #38734b;
+  font-size: 0.68rem;
+  font-weight: 800;
+  letter-spacing: 0.04em;
+  text-transform: uppercase;
+}
+
+.selectedProductDetails strong {
+  color: #25362b;
+  font-size: 0.85rem;
+  overflow-wrap: anywhere;
+}
+
+.selectedProductDetails small {
+  color: #6c7a70;
+  font-size: 0.7rem;
+  line-height: 1.4;
+  overflow-wrap: anywhere;
+}
+
+.changeProductButton {
+  flex: 0 0 auto;
+  min-height: 36px;
+  padding: 0 10px;
+  border: 1px solid #b8cabb;
+  border-radius: 8px;
+  background: #fff;
+  color: #1e5132;
+  cursor: pointer;
+  font: inherit;
+  font-size: 0.75rem;
+  font-weight: 750;
+}
+
+.changeProductButton:hover {
+  background: #f5faf6;
+}
+
+.changeProductButton:focus-visible {
+  outline: 3px solid rgb(56 132 86 / 25%);
+  outline-offset: 2px;
+}
+
 .expiryModeFieldset {
   min-width: 0;
   margin: 0;

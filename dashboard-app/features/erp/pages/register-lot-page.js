@@ -18,6 +18,27 @@ export default function RegisterLotPage() {
   const [formError, setFormError] = useState('');
   const [feedback, setFeedback] = useState('');
 
+  const handleSearchChange = (value) => {
+    setProductSearch(value);
+    if (selectedProduct && value !== selectedProduct.title) {
+      setLotForm(emptyLotForm);
+      setFormError('');
+    }
+  };
+
+  const selectSearchProduct = (product) => {
+    setLotForm(createEmptyLotForm(product));
+    setProductSearch(product.title);
+    setFormError('');
+    setFeedback('');
+  };
+
+  const clearProductSelection = () => {
+    setLotForm(emptyLotForm);
+    setProductSearch('');
+    setFormError('');
+  };
+
   const loadProducts = useCallback(async () => {
     setLoading(true);
     setError('');
@@ -33,6 +54,7 @@ export default function RegisterLotPage() {
         const product = data.products.find((item) => item.id === requestedProductId || item.externalId === requestedProductId);
         if (!product) throw new Error('O produto informado não foi encontrado. Selecione outro produto para registrar o lote.');
         setLotForm(createEmptyLotForm(product));
+        setProductSearch(product.title);
       }
     } catch (loadError) {
       console.error('Não foi possível carregar os produtos para registrar o lote:', loadError);
@@ -49,11 +71,6 @@ export default function RegisterLotPage() {
     () => products.filter((product) => matchesProductSearch(product, productSearch)),
     [products, productSearch],
   );
-  const selectableProducts = useMemo(() => (
-    selectedProduct && !matchingProducts.some((product) => product.id === selectedProduct.id)
-      ? [selectedProduct, ...matchingProducts]
-      : matchingProducts
-  ), [matchingProducts, selectedProduct]);
   const calculatedExpiry = expiryDateFromShelfLife(lotForm.manufactureDate, lotForm.shelfLifeDays);
   const effectiveExpiry = lotForm.expiryMode === 'days' ? calculatedExpiry : lotForm.expiry;
 
@@ -83,6 +100,7 @@ export default function RegisterLotPage() {
 
       setProducts((current) => current.map((product) => product.id === data.product.id ? data.product : product));
       setLotForm(createEmptyLotForm(data.product));
+      setProductSearch(data.product.title);
       setFeedback(`Lote registrado. O saldo de ${data.product.title} foi atualizado.`);
     } catch (saveError) {
       console.error('Não foi possível registrar o lote de estoque:', saveError);
@@ -132,10 +150,11 @@ export default function RegisterLotPage() {
         <form className={styles.lotForm} onSubmit={saveLot}>
           <InventoryLotFormFields
             products={products}
-            selectableProducts={selectableProducts}
             productSearch={productSearch}
-            onProductSearchChange={setProductSearch}
-            searchResultCount={matchingProducts.length}
+            onProductSearchChange={handleSearchChange}
+            matchingProducts={matchingProducts}
+            onProductSelect={selectSearchProduct}
+            onClearProductSelection={clearProductSelection}
             lotForm={lotForm}
             setLotForm={setLotForm}
             selectedProduct={selectedProduct}
@@ -144,9 +163,9 @@ export default function RegisterLotPage() {
           />
           <footer className={`${styles.dialogActions} ${styles.formWide}`}>
             <Link className={styles.refreshButton} href="/erp/validade">Cancelar</Link>
-            <button type="submit" className={styles.addButton} disabled={saving || !selectedProduct}>
+            {selectedProduct && <button type="submit" className={styles.addButton} disabled={saving}>
               {saving ? 'Salvando...' : 'Registrar entrada'}
-            </button>
+            </button>}
           </footer>
         </form>
       </section>}
