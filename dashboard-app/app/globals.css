@@ -8102,8 +8102,21 @@ button.metric-mini:focus-visible {
   color: #80520b;
 }
 .favorites-showcase .product-box {
+  display: grid;
+  place-items: center;
+  overflow: hidden;
   border: 1px solid var(--favorites-border);
   background: var(--favorites-surface-soft);
+}
+.favorites-showcase .favorite-product-image {
+  display: block;
+  width: 86%;
+  height: 86%;
+  max-width: 100%;
+  max-height: 100%;
+  padding: 0;
+  object-fit: contain;
+  object-position: center;
 }
 .favorites-showcase .favorite-product-copy h3 {
   min-height: 2.5em;
