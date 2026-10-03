@@ -3,7 +3,7 @@
 import Link from 'next/link';
 import { AlertTriangle, ArrowUpRight, Boxes, CalendarClock, CheckCircle2, CircleDollarSign, FilePlus2, History, PackageX, RefreshCw, ShoppingCart, TrendingUp, Users } from 'lucide-react';
 import { useEffect, useState } from 'react';
-import { deriveDashboardMetrics } from './dashboard-metrics.js';
+import { createSparklinePoints, deriveDashboardMetrics } from './dashboard-metrics.js';
 
 export default function ERPPage() {
   const [products, setProducts] = useState([]);
@@ -95,15 +95,17 @@ export default function ERPPage() {
       : 'Sem vendas no mês atual'
     : 'Estimativa com os custos cadastrados no catálogo';
   const expiringLotAlerts = dashboardMetrics.expiredLotsCount + dashboardMetrics.expiringLotsInThirtyDaysCount;
+  const recentRevenue = dashboardMetrics.recentDailyMetrics.map(({ revenue }) => revenue);
+  const recentAverageTicket = dashboardMetrics.recentDailyMetrics.map(({ averageTicket }) => averageTicket);
 
   const metricSections = [
     {
       title: 'Desempenho comercial',
       description: 'Resultados do mês atual e relacionamento com clientes',
       metrics: [
-        { label: 'Faturamento no mês', value: formatCurrency(dashboardMetrics.monthlyRevenue), detail: `${formatter.format(dashboardMetrics.monthOrderCount)} pedido(s) no mês atual`, icon: CircleDollarSign, tone: 'green', href: '/erp/orders' },
+        { label: 'Faturamento no mês', value: formatCurrency(dashboardMetrics.monthlyRevenue), detail: `${formatter.format(dashboardMetrics.monthOrderCount)} pedido(s) no mês atual`, icon: CircleDollarSign, tone: 'green', href: '/erp/orders', chartValues: recentRevenue, chartDescription: 'Faturamento diário' },
         { label: 'Margem média', value: dashboardMetrics.averageMarginPercent === null ? '—' : `${dashboardMetrics.averageMarginPercent.toFixed(1).replace('.', ',')}%`, detail: marginDetail, icon: TrendingUp, tone: 'gold', href: '/erp/reports' },
-        { label: 'Ticket médio', value: dashboardMetrics.averageTicket === null ? '—' : formatCurrency(dashboardMetrics.averageTicket), detail: 'Valor médio por pedido neste mês', icon: ShoppingCart, tone: 'blue', href: '/erp/orders' },
+        { label: 'Ticket médio', value: dashboardMetrics.averageTicket === null ? '—' : formatCurrency(dashboardMetrics.averageTicket), detail: 'Valor médio por pedido neste mês', icon: ShoppingCart, tone: 'blue', href: '/erp/orders', chartValues: recentAverageTicket, chartDescription: 'Ticket médio diário' },
         { label: 'Clientes ativos', value: formatter.format(dashboardMetrics.activeCustomerCount), detail: 'Clientes com cadastro ativo', icon: Users, tone: 'violet', href: '/erp/customers' },
       ],
     },
@@ -179,18 +181,27 @@ export default function ERPPage() {
             {index === 0 && lastUpdatedAt && <span>Atualizado às {new Intl.DateTimeFormat('pt-BR', { hour: '2-digit', minute: '2-digit' }).format(lastUpdatedAt)}</span>}
           </div>
           <div className="erp-metrics-grid erp-dashboard-metrics">
-            {section.metrics.map(({ label, value, detail, icon: Icon, tone, href }) => <Link
-              href={href}
-              key={label}
-              className={`erp-metric erp-dashboard-metric ${tone}`}
-              aria-label={`${label}: ${displayValue(value)}. ${displayDetail(detail)}. Abrir ${href === '/erp/validade' ? 'controle de validade' : href.split('/').pop().replace(/-/g, ' ')}.`}
-            >
-              <span className="erp-metric-icon"><Icon size={18} aria-hidden="true" /></span>
-              <strong>{displayValue(value)}</strong>
-              <span>{label}</span>
-              <small>{displayDetail(detail)}</small>
-              <ArrowUpRight className="erp-dashboard-metric-arrow" size={16} aria-hidden="true" />
-            </Link>)}
+            {section.metrics.map(({ label, value, detail, icon: Icon, tone, href, chartValues, chartDescription }) => {
+              const chartPoints = createSparklinePoints(chartValues);
+              return <Link
+                href={href}
+                key={label}
+                className={`erp-metric erp-dashboard-metric ${tone}`}
+                aria-label={`${label}: ${displayValue(value)}. ${displayDetail(detail)}.${chartPoints ? ` ${chartDescription} nos últimos 7 dias.` : ''} Abrir ${href === '/erp/validade' ? 'controle de validade' : href.split('/').pop().replace(/-/g, ' ')}.`}
+              >
+                <span className="erp-metric-icon"><Icon size={18} aria-hidden="true" /></span>
+                <strong>{displayValue(value)}</strong>
+                <span>{label}</span>
+                <small>{displayDetail(detail)}</small>
+                {chartPoints && <div className={`erp-dashboard-sparkline ${tone}`} aria-hidden="true">
+                  <span>7 dias</span>
+                  <svg viewBox="0 0 100 28" preserveAspectRatio="none" focusable="false">
+                    <polyline points={chartPoints} />
+                  </svg>
+                </div>}
+                <ArrowUpRight className="erp-dashboard-metric-arrow" size={16} aria-hidden="true" />
+              </Link>;
+            })}
           </div>
         </section>)}
       </div>

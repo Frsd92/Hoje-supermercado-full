@@ -1,6 +1,6 @@
 import assert from 'node:assert/strict';
 import test from 'node:test';
-import { deriveDashboardMetrics } from './dashboard-metrics.js';
+import { createSparklinePoints, deriveDashboardMetrics } from './dashboard-metrics.js';
 
 test('derives commercial and operational indicators from current ERP data', () => {
   const metrics = deriveDashboardMetrics({
@@ -28,6 +28,10 @@ test('derives commercial and operational indicators from current ERP data', () =
   assert.equal(metrics.monthlyRevenue, 200);
   assert.equal(metrics.monthOrderCount, 2);
   assert.equal(metrics.averageTicket, 100);
+  assert.deepEqual(metrics.recentDailyMetrics.slice(-2), [
+    { revenue: 50, averageTicket: 50 },
+    { revenue: 150, averageTicket: 150 },
+  ]);
   assert.ok(Math.abs(metrics.averageMarginPercent - 55) < 1e-9);
   assert.equal(metrics.activeProductCount, 3);
   assert.equal(metrics.activeCustomerCount, 2);
@@ -36,6 +40,13 @@ test('derives commercial and operational indicators from current ERP data', () =
   assert.equal(metrics.expiredLotsCount, 1);
   assert.equal(metrics.expiringLotsInSevenDaysCount, 1);
   assert.equal(metrics.expiringLotsInThirtyDaysCount, 2);
+});
+
+test('creates a scaled sparkline only when there is real chart data', () => {
+  assert.equal(createSparklinePoints([]), '');
+  assert.equal(createSparklinePoints([0, 0, 0]), '');
+  assert.equal(createSparklinePoints([0, 10, 5, 0]), '2,24 34,4 66,14 98,24');
+  assert.equal(createSparklinePoints([8, 8, 8]), '2,14 50,14 98,14');
 });
 
 test('does not report a fabricated margin when sales or product costs are unavailable', () => {

@@ -6139,10 +6139,10 @@ button.metric-mini:focus-visible {
 .erp-header h1 { margin: 8px 0 5px; }
 .erp-metrics-grid { display: grid; grid-template-columns: repeat(4, minmax(0, 1fr)); gap: 14px; }
 .erp-metric { padding: 16px; border: 1px solid var(--erp-border); border-radius: 16px; background: var(--erp-surface); color: var(--erp-text); box-shadow: var(--erp-shadow-panel); }
-.erp-metric-icon { width: 34px; height: 34px; display: grid; place-items: center; border-radius: 10px; margin-bottom: 12px; background: var(--erp-primary-soft); }
-.erp-metric strong, .erp-metric span, .erp-metric small { display: block; }
+.erp-metric-icon { display: grid; width: 34px; height: 34px; flex: 0 0 34px; place-items: center; margin-bottom: 12px; padding: 0; border-radius: 10px; background: var(--erp-primary-soft); line-height: 0; }
+.erp-metric strong, .erp-metric > span:not(.erp-metric-icon), .erp-metric small { display: block; }
 .erp-metric strong { font-size: 1.55rem; }
-.erp-metric span { margin-top: 5px; color: var(--erp-muted); font-size: .78rem; }
+.erp-metric > span:not(.erp-metric-icon) { margin-top: 5px; color: var(--erp-muted); font-size: .78rem; }
 .erp-metric small { margin-top: 7px; color: var(--erp-primary-strong); font-size: .7rem; }
 .erp-metric.gold .erp-metric-icon { background: #fef3c7; color: #92400e; }
 .erp-metric.blue .erp-metric-icon { background: #dbeafe; color: #1d4ed8; }
@@ -6162,6 +6162,12 @@ button.metric-mini:focus-visible {
 .erp-dashboard-metric:hover .erp-dashboard-metric-arrow,
 .erp-dashboard-metric:focus-visible .erp-dashboard-metric-arrow { transform: translate(2px, -2px); color: var(--erp-primary); }
 .erp-metric.green .erp-metric-icon { background: #dcfce7; color: #166534; }
+.erp-dashboard-sparkline { display: flex; align-items: center; gap: 8px; margin-top: 10px; }
+.erp-dashboard-sparkline > span { color: var(--erp-muted); font-size: .58rem; font-weight: 650; white-space: nowrap; }
+.erp-dashboard-sparkline > svg { display: block; width: 74px; height: 24px; overflow: visible; }
+.erp-dashboard-sparkline polyline { fill: none; stroke: currentColor; stroke-width: 2; stroke-linecap: round; stroke-linejoin: round; }
+.erp-dashboard-sparkline.green { color: #166534; }
+.erp-dashboard-sparkline.blue { color: #1d4ed8; }
 .erp-dashboard-error { display: flex; align-items: center; gap: 12px; margin: 0 0 18px; padding: 12px 14px; border: 1px solid #fecaca; border-radius: 12px; background: #fff7f7; color: #7f1d1d; font-size: .78rem; line-height: 1.5; }
 .erp-dashboard-error > svg { flex: 0 0 auto; }
 .erp-dashboard-error > span { flex: 1; min-width: 0; }

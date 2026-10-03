@@ -63,6 +63,25 @@ function findOrderProduct(item, indexes) {
   return indexes.byTitle.get(normalizeText(item.name || item.title));
 }
 
+export function createSparklinePoints(values) {
+  if (!Array.isArray(values) || values.length < 2) return '';
+  const chartValues = values.map((value) => {
+    const number = Number(value);
+    return Number.isFinite(number) ? Math.max(0, number) : 0;
+  });
+  if (!chartValues.some((value) => value > 0)) return '';
+
+  const minimum = Math.min(...chartValues);
+  const maximum = Math.max(...chartValues);
+  const range = maximum - minimum;
+  return chartValues.map((value, index) => {
+    const x = 2 + (index / (chartValues.length - 1)) * 96;
+    const normalized = range ? (value - minimum) / range : 0.5;
+    const y = 24 - normalized * 20;
+    return `${x},${y}`;
+  }).join(' ');
+}
+
 export function deriveDashboardMetrics({ products = [], orders = [], customers = [], lots = [], now = new Date() } = {}) {
   const currentMonth = now.getMonth();
   const currentYear = now.getFullYear();
@@ -89,6 +108,24 @@ export function deriveDashboardMetrics({ products = [], orders = [], customers =
   });
 
   const today = makeDayDate(now);
+  const recentDailySales = Array.from({ length: 7 }, (_, index) => ({
+    date: addDays(today, index - 6).getTime(),
+    revenue: 0,
+    orderCount: 0,
+  }));
+  const salesByDate = new Map(recentDailySales.map((day) => [day.date, day]));
+  activeOrders.forEach((order) => {
+    const date = parseOrderDate(order.createdAt);
+    if (!date) return;
+    const day = salesByDate.get(makeDayDate(date).getTime());
+    if (!day) return;
+    day.revenue += parseMoney(order.total);
+    day.orderCount += 1;
+  });
+  const recentDailyMetrics = recentDailySales.map(({ revenue, orderCount }) => ({
+    revenue,
+    averageTicket: orderCount ? revenue / orderCount : 0,
+  }));
   const sevenDaysFromToday = addDays(today, 7);
   const thirtyDaysFromToday = addDays(today, 30);
   let expiredLotsCount = 0;
@@ -117,6 +154,7 @@ export function deriveDashboardMetrics({ products = [], orders = [], customers =
     monthlyRevenue,
     monthOrderCount: monthOrders.length,
     averageTicket: monthOrders.length ? monthlyRevenue / monthOrders.length : null,
+    recentDailyMetrics,
     averageMarginPercent,
     activeProductCount: activeProducts.length,
     activeCustomerCount: customers.filter((customer) => normalizeText(customer.status) === 'ativo').length,
