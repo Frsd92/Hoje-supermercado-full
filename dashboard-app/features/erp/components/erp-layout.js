@@ -70,11 +70,12 @@ export default function ERPLayout({ children }) {
 
   return (
     <div className="erp-shell">
+      <a className="erp-skip-link" href="#erp-main-content">Pular para o conteúdo principal</a>
       <aside className="erp-sidebar">
-        <div className="erp-brand">
-          <img className="erp-brand-mark" src="/imagens/logo/logo-hj.webp" alt="Logo Hoje" />
+        <Link className="erp-brand" href="/erp" aria-label="Hoje ERP — ir para o dashboard">
+          <img className="erp-brand-mark" src="/imagens/logo/logo-hj.webp" alt="" />
           <div><span>HOJE</span><strong>ERP Operacional</strong></div>
-        </div>
+        </Link>
         <nav className="erp-nav" aria-label="Navegação ERP">
           {erpNavigationGroups.map((group) => <div className="erp-nav-group" key={group.label}>
             <span className="erp-nav-group-label">{group.label}</span>
@@ -82,7 +83,7 @@ export default function ERPLayout({ children }) {
               {group.items.map(({ label, href, icon: Icon }) => {
                 const actionItem = href.includes('?action=');
                 const active = !actionItem && (pathname === href || (href !== '/erp' && pathname.startsWith(href)));
-                const content = <><Icon size={17} /><span>{label}</span>{label === 'Pedidos' && newOrders > 0 && <b className="erp-nav-badge">{newOrders}</b>}</>;
+                const content = <><Icon size={17} aria-hidden="true" /><span>{label}</span>{label === 'Pedidos' && newOrders > 0 && <><span className="erp-nav-badge" aria-hidden="true">{newOrders}</span><span className="visually-hidden">{newOrders} novos pedidos</span></>}</>;
                 const className = `erp-nav-item ${active ? 'active' : ''}`;
                 return actionItem
                   ? <a key={label} href={href} className={className} aria-haspopup="dialog">{content}</a>
@@ -93,7 +94,7 @@ export default function ERPLayout({ children }) {
         </nav>
         <div className="erp-sidebar-footer"><FileText size={15} /><span>Dados auditáveis</span></div>
       </aside>
-      <main className="erp-main">{children}</main>
+      <main className="erp-main" id="erp-main-content" tabIndex="-1">{children}</main>
     </div>
   );
 }
