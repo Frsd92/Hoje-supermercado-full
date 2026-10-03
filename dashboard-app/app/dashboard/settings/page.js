@@ -1,7 +1,7 @@
 'use client';
 
 import { Bell, Check, Lock, ShieldAlert, Truck, UserRound } from 'lucide-react';
-import { useEffect, useState } from 'react';
+import { useEffect, useRef, useState } from 'react';
 
 const initialSettings = {
   emailNotifications: true,
@@ -21,6 +21,16 @@ export default function SettingsPage() {
   const [settings, setSettings] = useState(initialSettings);
   const [feedback, setFeedback] = useState('');
   const [analyticsPreference, setAnalyticsPreference] = useState('loading');
+  const [deleteDialogOpen, setDeleteDialogOpen] = useState(false);
+  const [deleteConfirmation, setDeleteConfirmation] = useState('');
+  const deleteDialogRef = useRef(null);
+
+  useEffect(() => {
+    const dialog = deleteDialogRef.current;
+    if (!dialog) return;
+    if (deleteDialogOpen && !dialog.open) dialog.showModal();
+    if (!deleteDialogOpen && dialog.open) dialog.close();
+  }, [deleteDialogOpen]);
 
   useEffect(() => {
     try {
@@ -93,6 +103,15 @@ export default function SettingsPage() {
     }
     preferences.open();
   };
+  const closeDeleteDialog = () => {
+    setDeleteDialogOpen(false);
+    setDeleteConfirmation('');
+  };
+  const confirmDeleteRequest = () => {
+    if (deleteConfirmation.trim() !== 'excluir conta') return;
+    setFeedback('Sua solicitação de exclusão foi registrada para análise conforme a LGPD.');
+    closeDeleteDialog();
+  };
 
   const renderToggle = (label, key, description) => (
     <div className="settings-option">
@@ -117,7 +136,47 @@ export default function SettingsPage() {
         <section className="settings-panel"><div className="settings-panel-heading"><UserRound size={16} /><div><h3>Preferências</h3><p>Personalize sua experiência.</p></div></div><label className="settings-select-field">Tema<select value={settings.theme} onChange={(event) => updateSetting('theme', event.target.value)}><option value="Claro">Claro</option><option value="Escuro">Escuro</option><option value="Automatico">Automático</option></select></label><label className="settings-select-field">Idioma<select value={settings.language} onChange={(event) => updateSetting('language', event.target.value)}><option value="Portugues (Brasil)">Português (Brasil)</option><option value="English">English</option></select></label><label className="settings-select-field">Moeda<select value={settings.currency} onChange={(event) => updateSetting('currency', event.target.value)}><option value="Real (R$)">Real (R$)</option><option value="Dolar (US$)">Dólar (US$)</option></select></label></section>
         <section className="settings-panel"><div className="settings-panel-heading"><Truck size={16} /><div><h3>Entrega</h3><p>Configure suas preferências de entrega.</p></div></div><label className="settings-select-field">Horário preferido<select value={settings.deliveryWindow} onChange={(event) => updateSetting('deliveryWindow', event.target.value)}><option value="Manha (8h - 12h)">Manhã (8h–12h)</option><option value="Tarde (12h - 18h)">Tarde (12h–18h)</option><option value="Noite (18h - 22h)">Noite (18h–22h)</option></select></label></section>
       </div>
-      <section className="settings-danger-panel"><div className="settings-panel-heading danger-heading"><ShieldAlert size={16} /><div><h3>Zona de Perigo</h3><p>Ações sensíveis da conta e dos seus dados</p></div></div><div className="lgpd-notice"><strong>Seus direitos pela LGPD</strong><p>A Lei nº 13.709/2018 (LGPD), no art. 18, VI, garante o direito de solicitar a eliminação de dados pessoais tratados com consentimento, respeitadas as exceções legais do art. 16 e outras obrigações de retenção.</p></div><div className="danger-action"><div><strong>Restaurar Configurações</strong><small>Volta todas as configurações para o padrão</small></div><button type="button" className="danger-outline" onClick={restoreSettings}>Restaurar</button></div><div className="danger-action"><div><strong>Excluir Conta</strong><small>Solicitação de exclusão sujeita à análise das obrigações legais de retenção.</small></div><button type="button" className="danger-solid" onClick={() => setFeedback('Sua solicitação de exclusão foi registrada para análise conforme a LGPD.')}>Excluir Conta</button></div></section>
+      <section className="settings-danger-panel">
+        <div className="settings-panel-heading danger-heading"><ShieldAlert size={16} /><div><h3>Zona de Perigo</h3><p>Ações sensíveis da conta e dos seus dados</p></div></div>
+        <div className="lgpd-notice"><strong>Seus direitos pela LGPD</strong><p>A Lei nº 13.709/2018 (LGPD), no art. 18, VI, garante o direito de solicitar a eliminação de dados pessoais tratados com consentimento, respeitadas as exceções legais do art. 16 e outras obrigações de retenção.</p></div>
+        <div className="danger-action">
+          <div><strong>Restaurar Configurações</strong><small>Volta todas as configurações para o padrão</small></div>
+          <button type="button" className="danger-outline" onClick={restoreSettings}>Restaurar</button>
+        </div>
+        <div className="danger-action">
+          <div><strong>Excluir Conta</strong><small>Solicitação de exclusão sujeita à análise das obrigações legais de retenção.</small></div>
+          <button type="button" className="danger-solid" onClick={() => { setDeleteConfirmation(''); setDeleteDialogOpen(true); }}>Excluir Conta</button>
+        </div>
+      </section>
+      <dialog
+        ref={deleteDialogRef}
+        className="account-delete-dialog"
+        aria-labelledby="delete-account-title"
+        aria-describedby="delete-account-description"
+        onCancel={(event) => { event.preventDefault(); closeDeleteDialog(); }}
+        onClick={(event) => { if (event.target === event.currentTarget) closeDeleteDialog(); }}
+      >
+        <div className="account-delete-dialog-content">
+          <span className="account-delete-dialog-kicker">Confirmação necessária</span>
+          <h2 id="delete-account-title">Confirmar solicitação de exclusão</h2>
+          <p id="delete-account-description">Para evitar um pedido acidental, digite exatamente <strong>excluir conta</strong>. A solicitação será registrada para análise; dados sujeitos a retenção legal poderão ser preservados.</p>
+          <label className="account-delete-confirmation-field">
+            Digite “excluir conta”
+            <input
+              type="text"
+              value={deleteConfirmation}
+              onChange={(event) => setDeleteConfirmation(event.target.value)}
+              autoComplete="off"
+              spellCheck="false"
+              autoFocus
+            />
+          </label>
+          <div className="account-delete-dialog-actions">
+            <button type="button" className="account-delete-cancel" onClick={closeDeleteDialog}>Cancelar</button>
+            <button type="button" className="account-delete-confirm" disabled={deleteConfirmation.trim() !== 'excluir conta'} onClick={confirmDeleteRequest}>Confirmar</button>
+          </div>
+        </div>
+      </dialog>
       <div className="settings-footer-actions"><button type="button" className="secondary-cta" onClick={restoreSettings}>Restaurar padrões</button><div>{feedback && <span className={`settings-feedback ${feedback.startsWith('Não foi') ? 'error' : ''}`} role="status" aria-live="polite"><Check size={14} /> {feedback}</span>}<button type="button" className="primary-cta" onClick={saveSettings}><Check size={14} /> Salvar configurações</button></div></div>
     </div>
   );

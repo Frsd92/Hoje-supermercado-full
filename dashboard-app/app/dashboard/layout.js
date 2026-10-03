@@ -6,6 +6,7 @@ import { usePathname } from 'next/navigation';
 import { signOut, useSession } from 'next-auth/react';
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { adjustCartQuantity, formatCartQuantity, getCartItemCount, normalizeCartItems } from './cart-utils';
+import contentModeration from '@/lib/content-moderation.js';
 import {
   DEFAULT_PAYMENT_METHOD,
   PAYMENT_METHODS,
@@ -474,10 +475,11 @@ export default function DashboardLayout({ children }) {
   }, [searchFocused]);
 
   const normalizedSearchText = (text = '') => String(text || '').toLowerCase().normalize('NFD').replace(/[\u0300-\u036f]/g, '').trim();
+  const searchContainsOffensiveContent = contentModeration.containsOffensiveContent(search);
 
   const searchResults = useMemo(() => {
     const query = normalizedSearchText(search);
-    if (!query) return [];
+    if (!query || searchContainsOffensiveContent) return [];
 
     return searchableProducts.filter((product) => {
       const haystack = [
@@ -489,7 +491,7 @@ export default function DashboardLayout({ children }) {
       ].flat().filter(Boolean).join(' ');
       return normalizedSearchText(haystack).includes(query);
     });
-  }, [search, searchableProducts]);
+  }, [search, searchContainsOffensiveContent, searchableProducts]);
 
   const quickSuggestions = useMemo(() => searchableProducts.slice(0, 4), [searchableProducts]);
   const selectedDeliveryAddress = savedAddresses.find((address) => String(address.id) === selectedAddressId);
@@ -822,6 +824,8 @@ export default function DashboardLayout({ children }) {
                   onBlur={() => window.setTimeout(() => setSearchFocused(false), 120)}
                   placeholder="Buscar produtos, categorias e ofertas"
                   aria-label="Buscar produtos"
+                  aria-invalid={searchContainsOffensiveContent}
+                  aria-describedby={searchContainsOffensiveContent ? 'dashboard-search-moderation-error' : undefined}
                   aria-controls="dashboard-product-search-results"
                   aria-expanded={searchFocused}
                 />
@@ -842,7 +846,11 @@ export default function DashboardLayout({ children }) {
                           </div>
                           {searchResults.length > 0 && <span className="search-results-count">{searchResults.length}</span>}
                         </div>
-                        {searchResults.length ? searchResults.map((product) => {
+                        {searchContainsOffensiveContent ? (
+                          <span id="dashboard-search-moderation-error" className="search-suggestions-empty search-moderation-error" role="alert">
+                            Remova termos ofensivos para continuar a busca.
+                          </span>
+                        ) : searchResults.length ? searchResults.map((product) => {
                           const price = Number(product.salePrice ?? product.price ?? 0);
                           const originalPrice = Number(product.price ?? price);
                           const configuredDiscount = Number(product.discount) || 0;

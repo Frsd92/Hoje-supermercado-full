@@ -39,6 +39,7 @@ export default function InventoryLotFormFields({
   productSearch,
   onProductSearchChange,
   matchingProducts = [],
+  matchingProductCount = matchingProducts.length,
   onProductSelect,
   onClearProductSelection,
   effectiveExpiry,
@@ -86,7 +87,7 @@ export default function InventoryLotFormFields({
           {selectedProduct
             ? 'Produto selecionado. Preencha os dados da entrada abaixo.'
             : productSearch?.trim()
-              ? `${matchingProducts.length} ${matchingProducts.length === 1 ? 'produto encontrado' : 'produtos encontrados'}. Selecione um resultado para continuar.`
+              ? `${matchingProductCount} ${matchingProductCount === 1 ? 'produto encontrado' : 'produtos encontrados'}. ${matchingProductCount > matchingProducts.length ? `Exibindo os ${matchingProducts.length} mais relevantes. ` : ''}Os que começam com a busca aparecem primeiro.`
               : 'Digite para buscar e selecione um produto nos resultados.'}
         </small>
       </label>

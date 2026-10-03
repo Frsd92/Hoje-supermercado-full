@@ -9,10 +9,13 @@
   <link rel="icon" type="image/webp" href="imagens/logo/logo-hj.webp">
   <link rel="stylesheet" href="style.css">
   <script src="analytics-consent.js" defer></script>
+  <script src="content-moderation.js" defer></script>
   <script src="https://unpkg.com/lucide@latest" defer></script>
+  <script src="script.js" defer></script>
 </head>
 <body>
- 
+  <a class="legal-skip-link" href="#conteudo-principal">Pular para o conteúdo principal</a>
+
   <!-- ===================== TOPBAR (igual ao index.html) ===================== -->
   <header class="topbar">
     <div class="topbar-item">
@@ -47,37 +50,106 @@
       </div>
     </div>
  
-    <div class="topbar-item cart-trigger" id="cart-trigger">
-      <div class="cart-icon-wrap" aria-label="Abrir carrinho">
+    <button class="topbar-item cart-trigger" id="cart-trigger" type="button" aria-label="Abrir carrinho de compras" aria-controls="cart-panel" aria-expanded="false">
+      <span class="cart-icon-wrap" aria-hidden="true">
         <i data-lucide="shopping-cart"></i>
         <span id="cart-badge" class="cart-badge">0</span>
-      </div>
+      </span>
       <div class="topbar-text">
         <strong>Meu carrinho</strong>
         <span id="cart-total">R$ 0,00</span>
       </div>
-    </div>
+    </button>
   </header>
- 
+
+  <div id="store-feedback-toast" class="store-feedback-toast" role="status" aria-live="polite" aria-atomic="true"></div>
+  <div id="cart-backdrop" class="cart-backdrop"></div>
+  <aside id="cart-panel" class="cart-panel" aria-label="Carrinho de compras" aria-hidden="true" data-hj-suppress inert>
+    <div class="cart-panel-header">
+      <div class="cart-panel-title-wrap">
+        <span class="cart-panel-icon"><i data-lucide="shopping-cart"></i></span>
+        <h3 id="cart-panel-title">Meu Carrinho (0 itens)</h3>
+      </div>
+      <button id="cart-close" class="cart-close" type="button" aria-label="Fechar carrinho">×</button>
+    </div>
+    <p class="cart-subtitle">Revise seus itens antes de finalizar</p>
+    <div id="cart-items" class="cart-items" aria-live="polite"></div>
+    <div class="cart-panel-footer">
+      <div class="cart-summary-box">
+        <div class="summary-row"><span>Subtotal (0 itens)</span><strong>R$ 0,00</strong></div>
+        <div class="summary-row"><span>Descontos</span><strong>R$ 0,00</strong></div>
+        <div class="summary-row"><span>Frete</span><strong>R$ 0,00</strong></div>
+        <div class="summary-row total"><span>Total</span><strong>R$ 0,00</strong></div>
+      </div>
+      <div class="cart-coupon">
+        <label class="visually-hidden" for="coupon-input">Cupom de desconto</label>
+        <input id="coupon-input" type="text" placeholder="Insira seu cupom" maxlength="24">
+        <button id="apply-coupon" class="btn-coupon" type="button">Aplicar</button>
+      </div>
+      <p id="coupon-feedback" class="coupon-feedback" aria-live="polite"></p>
+      <div id="checkout-guide" class="checkout-guide" data-state="info" role="status" aria-live="polite" aria-atomic="true">
+        <div class="checkout-guide-copy">
+          <strong id="checkout-guide-title">Monte seu carrinho</strong>
+          <p id="checkout-guide-message">Adicione os produtos desejados para começar seu pedido.</p>
+        </div>
+        <a id="checkout-address-link" href="/dashboard/addresses" hidden>Gerenciar endereços</a>
+        <button id="checkout-retry" type="button" hidden>Tentar novamente</button>
+      </div>
+      <label class="delivery-address-field" for="payment-method">
+        Forma de pagamento
+        <select id="payment-method" required>
+          <option value="" selected disabled>Selecione sua forma de pagamento</option>
+          <option value="pix">Pix</option>
+          <option value="cartao">Cartão</option>
+          <option value="dinheiro">Dinheiro</option>
+          <option value="outro">Outro / combinar</option>
+        </select>
+      </label>
+      <small class="checkout-field-hint">Obrigatória para concluir o pedido.</small>
+      <button id="finalizar-compra" class="btn-finalizar" type="button">Finalizar Pedido</button>
+      <button id="limpar-carrinho" class="btn-limpar" type="button">Limpar Carrinho</button>
+    </div>
+  </aside>
+
   <!-- ===================== NAVEGAÇÃO SIMPLES DE VOLTA ===================== -->
-  <div class="policy-breadcrumb">
+  <nav class="policy-breadcrumb" aria-label="Navegação estrutural">
     <a href="index.html">← Voltar para a loja</a>
-  </div>
+    <span aria-hidden="true">/</span>
+    <span aria-current="page">Política de Privacidade</span>
+  </nav>
  
   <!-- ===================== CONTEÚDO DA POLÍTICA ===================== -->
-  <main class="policy-page">
+  <main id="conteudo-principal" class="policy-page legal-document" aria-labelledby="policy-title">
     <div class="policy-container">
  
-      <h1>Política de Privacidade</h1>
-      <p class="policy-meta"><strong>Última atualização:</strong> 3 de outubro de 2026 &nbsp;|&nbsp; <strong>Versão:</strong> 2.1</p>
+      <h1 id="policy-title">Política de Privacidade</h1>
+      <p id="policy-meta" class="policy-meta"><strong>Última atualização:</strong> 3 de outubro de 2026 &nbsp;|&nbsp; <strong>Versão:</strong> 2.1</p>
+
+      <details class="policy-toc">
+        <summary>Navegar pelas seções</summary>
+        <ol>
+          <li><a href="#privacy-s1">Sobre esta Política</a></li>
+          <li><a href="#privacy-s2">Definições</a></li>
+          <li><a href="#privacy-s3">Dados que coletamos</a></li>
+          <li><a href="#privacy-s4">Finalidades do tratamento</a></li>
+          <li><a href="#privacy-s5">Base legal</a></li>
+          <li><a href="#privacy-s6">Compartilhamento de dados</a></li>
+          <li><a href="#privacy-s7">Armazenamento e segurança</a></li>
+          <li><a href="#privacy-s8">Seus direitos</a></li>
+          <li><a href="#privacy-s9">Menores de idade</a></li>
+          <li><a href="#privacy-s10">Alterações nesta Política</a></li>
+          <li><a href="#privacy-s11">Controlador e solicitações</a></li>
+          <li><a href="#privacy-s12">Legislação aplicável</a></li>
+        </ol>
+      </details>
  
-      <section>
+      <section id="privacy-s1">
         <h2>1. Sobre esta Política</h2>
         <p>Esta Política explica como Francisco Roges da Silva Diogenes, inscrito no CNPJ nº <strong>36.915.196/0001-91</strong> ("Hoje Supermercados", "nós"), trata dados pessoais quando você acessa a loja online e os recursos de conta do cliente. Ela descreve as funcionalidades disponíveis atualmente; recursos que ainda não foram lançados não são apresentados como se já estivessem em operação.</p>
         <p>O tratamento de dados observa a legislação aplicável, incluindo a <strong>Lei Geral de Proteção de Dados Pessoais (LGPD – Lei nº 13.709/2018)</strong> e o <strong>Marco Civil da Internet (Lei nº 12.965/2014)</strong>. Esta Política é um aviso sobre o tratamento de dados e não substitui eventual consentimento específico quando ele for exigido por lei.</p>
       </section>
  
-      <section>
+      <section id="privacy-s2">
         <h2>2. Definições</h2>
         <ul>
           <li><strong>Dado pessoal:</strong> informação relacionada a pessoa natural identificada ou identificável.</li>
@@ -90,7 +162,7 @@
         </ul>
       </section>
  
-      <section>
+      <section id="privacy-s3">
         <h2>3. Dados que coletamos</h2>
  
         <h3>3.1 Dados fornecidos diretamente por você</h3>
@@ -141,7 +213,7 @@
         <p>Na primeira visita, um aviso permite aceitar ou recusar analytics. A escolha pode ser alterada ou revogada a qualquer momento em Configurações &gt; Privacidade no painel do cliente ou pelo link “Configurações de analytics” no rodapé da Loja. Sem autorização, o script do Hotjar não é carregado; recusar analytics não afeta as funções da Loja ou da conta. A preferência fica no armazenamento local do navegador e pode ser removida nas configurações do navegador.</p>
       </section>
  
-      <section>
+      <section id="privacy-s4">
         <h2>4. Finalidades do tratamento de dados</h2>
         <ol>
           <li>Autenticar clientes e disponibilizar os recursos de perfil associados à conta</li>
@@ -154,7 +226,7 @@
         </ol>
       </section>
  
-      <section>
+      <section id="privacy-s5">
         <h2>5. Base legal para o tratamento (art. 7º e 11 da LGPD)</h2>
         <table class="policy-table">
           <thead>
@@ -171,7 +243,7 @@
         <p>A base legal é definida de acordo com a finalidade concreta do tratamento. Quando um tratamento depender de consentimento, ele será solicitado separadamente e poderá ser revogado nos termos da lei. O site não utiliza atualmente cookies de publicidade ou envio de campanhas promocionais por e-mail; avisos promocionais podem ser exibidos dentro da conta.</p>
       </section>
  
-      <section>
+      <section id="privacy-s6">
         <h2>6. Compartilhamento de dados pessoais</h2>
         <p>Podemos compartilhar seus dados com as seguintes categorias de terceiros, sempre limitado ao necessário para a finalidade:</p>
         <ul>
@@ -188,7 +260,7 @@
         <p>O uso de provedores de tecnologia, login e analytics pode envolver tratamento ou transferência de dados fora do Brasil, conforme a infraestrutura e as configurações dos respectivos serviços. Quando houver transferência internacional, ela deverá observar os requisitos e mecanismos previstos na LGPD. Consulte também os avisos e termos de privacidade dos provedores utilizados.</p>
       </section>
  
-      <section>
+      <section id="privacy-s7">
         <h2>7. Armazenamento, retenção e segurança dos dados</h2>
         <h3>7.1 Segurança</h3>
         <p>Adotamos controles técnicos e organizacionais compatíveis com a operação da Plataforma, incluindo autenticação, restrição de acesso a recursos da conta e transmissão do site por conexão HTTPS. Nenhuma medida elimina todos os riscos; não afirmamos certificação PCI-DSS nem armazenamento de dados de cartão, pois o checkout atual não coleta esses dados.</p>
@@ -200,7 +272,7 @@
         <p>Se ocorrer incidente de segurança que possa acarretar risco ou dano relevante, serão adotadas as medidas de resposta e comunicação aos titulares e à ANPD exigidas pela legislação e regulamentação aplicáveis.</p>
       </section>
  
-      <section>
+      <section id="privacy-s8">
         <h2>8. Seus direitos como titular de dados (art. 18 da LGPD)</h2>
         <ol>
           <li>Confirmação da existência de tratamento de dados</li>
@@ -218,23 +290,23 @@
         <p>Você pode alterar ou revogar a autorização do Hotjar em Configurações &gt; Privacidade no painel do cliente ou pelo link “Configurações de analytics” no rodapé da Loja. A revogação impede novas coletas pelo Hotjar, mas não apaga automaticamente dados coletados antes dela; solicitações de eliminação podem ser encaminhadas pelo canal do controlador na seção 11. Você também pode atualizar os dados de perfil na área da conta. Poderemos solicitar informações razoáveis para confirmar sua identidade e responderemos nos prazos e condições previstos na legislação aplicável. Alguns dados poderão ser conservados quando houver fundamento legal para isso.</p>
       </section>
  
-      <section>
+      <section id="privacy-s9">
         <h2>9. Menores de idade</h2>
         <p>A loja online é destinada a pessoas maiores de 18 anos, conforme os Termos de Uso. A Plataforma não é direcionada a crianças. Se um responsável entender que dados de uma criança foram fornecidos, poderá solicitar orientação ou providências pelos canais da seção 11, e o caso será avaliado conforme a legislação aplicável e o melhor interesse da criança.</p>
       </section>
  
-      <section>
+      <section id="privacy-s10">
         <h2>10. Alterações nesta Política</h2>
         <p>Esta Política poderá ser atualizada quando houver mudanças na lei, na operação ou nas funcionalidades da Plataforma. A versão vigente e sua data de atualização serão publicadas nesta página; quando necessário, mudanças relevantes serão destacadas na própria Plataforma.</p>
       </section>
  
-      <section>
+      <section id="privacy-s11">
         <h2>11. Controlador e canais para solicitações</h2>
         <p>O controlador dos dados é Francisco Roges da Silva Diogenes, CNPJ nº <strong>36.915.196/0001-91</strong>, com endereço informado de <strong>Rua Acre, s/n, Águas de Lindóia - SP, CEP 13940-252</strong>. Para solicitações relacionadas aos seus dados pessoais que não possam ser atendidas na área da conta, encaminhe correspondência ao controlador nesse endereço. Ainda não há um endereço eletrônico específico de privacidade publicado.</p>
         <p>Você também pode apresentar petição ou reclamação à Autoridade Nacional de Proteção de Dados (ANPD) pelo site <a href="https://www.gov.br/anpd" target="_blank" rel="noopener">www.gov.br/anpd</a>.</p>
       </section>
  
-      <section>
+      <section id="privacy-s12">
         <h2>12. Legislação aplicável</h2>
         <p>Esta Política é interpretada conforme a legislação brasileira aplicável, incluindo a LGPD e o Marco Civil da Internet, sem restringir os direitos do titular ou o acesso às autoridades e aos órgãos competentes.</p>
       </section>
@@ -242,51 +314,45 @@
     </div>
   </main>
  
-  <!-- ===================== FOOTER (igual ao index.html) ===================== -->
-  <footer class="footer">
-    <div class="footer-logo">
-      <img src="imagens/logo/logo-branco.webp" alt="Hoje">
-    </div>
- 
-    <div class="footer-item">
-      <i data-lucide="credit-card"></i>
-      <div>
-        <strong>Pagamento facilitado</strong>
-        <p>Até 12x no cartão</p>
+  <footer class="footer legal-footer">
+    <div class="footer-inner">
+      <div class="footer-left">
+        <a class="footer-logo" href="index.html" aria-label="Hoje Supermercado — página inicial">
+          <img src="imagens/logo/logo-branco.webp" alt="Hoje Supermercado" loading="lazy" decoding="async">
+        </a>
+        <p class="footer-tagline">Mais do que um mercado, praticidade para o seu dia a dia.</p>
+        <p class="copyright">© 2026 Hoje Supermercados. CNPJ 36.915.196/0001-91</p>
       </div>
+      <nav class="footer-columns" aria-label="Links institucionais">
+        <div class="footer-column">
+          <h2>Navegação</h2>
+          <ul>
+            <li><a href="index.html">Voltar para a loja</a></li>
+            <li><a href="/dashboard">Minha conta</a></li>
+            <li><a href="/dashboard/orders">Meus pedidos</a></li>
+          </ul>
+        </div>
+        <div class="footer-column">
+          <h2>Informações legais</h2>
+          <ul>
+            <li><a href="politica-de-privacidade.html" aria-current="page">Política de Privacidade</a></li>
+            <li><a href="termos-de-uso.html">Termos de uso</a></li>
+            <li><a href="#analytics-preferences" data-analytics-settings-link>Configurações de analytics</a></li>
+          </ul>
+        </div>
+        <div class="footer-column">
+          <h2 id="formas-de-pagamento">Formas de pagamento</h2>
+          <div class="payment-icons">
+            <span class="payment pix"><i data-lucide="qr-code" aria-hidden="true"></i><span>Pix</span></span>
+            <span class="payment card"><i data-lucide="credit-card" aria-hidden="true"></i><span>Cartão</span></span>
+            <span class="payment boleto"><i data-lucide="barcode" aria-hidden="true"></i><span>Boleto</span></span>
+          </div>
+        </div>
+      </nav>
     </div>
- 
-    <div class="footer-item">
-      <i data-lucide="zap"></i>
-      <div>
-        <strong>Pix</strong>
-        <p>Mais rapidez e segurança</p>
-      </div>
-    </div>
- 
-    <div class="footer-item">
-      <i data-lucide="headphones"></i>
-      <div>
-        <strong>Atendimento ao cliente</strong>
-        <p>Segunda a domingo - 8h às 22h</p>
-      </div>
-    </div>
- 
-    <div class="footer-item">
-      <i data-lucide="smartphone"></i>
-      <div>
-        <strong>Baixe o app e aproveite</strong>
-        <p>Ofertas exclusivas e mais!</p>
-      </div>
-    </div>
- 
     <div class="footer-bottom">
-      <p>&copy; 2026 Hoje Supermercados. Todos os direitos reservados. CNPJ 36.915.196/0001-91</p>
-      <a href="politica-de-privacidade.html">Política de Privacidade</a>
-      <a href="#analytics-preferences" data-analytics-settings-link>Configurações de analytics</a>
+      <p>Compras com segurança e praticidade.</p>
     </div>
   </footer>
- 
-  <script>
-    lucide.createIcons();
-  </script>
+</body>
+</html>

@@ -4,7 +4,7 @@ import Link from 'next/link';
 import { AlertTriangle, ArrowLeft, CheckCircle2, PackagePlus, RefreshCw, X } from 'lucide-react';
 import { useCallback, useEffect, useMemo, useState } from 'react';
 import { expiryDateFromShelfLife } from '../api/inventory-lots.js';
-import { matchesProductSearch } from '../api/product-search.js';
+import { searchProductsByPriority } from '../api/product-search.js';
 import InventoryLotFormFields, { createEmptyLotForm, emptyLotForm } from '../components/inventory-lot-form-fields.js';
 import styles from './expiry-page.module.css';
 
@@ -67,10 +67,11 @@ export default function RegisterLotPage() {
   useEffect(() => { loadProducts(); }, [loadProducts]);
 
   const selectedProduct = products.find((product) => product.id === lotForm.productId);
-  const matchingProducts = useMemo(
-    () => products.filter((product) => matchesProductSearch(product, productSearch)),
+  const productSearchResults = useMemo(
+    () => searchProductsByPriority(products, productSearch),
     [products, productSearch],
   );
+  const matchingProducts = productSearchResults.items;
   const calculatedExpiry = expiryDateFromShelfLife(lotForm.manufactureDate, lotForm.shelfLifeDays);
   const effectiveExpiry = lotForm.expiryMode === 'days' ? calculatedExpiry : lotForm.expiry;
 
@@ -153,6 +154,7 @@ export default function RegisterLotPage() {
             productSearch={productSearch}
             onProductSearchChange={handleSearchChange}
             matchingProducts={matchingProducts}
+            matchingProductCount={productSearchResults.totalMatches}
             onProductSelect={selectSearchProduct}
             onClearProductSelection={clearProductSelection}
             lotForm={lotForm}

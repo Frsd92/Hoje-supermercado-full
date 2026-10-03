@@ -9,9 +9,12 @@
   <link rel="icon" type="image/webp" href="imagens/logo/logo-hj.webp">
   <link rel="stylesheet" href="style.css">
   <script src="analytics-consent.js" defer></script>
+  <script src="content-moderation.js" defer></script>
   <script src="https://unpkg.com/lucide@latest" defer></script>
+  <script src="script.js" defer></script>
 </head>
 <body>
+  <a class="legal-skip-link" href="#conteudo-principal">Pular para o conteúdo principal</a>
 
   <!-- ===================== TOPBAR (igual ao index.html) ===================== -->
   <header class="topbar">
@@ -47,32 +50,83 @@
       </div>
     </div>
 
-    <div class="topbar-item cart-trigger" id="cart-trigger">
-      <div class="cart-icon-wrap" aria-label="Abrir carrinho">
+    <button class="topbar-item cart-trigger" id="cart-trigger" type="button" aria-label="Abrir carrinho de compras" aria-controls="cart-panel" aria-expanded="false">
+      <span class="cart-icon-wrap" aria-hidden="true">
         <i data-lucide="shopping-cart"></i>
         <span id="cart-badge" class="cart-badge">0</span>
-      </div>
+      </span>
       <div class="topbar-text">
         <strong>Meu carrinho</strong>
         <span id="cart-total">R$ 0,00</span>
       </div>
-    </div>
+    </button>
   </header>
 
+  <div id="store-feedback-toast" class="store-feedback-toast" role="status" aria-live="polite" aria-atomic="true"></div>
+  <div id="cart-backdrop" class="cart-backdrop"></div>
+  <aside id="cart-panel" class="cart-panel" aria-label="Carrinho de compras" aria-hidden="true" data-hj-suppress inert>
+    <div class="cart-panel-header">
+      <div class="cart-panel-title-wrap">
+        <span class="cart-panel-icon"><i data-lucide="shopping-cart"></i></span>
+        <h3 id="cart-panel-title">Meu Carrinho (0 itens)</h3>
+      </div>
+      <button id="cart-close" class="cart-close" type="button" aria-label="Fechar carrinho">×</button>
+    </div>
+    <p class="cart-subtitle">Revise seus itens antes de finalizar</p>
+    <div id="cart-items" class="cart-items" aria-live="polite"></div>
+    <div class="cart-panel-footer">
+      <div class="cart-summary-box">
+        <div class="summary-row"><span>Subtotal (0 itens)</span><strong>R$ 0,00</strong></div>
+        <div class="summary-row"><span>Descontos</span><strong>R$ 0,00</strong></div>
+        <div class="summary-row"><span>Frete</span><strong>R$ 0,00</strong></div>
+        <div class="summary-row total"><span>Total</span><strong>R$ 0,00</strong></div>
+      </div>
+      <div class="cart-coupon">
+        <label class="visually-hidden" for="coupon-input">Cupom de desconto</label>
+        <input id="coupon-input" type="text" placeholder="Insira seu cupom" maxlength="24">
+        <button id="apply-coupon" class="btn-coupon" type="button">Aplicar</button>
+      </div>
+      <p id="coupon-feedback" class="coupon-feedback" aria-live="polite"></p>
+      <div id="checkout-guide" class="checkout-guide" data-state="info" role="status" aria-live="polite" aria-atomic="true">
+        <div class="checkout-guide-copy">
+          <strong id="checkout-guide-title">Monte seu carrinho</strong>
+          <p id="checkout-guide-message">Adicione os produtos desejados para começar seu pedido.</p>
+        </div>
+        <a id="checkout-address-link" href="/dashboard/addresses" hidden>Gerenciar endereços</a>
+        <button id="checkout-retry" type="button" hidden>Tentar novamente</button>
+      </div>
+      <label class="delivery-address-field" for="payment-method">
+        Forma de pagamento
+        <select id="payment-method" required>
+          <option value="" selected disabled>Selecione sua forma de pagamento</option>
+          <option value="pix">Pix</option>
+          <option value="cartao">Cartão</option>
+          <option value="dinheiro">Dinheiro</option>
+          <option value="outro">Outro / combinar</option>
+        </select>
+      </label>
+      <small class="checkout-field-hint">Obrigatória para concluir o pedido.</small>
+      <button id="finalizar-compra" class="btn-finalizar" type="button">Finalizar Pedido</button>
+      <button id="limpar-carrinho" class="btn-limpar" type="button">Limpar Carrinho</button>
+    </div>
+  </aside>
+
   <!-- ===================== NAVEGAÇÃO SIMPLES DE VOLTA ===================== -->
-  <div class="policy-breadcrumb">
+  <nav class="policy-breadcrumb" aria-label="Navegação estrutural">
     <a href="index.html">← Voltar para a loja</a>
-  </div>
+    <span aria-hidden="true">/</span>
+    <span aria-current="page">Termos de Serviço</span>
+  </nav>
 
   <!-- ===================== CONTEÚDO DOS TERMOS ===================== -->
-  <main class="policy-page">
+  <main id="conteudo-principal" class="policy-page legal-document" aria-labelledby="policy-title">
     <div class="policy-container">
 
-      <h1>Termos de Serviço</h1>
-      <p class="policy-meta"><strong>Última atualização:</strong> 1º de outubro de 2026 &nbsp;|&nbsp; <strong>Versão:</strong> 1.3</p>
+      <h1 id="policy-title">Termos de Serviço</h1>
+      <p id="policy-meta" class="policy-meta"><strong>Última atualização:</strong> 1º de outubro de 2026 &nbsp;|&nbsp; <strong>Versão:</strong> 1.3</p>
 
-      <details class="policy-toc" open>
-        <summary>Índice</summary>
+      <details class="policy-toc">
+        <summary>Navegar pelas seções</summary>
         <ol>
           <li><a href="#s1">Aceitação dos Termos</a></li>
           <li><a href="#s2">Identificação da Empresa</a></li>
@@ -222,53 +276,45 @@
     </div>
   </main>
 
-  <!-- ===================== FOOTER (igual ao index.html) ===================== -->
-  <footer class="footer">
-    <div class="footer-logo">
-      <img src="imagens/logo/logo-branco.webp" alt="Hoje">
-    </div>
-
-    <div class="footer-item">
-      <i data-lucide="credit-card"></i>
-      <div>
-        <strong>Pagamento facilitado</strong>
-        <p>Até 12x no cartão</p>
+  <footer class="footer legal-footer">
+    <div class="footer-inner">
+      <div class="footer-left">
+        <a class="footer-logo" href="index.html" aria-label="Hoje Supermercado — página inicial">
+          <img src="imagens/logo/logo-branco.webp" alt="Hoje Supermercado" loading="lazy" decoding="async">
+        </a>
+        <p class="footer-tagline">Mais do que um mercado, praticidade para o seu dia a dia.</p>
+        <p class="copyright">© 2026 Hoje Supermercados. CNPJ 36.915.196/0001-91</p>
       </div>
+      <nav class="footer-columns" aria-label="Links institucionais">
+        <div class="footer-column">
+          <h2>Navegação</h2>
+          <ul>
+            <li><a href="index.html">Voltar para a loja</a></li>
+            <li><a href="/dashboard">Minha conta</a></li>
+            <li><a href="/dashboard/orders">Meus pedidos</a></li>
+          </ul>
+        </div>
+        <div class="footer-column">
+          <h2>Informações legais</h2>
+          <ul>
+            <li><a href="politica-de-privacidade.html">Política de Privacidade</a></li>
+            <li><a href="termos-de-uso.html" aria-current="page">Termos de uso</a></li>
+            <li><a href="#analytics-preferences" data-analytics-settings-link>Configurações de analytics</a></li>
+          </ul>
+        </div>
+        <div class="footer-column">
+          <h2 id="formas-de-pagamento">Formas de pagamento</h2>
+          <div class="payment-icons">
+            <span class="payment pix"><i data-lucide="qr-code" aria-hidden="true"></i><span>Pix</span></span>
+            <span class="payment card"><i data-lucide="credit-card" aria-hidden="true"></i><span>Cartão</span></span>
+            <span class="payment boleto"><i data-lucide="barcode" aria-hidden="true"></i><span>Boleto</span></span>
+          </div>
+        </div>
+      </nav>
     </div>
-
-    <div class="footer-item">
-      <i data-lucide="zap"></i>
-      <div>
-        <strong>Pix</strong>
-        <p>Mais rapidez e segurança</p>
-      </div>
-    </div>
-
-    <div class="footer-item">
-      <i data-lucide="headphones"></i>
-      <div>
-        <strong>Atendimento ao cliente</strong>
-        <p>Segunda a domingo - 8h às 22h</p>
-      </div>
-    </div>
-
-    <div class="footer-item">
-      <i data-lucide="smartphone"></i>
-      <div>
-        <strong>Baixe o app e aproveite</strong>
-        <p>Ofertas exclusivas e mais!</p>
-      </div>
-    </div>
-
     <div class="footer-bottom">
-      <p>&copy; 2026 Hoje Supermercados. Todos os direitos reservados. CNPJ 36.915.196/0001-91</p>
-      <a href="politica-de-privacidade.html">Política de Privacidade</a>
-      <a href="#analytics-preferences" data-analytics-settings-link>Configurações de analytics</a>
+      <p>Compras com segurança e praticidade.</p>
     </div>
   </footer>
-
-  <script>
-    lucide.createIcons();
-  </script>
 </body>
 </html>

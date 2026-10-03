@@ -7,6 +7,7 @@ import { useEffect, useRef, useState } from 'react';
 import { formatCurrency, getBudgetProgress, getCurrentMonthSpend } from '../budget';
 import { readLocalBudget } from '../budget-storage';
 import { getCartItemCount } from '../cart-utils';
+import contentModeration from '@/lib/content-moderation.js';
 
 const emptyProfile = {
   fullName: '',
@@ -155,6 +156,11 @@ export default function ProfilePage() {
       setSavingProfile(false);
       return;
     }
+    if (contentModeration.containsOffensiveContent(profile.fullName)) {
+      setFeedback('Remova termos ofensivos do nome antes de salvar.');
+      setSavingProfile(false);
+      return;
+    }
     if (profile.cpf && profile.cpf.replace(/\D/g, '').length !== 11) {
       setFeedback('Digite um CPF válido com 11 dígitos.');
       setSavingProfile(false);
@@ -235,6 +241,7 @@ export default function ProfilePage() {
   });
   const monthSpend = getCurrentMonthSpend(orders);
   const budgetProgress = getBudgetProgress(monthSpend, profile.monthlyBudget);
+  const profileNameContainsOffensiveContent = contentModeration.containsOffensiveContent(profile.fullName);
 
   return (
     <div className="section-shell">
@@ -268,7 +275,8 @@ export default function ProfilePage() {
           <div className="profile-form-grid">
             <label className="form-field">
               <span>Nome Completo</span>
-              <input type="text" value={profile.fullName} disabled={loading || savingProfile || !profileLoaded} onChange={(event) => handleChange('fullName', event.target.value)} maxLength={100} />
+              <input type="text" value={profile.fullName} disabled={loading || savingProfile || !profileLoaded} onChange={(event) => handleChange('fullName', event.target.value)} maxLength={100} aria-invalid={profileNameContainsOffensiveContent} aria-describedby={profileNameContainsOffensiveContent ? 'profile-name-moderation-error' : undefined} />
+              {profileNameContainsOffensiveContent && <small id="profile-name-moderation-error" className="profile-moderation-error" role="alert">Remova termos ofensivos para salvar o perfil.</small>}
             </label>
             <label className="form-field">
               <span>E-mail</span>
@@ -310,7 +318,7 @@ export default function ProfilePage() {
 
           <p className="analytics-source-note">Gênero e data de nascimento são opcionais e usados apenas para estatísticas agregadas de compras.</p>
           <div className="profile-save-actions">
-            <button type="button" className="primary-cta" disabled={loading || savingProfile || !profileLoaded} onClick={saveProfile}>{savingProfile ? 'Salvando...' : 'Salvar alterações'}</button>
+            <button type="button" className="primary-cta" disabled={loading || savingProfile || !profileLoaded || profileNameContainsOffensiveContent} onClick={saveProfile}>{savingProfile ? 'Salvando...' : 'Salvar alterações'}</button>
           </div>
           {feedback && <p className={`profile-feedback ${feedback.includes('Não foi') || feedback.includes('Informe') || feedback.includes('Digite') || feedback.includes('Selecione') || feedback.includes('data de nascimento') ? 'error' : ''}`} role="status">{feedback}</p>}
         </div>

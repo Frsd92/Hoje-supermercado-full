@@ -1,6 +1,7 @@
 import { getServerSession } from 'next-auth';
 import { authOptions } from '@/auth';
 import { prisma } from '@/lib/prisma';
+import contentModeration from '@/lib/content-moderation.js';
 
 const maximumPhotoBytes = 1024 * 1024;
 
@@ -82,6 +83,9 @@ export async function PUT(request) {
   if (Object.hasOwn(body, 'fullName')) {
     if (typeof body.fullName !== 'string' || !body.fullName.trim() || body.fullName.trim().length > 100) {
       return Response.json({ error: 'Informe um nome válido com até 100 caracteres.' }, { status: 400 });
+    }
+    if (contentModeration.containsOffensiveContent(body.fullName)) {
+      return Response.json({ error: 'Remova termos ofensivos do nome antes de salvar.' }, { status: 400 });
     }
     updates.fullName = body.fullName.trim();
   }

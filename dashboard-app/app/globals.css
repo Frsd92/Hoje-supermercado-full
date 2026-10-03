@@ -5478,6 +5478,158 @@ button.metric-mini:focus-visible {
   background: #ef4444;
 }
 
+.account-delete-dialog {
+  width: min(100% - 32px, 520px);
+  max-height: min(90vh, 680px);
+  padding: 0;
+  overflow: auto;
+  border: 1px solid #d7e0dc;
+  border-radius: 18px;
+  background: #fff;
+  color: #17241c;
+  box-shadow: 0 24px 70px rgba(10, 24, 15, 0.3);
+}
+
+.account-delete-dialog::backdrop {
+  background: rgba(10, 24, 15, 0.62);
+  backdrop-filter: blur(3px);
+}
+
+.account-delete-dialog-content {
+  padding: clamp(20px, 5vw, 30px);
+}
+
+.account-delete-dialog-kicker {
+  color: #a12b2b;
+  font-size: 0.7rem;
+  font-weight: 850;
+  letter-spacing: 0.09em;
+  text-transform: uppercase;
+}
+
+.account-delete-dialog h2 {
+  margin: 8px 0 10px;
+  color: inherit;
+  font-size: clamp(1.2rem, 4vw, 1.55rem);
+  line-height: 1.2;
+}
+
+.account-delete-dialog p {
+  margin: 0;
+  color: #59675e;
+  font-size: 0.85rem;
+  line-height: 1.65;
+}
+
+.account-delete-confirmation-field {
+  display: grid;
+  gap: 7px;
+  margin-top: 20px;
+  color: #334239;
+  font-size: 0.78rem;
+  font-weight: 750;
+}
+
+.account-delete-confirmation-field input {
+  width: 100%;
+  min-height: 46px;
+  padding: 10px 12px;
+  border: 1px solid #cbd7ce;
+  border-radius: 10px;
+  background: #fff;
+  color: #17241c;
+  font: inherit;
+}
+
+.account-delete-confirmation-field input:focus-visible {
+  border-color: #a12b2b;
+  outline: 3px solid rgba(161, 43, 43, 0.18);
+}
+
+.account-delete-dialog-actions {
+  display: flex;
+  justify-content: flex-end;
+  gap: 10px;
+  margin-top: 22px;
+}
+
+.account-delete-dialog-actions button {
+  min-height: 44px;
+  padding: 0 15px;
+  border: 1px solid transparent;
+  border-radius: 10px;
+  font: inherit;
+  font-size: 0.78rem;
+  font-weight: 800;
+  cursor: pointer;
+}
+
+.account-delete-dialog-actions button:focus-visible {
+  outline: 3px solid rgba(22, 101, 52, 0.35);
+  outline-offset: 2px;
+}
+
+.account-delete-cancel {
+  border-color: #cbd7ce !important;
+  background: #fff;
+  color: #34453a;
+}
+
+.account-delete-confirm {
+  background: #a12b2b;
+  color: #fff;
+}
+
+.account-delete-confirm:hover:not(:disabled) {
+  background: #812222;
+}
+
+.account-delete-confirm:disabled {
+  cursor: not-allowed;
+  opacity: 0.48;
+}
+
+.search-moderation-error {
+  color: #9e2929;
+  font-weight: 750;
+}
+
+.profile-moderation-error {
+  display: block;
+  margin-top: 6px;
+  color: #9e2929;
+  font-size: 0.75rem;
+  line-height: 1.45;
+}
+
+.dashboard-shell[data-dashboard-theme="dark"] .account-delete-dialog {
+  border-color: #3a4c41;
+  background: #16221b;
+  color: #ecf3ee;
+}
+
+.dashboard-shell[data-dashboard-theme="dark"] .account-delete-dialog p,
+.dashboard-shell[data-dashboard-theme="dark"] .account-delete-confirmation-field {
+  color: #c3d0c7;
+}
+
+.dashboard-shell[data-dashboard-theme="dark"] .account-delete-confirmation-field input {
+  border-color: #45584b;
+  background: #101a14;
+  color: #ecf3ee;
+}
+
+.dashboard-shell[data-dashboard-theme="dark"] .account-delete-cancel {
+  border-color: #45584b !important;
+  background: #1d2d23;
+  color: #ecf3ee;
+}
+
+.dashboard-shell[data-dashboard-theme="dark"] .search-moderation-error,
+.dashboard-shell[data-dashboard-theme="dark"] .profile-moderation-error {
+  color: #ffaaaa;
+}
+
 .settings-footer-actions {
   display: flex;
   align-items: center;
@@ -5986,15 +6138,48 @@ button.metric-mini:focus-visible {
 .erp-header { align-items: flex-end; }
 .erp-header h1 { margin: 8px 0 5px; }
 .erp-metrics-grid { display: grid; grid-template-columns: repeat(4, minmax(0, 1fr)); gap: 14px; }
-.erp-metric { padding: 16px; border-radius: 16px; background: linear-gradient(145deg, #101b20, #162a27); color: #fff; border: 1px solid rgba(255,255,255,.08); box-shadow: 0 18px 30px rgba(2,6,11,.16); }
-.erp-metric-icon { width: 34px; height: 34px; display: grid; place-items: center; border-radius: 10px; margin-bottom: 12px; background: rgba(255,255,255,.1); }
+.erp-metric { padding: 16px; border: 1px solid var(--erp-border); border-radius: 16px; background: var(--erp-surface); color: var(--erp-text); box-shadow: var(--erp-shadow-panel); }
+.erp-metric-icon { width: 34px; height: 34px; display: grid; place-items: center; border-radius: 10px; margin-bottom: 12px; background: var(--erp-primary-soft); }
 .erp-metric strong, .erp-metric span, .erp-metric small { display: block; }
 .erp-metric strong { font-size: 1.55rem; }
-.erp-metric span { margin-top: 5px; color: rgba(255,255,255,.78); font-size: .78rem; }
-.erp-metric small { margin-top: 7px; color: #86efac; font-size: .7rem; }
-.erp-metric.gold .erp-metric-icon { color: #f5d77d; }
-.erp-metric.blue .erp-metric-icon { color: #93c5fd; }
-.erp-metric.violet .erp-metric-icon { color: #d8b4fe; }
+.erp-metric span { margin-top: 5px; color: var(--erp-muted); font-size: .78rem; }
+.erp-metric small { margin-top: 7px; color: var(--erp-primary-strong); font-size: .7rem; }
+.erp-metric.gold .erp-metric-icon { background: #fef3c7; color: #92400e; }
+.erp-metric.blue .erp-metric-icon { background: #dbeafe; color: #1d4ed8; }
+.erp-metric.violet .erp-metric-icon { background: #f3e8ff; color: #7e22ce; }
+.erp-dashboard-sections { display: grid; gap: 22px; margin: 4px 0 22px; }
+.erp-dashboard-section { display: grid; gap: 11px; min-width: 0; }
+.erp-dashboard-section-heading { display: flex; align-items: flex-end; justify-content: space-between; gap: 12px; }
+.erp-dashboard-section-heading h2 { margin: 0; color: var(--erp-text); font-size: 1rem; }
+.erp-dashboard-section-heading p { margin: 4px 0 0; color: var(--erp-muted); font-size: .72rem; }
+.erp-dashboard-section-heading > span { color: var(--erp-muted); font-size: .68rem; white-space: nowrap; }
+.erp-dashboard-metric { position: relative; display: flex; min-width: 0; min-height: 150px; flex-direction: column; align-items: flex-start; color: var(--erp-text); text-decoration: none; transition: transform .15s ease, border-color .15s ease, box-shadow .15s ease; }
+.erp-dashboard-metric:hover { transform: translateY(-2px); border-color: var(--erp-primary-border); box-shadow: 0 12px 24px rgba(15,23,42,.09); }
+.erp-dashboard-metric:focus-visible { outline: 3px solid var(--erp-focus); outline-offset: 3px; }
+.erp-dashboard-metric strong { max-width: 100%; overflow-wrap: anywhere; font-size: clamp(1.25rem, 1.7vw, 1.6rem); font-variant-numeric: tabular-nums; line-height: 1.2; }
+.erp-dashboard-metric small { max-width: calc(100% - 18px); line-height: 1.45; }
+.erp-dashboard-metric-arrow { position: absolute; right: 14px; bottom: 13px; color: var(--erp-muted); transition: transform .15s ease, color .15s ease; }
+.erp-dashboard-metric:hover .erp-dashboard-metric-arrow,
+.erp-dashboard-metric:focus-visible .erp-dashboard-metric-arrow { transform: translate(2px, -2px); color: var(--erp-primary); }
+.erp-metric.green .erp-metric-icon { background: #dcfce7; color: #166534; }
+.erp-dashboard-error { display: flex; align-items: center; gap: 12px; margin: 0 0 18px; padding: 12px 14px; border: 1px solid #fecaca; border-radius: 12px; background: #fff7f7; color: #7f1d1d; font-size: .78rem; line-height: 1.5; }
+.erp-dashboard-error > svg { flex: 0 0 auto; }
+.erp-dashboard-error > span { flex: 1; min-width: 0; }
+.erp-dashboard-error .primary-cta { flex: 0 0 auto; }
+.erp-dashboard-alert-panel { margin-top: 20px; }
+.erp-dashboard-alert-panel .erp-panel-title h2 { margin: 0; color: var(--erp-text); font-size: .96rem; }
+.erp-dashboard-alerts { display: grid; gap: 8px; }
+.erp-dashboard-alert { display: grid; grid-template-columns: 34px minmax(0, 1fr) auto; align-items: center; gap: 10px; min-width: 0; padding: 11px 12px; border: 1px solid transparent; border-radius: 10px; color: inherit; text-decoration: none; transition: border-color .15s ease, transform .15s ease; }
+.erp-dashboard-alert:hover { transform: translateY(-1px); border-color: currentColor; }
+.erp-dashboard-alert:focus-visible { outline: 3px solid var(--erp-focus); outline-offset: 2px; }
+.erp-dashboard-alert > svg:first-child { justify-self: center; }
+.erp-dashboard-alert > span { display: grid; gap: 3px; min-width: 0; }
+.erp-dashboard-alert strong { font-size: .78rem; }
+.erp-dashboard-alert small { color: var(--erp-muted); font-size: .7rem; line-height: 1.45; }
+.erp-dashboard-alert.danger { background: #fff1f2; color: #be123c; }
+.erp-dashboard-alert.warning { background: #fffbeb; color: #b45309; }
+.erp-dashboard-alert.info { background: #eff6ff; color: #1d4ed8; }
+.erp-dashboard-all-clear { display: flex; align-items: center; gap: 9px; padding: 13px; border-radius: 10px; background: #f0fdf4; color: #166534; font-size: .78rem; font-weight: 700; }
 .erp-shell .erp-product-form, .erp-shell .erp-alert-panel, .erp-shell .erp-table-panel, .erp-shell .erp-audit-panel { padding: 18px; border: 1px solid var(--erp-border); border-radius: var(--erp-radius-panel); background: var(--erp-surface); box-shadow: var(--erp-shadow-panel); }
 .erp-chart-panel { padding: 18px; border: 1px solid rgba(148,163,184,.16); border-radius: 16px; background: linear-gradient(180deg, #10251f, #17382d); color: #f0fdf4; box-shadow: 0 14px 30px rgba(15,23,42,.12); }
 .erp-chart-panel .erp-table-heading p { color: #b7d5c5; }
@@ -6333,6 +6518,10 @@ button.metric-mini:focus-visible {
 @media (max-width: 640px) {
   .erp-main { padding: 18px 14px calc(24px + env(safe-area-inset-bottom)); }
   .erp-metrics-grid, .erp-alert-grid, .erp-form-grid { grid-template-columns: 1fr; }
+  .erp-dashboard-section-heading { align-items: flex-start; flex-direction: column; gap: 4px; }
+  .erp-dashboard-error { align-items: flex-start; flex-wrap: wrap; }
+  .erp-dashboard-error .primary-cta { width: 100%; }
+  .erp-dashboard-alert { grid-template-columns: 28px minmax(0, 1fr) auto; gap: 8px; padding: 10px; }
   .erp-table-heading, .erp-footer-actions { flex-direction: column;   }
 
   .erp-table-tools { width: 100%; flex-wrap: wrap; }
