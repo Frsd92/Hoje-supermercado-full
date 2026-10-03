@@ -413,7 +413,10 @@ async function carregarEnderecosDaApi() {
     erroEnderecosDaApi = error.message || 'Falha ao carregar endereços.';
     console.warn('Endereços cadastrados indisponíveis:', error.message);
     const locationDetails = document.getElementById('location-address-details');
-    if (locationDetails) locationDetails.textContent = 'Não foi possível carregar seus endereços. Tente recarregar a página.';
+    if (locationDetails) {
+      locationDetails.textContent = 'Não foi possível carregar seus endereços. Tente recarregar a página.';
+      locationDetails.hidden = false;
+    }
     atualizarOrientacaoCheckout();
   }
 }
@@ -435,9 +438,8 @@ function updateAddressSummaryFromSelection() {
   if (locationDetails) {
     locationDetails.textContent = selectedAddress
       ? selected.dataset.location || 'Endereço selecionado para entrega.'
-      : enderecosDaLoja.length
-        ? 'Selecione onde deseja receber seu pedido.'
-        : 'Adicione um endereço para consultar a entrega.';
+      : '';
+    locationDetails.hidden = !selectedAddress;
   }
   atualizarOrientacaoCheckout();
 }
