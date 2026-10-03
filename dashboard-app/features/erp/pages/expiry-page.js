@@ -1,7 +1,7 @@
 'use client';
 
 import Link from 'next/link';
-import { AlertTriangle, CalendarDays, CheckCircle2, Clock3, Package, Pencil, Plus, RefreshCw, Search, ShieldAlert, X } from 'lucide-react';
+import { AlertTriangle, CalendarDays, CheckCircle2, Clock3, Package, Pencil, RefreshCw, Search, ShieldAlert, X } from 'lucide-react';
 import { useCallback, useEffect, useMemo, useState } from 'react';
 import { expiryDateFromShelfLife } from '../api/inventory-lots.js';
 import { EXPIRY_BANDS, getExpiryStatus, saoPauloDateString } from '../expiry.js';
@@ -145,7 +145,7 @@ export default function ERPExpiryPage() {
   const openNewLot = useCallback((preferredProductId = '') => {
     const productId = preferredProductId || (productFilter !== 'Todas'
       ? productFilter
-      : products.find((product) => product.status === 'Ativo')?.id || products[0]?.id || '');
+      : '');
     const product = products.find((item) => item.id === productId);
     const shelfLifeDays = product?.shelfLifeDays ? String(product.shelfLifeDays) : '';
     setEditingLot(null);
@@ -168,16 +168,24 @@ export default function ERPExpiryPage() {
       return;
     }
 
+    if (!products.length) {
+      setError('Cadastre um produto antes de registrar um lote.');
+      setAutoRegisterLotHandled(true);
+      return;
+    }
+
     const requestedProductId = url.searchParams.get('productId');
-    const product = products.find((item) => item.id === requestedProductId || item.externalId === requestedProductId);
-    if (!product) {
+    const product = requestedProductId
+      ? products.find((item) => item.id === requestedProductId || item.externalId === requestedProductId)
+      : null;
+    if (requestedProductId && !product) {
       setError('Não foi possível localizar o produto para registrar o lote. Selecione-o na lista e tente novamente.');
       setAutoRegisterLotHandled(true);
       return;
     }
 
-    setProductFilter(product.id);
-    openNewLot(product.id);
+    if (product) setProductFilter(product.id);
+    openNewLot(product?.id);
     url.searchParams.delete('action');
     window.history.replaceState(window.history.state, '', `${url.pathname}${url.search}${url.hash}`);
     setAutoRegisterLotHandled(true);
@@ -246,10 +254,6 @@ export default function ERPExpiryPage() {
           <button className={styles.refreshButton} type="button" onClick={loadData} disabled={loading} aria-label={loading ? 'Atualizando lotes' : 'Atualizar lotes'}>
             <RefreshCw size={16} aria-hidden="true" />
             {loading ? 'Atualizando...' : 'Atualizar'}
-          </button>
-          <button className={styles.addButton} type="button" onClick={openNewLot} disabled={!products.length} aria-label="Registrar lote">
-            <Plus size={17} aria-hidden="true" />
-            Registrar lote
           </button>
         </div>
       </header>
@@ -339,8 +343,7 @@ export default function ERPExpiryPage() {
           <div className={styles.emptyState}>
             <CheckCircle2 size={24} aria-hidden="true" />
             <h3>Nenhum lote com saldo registrado</h3>
-            <p>Registre as quantidades e datas de cada lote. O saldo total do produto será calculado automaticamente.</p>
-            <button type="button" onClick={openNewLot} disabled={!products.length}>Registrar primeiro lote</button>
+            <p>Use <strong>Registrar lote</strong> no menu lateral para lançar a primeira entrada. O saldo total do produto será calculado automaticamente.</p>
           </div>
         )}
 
