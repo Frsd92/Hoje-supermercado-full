@@ -51,6 +51,7 @@ export default function ERPExpiryPage() {
   const [saving, setSaving] = useState(false);
   const [feedback, setFeedback] = useState('');
   const [formError, setFormError] = useState('');
+  const [autoRegisterLotHandled, setAutoRegisterLotHandled] = useState(false);
 
   const loadData = useCallback(async () => {
     setLoading(true);
@@ -141,10 +142,10 @@ export default function ERPExpiryPage() {
   const calculatedExpiry = expiryDateFromShelfLife(lotForm.manufactureDate, lotForm.shelfLifeDays);
   const effectiveExpiry = lotForm.expiryMode === 'days' ? calculatedExpiry : lotForm.expiry;
 
-  const openNewLot = () => {
-    const productId = productFilter !== 'Todas'
+  const openNewLot = useCallback((preferredProductId = '') => {
+    const productId = preferredProductId || (productFilter !== 'Todas'
       ? productFilter
-      : products.find((product) => product.status === 'Ativo')?.id || products[0]?.id || '';
+      : products.find((product) => product.status === 'Ativo')?.id || products[0]?.id || '');
     const product = products.find((item) => item.id === productId);
     const shelfLifeDays = product?.shelfLifeDays ? String(product.shelfLifeDays) : '';
     setEditingLot(null);
@@ -157,7 +158,30 @@ export default function ERPExpiryPage() {
     });
     setFormError('');
     setModalOpen(true);
-  };
+  }, [productFilter, products]);
+
+  useEffect(() => {
+    if (loading || error || autoRegisterLotHandled) return;
+    const url = new URL(window.location.href);
+    if (url.searchParams.get('action') !== 'register-lot') {
+      setAutoRegisterLotHandled(true);
+      return;
+    }
+
+    const requestedProductId = url.searchParams.get('productId');
+    const product = products.find((item) => item.id === requestedProductId || item.externalId === requestedProductId);
+    if (!product) {
+      setError('Não foi possível localizar o produto para registrar o lote. Selecione-o na lista e tente novamente.');
+      setAutoRegisterLotHandled(true);
+      return;
+    }
+
+    setProductFilter(product.id);
+    openNewLot(product.id);
+    url.searchParams.delete('action');
+    window.history.replaceState(window.history.state, '', `${url.pathname}${url.search}${url.hash}`);
+    setAutoRegisterLotHandled(true);
+  }, [autoRegisterLotHandled, error, loading, openNewLot, products]);
 
   const openEditLot = (lot) => {
     setEditingLot(lot);

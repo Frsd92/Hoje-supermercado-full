@@ -4,7 +4,6 @@ import Link from 'next/link';
 import { ArrowLeft, ArrowRight, CalendarClock, Check, ImagePlus, Plus, Save, Trash2 } from 'lucide-react';
 import { useEffect, useState } from 'react';
 import { formatAuditValue } from '../api/product-audit.js';
-import { expiryDateFromShelfLife } from '../api/inventory-lots.js';
 import { getProductOrganizationError, normalizeProductOrganizationValue, usesHortifrutiOrganization } from '../product-organization.js';
 import { calculateProductPricing, formatBRL, parseBRL, parsePercent, priceFromMarkup, roundMoney } from './product-pricing.js';
 import { encodeProductImage } from './product-image.js';
@@ -17,9 +16,6 @@ const isKilogramSaleUnit = (value) => /^(kg|quilo|quilograma)s?$/i.test(String(v
 const auditFieldLabels = { title: 'Nome', description: 'Descrição', price: 'Preço', cost: 'Custo', discount: 'Desconto', quantity: 'Estoque', sku: 'SKU', barcode: 'Código de barras', barcodes: 'Códigos de barras', brand: 'Marca', manufacturer: 'Fabricante', supplier: 'Fornecedor', suppliers: 'Fornecedores', subcategory: 'Categoria', categories: 'Categorias', image: 'Imagem', status: 'Status', expiry: 'Validade', shelfLifeDays: 'Prazo padrão de validade (dias)', saleUnit: 'Unidade de venda', priceHistory: 'Histórico de preços', createdAt: 'Criado em', createdBy: 'Criado por', updatedAt: 'Atualizado em', updatedBy: 'Atualizado por' };
 const auditActionLabels = { CREATE: 'Produto cadastrado', UPDATE: 'Produto atualizado', DELETE: 'Produto excluído', LEGACY_BASELINE: 'Snapshot inicial legado', LEGACY_PRICE_HISTORY: 'Registro legado de preço' };
 const formatAuditDate = (value) => new Intl.DateTimeFormat('pt-BR', { dateStyle: 'medium', timeStyle: 'medium' }).format(new Date(value));
-const formatProductDate = (value) => value
-  ? new Intl.DateTimeFormat('pt-BR', { day: '2-digit', month: '2-digit', year: 'numeric', timeZone: 'UTC' }).format(new Date(`${value}T00:00:00.000Z`))
-  : '';
 
 export default function ERPProductsPage() {
   const [editId, setEditId] = useState('');
@@ -177,16 +173,22 @@ export default function ERPProductsPage() {
     const effectivePrice = promotionalPrice > 0 ? promotionalPrice : discountedPrice;
     const profitMarginValue = roundMoney(effectivePrice - cost);
     try {
-      const response = await fetch('/api/products', { method: isEditing ? 'PUT' : 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ ...product, expiry: !isEditing && product.expiryMode === 'days' ? calculatedInitialExpiry : product.expiry, fractionalSale: product.saleUnit === 'Quilograma', price, cost, promotionalPrice, profitMarginPercent: effectivePrice > 0 ? Number(((profitMarginValue / effectivePrice) * 100).toFixed(2)) : 0, profitMarginValue, markupPercent, barcodes: [...new Set([...(product.barcodes || []), product.barcode].filter(Boolean))], barcode: product.barcodes?.[0] || product.barcode || '', discount, quantity: Number(product.quantity || 0) }) });
+      const response = await fetch('/api/products', { method: isEditing ? 'PUT' : 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ ...product, fractionalSale: product.saleUnit === 'Quilograma', price, cost, promotionalPrice, profitMarginPercent: effectivePrice > 0 ? Number(((profitMarginValue / effectivePrice) * 100).toFixed(2)) : 0, profitMarginValue, markupPercent, barcodes: [...new Set([...(product.barcodes || []), product.barcode].filter(Boolean))], barcode: product.barcodes?.[0] || product.barcode || '', discount, quantity: isEditing ? Number(product.quantity || 0) : 0 }) });
       const data = await response.json();
       if (!response.ok) throw new Error(data.error || 'Não foi possível salvar o produto.');
-      if (isEditing) {
-        setProduct((current) => ({ ...current, ...data.product, price: formatBRL(data.product.price), cost: formatBRL(data.product.cost), promotionalPrice: formatBRL(data.product.promotionalPrice ?? data.product.price) }));
-        setAuditRefresh((current) => current + 1);
-      } else {
+      if (!isEditing) {
+        const productReference = String(data.product?.id || '').trim();
+        if (productReference) {
+          window.location.assign(`/erp/validade?productId=${encodeURIComponent(productReference)}&action=register-lot`);
+          return;
+        }
         setProduct(emptyProduct);
+        setFeedback('Produto cadastrado. Acesse Validade para registrar o estoque inicial em um novo lote.');
+        return;
       }
-      setFeedback(isEditing ? 'Produto atualizado com sucesso.' : 'Produto salvo e publicado nas categorias selecionadas.');
+      setProduct((current) => ({ ...current, ...data.product, price: formatBRL(data.product.price), cost: formatBRL(data.product.cost), promotionalPrice: formatBRL(data.product.promotionalPrice ?? data.product.price) }));
+      setAuditRefresh((current) => current + 1);
+      setFeedback('Produto atualizado com sucesso.');
     } catch (error) {
       setFeedback(error.message || 'Não foi possível salvar o produto.');
     } finally {
@@ -198,14 +200,10 @@ export default function ERPProductsPage() {
   const priceTypes = ['Promoção', 'Oferta', 'Clube Hoje', 'Super Hoje'];
   const calculatedFields = ['profitMarginPercent', 'profitMarginValue'];
   const requiresHortifrutiOrganization = usesHortifrutiOrganization(product);
-  const calculatedInitialExpiry = expiryDateFromShelfLife(product.manufactureDate, product.shelfLifeDays);
-  const field = (label, key, type = 'text', inputProps = {}) => <label>{label}<input {...inputProps} type={type === 'currency' ? 'text' : type} inputMode={type === 'currency' ? 'decimal' : undefined} value={key === 'expiry' && !isEditing && product.expiryMode === 'days' ? calculatedInitialExpiry : product[key] ?? ''} readOnly={Boolean(inputProps.readOnly) || calculatedFields.includes(key)} onChange={(event) => {
+  const field = (label, key, type = 'text', inputProps = {}) => <label>{label}<input {...inputProps} type={type === 'currency' ? 'text' : type} inputMode={type === 'currency' ? 'decimal' : undefined} value={product[key] ?? ''} readOnly={Boolean(inputProps.readOnly) || calculatedFields.includes(key)} onChange={(event) => {
     const value = event.target.value;
     if (key === 'promotionalPrice') updatePromotionalPrice(value);
-    else {
-      update(key, value);
-      if (key === 'shelfLifeDays' && !isEditing && value.trim()) update('expiryMode', 'days');
-    }
+    else update(key, value);
   }} onBlur={type === 'currency' ? () => update(key, formatBRL(parseBRL(product[key]))) : undefined} /></label>;
   const selectedSuggestionCategory = product.categories.find((category) => markupSuggestions[category]);
   return <form className="shopify-product-page" onSubmit={saveProduct}>
@@ -217,7 +215,9 @@ export default function ERPProductsPage() {
       {activeTab === 'Estoque' && <><section className="editor-card">
         <h2>Estoque e rastreabilidade</h2>
         <div className="editor-form-grid three">
-          {field(product.saleUnit === 'Quilograma' ? 'Saldo total em estoque (kg)' : 'Saldo total em estoque', 'quantity', 'number', { readOnly: isEditing, step: '0.001' })}
+          {isEditing
+            ? field(product.saleUnit === 'Quilograma' ? 'Saldo total em estoque (kg)' : 'Saldo total em estoque', 'quantity', 'number', { readOnly: true, step: '0.001' })
+            : <div className="editor-first-lot-note"><strong>Estoque inicial</strong><p>Após salvar o produto, o formulário Registrar lote abrirá para você informar a quantidade, o código e a validade do primeiro lote.</p></div>}
           {field(product.saleUnit === 'Quilograma' ? 'Estoque mínimo (kg)' : 'Estoque mínimo', 'minStock', 'number')}
           {field(product.saleUnit === 'Quilograma' ? 'Estoque máximo (kg)' : 'Estoque máximo', 'maxStock', 'number')}
           {field('Localização padrão', 'location')}
@@ -233,51 +233,30 @@ export default function ERPProductsPage() {
             </div>
           </header>
           <div className="editor-expiry-default">
-            {field('Prazo padrão de validade (dias)', 'shelfLifeDays', 'number', { min: '1', max: '36500', step: '1', placeholder: 'Ex.: 90', required: !isEditing && product.expiryMode === 'days' && Number(product.quantity) > 0 })}
+            {field('Prazo padrão de validade (dias)', 'shelfLifeDays', 'number', { min: '1', max: '36500', step: '1', placeholder: 'Ex.: 90' })}
             <p>{isEditing
               ? 'Alterar o prazo padrão não modifica os lotes já registrados; ele fica como sugestão para novas entradas.'
-              : 'Este prazo pode calcular a validade do lote inicial e fica como sugestão para os próximos recebimentos.'}</p>
+              : 'Este prazo será sugerido ao registrar os lotes, mas poderá ser ajustado em cada entrada.'}</p>
           </div>
           {isEditing
             ? <div className="editor-expiry-manage-card">
               <div>
                 <strong>Datas dos lotes existentes</strong>
-                <p>Cada lote tem sua própria fabricação e validade. Altere-as sem afetar os demais lotes.</p>
+                <p>Cada lote tem sua própria fabricação e validade. Altere-as sem afetar os demais lotes ou registre uma nova entrada.</p>
               </div>
-              <Link className="editor-expiry-manage-link" href={`/erp/validade?productId=${encodeURIComponent(editId)}`}>
-                <CalendarClock size={16} aria-hidden="true" />
-                <span>Editar datas dos lotes</span>
-                <ArrowRight size={15} aria-hidden="true" />
-              </Link>
+              <div className="editor-expiry-actions">
+                <Link className="editor-expiry-register-link" href={`/erp/validade?productId=${encodeURIComponent(editId)}&action=register-lot`}>
+                  <Plus size={16} aria-hidden="true" />
+                  <span>Registrar lote</span>
+                </Link>
+                <Link className="editor-expiry-manage-link" href={`/erp/validade?productId=${encodeURIComponent(editId)}`}>
+                  <CalendarClock size={16} aria-hidden="true" />
+                  <span>Editar datas dos lotes</span>
+                  <ArrowRight size={15} aria-hidden="true" />
+                </Link>
+              </div>
             </div>
-            : <section className="editor-initial-lot" aria-labelledby="initial-lot-expiry-heading">
-              <div>
-                <h4 id="initial-lot-expiry-heading">Validade do lote inicial</h4>
-                <p>Escolha a opção indicada na embalagem. A validade calculada aparecerá no campo abaixo.</p>
-              </div>
-              <fieldset className="editor-expiry-mode">
-                <legend>Como deseja informar a validade?</legend>
-                <div className="editor-expiry-mode-options">
-                  <label><input type="radio" name="product-expiry-mode" value="days" checked={product.expiryMode === 'days'} onChange={() => update('expiryMode', 'days')} /> Calcular pela fabricação e pelo prazo em dias</label>
-                  <label><input type="radio" name="product-expiry-mode" value="date" checked={product.expiryMode !== 'days'} onChange={() => update('expiryMode', 'date')} /> Informar a data do rótulo</label>
-                </div>
-              </fieldset>
-              <div className="editor-form-grid three">
-                {field('Código do lote inicial', 'lot', 'text', { required: product.controlsLot && Number(product.quantity) > 0, placeholder: 'Opcional' })}
-                {field(product.expiryMode === 'days' ? 'Data de fabricação' : 'Data de fabricação (opcional)', 'manufactureDate', 'date', { required: product.expiryMode === 'days' && Number(product.quantity) > 0 })}
-                {field(product.expiryMode === 'days' ? 'Validade calculada' : 'Data de validade do rótulo', 'expiry', 'date', {
-                  required: product.expiryMode === 'days'
-                    ? Number(product.quantity) > 0
-                    : (product.controlsExpiry || product.perishable) && Number(product.quantity) > 0,
-                  disabled: product.expiryMode === 'days',
-                })}
-              </div>
-              {product.expiryMode === 'days' && <p className="editor-expiry-calculation" role="status">
-                {calculatedInitialExpiry
-                  ? `Validade calculada: ${formatProductDate(calculatedInitialExpiry)}.`
-                  : 'Informe a fabricação e o prazo padrão para calcular a validade.'}
-              </p>}
-            </section>}
+            : <p className="editor-first-lot-help">Após salvar, o formulário <strong>Registrar lote</strong> será aberto para informar o estoque inicial, a fabricação e a validade. O prazo padrão acima será sugerido quando o lote usar validade em dias.</p>}
         </section>
         <div className="editor-toggle-grid"><label><input type="checkbox" checked={product.controlsLot} onChange={(event) => update('controlsLot', event.target.checked)} /> Controla lote</label><label><input type="checkbox" checked={product.controlsExpiry} onChange={(event) => update('controlsExpiry', event.target.checked)} /> Controla validade</label><label><input type="checkbox" checked={product.perishable} onChange={(event) => update('perishable', event.target.checked)} /> Perecível</label></div>
       </section></>}
