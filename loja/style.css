@@ -1747,7 +1747,7 @@ body {
   gap: 8px;
 }
 
-.countdown span {
+.countdown > span {
   background-color: #1a1a1a;
   color: white;
   padding: 8px 10px;
@@ -1761,6 +1761,37 @@ body {
 .countdown small {
   font-size: 9px;
   font-weight: normal;
+}
+
+#flash-offer-countdown[hidden],
+#flash-offer-link[hidden] {
+  display: none;
+}
+
+.panel-flash-link {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  min-height: 40px;
+  padding: 8px 12px;
+  border-radius: 6px;
+  background: #1a7a3c;
+  color: #fff;
+  font-size: 13px;
+  font-weight: 700;
+  text-align: center;
+  text-decoration: none;
+}
+
+.panel-flash-link:hover,
+.panel-flash-link:focus-visible {
+  background: #14532d;
+  color: #fff;
+}
+
+.tag-flash-offer {
+  background: #b91c1c;
+  color: #fff;
 }
 
 /* Alinha os botões/selos com o texto (não com o ícone) nas caixinhas com panel-header */

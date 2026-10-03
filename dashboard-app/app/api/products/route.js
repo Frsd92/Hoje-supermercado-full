@@ -5,7 +5,11 @@ import { getServerSession } from 'next-auth';
 import { authOptions } from '@/auth';
 import { erpActorLabel, hasErpAccess } from '@/features/erp/access';
 import { appendPriceHistory } from '@/features/erp/api/price-history';
-import { calculateSalePrice } from '@/features/erp/api/product-pricing';
+import {
+  calculateSalePrice,
+  getFlashOfferStatus,
+  validateFlashOfferConfiguration,
+} from '@/features/erp/api/product-pricing';
 import { findProductIdentityConflict, getProductAuditChanges, productAuditSnapshot, productIdentityKeys } from '@/features/erp/api/product-audit';
 import {
   addInventoryLot,
@@ -404,32 +408,66 @@ export async function GET(request) {
   }
   if (purpose === 'store') {
     const sales = await readSales();
+    const now = Date.now();
     const storeProducts = products
       .filter((product) => product.status === 'Ativo')
-      .map((product) => ({
-        id: product.id,
-        title: product.title,
-        description: product.description || '',
-        price: Number(product.price) || 0,
-        salePrice: calculateSalePrice(product),
-        discount: Number(product.discount) || 0,
-        saleUnit: product.saleUnit === 'Quilograma' ? 'Quilograma' : 'Unidade',
-        image: publicProductImage(product),
-        categories: Array.isArray(product.categories) ? product.categories : [],
-        department: product.department || '',
-        subcategory: product.subcategory || '',
-        brand: product.brand || '',
-        productType: product.productType || '',
-        collection: product.collection || '',
-        featuredPriceTypes: Array.isArray(product.featuredPriceTypes) ? product.featuredPriceTypes : [],
-        salesCount: sales[String(product.id).toLowerCase()] || sales[String(product.title).toLowerCase()] || 0,
-      }));
+      .map((product) => {
+        const flashOffer = getFlashOfferStatus(product, now);
+        return {
+          id: product.id,
+          title: product.title,
+          description: product.description || '',
+          price: Number(product.price) || 0,
+          salePrice: calculateSalePrice(product, now),
+          flashOfferActive: flashOffer.state === 'active',
+          flashOfferEndsAt: ['active', 'scheduled'].includes(flashOffer.state)
+            ? new Date(flashOffer.endsAt).toISOString()
+            : null,
+          flashOfferScheduledStart: flashOffer.state === 'scheduled'
+            ? new Date(flashOffer.startsAt).toISOString()
+            : null,
+          discount: Number(product.discount) || 0,
+          saleUnit: product.saleUnit === 'Quilograma' ? 'Quilograma' : 'Unidade',
+          image: publicProductImage(product),
+          categories: Array.isArray(product.categories) ? product.categories : [],
+          department: product.department || '',
+          subcategory: product.subcategory || '',
+          brand: product.brand || '',
+          productType: product.productType || '',
+          collection: product.collection || '',
+          featuredPriceTypes: Array.isArray(product.featuredPriceTypes) ? product.featuredPriceTypes : [],
+          salesCount: sales[String(product.id).toLowerCase()] || sales[String(product.title).toLowerCase()] || 0,
+        };
+      });
     return Response.json({ products: storeProducts }, {
       headers: { ...corsHeaders(request), 'Cache-Control': 'private, no-store, max-age=0' },
     });
   }
   const session = await getServerSession(authOptions);
   const canViewPrivateFields = hasErpAccess(session?.user);
+  if (purpose === 'flash-admin') {
+    if (!canViewPrivateFields) {
+      return Response.json({ error: 'Acesso negado.' }, { status: 403, headers: corsHeaders(request) });
+    }
+    const flashProducts = products.map((product) => ({
+      id: product.id,
+      title: product.title,
+      price: Number(product.price) || 0,
+      promotionalPrice: product.promotionalPrice || 0,
+      discount: product.discount || 0,
+      salePrice: calculateSalePrice(product),
+      saleUnit: product.saleUnit === 'Quilograma' ? 'Quilograma' : 'Unidade',
+      status: product.status,
+      flashOfferEnabled: product.flashOfferEnabled === true,
+      flashOfferPrice: Number(product.flashOfferPrice) || 0,
+      flashOfferStart: product.flashOfferStart || '',
+      flashOfferEnd: product.flashOfferEnd || '',
+      flashOfferStatus: getFlashOfferStatus(product).state,
+    }));
+    return Response.json({ products: flashProducts }, {
+      headers: { ...corsHeaders(request), 'Cache-Control': 'private, no-store, max-age=0' },
+    });
+  }
   const sales = await readSales();
   const visibleProducts = products.filter((product) => canViewPrivateFields || product.status === 'Ativo');
   const activeProducts = visibleProducts.map((product) => {
@@ -539,6 +577,51 @@ export async function PUT(request) {
   const actor = erpActorLabel(session?.user);
 
   const product = await request.json();
+  if (product?.purpose === 'flash-admin') {
+    const productId = String(product?.id || '').trim();
+    if (!productId) return Response.json({ error: 'Selecione um produto válido.' }, { status: 400, headers: corsHeaders(request) });
+
+    const products = await getProducts();
+    const productIndex = products.findIndex((item) => String(item.id) === productId);
+    if (productIndex < 0) return Response.json({ error: 'Produto não encontrado.' }, { status: 404, headers: corsHeaders(request) });
+
+    const currentProduct = products[productIndex];
+    let offerFields;
+    if (product.flashOfferEnabled === false) {
+      offerFields = { flashOfferEnabled: false };
+    } else if (product.flashOfferEnabled === true) {
+      const validation = validateFlashOfferConfiguration(currentProduct, product);
+      if (validation.error) return Response.json({ error: validation.error }, { status: 400, headers: corsHeaders(request) });
+      offerFields = validation.value;
+    } else {
+      return Response.json({ error: 'Informe se a oferta relâmpago deve ficar ativa ou desativada.' }, { status: 400, headers: corsHeaders(request) });
+    }
+
+    const savedProduct = {
+      ...currentProduct,
+      ...offerFields,
+      updatedAt: new Date().toISOString(),
+      updatedBy: actor,
+    };
+    try {
+      await saveProduct(savedProduct, { actor, action: 'UPDATE', before: currentProduct });
+    } catch (error) {
+      console.error('Não foi possível salvar a oferta relâmpago do produto:', error);
+      return Response.json({ error: 'Não foi possível salvar a oferta relâmpago. Verifique a conexão e tente novamente.' }, { status: 500, headers: corsHeaders(request) });
+    }
+    return Response.json({
+      product: {
+        id: savedProduct.id,
+        title: savedProduct.title,
+        flashOfferEnabled: savedProduct.flashOfferEnabled === true,
+        flashOfferPrice: Number(savedProduct.flashOfferPrice) || 0,
+        flashOfferStart: savedProduct.flashOfferStart || '',
+        flashOfferEnd: savedProduct.flashOfferEnd || '',
+        flashOfferStatus: getFlashOfferStatus(savedProduct).state,
+      },
+    }, { headers: corsHeaders(request) });
+  }
+
   const productId = String(product?.id || '').trim();
   const title = String(product?.title || '').trim();
   const price = Number(product?.price);

@@ -296,7 +296,7 @@ export default function FavoritesPage() {
               onClick={() => handleAddToCart(item)}
             >
               <ShoppingCart size={16} aria-hidden="true" />
-              {item.saleUnit === 'Quilograma' ? 'Adicionar 100 g' : 'Adicionar ao carrinho'}
+              Adicionar ao carrinho
             </button>
           )}
         </div>

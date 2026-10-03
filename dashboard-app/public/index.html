@@ -158,6 +158,7 @@
     <nav class="categories-bar">
       <button id="all-categories" class="all-categories" type="button" aria-controls="all-categories-menu" aria-expanded="false" onclick="toggleCategoriasLoja()"><i data-lucide="menu"></i><span>Todas as categorias</span></button>
       <a href="categoria.html?categoria=ofertas"><i data-lucide="flame"></i> Ofertas do dia</a>
+      <a href="categoria.html?categoria=ofertas-relampago"><i data-lucide="zap"></i> Ofertas Relâmpago</a>
       <a href="categoria.html?categoria=hortifruti"><i data-lucide="carrot"></i> Hortifruti</a>
       <a href="categoria.html?categoria=carnes"><i data-lucide="beef"></i> Carnes</a>
       <a href="categoria.html?categoria=padaria"><i data-lucide="croissant"></i> Padaria</a>
@@ -169,6 +170,7 @@
       <a href="#">Mais <i data-lucide="chevron-down"></i></a>
     </nav>
     <div id="all-categories-menu" class="categories-menu" aria-labelledby="all-categories" aria-hidden="true" hidden>
+      <a href="categoria.html?categoria=ofertas-relampago"><i data-lucide="zap"></i> Ofertas Relâmpago</a>
       <a href="categoria.html?categoria=hortifruti"><i data-lucide="carrot"></i> Hortifruti</a>
       <a href="categoria.html?categoria=carnes"><i data-lucide="beef"></i> Carnes</a>
       <a href="categoria.html?categoria=padaria"><i data-lucide="croissant"></i> Padaria</a>
@@ -194,6 +196,7 @@
   <div class="content-wrapper">
 
     <nav class="store-section-shortcuts" aria-label="Atalhos para seções da loja">
+      <a href="categoria.html?categoria=ofertas-relampago">Ofertas Relâmpago</a>
       <a href="#store-offers">Ofertas</a>
       <a href="#hortifruti">Hortifruti</a>
       <a href="#store-mercearia">Mercearia</a>
@@ -207,6 +210,7 @@
     <!-- ----- Coluna 1: Sidebar com a lista completa de categorias ----- -->
     <aside class="sidebar" id="store-categories">
       <ul>
+        <li><a href="categoria.html?categoria=ofertas-relampago"><i data-lucide="zap"></i> Ofertas Relâmpago</a></li>
         <li><a href="categoria.html?categoria=hortifruti"><i data-lucide="carrot"></i> Hortifruti</a></li>
         <li><a href="categoria.html?categoria=carnes"><i data-lucide="beef"></i> Carnes</a></li>
         <li><a href="categoria.html?categoria=padaria"><i data-lucide="croissant"></i> Padaria</a></li>
@@ -1515,16 +1519,16 @@
         <button>Saiba mais →</button>
       </div>
 
-      <!-- Box com contador regressivo de ofertas relâmpago -->
-      <div class="panel-box">
+      <div class="panel-box" id="flash-offer-panel">
         <strong>⚡ Ofertas Relâmpago</strong>
-        <p>Descontos por tempo limitado!</p>
-        <div class="countdown">
-          <span>01<br><small>DIA</small></span>
-          <span>06<br><small>HRS</small></span>
-          <span>24<br><small>MIN</small></span>
-          <span>37<br><small>SEG</small></span>
+        <p id="flash-offer-message" aria-live="polite">Confira os produtos com preço especial por tempo limitado.</p>
+        <div class="countdown" id="flash-offer-countdown" role="timer" aria-live="off" aria-label="Tempo restante até a mudança das ofertas" hidden>
+          <span><span data-countdown-days>00</span><small>DIAS</small></span>
+          <span><span data-countdown-hours>00</span><small>HRS</small></span>
+          <span><span data-countdown-minutes>00</span><small>MIN</small></span>
+          <span><span data-countdown-seconds>00</span><small>SEG</small></span>
         </div>
+        <a class="panel-flash-link" id="flash-offer-link" href="categoria.html?categoria=ofertas-relampago" hidden>Ver ofertas ativas</a>
       </div>
 
       <!-- Box com selos de download do app (App Store / Google Play) -->

@@ -20,6 +20,8 @@ let carrinhoRevision = 0;
 let carrinhoGravacoesPendentes = 0;
 let filaGravacaoCarrinho = Promise.resolve();
 let carrinhoItens = [];
+let flashOfferCountdownTimer = null;
+let flashOfferRefreshTimer = null;
 let cupomAplicado = { codigo: '', percentual: 0 };
 let erroSessaoDaLoja = '';
 let erroCarrinhoDaApi = '';
@@ -1171,6 +1173,7 @@ function inicializarCarrinho() {
       }
 
       const items = carrinhoItens.map((item) => ({
+        productId: item.id,
         name: item.nome,
         quantity: item.qty,
         unit: item.saleUnit === 'Quilograma' ? 'kg' : 'unidade',
@@ -1409,8 +1412,10 @@ function getProductDiscountLabel(product) {
 function renderProductBadges(product) {
   const selectedTypes = Array.isArray(product.featuredPriceTypes) ? product.featuredPriceTypes : [];
   const badges = [];
-  const discountLabel = getProductDiscountLabel(product);
+  const flashOfferActive = product.flashOfferActive === true;
+  const discountLabel = flashOfferActive ? '' : getProductDiscountLabel(product);
   if (discountLabel) badges.push(`<span class="tag tag-discount">${discountLabel}</span>`);
+  if (flashOfferActive) badges.push('<span class="tag tag-flash-offer">⚡ Relâmpago</span>');
 
   const showcaseTypes = [
     ['Oferta', 'tag-offer'],
@@ -1526,6 +1531,95 @@ function renderizarProximoLote(state) {
   if (window.lucide) window.lucide.createIcons();
 }
 
+function atualizarPrecosCarrinhoDoCatalogo(products) {
+  if (!Array.isArray(products) || !carrinhoItens.length) return;
+  const productsById = new Map(products.map((product) => [String(product.id), product]));
+  const productsByName = new Map(products.map((product) => [normalizarCatalogo(product.title), product]));
+  let changed = false;
+  const updatedItems = carrinhoItens.map((item) => {
+    const product = productsById.get(String(item.id)) || productsByName.get(normalizarCatalogo(item.nome));
+    const currentPrice = Number(product?.salePrice ?? product?.price);
+    if (!product || !Number.isFinite(currentPrice) || currentPrice <= 0) return item;
+    const productId = String(product.id || item.id);
+    if (productId === String(item.id) && Math.abs(currentPrice - item.preco) < 0.005) return item;
+    changed = true;
+    return {
+      ...item,
+      id: productId,
+      preco: currentPrice,
+      imagem: product.image || item.imagem,
+    };
+  });
+  if (!changed) return;
+  carrinhoItens = updatedItems;
+  carrinhoRevision += 1;
+  renderizarCarrinho();
+}
+
+function renderFlashOfferPanel(products) {
+  const message = document.getElementById('flash-offer-message');
+  const countdown = document.getElementById('flash-offer-countdown');
+  const offerLink = document.getElementById('flash-offer-link');
+  if (!message || !countdown || !offerLink) return;
+
+  if (flashOfferCountdownTimer) window.clearInterval(flashOfferCountdownTimer);
+  if (flashOfferRefreshTimer) window.clearTimeout(flashOfferRefreshTimer);
+
+  const now = Date.now();
+  const activeOffers = products.filter((product) => (
+    product.flashOfferActive === true
+    && Number.isFinite(Date.parse(product.flashOfferEndsAt))
+    && Date.parse(product.flashOfferEndsAt) > now
+  ));
+  const scheduledOffers = products.filter((product) => (
+    Number.isFinite(Date.parse(product.flashOfferScheduledStart))
+    && Date.parse(product.flashOfferScheduledStart) > now
+    && Number.isFinite(Date.parse(product.flashOfferEndsAt))
+    && Date.parse(product.flashOfferEndsAt) > Date.parse(product.flashOfferScheduledStart)
+  ));
+
+  let deadline = null;
+  if (activeOffers.length) {
+    deadline = Math.min(...activeOffers.map((product) => Date.parse(product.flashOfferEndsAt)));
+    message.textContent = activeOffers.length === 1
+      ? '1 oferta relâmpago ativa. Termina em:'
+      : `${activeOffers.length} ofertas relâmpago ativas. A próxima termina em:`;
+    offerLink.hidden = false;
+  } else if (scheduledOffers.length) {
+    deadline = Math.min(...scheduledOffers.map((product) => Date.parse(product.flashOfferScheduledStart)));
+    message.textContent = 'A próxima oferta relâmpago começa em:';
+    offerLink.hidden = true;
+  } else {
+    message.textContent = 'Nenhuma oferta relâmpago ativa no momento. Volte em breve.';
+    offerLink.hidden = true;
+  }
+
+  countdown.hidden = deadline === null;
+  if (deadline === null) return;
+
+  const updateCountdown = () => {
+    const remainingSeconds = Math.max(0, Math.floor((deadline - Date.now()) / 1000));
+    if (remainingSeconds === 0) {
+      if (flashOfferCountdownTimer) window.clearInterval(flashOfferCountdownTimer);
+      message.textContent = 'Atualizando ofertas relâmpago...';
+      flashOfferRefreshTimer = window.setTimeout(() => carregarCatalogoReal(), 800);
+      return;
+    }
+
+    const days = Math.floor(remainingSeconds / 86400);
+    const hours = Math.floor((remainingSeconds % 86400) / 3600);
+    const minutes = Math.floor((remainingSeconds % 3600) / 60);
+    const seconds = remainingSeconds % 60;
+    countdown.querySelector('[data-countdown-days]').textContent = String(days).padStart(2, '0');
+    countdown.querySelector('[data-countdown-hours]').textContent = String(hours).padStart(2, '0');
+    countdown.querySelector('[data-countdown-minutes]').textContent = String(minutes).padStart(2, '0');
+    countdown.querySelector('[data-countdown-seconds]').textContent = String(seconds).padStart(2, '0');
+  };
+
+  updateCountdown();
+  flashOfferCountdownTimer = window.setInterval(updateCountdown, 1000);
+}
+
 async function carregarCatalogoReal() {
   try {
     const carrossels = [...document.querySelectorAll('.offers-grid, .highlight-products, .products-grid, .carousel-track')];
@@ -1536,6 +1630,8 @@ async function carregarCatalogoReal() {
     if (!Array.isArray(data?.products)) throw new Error('Resposta inválida ao carregar catálogo.');
 
     produtosCatalogo = data.products;
+    atualizarPrecosCarrinhoDoCatalogo(data.products);
+    renderFlashOfferPanel(data.products);
     catalogoCarregado = true;
     estadosDosCarrosseis = new Map();
     carrossels.forEach((container) => {
@@ -1565,7 +1661,6 @@ async function carregarCatalogoReal() {
       renderizarProximoLote(state);
     });
     buildProductIndex();
-    carregarCarrinhoDaApi();
   } catch (error) {
     console.warn('Catálogo real indisponível:', error.message);
     catalogoCarregado = false;

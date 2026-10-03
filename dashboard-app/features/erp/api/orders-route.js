@@ -6,6 +6,7 @@ import { sortOrdersNewestFirst } from '@/lib/order-sort';
 import { erpActorLabel, hasErpAccess } from '@/features/erp/access';
 import { normalizeDeliveryLocation } from '@/lib/delivery-location';
 import { allocateOrderInventory } from '@/features/erp/api/order-inventory-fulfillment';
+import { calculateSalePrice } from '@/features/erp/api/product-pricing';
 import {
   getServiceRegionError,
   getServiceRegionMatch,
@@ -15,6 +16,7 @@ import { prisma } from '@/lib/prisma';
 import { randomUUID } from 'crypto';
 
 const ordersFile = path.join(process.cwd(), 'data', 'orders.json');
+const productsFile = path.join(process.cwd(), 'data', 'products.json');
 const allowedOrigins = new Set(['http://localhost:8010', 'http://localhost:5500', 'http://127.0.0.1:5500', 'null']);
 const money = (value) => Number(String(value || '').replace(/[^0-9,.-]/g, '').replace(/\.(?=\d{3}(?:\D|$))/g, '').replace(',', '.')) || 0;
 
@@ -32,6 +34,61 @@ function saoPauloToday() {
   }).formatToParts(new Date());
   const values = Object.fromEntries(parts.map(({ type, value }) => [type, value]));
   return `${values.year}-${values.month}-${values.day}`;
+}
+
+function normalizeProductTitle(value) {
+  return String(value || '').trim().toLocaleLowerCase('pt-BR').normalize('NFD').replace(/[\u0300-\u036f]/g, '');
+}
+
+async function loadProductsForOrder(items) {
+  const productIds = [...new Set(items
+    .map((item) => String(item.productId || item.id || '').trim())
+    .filter(Boolean))];
+  const titles = [...new Set(items
+    .map((item) => String(item.name || item.title || '').trim())
+    .filter(Boolean))];
+  const conditions = [
+    ...(productIds.length ? [{ externalId: { in: productIds } }, { id: { in: productIds } }] : []),
+    ...(titles.length ? [{ title: { in: titles } }] : []),
+  ];
+  if (!conditions.length) return { byId: new Map(), byTitle: new Map() };
+
+  const databaseProducts = await prisma.product.findMany({
+    where: { OR: conditions },
+    select: { id: true, externalId: true, title: true, price: true, discount: true, status: true, metadata: true },
+  });
+
+  let legacyProducts = [];
+  try {
+    const parsedProducts = JSON.parse(await fs.readFile(productsFile, 'utf8'));
+    if (!Array.isArray(parsedProducts)) throw new Error('O catálogo legado possui um formato inválido.');
+    legacyProducts = parsedProducts;
+  } catch (error) {
+    if (error.code !== 'ENOENT') throw error;
+  }
+
+  const byId = new Map();
+  const byTitle = new Map();
+  const indexProduct = (product, additionalIds = []) => {
+    [product.id, ...additionalIds].filter(Boolean).forEach((id) => byId.set(String(id), product));
+    const title = normalizeProductTitle(product.title);
+    if (title) byTitle.set(title, product);
+  };
+  legacyProducts.forEach((product) => indexProduct(product));
+  databaseProducts.forEach((record) => {
+    const metadata = record.metadata && typeof record.metadata === 'object' && !Array.isArray(record.metadata)
+      ? record.metadata
+      : {};
+    indexProduct({
+      ...metadata,
+      id: record.externalId || record.id,
+      title: record.title,
+      price: Number(record.price),
+      discount: Number(record.discount),
+      status: record.status,
+    }, [record.id, record.externalId]);
+  });
+  return { byId, byTitle };
 }
 
 export async function OPTIONS(request) { return new Response(null, { status: 204, headers: corsHeaders(request) }); }
@@ -157,13 +214,40 @@ export async function POST(request) {
     }
   }
   const appliedDiscountPercent = campaignCoupon?.discountPercent || 0;
+  let currentProducts;
+  try {
+    currentProducts = await loadProductsForOrder(body.items);
+  } catch (error) {
+    console.error('Não foi possível validar os preços atuais dos produtos do pedido:', error);
+    return Response.json({ error: 'Não foi possível confirmar os preços atuais. Tente novamente.' }, { status: 500, headers: corsHeaders(request) });
+  }
+  const pricingTime = Date.now();
   const orderItems = body.items.map((item) => {
     const weightBased = item.unit === 'kg' || item.saleUnit === 'Quilograma';
     const requestedQuantity = Number(item.quantity);
     const quantity = weightBased
       ? Math.max(0.1, Math.round((Number.isFinite(requestedQuantity) ? requestedQuantity : 0.1) * 10) / 10)
       : Math.max(1, Math.trunc(Number.isFinite(requestedQuantity) ? requestedQuantity : 1));
-    return { ...item, quantity, ...(weightBased ? { unit: 'kg' } : { unit: 'unidade' }) };
+    const identifier = String(item.productId || item.id || '').trim();
+    const product = currentProducts.byId.get(identifier)
+      || currentProducts.byTitle.get(normalizeProductTitle(item.name || item.title));
+    const hasFlashOfferConfiguration = product && (
+      product.flashOfferEnabled === true
+      || product.flashOfferPrice !== undefined
+      || product.flashOfferStart !== undefined
+      || product.flashOfferEnd !== undefined
+    );
+    const orderItem = {
+      ...item,
+      ...(product?.id ? { productId: product.id } : {}),
+      quantity,
+      ...(weightBased ? { unit: 'kg' } : { unit: 'unidade' }),
+    };
+    if (hasFlashOfferConfiguration) {
+      const currentPrice = calculateSalePrice(product, pricingTime);
+      orderItem.price = `R$ ${currentPrice.toFixed(2).replace('.', ',')}`;
+    }
+    return orderItem;
   });
   const subtotal = orderItems.reduce((sum, item) => sum + money(item.price) * item.quantity, 0);
   const total = subtotal * (1 - appliedDiscountPercent / 100);

@@ -1,6 +1,7 @@
 "use client";
 
 import Link from 'next/link';
+import Script from 'next/script';
 import { usePathname } from 'next/navigation';
 import { signOut, useSession } from 'next-auth/react';
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
@@ -729,7 +730,8 @@ export default function DashboardLayout({ children }) {
     .toUpperCase() || 'U';
 
   return (
-    <div className="dashboard-shell" data-dashboard-theme={theme}>
+    <div className="dashboard-shell" data-dashboard-theme={theme} data-hj-suppress>
+      <Script src="/analytics-consent.js" strategy="afterInteractive" />
       <a className="dashboard-skip-link" href="#dashboard-main-content">Pular para o conteúdo principal</a>
       <aside className="sidebar" aria-label="Painel do cliente">
         <div>
@@ -881,7 +883,7 @@ export default function DashboardLayout({ children }) {
                                 </span>
                               ) : (
                                 <button className="dashboard-search-buy" type="button" onMouseDown={(event) => event.preventDefault()} onClick={() => addToCart(product)}>
-                                  <Plus size={14} /> <span>{product.saleUnit === 'Quilograma' ? 'Adicionar 100 g' : 'Adicionar'}</span>
+                                  <Plus size={14} /> <span>Adicionar</span>
                                 </button>
                               )}
                             </div>

@@ -1,6 +1,7 @@
 const categoryLabels = {
   hortifruti: 'Hortifruti',
   ofertas: 'Ofertas em destaque',
+  'ofertas-relampago': 'Ofertas Relâmpago',
   carnes: 'Carnes',
   padaria: 'Padaria',
   laticinios: 'Laticínios',
@@ -48,6 +49,8 @@ async function loadCategory() {
   const title = categoryLabels[category] || 'Categoria';
   const description = category === 'ofertas'
     ? 'Confira produtos com ofertas em destaque no Hoje Supermercado.'
+    : category === 'ofertas-relampago'
+    ? 'Confira ofertas por tempo limitado com preço especial e período definido pelo Hoje Supermercado.'
     : `Encontre ${title.toLowerCase()} no Hoje Supermercado e consulte os produtos disponíveis no catálogo.`;
   const canonical = new URL('/categoria.html', 'https://www.hojesupermercado.com.br');
   canonical.searchParams.set('categoria', category);
@@ -65,6 +68,8 @@ async function loadCategory() {
   const { products = [] } = await response.json();
   const filteredProducts = category === 'ofertas'
     ? products.filter((product) => produtoTemSeloDeVitrine(product, 'Oferta'))
+    : category === 'ofertas-relampago'
+    ? products.filter((product) => product.flashOfferActive === true)
     : products.filter((product) => product.categories?.some((item) => categoryKey(item) === category)
       || categoryKey(product.department || '') === category);
 
@@ -83,7 +88,23 @@ async function loadCategory() {
     container.insertAdjacentHTML('beforeend', `<article class="product-card" data-id="${safeId}" data-sale-unit="${porKg ? 'Quilograma' : 'Unidade'}">${renderProductBadges(product)}<img src="${safeImage}" alt="${safeName}" class="product-img" loading="lazy" decoding="async"><div class="product-category">${productCategory}</div>${renderProductDepartmentBadge(product)}<div class="product-name">${safeName}</div><div class="product-price">${price}${oldPrice}</div><div class="product-actions"><button class="btn-comprar" onclick="adicionarProduto(this)">Adicionar</button><div class="qty-controls"><button class="btn-remove" onclick="removerProduto(this)"><i data-lucide="trash-2"></i></button><span class="qty" data-quantity="${porKg ? '0.1' : '1'}">${porKg ? '100 g' : '1'}</span><button class="btn-add" onclick="aumentarQtd(this)">+</button></div></div></article>`);
   });
 
-  document.getElementById('category-empty').hidden = filteredProducts.length > 0;
+  const emptyState = document.getElementById('category-empty');
+  emptyState.hidden = filteredProducts.length > 0;
+  if (category === 'ofertas-relampago') {
+    emptyState.textContent = 'Nenhuma oferta relâmpago ativa agora. Volte em breve para conferir as próximas ofertas.';
+  }
+  if (category === 'ofertas-relampago') {
+    const nextTransition = products.reduce((next, product) => {
+      const transition = product.flashOfferActive
+        ? Date.parse(product.flashOfferEndsAt)
+        : Date.parse(product.flashOfferScheduledStart);
+      return Number.isFinite(transition) && transition > Date.now() ? Math.min(next, transition) : next;
+    }, Infinity);
+    if (Number.isFinite(nextTransition)) {
+      const delay = Math.min(Math.max(nextTransition - Date.now() + 1000, 1000), 2_147_000_000);
+      window.setTimeout(() => window.location.reload(), delay);
+    }
+  }
   adicionarCategoriasProdutos();
   adicionarBotoesFavorito();
   carregarCarrinhoDaApi();

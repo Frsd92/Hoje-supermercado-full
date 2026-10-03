@@ -1,6 +1,7 @@
 "use client";
 
 import { ArrowLeft, ArrowRight, Check, CircleUserRound, ShieldCheck, Sparkles, Star, Truck } from 'lucide-react';
+import Script from 'next/script';
 import { signIn } from 'next-auth/react';
 import { useRouter } from 'next/navigation';
 import { useEffect, useState } from 'react';
@@ -58,6 +59,8 @@ export default function LoginPage() {
   };
 
   return (
+    <>
+    <Script src="/analytics-consent.js" strategy="afterInteractive" />
     <main className="login-page">
       <section className="login-visual">
         <div className="visual-sheen" />
@@ -136,5 +139,6 @@ export default function LoginPage() {
         </div>
       </section>
     </main>
+    </>
   );
 }
