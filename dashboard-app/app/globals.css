@@ -5552,6 +5552,13 @@ button.metric-mini:focus-visible {
 .editor-card input, .editor-card textarea, .editor-card select { width: 100%; border: 1px solid #dbe3ea; border-radius: 8px; padding: 10px; color: #101826; background: #fff; outline: none; font: inherit; font-weight: 400; }
 .editor-card input:focus, .editor-card textarea:focus, .editor-card select:focus { border-color: #22c55e; box-shadow: 0 0 0 3px rgba(34,197,94,.1); }
 .editor-hint { margin: -5px 0 10px; color: #64748b; font-size: .72rem; }
+.editor-shelf-life-hint, .editor-expiry-calculation { grid-column: 1 / -1; margin: -6px 0 0; line-height: 1.5; }
+.editor-expiry-mode { grid-column: 1 / -1; min-width: 0; margin: 0; padding: 12px; border: 1px solid #dbe3ea; border-radius: 9px; background: #f8fafc; }
+.editor-expiry-mode legend { padding: 0 5px; color: #334155; font-size: .74rem; font-weight: 800; }
+.editor-expiry-mode-options { display: flex; flex-wrap: wrap; gap: 8px; }
+.editor-expiry-mode-options label { display: inline-flex; flex-direction: row; align-items: center; gap: 8px; min-height: 38px; margin: 0; padding: 7px 10px; border: 1px solid #dbe3ea; border-radius: 8px; background: #fff; color: #475569; cursor: pointer; font-size: .71rem; font-weight: 700; }
+.editor-expiry-mode-options input { width: 16px; height: 16px; margin: 0; accent-color: #15803d; }
+.editor-expiry-mode > p { margin: 9px 0 0; color: #64748b; font-size: .69rem; line-height: 1.5; }
 .category-checklist { display: grid; gap: 7px; max-height: 310px; overflow-y: auto; }
 .category-checklist label { display: flex; flex-direction: row; align-items: center; gap: 7px; margin: 0; padding: 7px 8px; border-radius: 7px; background: #f8fafc; color: #334155; font-size: .75rem; font-weight: 600; }
 .category-checklist input { width: auto; accent-color: #16a34a; }
@@ -5773,7 +5780,13 @@ button.metric-mini:focus-visible {
 .purchase-lot-entry-header { display: flex; align-items: center; justify-content: space-between; gap: 10px; }
 .purchase-lot-entry-header > strong { color: #334155; font-size: .71rem; }
 .purchase-lot-entry-header .supplier-add-line { min-height: 30px; }
-.purchase-receipt-lot { display: grid; grid-template-columns: minmax(95px, .65fr) minmax(120px, 1fr) minmax(120px, .9fr) minmax(120px, .9fr) minmax(110px, .8fr) 30px; align-items: end; gap: 7px; }
+.purchase-receipt-lot-container { display: grid; gap: 6px; }
+.purchase-receipt-expiry-mode { display: flex; flex-wrap: wrap; align-items: center; gap: 8px 14px; min-width: 0; margin: 0; padding: 5px 8px; border: 1px solid #e5eaf0; border-radius: 7px; background: #fff; }
+.purchase-receipt-expiry-mode legend { padding: 0 3px; color: #64748b; font-size: .62rem; font-weight: 750; }
+.purchase-receipt-expiry-mode label { display: inline-flex; align-items: center; gap: 5px; color: #475569; cursor: pointer; font-size: .65rem; font-weight: 650; }
+.purchase-receipt-expiry-mode input { width: 14px; height: 14px; margin: 0; accent-color: #15803d; }
+.purchase-receipt-lot { display: grid; grid-template-columns: minmax(74px, .55fr) minmax(100px, .9fr) minmax(105px, .85fr) minmax(110px, .9fr) minmax(100px, .7fr) 30px; align-items: end; gap: 7px; }
+.purchase-receipt-lot.uses-days { grid-template-columns: minmax(74px, .55fr) minmax(100px, .9fr) minmax(105px, .85fr) minmax(95px, .65fr) minmax(110px, .9fr) minmax(100px, .7fr) 30px; }
 .purchase-receipt-lot label { display: grid; min-width: 0; gap: 4px; color: #64748b; font-size: .63rem; font-weight: 750; }
 .purchase-receipt-lot input { width: 100%; min-width: 0; min-height: 34px; padding: 6px 7px; border: 1px solid #dbe3ea; border-radius: 7px; background: #fff; color: #334155; font: inherit; font-size: .7rem; font-weight: 400; }
 .purchase-receipt-lot input:focus { border-color: #22a447; outline: 3px solid rgb(34 164 71 / 12%); }
@@ -6148,6 +6161,7 @@ button.metric-mini:focus-visible {
   .product-editor-header { align-items: flex-start; flex-direction: column; }
   .product-editor-actions { width: 100%; justify-content: flex-end; }
   .editor-form-grid.two, .editor-form-grid.three { grid-template-columns: 1fr; }
+  .editor-expiry-mode-options { flex-direction: column; }
   .erp-customer-metrics { grid-template-columns: 1fr 1fr; }
   .erp-customer-header, .erp-customer-toolbar { align-items: stretch; flex-direction: column; }
   .erp-customer-search { max-width: none; }
@@ -6167,7 +6181,9 @@ button.metric-mini:focus-visible {
   .purchase-order-item-form > .supplier-secondary-button { grid-column: 2; }
   .purchase-order-item-form.receipt-order-item { grid-template-columns: 1fr 1fr; }
   .purchase-order-item-form.receipt-order-item > strong { grid-column: 1 / -1; }
+  .purchase-receipt-expiry-mode { gap: 6px 10px; }
   .purchase-receipt-lot { grid-template-columns: repeat(2, minmax(0, 1fr)) 30px; }
+  .purchase-receipt-lot.uses-days { grid-template-columns: repeat(2, minmax(0, 1fr)) 30px; }
   .purchase-receipt-lot-remove { grid-column: 3; grid-row: 1; }
   .purchase-order-total { align-items: flex-start; }
   .service-region-add-form { grid-template-columns: 1fr; }

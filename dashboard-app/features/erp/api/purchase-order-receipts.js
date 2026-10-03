@@ -1,7 +1,7 @@
 import {
   inventoryDateOnly,
   inventoryQuantityMilliUnits,
-  parseInventoryDate,
+  resolveInventoryExpiry,
 } from './inventory-lots.js';
 
 function parseUnitCost(value) {
@@ -35,15 +35,18 @@ export function parsePurchaseOrderReceiptItems(items) {
       }
       if (quantityMilli === 0) continue;
 
-      const expiry = parseInventoryDate(lot?.expiry);
-      const manufactureDate = parseInventoryDate(lot?.manufactureDate);
-      if (expiry === undefined || manufactureDate === undefined) {
-        return { error: 'Informe datas válidas para cada lote recebido.' };
-      }
+      const dates = resolveInventoryExpiry({
+        expiryMode: lot?.expiryMode || 'date',
+        expiry: lot?.expiry,
+        manufactureDate: lot?.manufactureDate,
+        shelfLifeDays: lot?.shelfLifeDays,
+      });
+      if (dates.error) return { error: dates.error };
       lots.push({
         lotCode: String(lot?.lotCode || '').trim(),
-        expiry: inventoryDateOnly(expiry),
-        manufactureDate: inventoryDateOnly(manufactureDate),
+        expiry: inventoryDateOnly(dates.expiry),
+        manufactureDate: inventoryDateOnly(dates.manufactureDate),
+        shelfLifeDays: dates.shelfLifeDays,
         location: String(lot?.location || '').trim(),
         quantity: quantityMilli / 1000,
       });

@@ -25,6 +25,7 @@ function receiptAuditSnapshot(order) {
         controlsExpiry: metadata?.controlsExpiry === true,
         controlsLot: metadata?.controlsLot === true,
         perishable: metadata?.perishable === true,
+        shelfLifeDays: metadata?.shelfLifeDays || null,
         location: metadata?.location || '',
       },
     };
@@ -91,6 +92,7 @@ export async function POST(request) {
             lotCode: lot.lotCode,
             expiry: lot.expiry,
             manufactureDate: lot.manufactureDate,
+            shelfLifeDays: lot.shelfLifeDays,
             location: lot.location || item.product.metadata?.location || '',
             source: `Ordem de compra ${order.code}`,
             actor,

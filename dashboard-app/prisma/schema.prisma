@@ -111,6 +111,7 @@ model ProductLot {
   quantity          Decimal                 @default(0) @db.Decimal(12, 3)
   expiry            DateTime?               @db.Date
   manufactureDate   DateTime?               @db.Date
+  shelfLifeDays     Int?
   location          String?
   source            String                  @default("MANUAL")
   sourceReference   String?

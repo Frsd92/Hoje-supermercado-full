@@ -3,12 +3,13 @@
 import Link from 'next/link';
 import { AlertTriangle, CalendarDays, CheckCircle2, Clock3, Package, Pencil, Plus, RefreshCw, Search, ShieldAlert, X } from 'lucide-react';
 import { useCallback, useEffect, useMemo, useState } from 'react';
+import { expiryDateFromShelfLife } from '../api/inventory-lots.js';
 import { EXPIRY_BANDS, getExpiryStatus, saoPauloDateString } from '../expiry.js';
 import styles from './expiry-page.module.css';
 
 const dateFormatter = new Intl.DateTimeFormat('pt-BR', { timeZone: 'UTC', dateStyle: 'medium' });
 const quantityFormatter = new Intl.NumberFormat('pt-BR', { maximumFractionDigits: 3 });
-const emptyLotForm = { productId: '', lotCode: '', quantity: '', expiry: '', manufactureDate: '', location: '' };
+const emptyLotForm = { productId: '', lotCode: '', quantity: '', expiry: '', manufactureDate: '', expiryMode: 'date', shelfLifeDays: '', location: '' };
 
 function formatExpiryDate(value) {
   if (!value) return 'Sem data cadastrada';
@@ -137,13 +138,23 @@ export default function ERPExpiryPage() {
 
   const hasFilters = query.trim() || category !== 'Todas' || productFilter !== 'Todas' || statusFilter !== 'all';
   const selectedProduct = products.find((product) => product.id === lotForm.productId);
+  const calculatedExpiry = expiryDateFromShelfLife(lotForm.manufactureDate, lotForm.shelfLifeDays);
+  const effectiveExpiry = lotForm.expiryMode === 'days' ? calculatedExpiry : lotForm.expiry;
 
   const openNewLot = () => {
     const productId = productFilter !== 'Todas'
       ? productFilter
       : products.find((product) => product.status === 'Ativo')?.id || products[0]?.id || '';
+    const product = products.find((item) => item.id === productId);
+    const shelfLifeDays = product?.shelfLifeDays ? String(product.shelfLifeDays) : '';
     setEditingLot(null);
-    setLotForm({ ...emptyLotForm, productId, location: products.find((product) => product.id === productId)?.location || '' });
+    setLotForm({
+      ...emptyLotForm,
+      productId,
+      shelfLifeDays,
+      expiryMode: shelfLifeDays ? 'days' : 'date',
+      location: product?.location || '',
+    });
     setFormError('');
     setModalOpen(true);
   };
@@ -156,6 +167,8 @@ export default function ERPExpiryPage() {
       quantity: String(lot.quantity),
       expiry: lot.expiry,
       manufactureDate: lot.manufactureDate,
+      expiryMode: lot.shelfLifeDays ? 'days' : 'date',
+      shelfLifeDays: lot.shelfLifeDays ? String(lot.shelfLifeDays) : '',
       location: lot.location,
     });
     setFormError('');
@@ -175,8 +188,10 @@ export default function ERPExpiryPage() {
           ...(editingLot ? { lotId: editingLot.id } : { productId: lotForm.productId }),
           lotCode: lotForm.lotCode,
           quantity: Number(lotForm.quantity),
-          expiry: lotForm.expiry,
+          expiry: effectiveExpiry,
           manufactureDate: lotForm.manufactureDate,
+          expiryMode: lotForm.expiryMode,
+          shelfLifeDays: lotForm.expiryMode === 'days' ? lotForm.shelfLifeDays : null,
           location: lotForm.location,
         }),
       });
@@ -363,14 +378,27 @@ export default function ERPExpiryPage() {
               <div>
                 <span className={styles.eyebrow}>{editingLot ? 'Ajuste de estoque' : 'Entrada de estoque'}</span>
                 <h2 id="inventory-lot-dialog-title">{editingLot ? 'Alterar lote' : 'Registrar lote'}</h2>
-                <p>{editingLot ? 'Defina o saldo físico atual e os dados corretos deste lote.' : 'Informe a quantidade e a validade desta entrada separadamente.'}</p>
+                <p>{editingLot ? 'Defina o saldo físico atual e os dados corretos deste lote.' : 'Informe a fabricação e o prazo em dias, ou digite a validade impressa no lote.'}</p>
               </div>
               <button type="button" className={styles.dialogClose} aria-label="Fechar" onClick={() => setModalOpen(false)} disabled={saving}><X size={20} /></button>
             </header>
             <form className={styles.lotForm} onSubmit={saveLot}>
               <label className={styles.formWide}>
                 Produto
-                <select value={lotForm.productId} onChange={(event) => setLotForm((current) => ({ ...current, productId: event.target.value, lotCode: '', expiry: '', manufactureDate: '', location: products.find((product) => product.id === event.target.value)?.location || '' }))} required disabled={Boolean(editingLot)}>
+                <select value={lotForm.productId} onChange={(event) => {
+                  const product = products.find((item) => item.id === event.target.value);
+                  const shelfLifeDays = product?.shelfLifeDays ? String(product.shelfLifeDays) : '';
+                  setLotForm((current) => ({
+                    ...current,
+                    productId: event.target.value,
+                    lotCode: '',
+                    expiry: '',
+                    manufactureDate: '',
+                    expiryMode: shelfLifeDays ? 'days' : 'date',
+                    shelfLifeDays,
+                    location: product?.location || '',
+                  }));
+                }} required disabled={Boolean(editingLot)}>
                   <option value="">Selecione um produto</option>
                   {products.map((product) => <option key={product.id} value={product.id}>{product.title} · {product.sku || product.externalId}</option>)}
                 </select>
@@ -384,13 +412,26 @@ export default function ERPExpiryPage() {
                 {editingLot ? 'Saldo físico atual' : 'Quantidade recebida'} ({selectedProduct?.saleUnit || 'un.'})
                 <input type="number" inputMode="decimal" min={editingLot ? '0' : '0.001'} step="0.001" value={lotForm.quantity} onChange={(event) => setLotForm((current) => ({ ...current, quantity: event.target.value }))} required />
               </label>
+              <fieldset className={`${styles.expiryModeFieldset} ${styles.formWide}`}>
+                <legend>Como informar a validade</legend>
+                <div className={styles.expiryModeOptions}>
+                  <label><input type="radio" name="expiryMode" value="days" checked={lotForm.expiryMode === 'days'} onChange={() => setLotForm((current) => ({ ...current, expiryMode: 'days' }))} /> Calcular pela fabricação e dias</label>
+                  <label><input type="radio" name="expiryMode" value="date" checked={lotForm.expiryMode === 'date'} onChange={() => setLotForm((current) => ({ ...current, expiryMode: 'date' }))} /> Informar data manualmente</label>
+                </div>
+                {lotForm.expiryMode === 'days' && <p className={styles.formHint}>Validade calculada: {formatExpiryDate(effectiveExpiry)}</p>}
+              </fieldset>
               <label>
                 Data de validade{(selectedProduct?.controlsExpiry || selectedProduct?.perishable) && Number(lotForm.quantity) > 0 ? ' (obrigatória)' : ''}
-                <input type="date" value={lotForm.expiry} onChange={(event) => setLotForm((current) => ({ ...current, expiry: event.target.value }))} required={(selectedProduct?.controlsExpiry || selectedProduct?.perishable) && Number(lotForm.quantity) > 0} />
+                <input type="date" value={effectiveExpiry} onChange={(event) => setLotForm((current) => ({ ...current, expiry: event.target.value }))} required={lotForm.expiryMode === 'date' && (selectedProduct?.controlsExpiry || selectedProduct?.perishable) && Number(lotForm.quantity) > 0} disabled={lotForm.expiryMode === 'days'} />
               </label>
+              {lotForm.expiryMode === 'days' && <label>
+                Prazo de validade (dias)
+                <input type="number" min="1" max="36500" step="1" value={lotForm.shelfLifeDays} onChange={(event) => setLotForm((current) => ({ ...current, shelfLifeDays: event.target.value }))} required />
+                <small>Conta a partir da data de fabricação.</small>
+              </label>}
               <label>
                 Data de fabricação
-                <input type="date" value={lotForm.manufactureDate} onChange={(event) => setLotForm((current) => ({ ...current, manufactureDate: event.target.value }))} />
+                <input type="date" value={lotForm.manufactureDate} onChange={(event) => setLotForm((current) => ({ ...current, manufactureDate: event.target.value }))} required={lotForm.expiryMode === 'days'} />
               </label>
               <label className={styles.formWide}>
                 Localização

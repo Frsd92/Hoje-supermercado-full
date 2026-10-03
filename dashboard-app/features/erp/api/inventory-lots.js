@@ -1,5 +1,6 @@
 const QUANTITY_SCALE = 1000;
 const MAX_PRODUCT_QUANTITY_MILLI_UNITS = 999_999_999_999;
+const MAX_SHELF_LIFE_DAYS = 36_500;
 
 export function inventoryQuantityMilliUnits(value) {
   const quantity = Number(String(value ?? '').replace(',', '.'));
@@ -27,6 +28,41 @@ export function inventoryDateOnly(value) {
   if (value === null || value === undefined || value === '') return '';
   const parsed = parseInventoryDate(value);
   return parsed?.toISOString().slice(0, 10) || '';
+}
+
+export function parseShelfLifeDays(value) {
+  if (value === null || value === undefined || String(value).trim() === '') return null;
+  const days = Number(value);
+  if (!Number.isSafeInteger(days) || days < 1 || days > MAX_SHELF_LIFE_DAYS) return undefined;
+  return days;
+}
+
+export function expiryDateFromShelfLife(manufactureDate, shelfLifeDays) {
+  const date = parseInventoryDate(manufactureDate);
+  const days = parseShelfLifeDays(shelfLifeDays);
+  if (!date || days === null || days === undefined) return '';
+  date.setUTCDate(date.getUTCDate() + days);
+  return date.toISOString().slice(0, 10);
+}
+
+export function resolveInventoryExpiry({ expiryMode = 'date', expiry, manufactureDate, shelfLifeDays }) {
+  const manufactureDateValue = parseInventoryDate(manufactureDate);
+  if (manufactureDateValue === undefined) return { error: 'Informe uma data de fabricação válida.' };
+
+  if (expiryMode === 'days') {
+    const days = parseShelfLifeDays(shelfLifeDays);
+    if (days === null) return { error: 'Informe a quantidade de dias para vencer.' };
+    if (days === undefined) return { error: 'Informe um prazo de validade em dias entre 1 e 36.500.' };
+    if (!manufactureDateValue) return { error: 'Informe a data de fabricação para calcular a validade.' };
+    const expiryDate = new Date(manufactureDateValue);
+    expiryDate.setUTCDate(expiryDate.getUTCDate() + days);
+    return { expiry: expiryDate, manufactureDate: manufactureDateValue, shelfLifeDays: days };
+  }
+
+  if (expiryMode !== 'date') return { error: 'Selecione como deseja informar a validade.' };
+  const expiryDate = parseInventoryDate(expiry);
+  if (expiryDate === undefined) return { error: 'Informe uma data de validade válida.' };
+  return { expiry: expiryDate, manufactureDate: manufactureDateValue, shelfLifeDays: null };
 }
 
 export function requiresInventoryExpiry(product) {
@@ -83,6 +119,7 @@ export async function addInventoryLot(transaction, {
   quantity,
   expiry,
   manufactureDate,
+  shelfLifeDays,
   location,
   actor,
   source,
@@ -91,8 +128,13 @@ export async function addInventoryLot(transaction, {
   const quantityMilliUnits = inventoryQuantityMilliUnits(quantity);
   const expiryDate = parseInventoryDate(expiry);
   const manufactureDateValue = parseInventoryDate(manufactureDate);
+  const parsedShelfLifeDays = parseShelfLifeDays(shelfLifeDays);
   if (quantityMilliUnits === null || quantityMilliUnits <= 0) throw new Error('A quantidade do lote precisa ser maior que zero e ter até três casas decimais.');
   if (expiryDate === undefined || manufactureDateValue === undefined) throw new Error('Informe datas válidas para o lote.');
+  if (parsedShelfLifeDays === undefined) throw new Error('Informe um prazo de validade em dias entre 1 e 36.500.');
+  if (parsedShelfLifeDays !== null && (!manufactureDateValue || expiryDateFromShelfLife(manufactureDateValue, parsedShelfLifeDays) !== inventoryDateOnly(expiryDate))) {
+    throw new Error('A validade do lote precisa corresponder à data de fabricação mais o prazo em dias.');
+  }
 
   const product = await transaction.product.findUnique({
     where: { id: productId },
@@ -120,11 +162,15 @@ export async function addInventoryLot(transaction, {
     manufactureDate: manufactureDateValue,
   };
   const existingLot = await transaction.productLot.findFirst({ where: identityWhere });
+  if (existingLot?.shelfLifeDays && parsedShelfLifeDays && existingLot.shelfLifeDays !== parsedShelfLifeDays) {
+    throw new Error('Este lote já está registrado com outro prazo de validade em dias.');
+  }
   const lot = existingLot
     ? await transaction.productLot.update({
       where: { id: existingLot.id },
       data: {
         quantity: { increment: quantityMilliUnits / QUANTITY_SCALE },
+        ...(parsedShelfLifeDays ? { shelfLifeDays: parsedShelfLifeDays } : {}),
         ...(location ? { location: String(location).trim() } : {}),
       },
     })
@@ -136,6 +182,7 @@ export async function addInventoryLot(transaction, {
         quantity: quantityMilliUnits / QUANTITY_SCALE,
         expiry: expiryDate,
         manufactureDate: manufactureDateValue,
+        shelfLifeDays: parsedShelfLifeDays,
         location: String(location || '').trim() || null,
         source: String(source || 'MANUAL'),
         sourceReference: String(sourceReference || '').trim() || null,

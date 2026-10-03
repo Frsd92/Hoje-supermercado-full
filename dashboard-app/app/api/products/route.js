@@ -6,7 +6,15 @@ import { erpActorLabel, hasErpAccess } from '@/features/erp/access';
 import { appendPriceHistory } from '@/features/erp/api/price-history';
 import { calculateSalePrice } from '@/features/erp/api/product-pricing';
 import { findProductIdentityConflict, getProductAuditChanges, productAuditSnapshot, productIdentityKeys } from '@/features/erp/api/product-audit';
-import { addInventoryLot, inventoryQuantityMilliUnits, parseInventoryDate, requiresInventoryExpiry } from '@/features/erp/api/inventory-lots';
+import {
+  addInventoryLot,
+  inventoryDateOnly,
+  inventoryQuantityMilliUnits,
+  parseInventoryDate,
+  parseShelfLifeDays,
+  resolveInventoryExpiry,
+  requiresInventoryExpiry,
+} from '@/features/erp/api/inventory-lots';
 import { getProductOrganizationError } from '@/features/erp/product-organization';
 import { prisma } from '@/lib/prisma';
 
@@ -21,6 +29,8 @@ const privateProductFields = new Set([
   'profitMarginPercent',
   'profitMarginValue',
   'markupPercent',
+  'shelfLifeDays',
+  'expiryMode',
 ]);
 
 function corsHeaders(request) {
@@ -49,6 +59,7 @@ function serializeProduct(record) {
     : {};
   return {
     ...metadata,
+    shelfLifeDays: parseShelfLifeDays(metadata.shelfLifeDays) || null,
     id: record.externalId || record.id,
     title: record.title,
     description: record.description || '',
@@ -76,7 +87,7 @@ function productMetadata(product) {
   for (const field of [
     'id', 'title', 'description', 'price', 'cost', 'discount', 'quantity',
     'sku', 'barcode', 'brand', 'supplier', 'subcategory', 'image', 'status',
-    'expiry', 'categories', 'createdBy', 'createdAt', 'updatedAt',
+    'expiry', 'expiryMode', 'categories', 'createdBy', 'createdAt', 'updatedAt',
   ]) delete metadata[field];
   return metadata;
 }
@@ -84,6 +95,8 @@ function productMetadata(product) {
 function productDatabaseData(product) {
   const expiry = product.expiry ? new Date(product.expiry) : null;
   const identity = productIdentityKeys(product);
+  const metadata = productMetadata(product);
+  metadata.shelfLifeDays = parseShelfLifeDays(product.shelfLifeDays);
   return {
     identityTitle: identity.identityTitle,
     identitySku: identity.identitySku,
@@ -104,7 +117,7 @@ function productDatabaseData(product) {
     expiry: expiry && !Number.isNaN(expiry.getTime()) ? expiry : null,
     categories: Array.isArray(product.categories) ? product.categories : [],
     createdBy: product.createdBy ? String(product.createdBy) : null,
-    metadata: productMetadata(product),
+    metadata,
   };
 }
 
@@ -208,6 +221,7 @@ async function saveProduct(product, { actor, action, before = null }) {
         quantity: data.quantity,
         expiry: product.expiry,
         manufactureDate: product.manufactureDate,
+        shelfLifeDays: product.expiryMode === 'days' ? product.shelfLifeDays : null,
         location: product.location,
         actor,
         source: 'OPENING_STOCK',
@@ -357,15 +371,27 @@ export async function POST(request) {
   const discount = Number(product?.discount || 0);
   const quantity = Number(product?.quantity || 0);
   const quantityMilliUnits = inventoryQuantityMilliUnits(product?.quantity ?? 0);
-  const expiry = parseInventoryDate(product?.expiry);
-  const manufactureDate = parseInventoryDate(product?.manufactureDate);
+  const shelfLifeDays = parseShelfLifeDays(product?.shelfLifeDays);
+  const expiryMode = product?.expiryMode || (shelfLifeDays ? 'days' : 'date');
   const categories = Array.isArray(product?.categories)
     ? [...new Set(product.categories.map((category) => String(category).trim()).filter(Boolean))]
     : [];
   const status = ['Ativo', 'Rascunho', 'Arquivado'].includes(product?.status) ? product.status : 'Ativo';
   if (!title || !Number.isFinite(price) || price <= 0 || !Number.isFinite(cost) || cost < 0 || !Number.isFinite(discount) || discount < 0 || discount > 100 || !Number.isFinite(quantity) || quantity < 0 || quantityMilliUnits === null || !categories.length) return Response.json({ error: 'Informe nome, preço, custo, desconto válido, estoque com até três casas decimais e ao menos uma categoria.' }, { status: 400, headers: corsHeaders(request) });
-  if (expiry === undefined || manufactureDate === undefined) return Response.json({ error: 'Informe datas válidas para o lote inicial.' }, { status: 400, headers: corsHeaders(request) });
-  if (quantity > 0 && requiresInventoryExpiry(product) && !product.expiry) return Response.json({ error: 'Informe a validade do lote inicial para produtos que controlam validade.' }, { status: 400, headers: corsHeaders(request) });
+  if (shelfLifeDays === undefined) return Response.json({ error: 'Informe um prazo de validade em dias entre 1 e 36.500.' }, { status: 400, headers: corsHeaders(request) });
+  let initialLotDates = null;
+  if (quantity > 0) {
+    initialLotDates = resolveInventoryExpiry({
+      expiryMode,
+      expiry: product.expiry,
+      manufactureDate: product.manufactureDate,
+      shelfLifeDays,
+    });
+    if (initialLotDates.error) return Response.json({ error: initialLotDates.error }, { status: 400, headers: corsHeaders(request) });
+    if (requiresInventoryExpiry(product) && !initialLotDates.expiry) return Response.json({ error: 'Informe a validade do lote inicial por data ou por prazo em dias.' }, { status: 400, headers: corsHeaders(request) });
+  } else if (parseInventoryDate(product?.expiry) === undefined || parseInventoryDate(product?.manufactureDate) === undefined) {
+    return Response.json({ error: 'Informe datas válidas para o lote inicial.' }, { status: 400, headers: corsHeaders(request) });
+  }
   if (quantity > 0 && product.controlsLot === true && !String(product.lot || '').trim()) return Response.json({ error: 'Informe o código do lote inicial para produtos que controlam lote.' }, { status: 400, headers: corsHeaders(request) });
   const organizationError = getProductOrganizationError({ ...product, categories });
   if (organizationError) return Response.json({ error: organizationError }, { status: 400, headers: corsHeaders(request) });
@@ -381,6 +407,8 @@ export async function POST(request) {
     department: String(product?.department || '').trim(),
     subcategory: String(product?.subcategory || '').trim(),
     status,
+    shelfLifeDays,
+    expiryMode,
     id: `PROD-${Date.now()}`,
     createdAt: new Date().toISOString(),
     createdBy: actor,
@@ -396,6 +424,9 @@ export async function POST(request) {
     savedProduct.expiry = '';
     savedProduct.lot = '';
     savedProduct.manufactureDate = '';
+  } else {
+    savedProduct.expiry = initialLotDates.expiry ? inventoryDateOnly(initialLotDates.expiry) : '';
+    savedProduct.manufactureDate = inventoryDateOnly(initialLotDates.manufactureDate);
   }
   const duplicate = matchingDuplicate(savedProduct, await getProducts());
   if (duplicate) return Response.json({ error: duplicate.message }, { status: 409, headers: corsHeaders(request) });
@@ -424,11 +455,13 @@ export async function PUT(request) {
   const discount = Number(product?.discount || 0);
   const quantity = Number(product?.quantity || 0);
   const quantityMilliUnits = inventoryQuantityMilliUnits(product?.quantity ?? 0);
+  const shelfLifeDays = parseShelfLifeDays(product?.shelfLifeDays);
   const categories = Array.isArray(product?.categories)
     ? [...new Set(product.categories.map((category) => String(category).trim()).filter(Boolean))]
     : [];
   const status = ['Ativo', 'Rascunho', 'Arquivado'].includes(product?.status) ? product.status : 'Ativo';
   if (!productId || !title || !Number.isFinite(price) || price <= 0 || !Number.isFinite(cost) || cost < 0 || !Number.isFinite(discount) || discount < 0 || discount > 100 || !Number.isFinite(quantity) || quantity < 0 || quantityMilliUnits === null || !categories.length) return Response.json({ error: 'Informe nome, preço, custo, desconto válido, estoque com até três casas decimais e ao menos uma categoria.' }, { status: 400, headers: corsHeaders(request) });
+  if (shelfLifeDays === undefined) return Response.json({ error: 'Informe um prazo de validade em dias entre 1 e 36.500.' }, { status: 400, headers: corsHeaders(request) });
   const organizationError = getProductOrganizationError({ ...product, categories });
   if (organizationError) return Response.json({ error: organizationError }, { status: 400, headers: corsHeaders(request) });
 
@@ -453,6 +486,7 @@ export async function PUT(request) {
     department: String(product?.department || '').trim(),
     subcategory: String(product?.subcategory || '').trim(),
     status,
+    shelfLifeDays,
     updatedAt: new Date().toISOString(),
     updatedBy: actor,
     priceHistory,

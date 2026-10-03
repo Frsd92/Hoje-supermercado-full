@@ -47,6 +47,7 @@ function presentOrder(order) {
             controlsExpiry: metadata?.controlsExpiry === true,
             controlsLot: metadata?.controlsLot === true,
             perishable: metadata?.perishable === true,
+            shelfLifeDays: Number.isSafeInteger(metadata?.shelfLifeDays) ? metadata.shelfLifeDays : null,
           },
         };
       }),

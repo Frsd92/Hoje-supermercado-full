@@ -3,6 +3,7 @@
 import Link from 'next/link';
 import { useCallback, useEffect, useMemo, useState } from 'react';
 import { ArrowLeft, CalendarClock, Check, ExternalLink, Mail, Plus, Search, Truck, X } from 'lucide-react';
+import { expiryDateFromShelfLife } from '../api/inventory-lots.js';
 
 const orderStatuses = ['Todos', 'Pendentes', 'Rascunho', 'Aguardando Confirmação', 'Confirmado', 'Em Trânsito', 'Em Atraso', 'Recebido', 'Cancelado'];
 const money = (value) => `R$ ${Number(value || 0).toFixed(2).replace('.', ',')}`;
@@ -84,7 +85,16 @@ function ReceivePurchaseOrder({ order, onClose, onReceived }) {
       unitCost: String(item.unitPrice),
       controlsExpiry: item.product.controlsExpiry === true || item.product.perishable === true,
       controlsLot: item.product.controlsLot === true,
-      lots: [{ quantity: String(remaining), lotCode: '', expiry: '', manufactureDate: '', location: '' }],
+      shelfLifeDays: Number.isSafeInteger(item.product.shelfLifeDays) ? item.product.shelfLifeDays : '',
+      lots: [{
+        quantity: String(remaining),
+        lotCode: '',
+        expiryMode: Number.isSafeInteger(item.product.shelfLifeDays) ? 'days' : 'date',
+        shelfLifeDays: Number.isSafeInteger(item.product.shelfLifeDays) ? String(item.product.shelfLifeDays) : '',
+        expiry: '',
+        manufactureDate: '',
+        location: '',
+      }],
     };
   }));
   const [saving, setSaving] = useState(false);
@@ -94,7 +104,15 @@ function ReceivePurchaseOrder({ order, onClose, onReceived }) {
     ? { ...item, lots: item.lots.map((lot, indexInItem) => indexInItem === lotIndex ? { ...lot, [field]: value } : lot) }
     : item));
   const addLot = (itemIndex) => setItems((current) => current.map((item, index) => index === itemIndex
-    ? { ...item, lots: [...item.lots, { quantity: '', lotCode: '', expiry: '', manufactureDate: '', location: '' }] }
+    ? { ...item, lots: [...item.lots, {
+      quantity: '',
+      lotCode: '',
+      expiryMode: Number.isSafeInteger(item.shelfLifeDays) ? 'days' : 'date',
+      shelfLifeDays: Number.isSafeInteger(item.shelfLifeDays) ? String(item.shelfLifeDays) : '',
+      expiry: '',
+      manufactureDate: '',
+      location: '',
+    }] }
     : item));
   const removeLot = (itemIndex, lotIndex) => setItems((current) => current.map((item, index) => index === itemIndex
     ? { ...item, lots: item.lots.filter((_, indexInItem) => indexInItem !== lotIndex) }
@@ -126,7 +144,7 @@ function ReceivePurchaseOrder({ order, onClose, onReceived }) {
     }
   };
   return <div className="supplier-drawer-backdrop" role="presentation" onMouseDown={(event) => { if (event.target === event.currentTarget) onClose(); }}><section className="supplier-drawer purchase-order-drawer" role="dialog" aria-modal="true" aria-labelledby="receive-order-title">
-    <header className="supplier-drawer-header"><div><span className="eyebrow">{order.code}</span><h2 id="receive-order-title">Conferir recebimento</h2><p>Divida cada quantidade recebida entre seus lotes. Informe validade e código quando o cadastro do produto exigir; o estoque só muda após confirmar.</p></div><button type="button" className="supplier-close-button" aria-label="Fechar recebimento" onClick={onClose}><X size={20} /></button></header>
+    <header className="supplier-drawer-header"><div><span className="eyebrow">{order.code}</span><h2 id="receive-order-title">Conferir recebimento</h2><p>Divida cada quantidade entre os lotes. Informe a data do rótulo ou calcule pela fabricação e prazo em dias; o estoque só muda após confirmar.</p></div><button type="button" className="supplier-close-button" aria-label="Fechar recebimento" onClick={onClose}><X size={20} /></button></header>
     <form className="supplier-form" onSubmit={submit}><section className="supplier-form-section"><h3>{order.supplier.name}</h3>{items.map((item, index) => {
       const enteredMilliUnits = item.lots.reduce((sum, lot) => sum + Math.round((Number(decimalInput(lot.quantity)) || 0) * 1000), 0);
       const enteredQuantity = enteredMilliUnits / 1000;
@@ -138,14 +156,27 @@ function ReceivePurchaseOrder({ order, onClose, onReceived }) {
         </div>
         <div className="purchase-lot-entry">
           <div className="purchase-lot-entry-header"><strong>Lotes recebidos</strong><button type="button" className="supplier-add-line" onClick={() => addLot(index)} disabled={saving || item.remaining === 0}><Plus size={14} /> Dividir em outro lote</button></div>
-          {item.lots.map((lot, lotIndex) => <div className="purchase-receipt-lot" key={`${item.itemId}-${lotIndex}`}>
-            <label>Quantidade<input type="number" min="0" max={item.remaining} step="0.001" value={lot.quantity} onChange={(event) => setLot(index, lotIndex, 'quantity', event.target.value)} required disabled={saving} /></label>
-            <label>{item.controlsLot ? 'Código do lote *' : 'Código do lote'}<input value={lot.lotCode} onChange={(event) => setLot(index, lotIndex, 'lotCode', event.target.value)} placeholder="Opcional" required={item.controlsLot && Number(lot.quantity) > 0} disabled={saving} /></label>
-            <label>Fabricação<input type="date" value={lot.manufactureDate} onChange={(event) => setLot(index, lotIndex, 'manufactureDate', event.target.value)} disabled={saving} /></label>
-            <label>{item.controlsExpiry ? 'Validade *' : 'Validade'}<input type="date" value={lot.expiry} onChange={(event) => setLot(index, lotIndex, 'expiry', event.target.value)} required={item.controlsExpiry && Number(lot.quantity) > 0} disabled={saving} /></label>
-            <label>Localização<input value={lot.location} onChange={(event) => setLot(index, lotIndex, 'location', event.target.value)} placeholder="Padrão do produto" disabled={saving} /></label>
-            <button type="button" className="purchase-receipt-lot-remove" aria-label={`Remover lote ${lotIndex + 1} de ${item.title}`} onClick={() => removeLot(index, lotIndex)} disabled={saving || item.lots.length === 1}><X size={16} /></button>
-          </div>)}
+          {item.lots.map((lot, lotIndex) => {
+            const usesDays = lot.expiryMode === 'days';
+            const calculatedExpiry = expiryDateFromShelfLife(lot.manufactureDate, lot.shelfLifeDays);
+            const lotHasQuantity = Number(lot.quantity) > 0;
+            return <div className="purchase-receipt-lot-container" key={`${item.itemId}-${lotIndex}`}>
+              <fieldset className="purchase-receipt-expiry-mode">
+                <legend>Como informar a validade</legend>
+                <label><input type="radio" name={`expiry-mode-${item.itemId}-${lotIndex}`} value="date" checked={!usesDays} onChange={() => setLot(index, lotIndex, 'expiryMode', 'date')} disabled={saving} /> Data do rótulo</label>
+                <label><input type="radio" name={`expiry-mode-${item.itemId}-${lotIndex}`} value="days" checked={usesDays} onChange={() => setLot(index, lotIndex, 'expiryMode', 'days')} disabled={saving} /> Calcular por dias</label>
+              </fieldset>
+              <div className={`purchase-receipt-lot${usesDays ? ' uses-days' : ''}`}>
+                <label>Quantidade<input type="number" min="0" max={item.remaining} step="0.001" value={lot.quantity} onChange={(event) => setLot(index, lotIndex, 'quantity', event.target.value)} required disabled={saving} /></label>
+                <label>{item.controlsLot ? 'Código do lote *' : 'Código do lote'}<input value={lot.lotCode} onChange={(event) => setLot(index, lotIndex, 'lotCode', event.target.value)} placeholder="Opcional" required={item.controlsLot && lotHasQuantity} disabled={saving} /></label>
+                <label>Fabricação{usesDays && lotHasQuantity ? ' *' : ''}<input type="date" value={lot.manufactureDate} onChange={(event) => setLot(index, lotIndex, 'manufactureDate', event.target.value)} required={usesDays && lotHasQuantity} disabled={saving} /></label>
+                {usesDays && <label>Dias até vencer{lotHasQuantity ? ' *' : ''}<input type="number" min="1" max="36500" step="1" value={lot.shelfLifeDays} onChange={(event) => setLot(index, lotIndex, 'shelfLifeDays', event.target.value)} required={lotHasQuantity} disabled={saving} /></label>}
+                <label>{item.controlsExpiry || usesDays ? 'Validade *' : 'Validade'}<input type="date" value={usesDays ? calculatedExpiry : lot.expiry} onChange={(event) => setLot(index, lotIndex, 'expiry', event.target.value)} required={(item.controlsExpiry || usesDays) && lotHasQuantity} disabled={saving || usesDays} /></label>
+                <label>Localização<input value={lot.location} onChange={(event) => setLot(index, lotIndex, 'location', event.target.value)} placeholder="Padrão do produto" disabled={saving} /></label>
+                <button type="button" className="purchase-receipt-lot-remove" aria-label={`Remover lote ${lotIndex + 1} de ${item.title}`} onClick={() => removeLot(index, lotIndex)} disabled={saving || item.lots.length === 1}><X size={16} /></button>
+              </div>
+            </div>;
+          })}
           <p className={`purchase-lot-quantity ${enteredMilliUnits > remainingMilliUnits ? 'is-over' : ''}`} aria-live="polite">Total informado: <strong>{enteredQuantity.toFixed(3).replace(/\.?0+$/, '')}</strong> de {item.remaining}</p>
         </div>
       </div>;
