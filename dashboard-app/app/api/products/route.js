@@ -6,6 +6,7 @@ import { erpActorLabel, hasErpAccess } from '@/features/erp/access';
 import { appendPriceHistory } from '@/features/erp/api/price-history';
 import { calculateSalePrice } from '@/features/erp/api/product-pricing';
 import { findProductIdentityConflict, getProductAuditChanges, productAuditSnapshot, productIdentityKeys } from '@/features/erp/api/product-audit';
+import { addInventoryLot, inventoryQuantityMilliUnits, parseInventoryDate, requiresInventoryExpiry } from '@/features/erp/api/inventory-lots';
 import { getProductOrganizationError } from '@/features/erp/product-organization';
 import { prisma } from '@/lib/prisma';
 
@@ -129,6 +130,13 @@ class DuplicateProductError extends Error {
   }
 }
 
+class InventoryQuantityMismatchError extends Error {
+  constructor(message = 'A quantidade exibida é o saldo total dos lotes. Ajuste estoque e validade em ERP → Validade.') {
+    super(message);
+    this.name = 'InventoryQuantityMismatchError';
+  }
+}
+
 function matchingDuplicate(product, products, excludedId = '') {
   const conflict = findProductIdentityConflict(product, products, excludedId);
   return conflict ? new DuplicateProductError(conflict.product.title, conflict.field) : null;
@@ -142,6 +150,30 @@ async function saveProduct(product, { actor, action, before = null }) {
     const existing = externalId
       ? await transaction.product.findFirst({ where: { OR: [{ externalId }, { id: externalId }] } })
       : null;
+    if (existing) {
+      const submittedQuantity = inventoryQuantityMilliUnits(product.quantity);
+      const currentQuantity = inventoryQuantityMilliUnits(existing.quantity);
+      if (submittedQuantity === null || submittedQuantity !== currentQuantity) {
+        throw new InventoryQuantityMismatchError();
+      }
+      const currentMetadata = existing.metadata && typeof existing.metadata === 'object' && !Array.isArray(existing.metadata)
+        ? existing.metadata
+        : {};
+      const nextMetadata = data.metadata && typeof data.metadata === 'object' && !Array.isArray(data.metadata)
+        ? data.metadata
+        : {};
+      data.quantity = existing.quantity;
+      data.expiry = existing.expiry;
+      data.metadata = {
+        ...nextMetadata,
+        lot: currentMetadata.lot || '',
+        manufactureDate: currentMetadata.manufactureDate || '',
+      };
+      if (Number(existing.quantity) > 0 && currentMetadata.saleUnit !== nextMetadata.saleUnit) {
+        throw new InventoryQuantityMismatchError('Não é possível alterar a unidade de venda enquanto houver saldo em lotes. Zere ou ajuste o estoque antes de trocar a unidade.');
+      }
+    }
+
     const auditBefore = existing ? serializeProduct(existing) : before;
     const excludedId = existing?.id;
     const conditions = [
@@ -166,9 +198,31 @@ async function saveProduct(product, { actor, action, before = null }) {
       : null;
     if (barcodeDuplicate) throw new DuplicateProductError(barcodeDuplicate.product.title, 'este código de barras');
 
-    const saved = existing
+    let saved = existing
       ? await transaction.product.update({ where: { id: existing.id }, data })
       : await transaction.product.create({ data: { ...data, externalId: externalId || undefined } });
+    if (!existing && Number(data.quantity) > 0) {
+      const initialLot = await addInventoryLot(transaction, {
+        productId: saved.id,
+        lotCode: product.lot,
+        quantity: data.quantity,
+        expiry: product.expiry,
+        manufactureDate: product.manufactureDate,
+        location: product.location,
+        actor,
+        source: 'OPENING_STOCK',
+        sourceReference: 'product-registration',
+      });
+      saved = initialLot.product;
+    } else if (!existing) {
+      saved = await transaction.product.update({
+        where: { id: saved.id },
+        data: {
+          expiry: null,
+          metadata: { ...data.metadata, lot: '', manufactureDate: '' },
+        },
+      });
+    }
     await transaction.productBarcode.deleteMany({ where: { productId: saved.id } });
     if (keys.normalizedBarcodes.length) {
       await transaction.productBarcode.createMany({
@@ -178,8 +232,9 @@ async function saveProduct(product, { actor, action, before = null }) {
         })),
       });
     }
+    const auditedProduct = { ...serializeProduct(saved), id: product.id || saved.id };
     const changes = auditBefore
-      ? getProductAuditChanges(auditBefore, product)
+      ? getProductAuditChanges(auditBefore, auditedProduct)
       : undefined;
     await transaction.productAuditLog.create({
       data: {
@@ -188,7 +243,7 @@ async function saveProduct(product, { actor, action, before = null }) {
         productTitle: saved.title,
         action,
         actor,
-        snapshot: auditBefore ? undefined : productAuditSnapshot(product),
+        snapshot: auditBefore ? undefined : productAuditSnapshot(auditedProduct),
         changes,
       },
     });
@@ -199,7 +254,11 @@ async function saveProduct(product, { actor, action, before = null }) {
 async function deleteProduct(id, actor) {
   return prisma.$transaction(async (transaction) => {
     const existing = await transaction.product.findFirst({ where: { OR: [{ externalId: id }, { id }] } });
-    if (!existing) return false;
+    if (!existing) return { deleted: false };
+    const inventoryLots = await transaction.productLot.count({ where: { productId: existing.id } });
+    if (inventoryLots) {
+      return { deleted: false, error: 'Este produto possui histórico de lotes de estoque e não pode ser excluído. Altere o status para Arquivado.' };
+    }
     const snapshot = serializeProduct(existing);
     await transaction.product.delete({ where: { id: existing.id } });
     await transaction.productAuditLog.create({
@@ -212,7 +271,7 @@ async function deleteProduct(id, actor) {
         snapshot: productAuditSnapshot(snapshot),
       },
     });
-    return true;
+    return { deleted: true };
   });
 }
 
@@ -297,11 +356,17 @@ export async function POST(request) {
   const cost = Number(product?.cost || 0);
   const discount = Number(product?.discount || 0);
   const quantity = Number(product?.quantity || 0);
+  const quantityMilliUnits = inventoryQuantityMilliUnits(product?.quantity ?? 0);
+  const expiry = parseInventoryDate(product?.expiry);
+  const manufactureDate = parseInventoryDate(product?.manufactureDate);
   const categories = Array.isArray(product?.categories)
     ? [...new Set(product.categories.map((category) => String(category).trim()).filter(Boolean))]
     : [];
   const status = ['Ativo', 'Rascunho', 'Arquivado'].includes(product?.status) ? product.status : 'Ativo';
-  if (!title || !Number.isFinite(price) || price <= 0 || !Number.isFinite(cost) || cost < 0 || !Number.isFinite(discount) || discount < 0 || discount > 100 || !Number.isFinite(quantity) || quantity < 0 || !categories.length) return Response.json({ error: 'Informe nome, preço, custo, desconto válido, estoque e ao menos uma categoria.' }, { status: 400, headers: corsHeaders(request) });
+  if (!title || !Number.isFinite(price) || price <= 0 || !Number.isFinite(cost) || cost < 0 || !Number.isFinite(discount) || discount < 0 || discount > 100 || !Number.isFinite(quantity) || quantity < 0 || quantityMilliUnits === null || !categories.length) return Response.json({ error: 'Informe nome, preço, custo, desconto válido, estoque com até três casas decimais e ao menos uma categoria.' }, { status: 400, headers: corsHeaders(request) });
+  if (expiry === undefined || manufactureDate === undefined) return Response.json({ error: 'Informe datas válidas para o lote inicial.' }, { status: 400, headers: corsHeaders(request) });
+  if (quantity > 0 && requiresInventoryExpiry(product) && !product.expiry) return Response.json({ error: 'Informe a validade do lote inicial para produtos que controlam validade.' }, { status: 400, headers: corsHeaders(request) });
+  if (quantity > 0 && product.controlsLot === true && !String(product.lot || '').trim()) return Response.json({ error: 'Informe o código do lote inicial para produtos que controlam lote.' }, { status: 400, headers: corsHeaders(request) });
   const organizationError = getProductOrganizationError({ ...product, categories });
   if (organizationError) return Response.json({ error: organizationError }, { status: 400, headers: corsHeaders(request) });
 
@@ -327,6 +392,11 @@ export async function POST(request) {
       changedBy: actor,
     }],
   };
+  if (quantity === 0) {
+    savedProduct.expiry = '';
+    savedProduct.lot = '';
+    savedProduct.manufactureDate = '';
+  }
   const duplicate = matchingDuplicate(savedProduct, await getProducts());
   if (duplicate) return Response.json({ error: duplicate.message }, { status: 409, headers: corsHeaders(request) });
   try {
@@ -334,6 +404,7 @@ export async function POST(request) {
   } catch (error) {
     console.error('Não foi possível salvar o produto no catálogo:', error);
     if (error instanceof DuplicateProductError) return Response.json({ error: error.message }, { status: 409, headers: corsHeaders(request) });
+    if (error instanceof InventoryQuantityMismatchError) return Response.json({ error: error.message }, { status: 409, headers: corsHeaders(request) });
     if (error?.code === 'P2002') return Response.json({ error: 'Já existe um produto com estes dados. Abra o cadastro existente para editá-lo.' }, { status: 409, headers: corsHeaders(request) });
     return Response.json({ error: 'Não foi possível salvar o produto. Verifique a conexão com o banco de dados.' }, { status: 500, headers: corsHeaders(request) });
   }
@@ -352,11 +423,12 @@ export async function PUT(request) {
   const cost = Number(product?.cost || 0);
   const discount = Number(product?.discount || 0);
   const quantity = Number(product?.quantity || 0);
+  const quantityMilliUnits = inventoryQuantityMilliUnits(product?.quantity ?? 0);
   const categories = Array.isArray(product?.categories)
     ? [...new Set(product.categories.map((category) => String(category).trim()).filter(Boolean))]
     : [];
   const status = ['Ativo', 'Rascunho', 'Arquivado'].includes(product?.status) ? product.status : 'Ativo';
-  if (!productId || !title || !Number.isFinite(price) || price <= 0 || !Number.isFinite(cost) || cost < 0 || !Number.isFinite(discount) || discount < 0 || discount > 100 || !Number.isFinite(quantity) || quantity < 0 || !categories.length) return Response.json({ error: 'Informe nome, preço, custo, desconto válido, estoque e ao menos uma categoria.' }, { status: 400, headers: corsHeaders(request) });
+  if (!productId || !title || !Number.isFinite(price) || price <= 0 || !Number.isFinite(cost) || cost < 0 || !Number.isFinite(discount) || discount < 0 || discount > 100 || !Number.isFinite(quantity) || quantity < 0 || quantityMilliUnits === null || !categories.length) return Response.json({ error: 'Informe nome, preço, custo, desconto válido, estoque com até três casas decimais e ao menos uma categoria.' }, { status: 400, headers: corsHeaders(request) });
   const organizationError = getProductOrganizationError({ ...product, categories });
   if (organizationError) return Response.json({ error: organizationError }, { status: 400, headers: corsHeaders(request) });
 
@@ -393,6 +465,7 @@ export async function PUT(request) {
   } catch (error) {
     console.error('Não foi possível atualizar o produto no catálogo:', error);
     if (error instanceof DuplicateProductError) return Response.json({ error: error.message }, { status: 409, headers: corsHeaders(request) });
+    if (error instanceof InventoryQuantityMismatchError) return Response.json({ error: error.message }, { status: 409, headers: corsHeaders(request) });
     if (error?.code === 'P2002') return Response.json({ error: 'Já existe um produto com estes dados. Abra o cadastro existente para editá-lo.' }, { status: 409, headers: corsHeaders(request) });
     return Response.json({ error: 'Não foi possível atualizar o produto. Verifique a conexão com o banco de dados.' }, { status: 500, headers: corsHeaders(request) });
   }
@@ -412,7 +485,9 @@ export async function DELETE(request) {
   const product = products.find((item) => String(item.id) === productId);
   if (!product) return Response.json({ error: 'Produto não encontrado.' }, { status: 404, headers: corsHeaders(request) });
   try {
-    if (!await deleteProduct(productId, actor)) {
+    const result = await deleteProduct(productId, actor);
+    if (result.error) return Response.json({ error: result.error }, { status: 409, headers: corsHeaders(request) });
+    if (!result.deleted) {
       return Response.json({ error: 'Produto não encontrado no banco de dados.' }, { status: 404, headers: corsHeaders(request) });
     }
   } catch (error) {

@@ -5765,6 +5765,25 @@ button.metric-mini:focus-visible {
 .purchase-order-item-form label select, .purchase-order-item-form label input { width: 100%; min-height: 37px; padding: 7px 8px; border: 1px solid #dbe3ea; border-radius: 7px; background: #fff; color: #334155; font: inherit; font-size: .74rem; font-weight: 400; }
 .purchase-order-item-form > strong { color: #334155; font-size: .74rem; }
 .purchase-order-item-form > strong small { display: block; margin-top: 4px; color: #64748b; font-size: .66rem; font-weight: 500; }
+.purchase-order-receipt-item { padding: 7px 0 12px; border-top: 1px solid #edf1f5; }
+.purchase-order-receipt-item:first-of-type { border-top: 0; }
+.purchase-order-item-form.receipt-order-item { grid-template-columns: minmax(0, 1fr) minmax(150px, .42fr); align-items: start; padding: 7px 0 10px; border-top: 0; }
+.receipt-order-item > strong { min-width: 0; overflow-wrap: anywhere; }
+.purchase-lot-entry { display: grid; gap: 8px; padding: 11px; border: 1px solid #e5eaf0; border-radius: 9px; background: #f8fafc; }
+.purchase-lot-entry-header { display: flex; align-items: center; justify-content: space-between; gap: 10px; }
+.purchase-lot-entry-header > strong { color: #334155; font-size: .71rem; }
+.purchase-lot-entry-header .supplier-add-line { min-height: 30px; }
+.purchase-receipt-lot { display: grid; grid-template-columns: minmax(95px, .65fr) minmax(120px, 1fr) minmax(120px, .9fr) minmax(120px, .9fr) minmax(110px, .8fr) 30px; align-items: end; gap: 7px; }
+.purchase-receipt-lot label { display: grid; min-width: 0; gap: 4px; color: #64748b; font-size: .63rem; font-weight: 750; }
+.purchase-receipt-lot input { width: 100%; min-width: 0; min-height: 34px; padding: 6px 7px; border: 1px solid #dbe3ea; border-radius: 7px; background: #fff; color: #334155; font: inherit; font-size: .7rem; font-weight: 400; }
+.purchase-receipt-lot input:focus { border-color: #22a447; outline: 3px solid rgb(34 164 71 / 12%); }
+.purchase-receipt-lot input:disabled { background: #f1f5f9; color: #64748b; cursor: not-allowed; }
+.purchase-receipt-lot-remove { display: grid; width: 30px; height: 34px; place-items: center; border: 1px solid #e2e8f0; border-radius: 7px; background: white; color: #64748b; cursor: pointer; }
+.purchase-receipt-lot-remove:hover:not(:disabled) { border-color: #fecaca; background: #fff7f7; color: #b91c1c; }
+.purchase-receipt-lot-remove:disabled { cursor: not-allowed; opacity: .45; }
+.purchase-lot-quantity { margin: 0; color: #64748b; font-size: .66rem; text-align: right; }
+.purchase-lot-quantity strong { color: #334155; }
+.purchase-lot-quantity.is-over, .purchase-lot-quantity.is-over strong { color: #b91c1c; }
 .purchase-order-warning { margin: 10px 0 0; color: #92400e; font-size: .7rem; line-height: 1.5; }
 .supplier-add-line { display: inline-flex; align-items: center; gap: 5px; min-height: 32px; padding: 5px 9px; border: 1px dashed #cbd5e1; border-radius: 7px; background: #f8fafc; color: #475569; cursor: pointer; font: inherit; font-size: .69rem; font-weight: 750; }
 .purchase-order-total { display: flex; justify-content: space-between; gap: 12px; margin-top: 12px; padding-top: 11px; border-top: 1px solid #e2e8f0; color: #64748b; font-size: .7rem; }
@@ -6045,6 +6064,10 @@ button.metric-mini:focus-visible {
 .erp-order-items { display: grid; gap: 8px; }
 .erp-order-items div { display: flex; justify-content: space-between; gap: 8px; padding: 9px; border-radius: 8px; background: #f8fafc; font-size: .72rem; }
 .erp-order-items span { color: #64748b; }
+.erp-order-fefo-note, .erp-order-action-error { display: flex; align-items: flex-start; gap: 8px; margin: 12px 0 0; padding: 10px; border-radius: 8px; font-size: .7rem; line-height: 1.5; }
+.erp-order-fefo-note { border: 1px solid #cfe7d5; background: #f2faf4; color: #27603a; }
+.erp-order-action-error { border: 1px solid #fecaca; background: #fff7f7; color: #b91c1c; }
+.erp-order-fefo-note svg, .erp-order-action-error svg { flex: 0 0 auto; margin-top: 1px; }
 .erp-advance-button { width: 100%; margin-top: 16px; font-size: .75rem; }
 
 .service-region-page { display: grid; max-width: 1180px; margin: 0 auto; gap: 16px; align-content: start; }
@@ -6142,6 +6165,10 @@ button.metric-mini:focus-visible {
   .purchase-order-item-form { grid-template-columns: 1fr 1fr; }
   .purchase-order-item-form > strong, .purchase-order-item-form label:first-of-type { grid-column: 1 / -1; }
   .purchase-order-item-form > .supplier-secondary-button { grid-column: 2; }
+  .purchase-order-item-form.receipt-order-item { grid-template-columns: 1fr 1fr; }
+  .purchase-order-item-form.receipt-order-item > strong { grid-column: 1 / -1; }
+  .purchase-receipt-lot { grid-template-columns: repeat(2, minmax(0, 1fr)) 30px; }
+  .purchase-receipt-lot-remove { grid-column: 3; grid-row: 1; }
   .purchase-order-total { align-items: flex-start; }
   .service-region-add-form { grid-template-columns: 1fr; }
   .service-region-add-form .primary-cta { width: 100%; }

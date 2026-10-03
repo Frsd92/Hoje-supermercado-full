@@ -44,6 +44,9 @@ function presentOrder(order) {
           product: {
             ...product,
             saleUnit: metadata?.saleUnit === 'Quilograma' ? 'Quilograma' : 'Unidade',
+            controlsExpiry: metadata?.controlsExpiry === true,
+            controlsLot: metadata?.controlsLot === true,
+            perishable: metadata?.perishable === true,
           },
         };
       }),

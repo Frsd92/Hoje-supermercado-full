@@ -75,16 +75,30 @@ function CreatePurchaseOrder({ suppliers, products, onClose, onSaved }) {
 }
 
 function ReceivePurchaseOrder({ order, onClose, onReceived }) {
-  const [items, setItems] = useState(order.items.map((item) => ({
-    itemId: item.id,
-    title: item.product.title,
-    remaining: Math.max(0, Number(item.quantity) - Number(item.receivedQuantity)),
-    receivedQuantity: String(Math.max(0, Number(item.quantity) - Number(item.receivedQuantity))),
-    unitCost: String(item.unitPrice),
-  })));
+  const [items, setItems] = useState(() => order.items.map((item) => {
+    const remaining = Math.max(0, Number(item.quantity) - Number(item.receivedQuantity));
+    return {
+      itemId: item.id,
+      title: item.product.title,
+      remaining,
+      unitCost: String(item.unitPrice),
+      controlsExpiry: item.product.controlsExpiry === true || item.product.perishable === true,
+      controlsLot: item.product.controlsLot === true,
+      lots: [{ quantity: String(remaining), lotCode: '', expiry: '', manufactureDate: '', location: '' }],
+    };
+  }));
   const [saving, setSaving] = useState(false);
   const [error, setError] = useState('');
   const setItem = (index, field, value) => setItems((current) => current.map((item, itemIndex) => itemIndex === index ? { ...item, [field]: value } : item));
+  const setLot = (itemIndex, lotIndex, field, value) => setItems((current) => current.map((item, index) => index === itemIndex
+    ? { ...item, lots: item.lots.map((lot, indexInItem) => indexInItem === lotIndex ? { ...lot, [field]: value } : lot) }
+    : item));
+  const addLot = (itemIndex) => setItems((current) => current.map((item, index) => index === itemIndex
+    ? { ...item, lots: [...item.lots, { quantity: '', lotCode: '', expiry: '', manufactureDate: '', location: '' }] }
+    : item));
+  const removeLot = (itemIndex, lotIndex) => setItems((current) => current.map((item, index) => index === itemIndex
+    ? { ...item, lots: item.lots.filter((_, indexInItem) => indexInItem !== lotIndex) }
+    : item));
   const submit = async (event) => {
     event.preventDefault();
     setSaving(true);
@@ -93,7 +107,14 @@ function ReceivePurchaseOrder({ order, onClose, onReceived }) {
       const response = await fetch('/api/erp/purchase-orders/receive', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ orderId: order.id, items }),
+        body: JSON.stringify({
+          orderId: order.id,
+          items: items.map((item) => ({
+            itemId: item.itemId,
+            unitCost: item.unitCost,
+            lots: item.lots,
+          })),
+        }),
       });
       const data = await response.json();
       if (!response.ok) throw new Error(data.error || 'Não foi possível registrar o recebimento.');
@@ -105,8 +126,30 @@ function ReceivePurchaseOrder({ order, onClose, onReceived }) {
     }
   };
   return <div className="supplier-drawer-backdrop" role="presentation" onMouseDown={(event) => { if (event.target === event.currentTarget) onClose(); }}><section className="supplier-drawer purchase-order-drawer" role="dialog" aria-modal="true" aria-labelledby="receive-order-title">
-    <header className="supplier-drawer-header"><div><span className="eyebrow">{order.code}</span><h2 id="receive-order-title">Conferir recebimento</h2><p>Informe as quantidades que chegaram e o custo unitário real da nota. O estoque só muda após confirmar.</p></div><button type="button" className="supplier-close-button" aria-label="Fechar recebimento" onClick={onClose}><X size={20} /></button></header>
-    <form className="supplier-form" onSubmit={submit}><section className="supplier-form-section"><h3>{order.supplier.name}</h3>{items.map((item, index) => <div className="purchase-order-item-form" key={item.itemId}><strong>{item.title}<small>Saldo a receber: {item.remaining}</small></strong><label>Recebido agora<input type="number" min="0" max={item.remaining} step="0.001" value={item.receivedQuantity} onChange={(event) => setItem(index, 'receivedQuantity', event.target.value)} /></label><label>Custo real unitário (R$)<input type="number" min="0" step="0.01" value={item.unitCost} onChange={(event) => setItem(index, 'unitCost', event.target.value)} /></label></div>)}</section>
+    <header className="supplier-drawer-header"><div><span className="eyebrow">{order.code}</span><h2 id="receive-order-title">Conferir recebimento</h2><p>Divida cada quantidade recebida entre seus lotes. Informe validade e código quando o cadastro do produto exigir; o estoque só muda após confirmar.</p></div><button type="button" className="supplier-close-button" aria-label="Fechar recebimento" onClick={onClose}><X size={20} /></button></header>
+    <form className="supplier-form" onSubmit={submit}><section className="supplier-form-section"><h3>{order.supplier.name}</h3>{items.map((item, index) => {
+      const enteredMilliUnits = item.lots.reduce((sum, lot) => sum + Math.round((Number(decimalInput(lot.quantity)) || 0) * 1000), 0);
+      const enteredQuantity = enteredMilliUnits / 1000;
+      const remainingMilliUnits = Math.round(item.remaining * 1000);
+      return <div className="purchase-order-receipt-item" key={item.itemId}>
+        <div className="purchase-order-item-form receipt-order-item">
+          <strong>{item.title}<small>Saldo a receber: {item.remaining} · informado: {enteredQuantity.toFixed(3).replace(/\.?0+$/, '')}</small></strong>
+          <label>Custo real unitário (R$)<input type="number" min="0" step="0.01" value={item.unitCost} onChange={(event) => setItem(index, 'unitCost', event.target.value)} /></label>
+        </div>
+        <div className="purchase-lot-entry">
+          <div className="purchase-lot-entry-header"><strong>Lotes recebidos</strong><button type="button" className="supplier-add-line" onClick={() => addLot(index)} disabled={saving || item.remaining === 0}><Plus size={14} /> Dividir em outro lote</button></div>
+          {item.lots.map((lot, lotIndex) => <div className="purchase-receipt-lot" key={`${item.itemId}-${lotIndex}`}>
+            <label>Quantidade<input type="number" min="0" max={item.remaining} step="0.001" value={lot.quantity} onChange={(event) => setLot(index, lotIndex, 'quantity', event.target.value)} required disabled={saving} /></label>
+            <label>{item.controlsLot ? 'Código do lote *' : 'Código do lote'}<input value={lot.lotCode} onChange={(event) => setLot(index, lotIndex, 'lotCode', event.target.value)} placeholder="Opcional" required={item.controlsLot && Number(lot.quantity) > 0} disabled={saving} /></label>
+            <label>Fabricação<input type="date" value={lot.manufactureDate} onChange={(event) => setLot(index, lotIndex, 'manufactureDate', event.target.value)} disabled={saving} /></label>
+            <label>{item.controlsExpiry ? 'Validade *' : 'Validade'}<input type="date" value={lot.expiry} onChange={(event) => setLot(index, lotIndex, 'expiry', event.target.value)} required={item.controlsExpiry && Number(lot.quantity) > 0} disabled={saving} /></label>
+            <label>Localização<input value={lot.location} onChange={(event) => setLot(index, lotIndex, 'location', event.target.value)} placeholder="Padrão do produto" disabled={saving} /></label>
+            <button type="button" className="purchase-receipt-lot-remove" aria-label={`Remover lote ${lotIndex + 1} de ${item.title}`} onClick={() => removeLot(index, lotIndex)} disabled={saving || item.lots.length === 1}><X size={16} /></button>
+          </div>)}
+          <p className={`purchase-lot-quantity ${enteredMilliUnits > remainingMilliUnits ? 'is-over' : ''}`} aria-live="polite">Total informado: <strong>{enteredQuantity.toFixed(3).replace(/\.?0+$/, '')}</strong> de {item.remaining}</p>
+        </div>
+      </div>;
+    })}</section>
       {error && <div className="supplier-form-error" role="alert">{error}</div>}<footer className="supplier-form-actions"><button type="button" className="supplier-secondary-button" onClick={onClose}>Cancelar</button><button type="submit" className="primary-cta" disabled={saving}>{saving ? 'Registrando...' : 'Confirmar recebimento e atualizar estoque'}</button></footer>
     </form>
   </section></div>;

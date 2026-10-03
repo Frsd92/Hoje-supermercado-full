@@ -9,6 +9,11 @@ const actionLabels = {
   CREATE: 'Cadastro inicial',
   UPDATE: 'Edição',
   DELETE: 'Exclusão',
+  PURCHASE_RECEIPT: 'Recebimento de compra',
+  INVENTORY_LOT_CREATED: 'Cadastro de lote',
+  INVENTORY_LOT_RECEIPT: 'Entrada em lote',
+  INVENTORY_LOT_UPDATED: 'Ajuste de lote',
+  ORDER_FULFILLMENT: 'Baixa por separação',
   LEGACY_BASELINE: 'Snapshot legado',
   LEGACY_PRICE_HISTORY: 'Registro legado de preço',
 };

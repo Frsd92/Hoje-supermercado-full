@@ -2,7 +2,7 @@
 
 import Link from 'next/link';
 import { usePathname } from 'next/navigation';
-import { Activity, BarChart3, Bell, FileText, History, LayoutDashboard, LayoutTemplate, MapPin, Package, ShoppingCart, TicketPercent, TrendingUp, Truck, Users } from 'lucide-react';
+import { Activity, BarChart3, Bell, CalendarDays, FileText, History, LayoutDashboard, LayoutTemplate, MapPin, Package, ShoppingCart, TicketPercent, TrendingUp, Truck, Users } from 'lucide-react';
 import { useEffect, useState } from 'react';
 
 const erpNavigationGroups = [
@@ -35,7 +35,10 @@ const erpNavigationGroups = [
   },
   {
     label: 'Operação',
-    items: [{ label: 'Regiões atendidas', href: '/erp/service-regions', icon: MapPin }],
+    items: [
+      { label: 'Validade', href: '/erp/validade', icon: CalendarDays },
+      { label: 'Regiões atendidas', href: '/erp/service-regions', icon: MapPin },
+    ],
   },
   {
     label: 'Inteligência',
@@ -77,7 +80,7 @@ export default function ERPLayout({ children }) {
             <div className="erp-nav-group-items">
               {group.items.map(({ label, href, icon: Icon }) => {
                 const active = pathname === href || (href !== '/erp' && pathname.startsWith(href));
-                return <Link key={label} href={href} className={`erp-nav-item ${active ? 'active' : ''}`}><Icon size={17} /><span>{label}</span>{label === 'Pedidos' && newOrders > 0 && <b className="erp-nav-badge">{newOrders}</b>}</Link>;
+                return <Link key={label} href={href} className={`erp-nav-item ${active ? 'active' : ''}`} aria-current={active ? 'page' : undefined}><Icon size={17} /><span>{label}</span>{label === 'Pedidos' && newOrders > 0 && <b className="erp-nav-badge">{newOrders}</b>}</Link>;
               })}
             </div>
           </div>)}

@@ -1,6 +1,6 @@
 'use client';
 
-import { CheckCircle2, ClipboardList, Clock3, CreditCard, FileText, MapPin, PackageCheck, Search, ShoppingBag, Truck, UserRound } from 'lucide-react';
+import { AlertCircle, CheckCircle2, ClipboardList, Clock3, CreditCard, FileText, MapPin, PackageCheck, Search, ShoppingBag, Truck, UserRound } from 'lucide-react';
 import { useEffect, useMemo, useState } from 'react';
 import { sortOrdersNewestFirst } from '@/lib/order-sort';
 import { formatCartQuantity } from '@/app/dashboard/cart-utils';
@@ -20,6 +20,7 @@ export default function ERPOrdersPage() {
   const [acknowledged, setAcknowledged] = useState([]);
   const [selected, setSelected] = useState(null);
   const [busy, setBusy] = useState(false);
+  const [actionError, setActionError] = useState('');
 
   useEffect(() => {
     fetch('/api/erp/orders')
@@ -42,12 +43,16 @@ export default function ERPOrdersPage() {
     const nextStatus = { Recebido: 'Separacao', Separacao: 'Expedicao', Expedicao: 'Em transito', 'Em transito': 'Concluido' }[order.status];
     if (!nextStatus) return;
     setBusy(true);
+    setActionError('');
     try {
       const response = await fetch('/api/erp/orders', { method: 'PATCH', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ id: order.id, status: order.status }) });
-      const { order: updated } = await response.json();
-      if (!response.ok) throw new Error('Não foi possível atualizar o pedido.');
+      const data = await response.json();
+      if (!response.ok) throw new Error(data.error || 'Não foi possível atualizar o pedido.');
+      const { order: updated } = data;
       setOrders((current) => current.map((item) => item.id === updated.id ? updated : item));
       setSelected(updated);
+    } catch (error) {
+      setActionError(error.message || 'Não foi possível atualizar o pedido.');
     } finally {
       setBusy(false);
     }
@@ -100,7 +105,7 @@ export default function ERPOrdersPage() {
           {filteredOrders.length
             ? <div className="erp-table-scroll"><table className="erp-table">
               <thead><tr><th>Pedido</th><th>Cliente</th><th>Data</th><th>Itens</th><th>Total</th><th>CPF na nota</th><th>Status</th></tr></thead>
-              <tbody>{filteredOrders.map((order) => <tr key={order.id} className={selected?.id === order.id ? 'selected-row' : ''} onClick={() => setSelected(order)}>
+              <tbody>{filteredOrders.map((order) => <tr key={order.id} className={selected?.id === order.id ? 'selected-row' : ''} onClick={() => { setSelected(order); setActionError(''); }}>
                 <td><strong>{order.id}</strong><small>{order.address || 'Endereço não informado'}</small></td>
                 <td>{order.customerName || order.customerEmail || 'Cliente não identificado'}</td>
                 <td>{order.createdAt || 'Data não informada'}</td>
@@ -128,6 +133,8 @@ export default function ERPOrdersPage() {
           </div>
           <h4>Itens comprados</h4>
           <div className="erp-order-items">{(selected.items || []).map((item) => <div key={item.name}><strong>{item.name}</strong><span>Qtd. {formatCartQuantity(item)} · {item.price}</span></div>)}</div>
+          {selected.status === 'Recebido' && <p className="erp-order-fefo-note"><PackageCheck size={15} /> Ao iniciar a separação, o sistema reserva primeiro os lotes com validade mais próxima.</p>}
+          {actionError && <p className="erp-order-action-error" role="alert"><AlertCircle size={16} />{actionError}</p>}
           <button type="button" className="primary-cta erp-advance-button" disabled={busy || !['Recebido', 'Separacao', 'Expedicao', 'Em transito'].includes(selected.status)} onClick={() => advanceOrder(selected)}>
             {selected.status === 'Recebido' ? 'Aceitar e enviar para separação' : selected.status === 'Separacao' ? 'Prosseguir para expedição' : selected.status === 'Expedicao' ? 'Confirmar envio à transportadora' : selected.status === 'Em transito' ? 'Confirmar entrega concluída' : 'Entrega concluída'}
           </button>

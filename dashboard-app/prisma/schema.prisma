@@ -97,9 +97,58 @@ model Product {
   createdAt          DateTime @default(now())
   updatedAt          DateTime @updatedAt
   favorites          Favorite[]
+  inventoryLots      ProductLot[]
   orderItems         OrderItem[]
   productBarcodes    ProductBarcode[]
   purchaseOrderItems PurchaseOrderItem[]
+}
+
+model ProductLot {
+  id                String                  @id @default(cuid())
+  productId         String
+  identityKey       String                  @unique
+  lotCode           String?
+  quantity          Decimal                 @default(0) @db.Decimal(12, 3)
+  expiry            DateTime?               @db.Date
+  manufactureDate   DateTime?               @db.Date
+  location          String?
+  source            String                  @default("MANUAL")
+  sourceReference   String?
+  createdBy         String?
+  createdAt         DateTime                @default(now())
+  updatedAt         DateTime                @updatedAt
+  product           Product                 @relation(fields: [productId], references: [id], onDelete: Restrict)
+  orderAllocations  InventoryLotAllocation[]
+
+  @@index([productId, expiry])
+  @@index([productId, quantity])
+}
+
+model InventoryOrderFulfillment {
+  orderId     String                  @id
+  actor       String
+  createdAt   DateTime                @default(now())
+  allocations InventoryLotAllocation[]
+
+  @@index([createdAt])
+}
+
+model InventoryLotAllocation {
+  id                  String                   @id @default(cuid())
+  orderId             String
+  orderItemIndex      Int
+  lotId               String
+  productId           String
+  productTitle        String
+  lotCode             String?
+  quantity            Decimal                  @db.Decimal(12, 3)
+  createdAt           DateTime                 @default(now())
+  fulfillment         InventoryOrderFulfillment @relation(fields: [orderId], references: [orderId], onDelete: Cascade)
+  lot                 ProductLot               @relation(fields: [lotId], references: [id], onDelete: Restrict)
+
+  @@unique([orderId, orderItemIndex, lotId])
+  @@index([orderId])
+  @@index([lotId])
 }
 
 model ProductBarcode {

@@ -5,6 +5,7 @@ import { authOptions } from '@/auth';
 import { sortOrdersNewestFirst } from '@/lib/order-sort';
 import { erpActorLabel, hasErpAccess } from '@/features/erp/access';
 import { normalizeDeliveryLocation } from '@/lib/delivery-location';
+import { allocateOrderInventory } from '@/features/erp/api/order-inventory-fulfillment';
 import {
   getServiceRegionError,
   getServiceRegionMatch,
@@ -20,6 +21,17 @@ const money = (value) => Number(String(value || '').replace(/[^0-9,.-]/g, '').re
 function corsHeaders(request) {
   const origin = request.headers.get('origin');
   return { 'Access-Control-Allow-Origin': allowedOrigins.has(origin) ? origin : 'http://localhost:8010', 'Access-Control-Allow-Credentials': 'true', 'Access-Control-Allow-Methods': 'GET, POST, OPTIONS', 'Access-Control-Allow-Headers': 'Content-Type', Vary: 'Origin' };
+}
+
+function saoPauloToday() {
+  const parts = new Intl.DateTimeFormat('en-CA', {
+    timeZone: 'America/Sao_Paulo',
+    year: 'numeric',
+    month: '2-digit',
+    day: '2-digit',
+  }).formatToParts(new Date());
+  const values = Object.fromEntries(parts.map(({ type, value }) => [type, value]));
+  return `${values.year}-${values.month}-${values.day}`;
 }
 
 export async function OPTIONS(request) { return new Response(null, { status: 204, headers: corsHeaders(request) }); }
@@ -207,11 +219,41 @@ export async function PATCH(request) {
   if (!id || !validTransitions[status]) return Response.json({ error: 'Transição inválida.' }, { status: 400, headers: corsHeaders(request) });
 
   let orders = [];
-  try { orders = JSON.parse(await fs.readFile(ordersFile, 'utf8')); } catch { orders = []; }
+  try { orders = JSON.parse(await fs.readFile(ordersFile, 'utf8')); } catch (error) {
+    console.error('Não foi possível ler os pedidos para atualizar o status:', error);
+    return Response.json({ error: 'Não foi possível carregar os pedidos para atualizar o status.' }, { status: 500, headers: corsHeaders(request) });
+  }
   const order = orders.find((item) => item.id === id);
   if (!order || order.status !== status) return Response.json({ error: 'Pedido não está no status esperado.' }, { status: 409, headers: corsHeaders(request) });
 
+  if (status === 'Recebido') {
+    try {
+      const allocationResult = await prisma.$transaction(
+        (transaction) => allocateOrderInventory(transaction, order, actor, saoPauloToday()),
+        { isolationLevel: 'Serializable' },
+      );
+      if (allocationResult.error) {
+        return Response.json({ error: allocationResult.error }, { status: 409, headers: corsHeaders(request) });
+      }
+    } catch (error) {
+      if (error?.code === 'P2034' || error?.code === 'P2002') {
+        return Response.json({ error: 'A separação deste pedido foi iniciada em outra operação. Atualize a fila antes de continuar.' }, { status: 409, headers: corsHeaders(request) });
+      }
+      console.error('Não foi possível baixar o estoque por lote ao iniciar a separação:', error);
+      return Response.json({ error: 'Não foi possível reservar o estoque válido deste pedido. Nenhuma alteração de status foi salva.' }, { status: 500, headers: corsHeaders(request) });
+    }
+  }
+
   const updatedOrder = { ...order, status: validTransitions[status], updatedAt: new Date().toLocaleString('pt-BR'), updatedBy: actor };
-  await fs.writeFile(ordersFile, JSON.stringify(orders.map((item) => item.id === id ? updatedOrder : item), null, 2), 'utf8');
+  try {
+    await fs.writeFile(ordersFile, JSON.stringify(orders.map((item) => item.id === id ? updatedOrder : item), null, 2), 'utf8');
+  } catch (error) {
+    console.error('Não foi possível salvar o novo status do pedido após processar o estoque:', error);
+    return Response.json({
+      error: status === 'Recebido'
+        ? 'O estoque foi reservado por lote, mas não foi possível salvar o status do pedido. Tente novamente; a baixa não será repetida.'
+        : 'Não foi possível salvar o novo status do pedido.',
+    }, { status: 500, headers: corsHeaders(request) });
+  }
   return Response.json({ order: updatedOrder }, { headers: corsHeaders(request) });
 }

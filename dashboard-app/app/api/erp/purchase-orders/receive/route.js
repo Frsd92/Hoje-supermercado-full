@@ -2,6 +2,8 @@ import { getServerSession } from 'next-auth';
 import { authOptions } from '@/auth';
 import { erpActorLabel, hasErpAccess } from '@/features/erp/access';
 import { purchaseOrderSnapshot } from '@/features/erp/api/purchase-orders';
+import { addInventoryLot, inventoryQuantityMilliUnits } from '@/features/erp/api/inventory-lots';
+import { parsePurchaseOrderReceiptItems } from '@/features/erp/api/purchase-order-receipts';
 import { prisma } from '@/lib/prisma';
 
 const receiptOrderQuery = {
@@ -20,6 +22,10 @@ function receiptAuditSnapshot(order) {
       product: {
         ...product,
         saleUnit: metadata?.saleUnit === 'Quilograma' ? 'Quilograma' : 'Unidade',
+        controlsExpiry: metadata?.controlsExpiry === true,
+        controlsLot: metadata?.controlsLot === true,
+        perishable: metadata?.perishable === true,
+        location: metadata?.location || '',
       },
     };
   });
@@ -32,23 +38,9 @@ export async function POST(request) {
 
   const body = await request.json();
   const orderId = String(body?.orderId || '').trim();
-  if (!orderId || !Array.isArray(body?.items) || !body.items.length) {
-    return Response.json({ error: 'Informe a ordem e as quantidades recebidas.' }, { status: 400 });
-  }
-  const quantities = new Map();
-  for (const item of body.items) {
-    const itemId = String(item?.itemId || '').trim();
-    const receivedQuantity = Number(item?.receivedQuantity);
-    const unitCost = Number(String(item?.unitCost ?? '').replace(',', '.'));
-    if (!itemId || !Number.isFinite(receivedQuantity) || receivedQuantity < 0 || Math.abs(receivedQuantity * 1000 - Math.round(receivedQuantity * 1000)) >= 1e-8
-      || !Number.isFinite(unitCost) || unitCost < 0 || Math.abs(unitCost * 100 - Math.round(unitCost * 100)) >= 1e-8) {
-      return Response.json({ error: 'Informe quantidade recebida e custo unitário válidos para cada linha.' }, { status: 400 });
-    }
-    if (quantities.has(itemId)) return Response.json({ error: 'Uma linha de produto foi informada mais de uma vez.' }, { status: 400 });
-    quantities.set(itemId, { receivedQuantity, unitCost });
-  }
-  if (![...quantities.values()].some(({ receivedQuantity }) => receivedQuantity > 0)) {
-    return Response.json({ error: 'Informe ao menos uma quantidade recebida maior que zero.' }, { status: 400 });
+  const parsed = parsePurchaseOrderReceiptItems(body?.items);
+  if (!orderId || parsed.error) {
+    return Response.json({ error: parsed.error || 'Informe a ordem e os lotes recebidos.' }, { status: 400 });
   }
 
   const actor = erpActorLabel(session?.user);
@@ -62,31 +54,62 @@ export async function POST(request) {
       if (!['Confirmado', 'Em Trânsito'].includes(order.status)) {
         return { error: 'Só ordens confirmadas ou em trânsito podem dar entrada no estoque.', status: 409 };
       }
-      if ([...quantities.keys()].some((itemId) => !order.items.some((item) => item.id === itemId))) {
+      if ([...parsed.receipts.keys()].some((itemId) => !order.items.some((item) => item.id === itemId))) {
         return { error: 'A lista contém linhas que não pertencem a esta ordem de compra.', status: 400 };
       }
+
       for (const item of order.items) {
-        const receipt = quantities.get(item.id);
-        if (!receipt) continue;
-        const remaining = Number(item.quantity) - Number(item.receivedQuantity);
-        if (receipt.receivedQuantity > remaining) {
+        const receipt = parsed.receipts.get(item.id);
+        if (!receipt || receipt.quantityMilliUnits === 0) continue;
+        const remainingMilliUnits = inventoryQuantityMilliUnits(Number(item.quantity) - Number(item.receivedQuantity));
+        if (remainingMilliUnits === null || receipt.quantityMilliUnits > remainingMilliUnits) {
+          const remaining = Math.max(0, Number(item.quantity) - Number(item.receivedQuantity));
           return { error: `A quantidade recebida de "${item.product.title}" ultrapassa o saldo de ${remaining}.`, status: 400 };
+        }
+
+        const metadata = item.product.metadata || {};
+        if (receipt.lots.some((lot) => metadata.controlsLot === true && !lot.lotCode)) {
+          return { error: `Informe o código do lote de "${item.product.title}" para cada quantidade recebida.`, status: 400 };
+        }
+        if (receipt.lots.some((lot) => (metadata.controlsExpiry === true || metadata.perishable === true) && !lot.expiry)) {
+          return { error: `Informe a validade de cada lote recebido de "${item.product.title}".`, status: 400 };
         }
       }
 
       const receivedLines = [];
       for (const item of order.items) {
-        const receipt = quantities.get(item.id);
-        if (!receipt || receipt.receivedQuantity === 0) continue;
+        const receipt = parsed.receipts.get(item.id);
+        if (!receipt || receipt.quantityMilliUnits === 0) continue;
 
         const oldQuantity = Number(item.product.quantity);
         const oldCost = Number(item.product.cost);
-        const newQuantity = Number((oldQuantity + receipt.receivedQuantity).toFixed(3));
         const newCost = receipt.unitCost;
-        await transaction.product.update({
+        for (const lot of receipt.lots) {
+          await addInventoryLot(transaction, {
+            productId: item.productId,
+            quantity: lot.quantity,
+            lotCode: lot.lotCode,
+            expiry: lot.expiry,
+            manufactureDate: lot.manufactureDate,
+            location: lot.location || item.product.metadata?.location || '',
+            source: `Ordem de compra ${order.code}`,
+            actor,
+          });
+        }
+        const updatedProduct = await transaction.product.update({
           where: { id: item.productId },
-          data: { quantity: { increment: receipt.receivedQuantity }, cost: newCost },
+          data: { cost: newCost },
+          select: { quantity: true },
         });
+        const receivedQuantity = receipt.quantityMilliUnits / 1000;
+        const lotSummary = receipt.lots.map((lot) => {
+          const unit = item.product.metadata?.saleUnit === 'Quilograma' ? 'kg' : 'un.';
+          const details = [
+            lot.lotCode ? `lote ${lot.lotCode}` : 'lote sem código',
+            lot.expiry ? `validade ${lot.expiry}` : 'validade não informada',
+          ];
+          return `${details.join(', ')}: ${lot.quantity} ${unit}`;
+        }).join('; ');
         await transaction.productAuditLog.create({
           data: {
             productId: item.productId,
@@ -95,27 +118,28 @@ export async function POST(request) {
             action: 'PURCHASE_RECEIPT',
             actor,
             changes: {
-              quantity: { before: oldQuantity, after: newQuantity },
+              quantity: { before: oldQuantity, after: Number(updatedProduct.quantity) },
               cost: { before: oldCost, after: newCost },
             },
-            note: `Entrada da ordem ${order.code} (${order.supplier.name}); recebido ${receipt.receivedQuantity}.`,
+            note: `Entrada da ordem ${order.code} (${order.supplier.name}); ${lotSummary}.`,
           },
         });
         await transaction.purchaseOrderItem.update({
           where: { id: item.id },
           data: {
-            receivedQuantity: Number(item.receivedQuantity) + receipt.receivedQuantity,
+            receivedQuantity: Number(item.receivedQuantity) + receivedQuantity,
             receivedUnitCost: newCost,
           },
         });
         receivedLines.push({
           product: item.product.title,
-          quantity: receipt.receivedQuantity,
+          quantity: receivedQuantity,
           cost: newCost,
           unit: item.product.metadata?.saleUnit === 'Quilograma' ? 'kg' : 'un.',
+          lots: receipt.lots,
         });
       }
-      if (!receivedLines.length) return { error: 'Informe ao menos uma quantidade recebida maior que zero.', status: 400 };
+      if (!receivedLines.length) return { error: 'Informe ao menos uma quantidade de lote maior que zero.', status: 400 };
 
       const freshItems = await transaction.purchaseOrderItem.findMany({ where: { purchaseOrderId: orderId } });
       const fullyReceived = freshItems.every((item) => Number(item.receivedQuantity) >= Number(item.quantity));
@@ -134,7 +158,7 @@ export async function POST(request) {
           action: 'RECEIPT',
           actor,
           snapshot: receiptAuditSnapshot(updated),
-          note: `${fullyReceived ? 'Recebimento concluído' : 'Recebimento parcial'}: ${receivedLines.map((line) => `${line.product}, ${line.quantity} ${line.unit}, custo ${line.cost}`).join('; ')}.`,
+          note: `${fullyReceived ? 'Recebimento concluído' : 'Recebimento parcial'}: ${receivedLines.map((line) => `${line.product}, ${line.quantity} ${line.unit}, custo ${line.cost} (${line.lots.map((lot) => `${lot.lotCode || 'sem código'}, ${lot.quantity}${lot.expiry ? `, validade ${lot.expiry}` : ''}`).join('; ')})`).join('; ')}.`,
         },
       });
       return { order: updated };
