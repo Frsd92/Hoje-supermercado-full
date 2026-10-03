@@ -3,9 +3,22 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Hoje Supermercado</title>
+    <title>Hoje Supermercado | Ofertas e compras online</title>
+    <meta name="description" content="Encontre ofertas, produtos frescos e tudo o que precisa no Hoje Supermercado. Consulte o catálogo, monte seu carrinho e compre com praticidade.">
+    <meta name="robots" content="index, follow">
+    <link rel="canonical" href="https://www.hojesupermercado.com.br/">
+    <meta property="og:type" content="website">
+    <meta property="og:site_name" content="Hoje Supermercado">
+    <meta property="og:title" content="Hoje Supermercado | Ofertas e compras online">
+    <meta property="og:description" content="Encontre ofertas, produtos frescos e tudo o que precisa no Hoje Supermercado. Consulte o catálogo, monte seu carrinho e compre com praticidade.">
+    <meta property="og:url" content="https://www.hojesupermercado.com.br/">
+    <meta property="og:image" content="https://www.hojesupermercado.com.br/imagens/tudo_o_que_vc_precisa.webp">
+    <meta property="og:image:alt" content="Compre no Hoje Supermercado">
+    <meta name="twitter:card" content="summary_large_image">
+    <link rel="preload" as="image" href="imagens/tudo_o_que_vc_precisa.webp" type="image/webp" fetchpriority="high">
     <link rel="icon" type="image/webp" href="imagens/logo/logo-hj.webp">
     <link rel="stylesheet" href="style.css">
+    <script src="analytics-consent.js" defer></script>
     <!-- Biblioteca de ícones Lucide (carregada de um link externo, sem precisar instalar nada) -->
     <script src="https://unpkg.com/lucide@latest" defer></script>
 </head>
@@ -35,7 +48,7 @@
     <div class="topbar-item login-trigger" id="login-trigger" role="button" tabindex="0" aria-label="Entrar ou abrir minha conta">
       <i data-lucide="user"></i>
       <div class="topbar-text">
-        <strong id="store-user-name">Olá, faça seu login</strong>
+        <strong id="store-user-name" data-hj-suppress>Olá, faça seu login</strong>
         <span id="store-user-status">ou cadastre-se</span>
       </div>
     </div>
@@ -63,7 +76,7 @@
   <div id="store-feedback-toast" class="store-feedback-toast" role="status" aria-live="polite" aria-atomic="true"></div>
   <div id="cart-backdrop" class="cart-backdrop"></div>
 
-  <aside id="cart-panel" class="cart-panel" aria-label="Carrinho de compras">
+  <aside id="cart-panel" class="cart-panel" aria-label="Carrinho de compras" data-hj-suppress>
     <div class="cart-panel-header">
       <div class="cart-panel-title-wrap">
         <span class="cart-panel-icon"><i data-lucide="shopping-cart"></i></span>
@@ -130,7 +143,7 @@
   <div id="search-results" class="search-results"></div>
     </div>
 
-    <div class="location" id="location-summary">
+    <div class="location" id="location-summary" data-hj-suppress>
       <i data-lucide="map-pin"></i>
       <select id="store-address-select" aria-label="Selecionar endereço de entrega">
         <option value="">Selecione seu endereço</option>
@@ -235,25 +248,25 @@
         <h3>Marcas em destaque</h3>
         <div class="brands-carousel">
           <div class="brands-track">
-            <img src="imagens/marcas_em_destaque/Coca-Cola.png" alt="Coca-Cola" data-store-layout="brand-coca-cola">
-            <img src="imagens/marcas_em_destaque/ype.webp" alt="Ambev" data-store-layout="brand-ambev">
-            <img src="imagens/marcas_em_destaque/heineken2.svg" alt="Heineken" data-store-layout="brand-heineken">
-            <img src="imagens/marcas_em_destaque/Danone.png" alt="Danone" data-store-layout="brand-danone">
-            <img src="imagens/marcas_em_destaque/P-G.png" alt="P&G" data-store-layout="brand-pg">
-            <img src="imagens/marcas_em_destaque/Unilever.png" alt="Unilever" data-store-layout="brand-unilever">
-            <img src="imagens/marcas_em_destaque/seara.svg" alt="Seara" data-store-layout="brand-seara">
-            <img src="imagens/marcas_em_destaque/OMO.png" alt="OMO" data-store-layout="brand-omo">
-            <img src="imagens/marcas_em_destaque/Colgate.png" alt="Colgate" data-store-layout="brand-colgate">
+            <img src="imagens/marcas_em_destaque/Coca-Cola.png" alt="Coca-Cola" data-store-layout="brand-coca-cola" loading="lazy" decoding="async">
+            <img src="imagens/marcas_em_destaque/ype-optimized.webp" alt="Ambev" data-store-layout="brand-ambev" loading="lazy" decoding="async">
+            <img src="imagens/marcas_em_destaque/heineken2.svg" alt="Heineken" data-store-layout="brand-heineken" loading="lazy" decoding="async">
+            <img src="imagens/marcas_em_destaque/Danone.png" alt="Danone" data-store-layout="brand-danone" loading="lazy" decoding="async">
+            <img src="imagens/marcas_em_destaque/P-G.webp" alt="P&G" data-store-layout="brand-pg" loading="lazy" decoding="async">
+            <img src="imagens/marcas_em_destaque/Unilever.webp" alt="Unilever" data-store-layout="brand-unilever" loading="lazy" decoding="async">
+            <img src="imagens/marcas_em_destaque/seara.svg" alt="Seara" data-store-layout="brand-seara" loading="lazy" decoding="async">
+            <img src="imagens/marcas_em_destaque/OMO.webp" alt="OMO" data-store-layout="brand-omo" loading="lazy" decoding="async">
+            <img src="imagens/marcas_em_destaque/Colgate.png" alt="Colgate" data-store-layout="brand-colgate" loading="lazy" decoding="async">
             <!-- Repetição da lista (mesmas imagens de novo) pra criar o efeito de loop infinito -->
-            <img src="imagens/marcas_em_destaque/Coca-Cola.png" alt="Coca-Cola" data-store-layout="brand-coca-cola">
-            <img src="imagens/marcas_em_destaque/ype.webp" alt="Ambev" data-store-layout="brand-ambev">
-            <img src="imagens/marcas_em_destaque/heineken2.svg" alt="Heineken" data-store-layout="brand-heineken">
-            <img src="imagens/marcas_em_destaque/Danone.png" alt="Danone" data-store-layout="brand-danone">
-            <img src="imagens/marcas_em_destaque/P-G.png" alt="P&G" data-store-layout="brand-pg">
-            <img src="imagens/marcas_em_destaque/Unilever.png" alt="Unilever" data-store-layout="brand-unilever">
-            <img src="imagens/marcas_em_destaque/seara.svg" alt="Seara" data-store-layout="brand-seara">
-            <img src="imagens/marcas_em_destaque/OMO.png" alt="OMO" data-store-layout="brand-omo">
-            <img src="imagens/marcas_em_destaque/Colgate.png" alt="Colgate" data-store-layout="brand-colgate">
+            <img src="imagens/marcas_em_destaque/Coca-Cola.png" alt="Coca-Cola" data-store-layout="brand-coca-cola" loading="lazy" decoding="async">
+            <img src="imagens/marcas_em_destaque/ype-optimized.webp" alt="Ambev" data-store-layout="brand-ambev" loading="lazy" decoding="async">
+            <img src="imagens/marcas_em_destaque/heineken2.svg" alt="Heineken" data-store-layout="brand-heineken" loading="lazy" decoding="async">
+            <img src="imagens/marcas_em_destaque/Danone.png" alt="Danone" data-store-layout="brand-danone" loading="lazy" decoding="async">
+            <img src="imagens/marcas_em_destaque/P-G.webp" alt="P&G" data-store-layout="brand-pg" loading="lazy" decoding="async">
+            <img src="imagens/marcas_em_destaque/Unilever.webp" alt="Unilever" data-store-layout="brand-unilever" loading="lazy" decoding="async">
+            <img src="imagens/marcas_em_destaque/seara.svg" alt="Seara" data-store-layout="brand-seara" loading="lazy" decoding="async">
+            <img src="imagens/marcas_em_destaque/OMO.webp" alt="OMO" data-store-layout="brand-omo" loading="lazy" decoding="async">
+            <img src="imagens/marcas_em_destaque/Colgate.png" alt="Colgate" data-store-layout="brand-colgate" loading="lazy" decoding="async">
           </div>
         </div>
       </section>
@@ -303,7 +316,7 @@
             <div class="product-card">
               <span class="tag tag-bestseller">Mais vendido</span>
               <button class="fav-btn"><i data-lucide="heart"></i></button>
-              <img src="imagens/produtos/coca-cola-2l.jpg" alt="Coca-Cola 2L" class="product-img">
+              <img src="imagens/produtos/coca-cola-2l.jpg" alt="Coca-Cola 2L" class="product-img" loading="lazy" decoding="async">
               <div class="product-name">Coca-Cola 2L</div>
               <div class="product-price">R$ 8,99</div>
               <div class="product-rating">⭐ 4.8 (13.345)</div>
@@ -320,7 +333,7 @@
             <div class="product-card">
               <span class="tag tag-offer">Oferta</span>
               <button class="fav-btn"><i data-lucide="heart"></i></button>
-              <img src="imagens/produtos/arroz-tio-joao-5kg.jpg" alt="Arroz Tio João 5kg" class="product-img">
+              <img src="imagens/produtos/arroz-tio-joao-5kg.jpg" alt="Arroz Tio João 5kg" class="product-img" loading="lazy" decoding="async">
               <div class="product-name">Arroz Tio João 5kg</div>
               <div class="product-price">R$ 24,90 <span class="old-price">R$ 32,90</span></div>
               <div class="product-rating">⭐ 4.7 (8.900)</div>
@@ -336,7 +349,7 @@
 
             <div class="product-card">
               <button class="fav-btn"><i data-lucide="heart"></i></button>
-              <img src="imagens/produtos/leite-italac-1l.jpg" alt="Leite Italac 1L" class="product-img">
+              <img src="imagens/produtos/leite-italac-1l.jpg" alt="Leite Italac 1L" class="product-img" loading="lazy" decoding="async">
               <div class="product-name">Leite Italac 1L</div>
               <div class="product-price">R$ 5,49</div>
               <div class="product-rating">⭐ 4.6 (5.125)</div>
@@ -352,7 +365,7 @@
 
             <div class="product-card">
               <button class="fav-btn"><i data-lucide="heart"></i></button>
-              <img src="imagens/produtos/cafe-pilao-500g.jpg" alt="Café Pilão 500g" class="product-img">
+              <img src="imagens/produtos/cafe-pilao-500g.jpg" alt="Café Pilão 500g" class="product-img" loading="lazy" decoding="async">
               <div class="product-name">Café Pilão 500g</div>
               <div class="product-price">R$ 16,90</div>
               <div class="product-rating">⭐ 4.8 (7.842)</div>
@@ -369,7 +382,7 @@
             <div class="product-card">
               <span class="tag tag-offer">Oferta</span>
               <button class="fav-btn"><i data-lucide="heart"></i></button>
-              <img src="imagens/produtos/detergente-ype-500ml.jpg" alt="Detergente Ypê 500ml" class="product-img">
+              <img src="imagens/produtos/detergente-ype-500ml.jpg" alt="Detergente Ypê 500ml" class="product-img" loading="lazy" decoding="async">
               <div class="product-name">Detergente Ypê 500ml</div>
               <div class="product-price">R$ 2,49 <span class="old-price">R$ 3,49</span></div>
               <div class="product-rating">⭐ 4.5 (9.321)</div>
@@ -386,7 +399,7 @@
             <div class="product-card">
               <span class="tag tag-bestseller">Mais vendido</span>
               <button class="fav-btn"><i data-lucide="heart"></i></button>
-              <img src="imagens/produtos/racao-pedigree-15kg.jpg" alt="Ração Pedigree 15kg" class="product-img">
+              <img src="imagens/produtos/racao-pedigree-15kg.jpg" alt="Ração Pedigree 15kg" class="product-img" loading="lazy" decoding="async">
               <div class="product-name">Ração Pedigree 15kg</div>
               <div class="product-price">R$ 89,90</div>
               <div class="product-rating">⭐ 4.7 (6.721)</div>
@@ -423,7 +436,7 @@
           <button class="carousel-arrow arrow-left" onclick="moveCarousel(this, -1)">‹</button>
           <div class="highlight-products scroll-target">
             <div class="product-card">
-              <img src="imagens/produtos/banana-prata.jpg" alt="Banana Prata" class="product-img">
+              <img src="imagens/produtos/banana-prata.jpg" alt="Banana Prata" class="product-img" loading="lazy" decoding="async">
               <div class="product-name">Banana Prata kg</div>
               <div class="product-price">R$ 4,99</div>
               <div class="product-rating">⭐ 4.6</div>
@@ -437,7 +450,7 @@
               </div>
             </div>
             <div class="product-card">
-              <img src="imagens/produtos/tomate.jpg" alt="Tomate" class="product-img">
+              <img src="imagens/produtos/tomate.jpg" alt="Tomate" class="product-img" loading="lazy" decoding="async">
               <div class="product-name">Tomate kg</div>
               <div class="product-price">R$ 5,49</div>
               <div class="product-rating">⭐ 4.5</div>
@@ -451,7 +464,7 @@
               </div>
             </div>
             <div class="product-card">
-              <img src="imagens/produtos/alface.jpg" alt="Alface Crespa" class="product-img">
+              <img src="imagens/produtos/alface.jpg" alt="Alface Crespa" class="product-img" loading="lazy" decoding="async">
               <div class="product-name">Alface Crespa un</div>
               <div class="product-price">R$ 2,99</div>
               <div class="product-rating">⭐ 4.7</div>
@@ -465,7 +478,7 @@
               </div>
             </div>
             <div class="product-card">
-              <img src="imagens/produtos/cenoura.jpg" alt="Cenoura" class="product-img">
+              <img src="imagens/produtos/cenoura.jpg" alt="Cenoura" class="product-img" loading="lazy" decoding="async">
               <div class="product-name">Cenoura kg</div>
               <div class="product-price">R$ 3,49</div>
               <div class="product-rating">⭐ 4.6</div>
@@ -479,7 +492,7 @@
               </div>
             </div>
             <div class="product-card">
-              <img src="imagens/produtos/maca-gala.jpg" alt="Maçã Gala" class="product-img">
+              <img src="imagens/produtos/maca-gala.jpg" alt="Maçã Gala" class="product-img" loading="lazy" decoding="async">
               <div class="product-name">Maçã Gala kg</div>
               <div class="product-price">R$ 7,99</div>
               <div class="product-rating">⭐ 4.8</div>
@@ -493,7 +506,7 @@
               </div>
             </div>
             <div class="product-card">
-              <img src="imagens/produtos/batata.jpg" alt="Batata Lavada" class="product-img">
+              <img src="imagens/produtos/batata.jpg" alt="Batata Lavada" class="product-img" loading="lazy" decoding="async">
               <div class="product-name">Batata Lavada kg</div>
               <div class="product-price">R$ 4,49</div>
               <div class="product-rating">⭐ 4.5</div>
@@ -535,7 +548,7 @@
           <button class="carousel-arrow arrow-left" onclick="moveCarousel(this, -1)">‹</button>
           <div class="highlight-products scroll-target">
             <div class="product-card">
-              <img src="imagens/produtos/arroz-5kg.jpg" alt="Arroz Tio João 5kg" class="product-img">
+              <img src="imagens/produtos/arroz-5kg.jpg" alt="Arroz Tio João 5kg" class="product-img" loading="lazy" decoding="async">
               <div class="product-name">Arroz Tio João 5kg</div>
               <div class="product-price">R$ 24,90</div>
               <div class="product-rating">⭐ 4.7</div>
@@ -549,7 +562,7 @@
               </div>
             </div>
             <div class="product-card">
-              <img src="imagens/produtos/feijao.jpg" alt="Feijão Carioca 1kg" class="product-img">
+              <img src="imagens/produtos/feijao.jpg" alt="Feijão Carioca 1kg" class="product-img" loading="lazy" decoding="async">
               <div class="product-name">Feijão Carioca 1kg</div>
               <div class="product-price">R$ 7,49</div>
               <div class="product-rating">⭐ 4.6</div>
@@ -563,7 +576,7 @@
               </div>
             </div>
             <div class="product-card">
-              <img src="imagens/produtos/macarrao.jpg" alt="Macarrão Adria 500g" class="product-img">
+              <img src="imagens/produtos/macarrao.jpg" alt="Macarrão Adria 500g" class="product-img" loading="lazy" decoding="async">
               <div class="product-name">Macarrão Adria 500g</div>
               <div class="product-price">R$ 3,99</div>
               <div class="product-rating">⭐ 4.5</div>
@@ -577,7 +590,7 @@
               </div>
             </div>
             <div class="product-card">
-              <img src="imagens/produtos/leite-1l.jpg" alt="Leite Italac 1L" class="product-img">
+              <img src="imagens/produtos/leite-1l.jpg" alt="Leite Italac 1L" class="product-img" loading="lazy" decoding="async">
               <div class="product-name">Leite Italac 1L</div>
               <div class="product-price">R$ 5,49</div>
               <div class="product-rating">⭐ 4.6</div>
@@ -591,7 +604,7 @@
               </div>
             </div>
             <div class="product-card">
-              <img src="imagens/produtos/farinha-trigo.jpg" alt="Farinha de Trigo 1kg" class="product-img">
+              <img src="imagens/produtos/farinha-trigo.jpg" alt="Farinha de Trigo 1kg" class="product-img" loading="lazy" decoding="async">
               <div class="product-name">Farinha de Trigo 1kg</div>
               <div class="product-price">R$ 4,99</div>
               <div class="product-rating">⭐ 4.5</div>
@@ -605,7 +618,7 @@
               </div>
             </div>
             <div class="product-card">
-              <img src="imagens/produtos/molho-tomate.jpg" alt="Molho de Tomate 340g" class="product-img">
+              <img src="imagens/produtos/molho-tomate.jpg" alt="Molho de Tomate 340g" class="product-img" loading="lazy" decoding="async">
               <div class="product-name">Molho de Tomate 340g</div>
               <div class="product-price">R$ 3,49</div>
               <div class="product-rating">⭐ 4.4</div>
@@ -647,7 +660,7 @@
           <button class="carousel-arrow arrow-left" onclick="moveCarousel(this, -1)">‹</button>
           <div class="highlight-products scroll-target">
             <div class="product-card">
-              <img src="imagens/produtos/agua-sanitaria.jpg" alt="Água Sanitária 2L" class="product-img">
+              <img src="imagens/produtos/agua-sanitaria.jpg" alt="Água Sanitária 2L" class="product-img" loading="lazy" decoding="async">
               <div class="product-name">Água Sanitária 2L</div>
               <div class="product-price">R$ 2,49</div>
               <div class="product-rating">⭐ 4.5</div>
@@ -661,7 +674,7 @@
               </div>
             </div>
             <div class="product-card">
-              <img src="imagens/produtos/desinfetante.jpg" alt="Desinfetante Ypê 2L" class="product-img">
+              <img src="imagens/produtos/desinfetante.jpg" alt="Desinfetante Ypê 2L" class="product-img" loading="lazy" decoding="async">
               <div class="product-name">Desinfetante Ypê 2L</div>
               <div class="product-price">R$ 5,99</div>
               <div class="product-rating">⭐ 4.6</div>
@@ -675,7 +688,7 @@
               </div>
             </div>
             <div class="product-card">
-              <img src="imagens/produtos/sabao-po.jpg" alt="Sabão em Pó OMO 1kg" class="product-img">
+              <img src="imagens/produtos/sabao-po.jpg" alt="Sabão em Pó OMO 1kg" class="product-img" loading="lazy" decoding="async">
               <div class="product-name">Sabão em Pó OMO 1kg</div>
               <div class="product-price">R$ 4,49</div>
               <div class="product-rating">⭐ 4.7</div>
@@ -689,7 +702,7 @@
               </div>
             </div>
             <div class="product-card">
-              <img src="imagens/produtos/sabao-liquido.jpg" alt="Sabão Líquido OMO 1kg" class="product-img">
+              <img src="imagens/produtos/sabao-liquido.jpg" alt="Sabão Líquido OMO 1kg" class="product-img" loading="lazy" decoding="async">
               <div class="product-name">Sabão Líquido OMO 1kg</div>
               <div class="product-price">R$ 14,39</div>
               <div class="product-rating">⭐ 4.6</div>
@@ -703,7 +716,7 @@
               </div>
             </div>
             <div class="product-card">
-              <img src="imagens/produtos/amaciante.jpg" alt="Amaciante Comfort 1L" class="product-img">
+              <img src="imagens/produtos/amaciante.jpg" alt="Amaciante Comfort 1L" class="product-img" loading="lazy" decoding="async">
               <div class="product-name">Amaciante Comfort 1L</div>
               <div class="product-price">R$ 8,99</div>
               <div class="product-rating">⭐ 4.7</div>
@@ -717,7 +730,7 @@
               </div>
             </div>
             <div class="product-card">
-              <img src="imagens/produtos/papel-toalha.jpg" alt="Papel Toalha 340g" class="product-img">
+              <img src="imagens/produtos/papel-toalha.jpg" alt="Papel Toalha 340g" class="product-img" loading="lazy" decoding="async">
               <div class="product-name">Papel Toalha 340g</div>
               <div class="product-price">R$ 6,99</div>
               <div class="product-rating">⭐ 4.5</div>
@@ -758,7 +771,7 @@
           <button class="carousel-arrow arrow-left" onclick="moveCarousel(this, -1)">‹</button>
           <div class="carousel-track scroll-target">
             <div class="product-card">
-              <img src="imagens/produtos/sabao-po-1kg.jpg" alt="Sabão em Pó OMO 1kg" class="product-img">
+              <img src="imagens/produtos/sabao-po-1kg.jpg" alt="Sabão em Pó OMO 1kg" class="product-img" loading="lazy" decoding="async">
               <div class="product-name">Sabão em Pó OMO 1kg</div>
               <div class="product-price">R$ 14,39</div>
               <div class="product-rating">⭐ 4.7</div>
@@ -772,7 +785,7 @@
               </div>
             </div>
             <div class="product-card">
-              <img src="imagens/produtos/desinfetante-2l.jpg" alt="Desinfetante Ypê 2L" class="product-img">
+              <img src="imagens/produtos/desinfetante-2l.jpg" alt="Desinfetante Ypê 2L" class="product-img" loading="lazy" decoding="async">
               <div class="product-name">Desinfetante Ypê 2L</div>
               <div class="product-price">R$ 5,99</div>
               <div class="product-rating">⭐ 4.6</div>
@@ -786,7 +799,7 @@
               </div>
             </div>
             <div class="product-card">
-              <img src="imagens/produtos/limpador-multiuso.jpg" alt="Limpador Multiuso Veja 500ml" class="product-img">
+              <img src="imagens/produtos/limpador-multiuso.jpg" alt="Limpador Multiuso Veja 500ml" class="product-img" loading="lazy" decoding="async">
               <div class="product-name">Limpador Multiuso Veja 500ml</div>
               <div class="product-price">R$ 4,49</div>
               <div class="product-rating">⭐ 4.5</div>
@@ -800,7 +813,7 @@
               </div>
             </div>
             <div class="product-card">
-              <img src="imagens/produtos/sabao-po-1kg-2.jpg" alt="Sabão em Pó OMO 1kg" class="product-img">
+              <img src="imagens/produtos/sabao-po-1kg-2.jpg" alt="Sabão em Pó OMO 1kg" class="product-img" loading="lazy" decoding="async">
               <div class="product-name">Sabão em Pó OMO 1kg</div>
               <div class="product-price">R$ 14,39</div>
               <div class="product-rating">⭐ 4.6</div>
@@ -814,7 +827,7 @@
               </div>
             </div>
             <div class="product-card">
-              <img src="imagens/produtos/amaciante-1l.jpg" alt="Amaciante Comfort 1L" class="product-img">
+              <img src="imagens/produtos/amaciante-1l.jpg" alt="Amaciante Comfort 1L" class="product-img" loading="lazy" decoding="async">
               <div class="product-name">Amaciante Comfort 1L</div>
               <div class="product-price">R$ 16,90</div>
               <div class="product-rating">⭐ 4.7</div>
@@ -828,7 +841,7 @@
               </div>
             </div>
             <div class="product-card">
-              <img src="imagens/produtos/desinfetante-2l-2.jpg" alt="Desinfetante Ypê 2L" class="product-img">
+              <img src="imagens/produtos/desinfetante-2l-2.jpg" alt="Desinfetante Ypê 2L" class="product-img" loading="lazy" decoding="async">
               <div class="product-name">Desinfetante Ypê 2L</div>
               <div class="product-price">R$ 5,99</div>
               <div class="product-rating">⭐ 4.5</div>
@@ -869,7 +882,7 @@
           <button class="carousel-arrow arrow-left" onclick="moveCarousel(this, -1)">‹</button>
           <div class="carousel-track scroll-target">
             <div class="product-card">
-              <img src="imagens/produtos/vinho-tinto-reservado.jpg" alt="Vinho Tinto Reservado 750ml" class="product-img">
+              <img src="imagens/produtos/vinho-tinto-reservado.jpg" alt="Vinho Tinto Reservado 750ml" class="product-img" loading="lazy" decoding="async">
               <div class="product-name">Vinho Tinto Reservado 750ml</div>
               <div class="product-price">R$ 39,90</div>
               <div class="product-rating">⭐ 4.7</div>
@@ -883,7 +896,7 @@
               </div>
             </div>
             <div class="product-card">
-              <img src="imagens/produtos/vinho-chileno.jpg" alt="Vinho Chileno 750ml" class="product-img">
+              <img src="imagens/produtos/vinho-chileno.jpg" alt="Vinho Chileno 750ml" class="product-img" loading="lazy" decoding="async">
               <div class="product-name">Vinho Chileno 750ml</div>
               <div class="product-price">R$ 34,90</div>
               <div class="product-rating">⭐ 4.6</div>
@@ -897,7 +910,7 @@
               </div>
             </div>
             <div class="product-card">
-              <img src="imagens/produtos/vinho-suave.jpg" alt="Vinho Suave 3L" class="product-img">
+              <img src="imagens/produtos/vinho-suave.jpg" alt="Vinho Suave 3L" class="product-img" loading="lazy" decoding="async">
               <div class="product-name">Vinho Suave 3L</div>
               <div class="product-price">R$ 28,90</div>
               <div class="product-rating">⭐ 4.4</div>
@@ -911,7 +924,7 @@
               </div>
             </div>
             <div class="product-card">
-              <img src="imagens/produtos/vinho-hoje-750ml.jpg" alt="Vinho Hoje 750ml" class="product-img">
+              <img src="imagens/produtos/vinho-hoje-750ml.jpg" alt="Vinho Hoje 750ml" class="product-img" loading="lazy" decoding="async">
               <div class="product-name">Vinho Hoje 750ml</div>
               <div class="product-price">R$ 26,90</div>
               <div class="product-rating">⭐ 4.5</div>
@@ -925,7 +938,7 @@
               </div>
             </div>
             <div class="product-card">
-              <img src="imagens/produtos/espumante.jpg" alt="Espumante 750ml" class="product-img">
+              <img src="imagens/produtos/espumante.jpg" alt="Espumante 750ml" class="product-img" loading="lazy" decoding="async">
               <div class="product-name">Espumante 750ml</div>
               <div class="product-price">R$ 49,90</div>
               <div class="product-rating">⭐ 4.8</div>
@@ -939,7 +952,7 @@
               </div>
             </div>
             <div class="product-card">
-              <img src="imagens/produtos/vinho-tinto-2.jpg" alt="Vinho Tinto 750ml" class="product-img">
+              <img src="imagens/produtos/vinho-tinto-2.jpg" alt="Vinho Tinto 750ml" class="product-img" loading="lazy" decoding="async">
               <div class="product-name">Vinho Tinto 750ml</div>
               <div class="product-price">R$ 29,90</div>
               <div class="product-rating">⭐ 4.6</div>
@@ -980,7 +993,7 @@
           <button class="carousel-arrow arrow-left" onclick="moveCarousel(this, -1)">‹</button>
           <div class="carousel-track scroll-target">
             <div class="product-card">
-              <img src="imagens/produtos/heineken-350ml.jpg" alt="Heineken Lata 350ml" class="product-img">
+              <img src="imagens/produtos/heineken-350ml.jpg" alt="Heineken Lata 350ml" class="product-img" loading="lazy" decoding="async">
               <div class="product-name">Heineken Lata 350ml</div>
               <div class="product-price">R$ 4,99</div>
               <div class="product-rating">⭐ 4.8</div>
@@ -994,7 +1007,7 @@
               </div>
             </div>
             <div class="product-card">
-              <img src="imagens/produtos/skol-350ml.jpg" alt="Skol Lata 350ml" class="product-img">
+              <img src="imagens/produtos/skol-350ml.jpg" alt="Skol Lata 350ml" class="product-img" loading="lazy" decoding="async">
               <div class="product-name">Skol Lata 350ml</div>
               <div class="product-price">R$ 3,49</div>
               <div class="product-rating">⭐ 4.5</div>
@@ -1008,7 +1021,7 @@
               </div>
             </div>
             <div class="product-card">
-              <img src="imagens/produtos/brahma-350ml.jpg" alt="Brahma Duplo Malte 350ml" class="product-img">
+              <img src="imagens/produtos/brahma-350ml.jpg" alt="Brahma Duplo Malte 350ml" class="product-img" loading="lazy" decoding="async">
               <div class="product-name">Brahma Duplo Malte 350ml</div>
               <div class="product-price">R$ 3,79</div>
               <div class="product-rating">⭐ 4.6</div>
@@ -1022,7 +1035,7 @@
               </div>
             </div>
             <div class="product-card">
-              <img src="imagens/produtos/original-600ml.jpg" alt="Original 600ml" class="product-img">
+              <img src="imagens/produtos/original-600ml.jpg" alt="Original 600ml" class="product-img" loading="lazy" decoding="async">
               <div class="product-name">Original 600ml</div>
               <div class="product-price">R$ 8,90</div>
               <div class="product-rating">⭐ 4.7</div>
@@ -1036,7 +1049,7 @@
               </div>
             </div>
             <div class="product-card">
-              <img src="imagens/produtos/stella-275ml.jpg" alt="Stella Artois 275ml" class="product-img">
+              <img src="imagens/produtos/stella-275ml.jpg" alt="Stella Artois 275ml" class="product-img" loading="lazy" decoding="async">
               <div class="product-name">Stella Artois 275ml</div>
               <div class="product-price">R$ 5,49</div>
               <div class="product-rating">⭐ 4.7</div>
@@ -1050,7 +1063,7 @@
               </div>
             </div>
             <div class="product-card">
-              <img src="imagens/produtos/budweiser-330ml.jpg" alt="Budweiser Long Neck 330ml" class="product-img">
+              <img src="imagens/produtos/budweiser-330ml.jpg" alt="Budweiser Long Neck 330ml" class="product-img" loading="lazy" decoding="async">
               <div class="product-name">Budweiser Long Neck 330ml</div>
               <div class="product-price">R$ 6,49</div>
               <div class="product-rating">⭐ 4.6</div>
@@ -1078,7 +1091,7 @@
           <button class="carousel-arrow arrow-left" onclick="moveCarousel(this, -1)">‹</button>
           <div class="carousel-track scroll-target">
             <div class="product-card">
-              <img src="imagens/produtos/coca-cola-2l-b.jpg" alt="Coca-Cola 2L" class="product-img">
+              <img src="imagens/produtos/coca-cola-2l-b.jpg" alt="Coca-Cola 2L" class="product-img" loading="lazy" decoding="async">
               <div class="product-name">Coca-Cola 2L</div>
               <div class="product-price">R$ 8,49</div>
               <div class="product-rating">⭐ 4.9</div>
@@ -1092,7 +1105,7 @@
               </div>
             </div>
             <div class="product-card">
-              <img src="imagens/produtos/leite-italac-3l.jpg" alt="Leite Italac 3L" class="product-img">
+              <img src="imagens/produtos/leite-italac-3l.jpg" alt="Leite Italac 3L" class="product-img" loading="lazy" decoding="async">
               <div class="product-name">Leite Italac 3L</div>
               <div class="product-price">R$ 14,90</div>
               <div class="product-rating">⭐ 4.8</div>
@@ -1106,7 +1119,7 @@
               </div>
             </div>
             <div class="product-card">
-              <img src="imagens/produtos/pao-italac.jpg" alt="Pão de Forma Italac 1kg" class="product-img">
+              <img src="imagens/produtos/pao-italac.jpg" alt="Pão de Forma Italac 1kg" class="product-img" loading="lazy" decoding="async">
               <div class="product-name">Pão de Forma Italac 1kg</div>
               <div class="product-price">R$ 0,49</div>
               <div class="product-rating">⭐ 4.7</div>
@@ -1120,7 +1133,7 @@
               </div>
             </div>
             <div class="product-card">
-              <img src="imagens/produtos/detergente-2l.jpg" alt="Detergente Ypê 2L" class="product-img">
+              <img src="imagens/produtos/detergente-2l.jpg" alt="Detergente Ypê 2L" class="product-img" loading="lazy" decoding="async">
               <div class="product-name">Detergente Ypê 2L</div>
               <div class="product-price">R$ 29,90</div>
               <div class="product-rating">⭐ 4.6</div>
@@ -1134,7 +1147,7 @@
               </div>
             </div>
             <div class="product-card">
-              <img src="imagens/produtos/vinho-hoje-750ml-b.jpg" alt="Vinho Hoje 750ml" class="product-img">
+              <img src="imagens/produtos/vinho-hoje-750ml-b.jpg" alt="Vinho Hoje 750ml" class="product-img" loading="lazy" decoding="async">
               <div class="product-name">Vinho Hoje 750ml</div>
               <div class="product-price">R$ 26,90</div>
               <div class="product-rating">⭐ 4.7</div>
@@ -1148,7 +1161,7 @@
               </div>
             </div>
             <div class="product-card">
-              <img src="imagens/produtos/espumante-b.jpg" alt="Espumante 750ml" class="product-img">
+              <img src="imagens/produtos/espumante-b.jpg" alt="Espumante 750ml" class="product-img" loading="lazy" decoding="async">
               <div class="product-name">Espumante 750ml</div>
               <div class="product-price">R$ 49,90</div>
               <div class="product-rating">⭐ 4.9</div>
@@ -1162,7 +1175,7 @@
               </div>
             </div>
             <div class="product-card">
-              <img src="imagens/produtos/cafe-pilao-500g-b.jpg" alt="Café Pilão 500g" class="product-img">
+              <img src="imagens/produtos/cafe-pilao-500g-b.jpg" alt="Café Pilão 500g" class="product-img" loading="lazy" decoding="async">
               <div class="product-name">Café Pilão 500g</div>
               <div class="product-price">R$ 16,90</div>
               <div class="product-rating">⭐ 4.8</div>
@@ -1205,7 +1218,7 @@
 
           <div class="carousel-track scroll-target">
             <div class="product-card">
-              <img src="imagens/produtos/fraldinha.jpg" alt="Fraldinha kg" class="product-img">
+              <img src="imagens/produtos/fraldinha.jpg" alt="Fraldinha kg" class="product-img" loading="lazy" decoding="async">
               <div class="product-name">Fraldinha kg</div>
               <div class="product-price">R$ 34,90</div>
               <div class="product-rating">⭐ 4.7 (1.680)</div>
@@ -1219,7 +1232,7 @@
               </div>
             </div>
             <div class="product-card">
-              <img src="imagens/produtos/peito-de-frango.jpg" alt="Peito de Frango kg" class="product-img">
+              <img src="imagens/produtos/peito-de-frango.jpg" alt="Peito de Frango kg" class="product-img" loading="lazy" decoding="async">
               <div class="product-name">Peito de Frango kg</div>
               <div class="product-price">R$ 15,90</div>
               <div class="product-rating">⭐ 4.6 (2.940)</div>
@@ -1233,7 +1246,7 @@
               </div>
             </div>
             <div class="product-card">
-              <img src="imagens/produtos/contrafile.jpg" alt="Contrafilé kg" class="product-img">
+              <img src="imagens/produtos/contrafile.jpg" alt="Contrafilé kg" class="product-img" loading="lazy" decoding="async">
               <div class="product-name">Contrafilé kg</div>
               <div class="product-price">R$ 42,90</div>
               <div class="product-rating">⭐ 4.8 (2.107)</div>
@@ -1247,7 +1260,7 @@
               </div>
             </div>
             <div class="product-card">
-              <img src="imagens/produtos/sobrecoxa-de-frango.jpg" alt="Sobrecoxa de Frango kg" class="product-img">
+              <img src="imagens/produtos/sobrecoxa-de-frango.jpg" alt="Sobrecoxa de Frango kg" class="product-img" loading="lazy" decoding="async">
               <div class="product-name">Sobrecoxa de Frango kg</div>
               <div class="product-price">R$ 12,90</div>
               <div class="product-rating">⭐ 4.5 (1.850)</div>
@@ -1261,7 +1274,7 @@
               </div>
             </div>
             <div class="product-card">
-              <img src="imagens/produtos/linguica-calabresa.jpg" alt="Linguiça Calabresa kg" class="product-img">
+              <img src="imagens/produtos/linguica-calabresa.jpg" alt="Linguiça Calabresa kg" class="product-img" loading="lazy" decoding="async">
               <div class="product-name">Linguiça Calabresa kg</div>
               <div class="product-price">R$ 17,90</div>
               <div class="product-rating">⭐ 4.6 (2.230)</div>
@@ -1275,7 +1288,7 @@
               </div>
             </div>
             <div class="product-card">
-              <img src="imagens/produtos/costela-suina.jpg" alt="Costela Suína kg" class="product-img">
+              <img src="imagens/produtos/costela-suina.jpg" alt="Costela Suína kg" class="product-img" loading="lazy" decoding="async">
               <div class="product-name">Costela Suína kg</div>
               <div class="product-price">R$ 22,90</div>
               <div class="product-rating">⭐ 4.7 (1.395)</div>
@@ -1289,7 +1302,7 @@
               </div>
             </div>
             <div class="product-card">
-              <img src="imagens/produtos/bisteca-suina.jpg" alt="Bisteca Suína kg" class="product-img">
+              <img src="imagens/produtos/bisteca-suina.jpg" alt="Bisteca Suína kg" class="product-img" loading="lazy" decoding="async">
               <div class="product-name">Bisteca Suína kg</div>
               <div class="product-price">R$ 19,90</div>
               <div class="product-rating">⭐ 4.5 (1.640)</div>
@@ -1303,7 +1316,7 @@
               </div>
             </div>
             <div class="product-card">
-              <img src="imagens/produtos/asa-de-frango.jpg" alt="Asa de Frango kg" class="product-img">
+              <img src="imagens/produtos/asa-de-frango.jpg" alt="Asa de Frango kg" class="product-img" loading="lazy" decoding="async">
               <div class="product-name">Asa de Frango kg</div>
               <div class="product-price">R$ 11,90</div>
               <div class="product-rating">⭐ 4.4 (2.510)</div>
@@ -1317,7 +1330,7 @@
               </div>
             </div>
             <div class="product-card">
-              <img src="imagens/produtos/carne-moida.jpg" alt="Carne Moída kg" class="product-img">
+              <img src="imagens/produtos/carne-moida.jpg" alt="Carne Moída kg" class="product-img" loading="lazy" decoding="async">
               <div class="product-name">Carne Moída kg</div>
               <div class="product-price">R$ 28,90</div>
               <div class="product-rating">⭐ 4.7 (3.480)</div>
@@ -1331,7 +1344,7 @@
               </div>
             </div>
             <div class="product-card">
-              <img src="imagens/produtos/lagarto.jpg" alt="Lagarto kg" class="product-img">
+              <img src="imagens/produtos/lagarto.jpg" alt="Lagarto kg" class="product-img" loading="lazy" decoding="async">
               <div class="product-name">Lagarto kg</div>
               <div class="product-price">R$ 30,90</div>
               <div class="product-rating">⭐ 4.6 (1.220)</div>
@@ -1345,7 +1358,7 @@
               </div>
             </div>
             <div class="product-card">
-              <img src="imagens/produtos/maminha.jpg" alt="Maminha kg" class="product-img">
+              <img src="imagens/produtos/maminha.jpg" alt="Maminha kg" class="product-img" loading="lazy" decoding="async">
               <div class="product-name">Maminha kg</div>
               <div class="product-price">R$ 37,90</div>
               <div class="product-rating">⭐ 4.8 (1.750)</div>
@@ -1359,7 +1372,7 @@
               </div>
             </div>
             <div class="product-card">
-              <img src="imagens/produtos/file-mignon.jpg" alt="Filé Mignon kg" class="product-img">
+              <img src="imagens/produtos/file-mignon.jpg" alt="Filé Mignon kg" class="product-img" loading="lazy" decoding="async">
               <div class="product-name">Filé Mignon kg</div>
               <div class="product-price">R$ 59,90</div>
               <div class="product-rating">⭐ 4.9 (2.890)</div>
@@ -1373,7 +1386,7 @@
               </div>
             </div>
             <div class="product-card">
-              <img src="imagens/produtos/cupim.jpg" alt="Cupim kg" class="product-img">
+              <img src="imagens/produtos/cupim.jpg" alt="Cupim kg" class="product-img" loading="lazy" decoding="async">
               <div class="product-name">Cupim kg</div>
               <div class="product-price">R$ 36,90</div>
               <div class="product-rating">⭐ 4.7 (980)</div>
@@ -1387,7 +1400,7 @@
               </div>
             </div>
             <div class="product-card">
-              <img src="imagens/produtos/coracao-de-frango.jpg" alt="Coração de Frango kg" class="product-img">
+              <img src="imagens/produtos/coracao-de-frango.jpg" alt="Coração de Frango kg" class="product-img" loading="lazy" decoding="async">
               <div class="product-name">Coração de Frango kg</div>
               <div class="product-price">R$ 14,90</div>
               <div class="product-rating">⭐ 4.3 (720)</div>
@@ -1401,7 +1414,7 @@
               </div>
             </div>
             <div class="product-card">
-              <img src="imagens/produtos/salsicha.jpg" alt="Salsicha kg" class="product-img">
+              <img src="imagens/produtos/salsicha.jpg" alt="Salsicha kg" class="product-img" loading="lazy" decoding="async">
               <div class="product-name">Salsicha kg</div>
               <div class="product-price">R$ 13,90</div>
               <div class="product-rating">⭐ 4.4 (2.140)</div>
@@ -1415,7 +1428,7 @@
               </div>
             </div>
             <div class="product-card">
-              <img src="imagens/produtos/bacon.jpg" alt="Bacon kg" class="product-img">
+              <img src="imagens/produtos/bacon.jpg" alt="Bacon kg" class="product-img" loading="lazy" decoding="async">
               <div class="product-name">Bacon kg</div>
               <div class="product-price">R$ 26,90</div>
               <div class="product-rating">⭐ 4.7 (1.980)</div>
@@ -1429,7 +1442,7 @@
               </div>
             </div>
             <div class="product-card">
-              <img src="imagens/produtos/paleta-suina.jpg" alt="Paleta Suína kg" class="product-img">
+              <img src="imagens/produtos/paleta-suina.jpg" alt="Paleta Suína kg" class="product-img" loading="lazy" decoding="async">
               <div class="product-name">Paleta Suína kg</div>
               <div class="product-price">R$ 20,90</div>
               <div class="product-rating">⭐ 4.5 (1.310)</div>
@@ -1443,7 +1456,7 @@
               </div>
             </div>
             <div class="product-card">
-              <img src="imagens/produtos/frango-inteiro.jpg" alt="Frango Inteiro kg" class="product-img">
+              <img src="imagens/produtos/frango-inteiro.jpg" alt="Frango Inteiro kg" class="product-img" loading="lazy" decoding="async">
               <div class="product-name">Frango Inteiro kg</div>
               <div class="product-price">R$ 9,90</div>
               <div class="product-rating">⭐ 4.6 (3.120)</div>
@@ -1457,7 +1470,7 @@
               </div>
             </div>
             <div class="product-card">
-              <img src="imagens/produtos/rabada.jpg" alt="Rabada kg" class="product-img">
+              <img src="imagens/produtos/rabada.jpg" alt="Rabada kg" class="product-img" loading="lazy" decoding="async">
               <div class="product-name">Rabada kg</div>
               <div class="product-price">R$ 25,90</div>
               <div class="product-rating">⭐ 4.5 (890)</div>
@@ -1471,7 +1484,7 @@
               </div>
             </div>
             <div class="product-card">
-              <img src="imagens/produtos/carne-para-panela.jpg" alt="Carne para Panela kg" class="product-img">
+              <img src="imagens/produtos/carne-para-panela.jpg" alt="Carne para Panela kg" class="product-img" loading="lazy" decoding="async">
               <div class="product-name">Carne para Panela kg</div>
               <div class="product-price">R$ 27,90</div>
               <div class="product-rating">⭐ 4.6 (1.560)</div>
@@ -1524,8 +1537,8 @@
           </div>
         </div>
         <div class="panel-actions">
-          <a href="#"><img src="imagens/app-baixar/apple_store.png" alt="Baixar na App Store" class="store-badge"></a>
-          <a href="#"><img src="imagens/app-baixar/android_play.png" alt="Disponível no Google Play" class="store-badge"></a>
+          <a href="#"><img src="imagens/app-baixar/apple_store.png" alt="Baixar na App Store" class="store-badge" loading="lazy" decoding="async"></a>
+          <a href="#"><img src="imagens/app-baixar/android_play.webp" alt="Disponível no Google Play" class="store-badge" loading="lazy" decoding="async"></a>
         </div>
       </div>
 
@@ -1569,7 +1582,7 @@
     <div class="footer-inner">
       <div class="footer-left">
         <div class="footer-logo">
-          <img src="imagens/logo/logo-branco.png" alt="Hoje Supermercado">
+          <img src="imagens/logo/logo-branco.webp" alt="Hoje Supermercado" loading="lazy" decoding="async">
         </div>
         <p class="footer-tagline">Mais do que um mercado, praticidade para o seu dia a dia.</p>
         <p class="copyright">© 2026 Hoje. Todos os direitos reservados.</p>
@@ -1592,6 +1605,7 @@
             <li><a href="#">Trocas e devoluções</a></li>
             <li><a href="#formas-de-pagamento">Formas de pagamento</a></li>
             <li><a href="politica-de-privacidade.html">Política de privacidade</a></li>
+            <li><a href="#analytics-preferences" data-analytics-settings-link>Configurações de analytics</a></li>
             <li><a href="termos-de-uso.html">Termos de uso</a></li>
             <li><a href="/dashboard/orders">Acompanhe seus pedidos</a></li>
           </ul>

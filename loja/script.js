@@ -1529,7 +1529,8 @@ function renderizarProximoLote(state) {
 async function carregarCatalogoReal() {
   try {
     const carrossels = [...document.querySelectorAll('.offers-grid, .highlight-products, .products-grid, .carousel-track')];
-    const response = await fetch('/api/products');
+    if (!carrossels.length) return;
+    const response = await fetch('/api/products?purpose=store');
     if (!response.ok) throw new Error(`Falha ao carregar catálogo (${response.status})`);
     const data = await response.json();
     if (!Array.isArray(data?.products)) throw new Error('Resposta inválida ao carregar catálogo.');

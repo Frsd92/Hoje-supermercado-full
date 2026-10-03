@@ -5,7 +5,7 @@ export const STORE_LAYOUT_SLOTS = [
     placement: 'Topo da página inicial',
     recommendedWidth: 1600,
     recommendedHeight: 500,
-    fallbackImage: '/imagens/tudo_o_que_vc_precisa.png',
+    fallbackImage: '/imagens/tudo_o_que_vc_precisa.webp',
     group: 'main',
   },
   {
@@ -113,7 +113,7 @@ export const STORE_LAYOUT_SLOTS = [
     placement: 'Carrossel Marcas em destaque',
     recommendedWidth: 480,
     recommendedHeight: 200,
-    fallbackImage: '/imagens/marcas_em_destaque/ype.webp',
+    fallbackImage: '/imagens/marcas_em_destaque/ype-optimized.webp',
     group: 'brands',
   },
   {
@@ -140,7 +140,7 @@ export const STORE_LAYOUT_SLOTS = [
     placement: 'Carrossel Marcas em destaque',
     recommendedWidth: 480,
     recommendedHeight: 200,
-    fallbackImage: '/imagens/marcas_em_destaque/P-G.png',
+    fallbackImage: '/imagens/marcas_em_destaque/P-G.webp',
     group: 'brands',
   },
   {
@@ -149,7 +149,7 @@ export const STORE_LAYOUT_SLOTS = [
     placement: 'Carrossel Marcas em destaque',
     recommendedWidth: 480,
     recommendedHeight: 200,
-    fallbackImage: '/imagens/marcas_em_destaque/Unilever.png',
+    fallbackImage: '/imagens/marcas_em_destaque/Unilever.webp',
     group: 'brands',
   },
   {
@@ -167,7 +167,7 @@ export const STORE_LAYOUT_SLOTS = [
     placement: 'Carrossel Marcas em destaque',
     recommendedWidth: 480,
     recommendedHeight: 200,
-    fallbackImage: '/imagens/marcas_em_destaque/OMO.png',
+    fallbackImage: '/imagens/marcas_em_destaque/OMO.webp',
     group: 'brands',
   },
   {

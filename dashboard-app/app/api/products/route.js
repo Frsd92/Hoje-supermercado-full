@@ -1,4 +1,5 @@
 import { promises as fs } from 'fs';
+import { createHash } from 'node:crypto';
 import path from 'path';
 import { getServerSession } from 'next-auth';
 import { authOptions } from '@/auth';
@@ -311,15 +312,77 @@ function ensurePriceHistory(product) {
   };
 }
 
+function publicProductImage(product) {
+  const image = typeof product.image === 'string' ? product.image : '';
+  if (!/^data:image\/(?:png|jpeg|webp);base64,/i.test(image)) return image;
+
+  const version = createHash('sha256').update(image).digest('hex').slice(0, 16);
+  return `/api/products?purpose=image&id=${encodeURIComponent(product.id)}&v=${version}`;
+}
+
 export async function OPTIONS(request) {
   return new Response(null, { status: 204, headers: corsHeaders(request) });
 }
 
 export async function GET(request) {
-  const session = await getServerSession(authOptions);
-  const canViewPrivateFields = hasErpAccess(session?.user);
+  const searchParams = new URL(request.url).searchParams;
+  const purpose = searchParams.get('purpose');
+  if (purpose === 'image') {
+    const productId = searchParams.get('id');
+    const version = searchParams.get('v');
+    if (!productId || !version) {
+      return Response.json({ error: 'Identificador ou versão da imagem ausente.' }, {
+        status: 400,
+        headers: corsHeaders(request),
+      });
+    }
+
+    let product = null;
+    try {
+      product = await prisma.product.findFirst({
+        where: { OR: [{ externalId: productId }, { id: productId }] },
+        select: { externalId: true, id: true, image: true, status: true },
+      });
+    } catch (error) {
+      console.error('Não foi possível localizar a imagem no catálogo persistido:', error);
+    }
+    if (!product) {
+      const legacyProducts = await readProducts();
+      product = legacyProducts.find((item) => String(item.id) === productId) || null;
+    }
+
+    const image = typeof product?.image === 'string' ? product.image : '';
+    const imageMatch = /^data:(image\/(?:png|jpeg|webp));base64,([A-Za-z0-9+/]+={0,2})$/i.exec(image);
+    const currentVersion = image
+      ? createHash('sha256').update(image).digest('hex').slice(0, 16)
+      : '';
+    if (product?.status !== 'Ativo' || !imageMatch || currentVersion !== version) {
+      return Response.json({ error: 'Imagem do produto não encontrada.' }, {
+        status: 404,
+        headers: corsHeaders(request),
+      });
+    }
+
+    const imageBytes = Buffer.from(imageMatch[2], 'base64');
+    if (!imageBytes.length || imageBytes.toString('base64') !== imageMatch[2]) {
+      return Response.json({ error: 'Imagem do produto inválida.' }, {
+        status: 404,
+        headers: corsHeaders(request),
+      });
+    }
+    return new Response(imageBytes, {
+      headers: {
+        ...corsHeaders(request),
+        'Content-Type': imageMatch[1].toLowerCase(),
+        'Content-Length': String(imageBytes.byteLength),
+        'Cache-Control': 'public, max-age=31536000, immutable',
+        'X-Content-Type-Options': 'nosniff',
+      },
+    });
+  }
+
   const products = await getProducts();
-  if (new URL(request.url).searchParams.get('purpose') === 'search') {
+  if (purpose === 'search') {
     const searchableProducts = products
       .filter((product) => product.status === 'Ativo')
       .map((product) => ({
@@ -329,7 +392,7 @@ export async function GET(request) {
         subcategory: product.subcategory || '',
         brand: product.brand || '',
         description: product.description || '',
-        image: product.image || '',
+        image: publicProductImage(product),
         price: Number(product.price) || 0,
         salePrice: calculateSalePrice(product),
         discount: Number(product.discount) || 0,
@@ -339,6 +402,34 @@ export async function GET(request) {
       headers: { ...corsHeaders(request), 'Cache-Control': 'private, no-store, max-age=0' },
     });
   }
+  if (purpose === 'store') {
+    const sales = await readSales();
+    const storeProducts = products
+      .filter((product) => product.status === 'Ativo')
+      .map((product) => ({
+        id: product.id,
+        title: product.title,
+        description: product.description || '',
+        price: Number(product.price) || 0,
+        salePrice: calculateSalePrice(product),
+        discount: Number(product.discount) || 0,
+        saleUnit: product.saleUnit === 'Quilograma' ? 'Quilograma' : 'Unidade',
+        image: publicProductImage(product),
+        categories: Array.isArray(product.categories) ? product.categories : [],
+        department: product.department || '',
+        subcategory: product.subcategory || '',
+        brand: product.brand || '',
+        productType: product.productType || '',
+        collection: product.collection || '',
+        featuredPriceTypes: Array.isArray(product.featuredPriceTypes) ? product.featuredPriceTypes : [],
+        salesCount: sales[String(product.id).toLowerCase()] || sales[String(product.title).toLowerCase()] || 0,
+      }));
+    return Response.json({ products: storeProducts }, {
+      headers: { ...corsHeaders(request), 'Cache-Control': 'private, no-store, max-age=0' },
+    });
+  }
+  const session = await getServerSession(authOptions);
+  const canViewPrivateFields = hasErpAccess(session?.user);
   const sales = await readSales();
   const visibleProducts = products.filter((product) => canViewPrivateFields || product.status === 'Ativo');
   const activeProducts = visibleProducts.map((product) => {
