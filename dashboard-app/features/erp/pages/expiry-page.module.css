@@ -767,6 +767,34 @@
   border-top: 1px solid #edf1ed;
 }
 
+.registerPanel {
+  width: min(100%, 920px);
+  margin: 0 auto;
+  overflow: hidden;
+  border: 1px solid #e0e8e2;
+  border-radius: 18px;
+  background: #fff;
+  box-shadow: 0 16px 42px rgb(23 63 49 / 7%);
+}
+
+.registerPanelHeading {
+  padding: 22px 23px 17px;
+  border-bottom: 1px solid #edf1ed;
+}
+
+.registerPanelHeading h2 {
+  margin: 0;
+  color: #172b1d;
+  font-size: 1.15rem;
+}
+
+.registerPanelHeading p {
+  margin: 6px 0 0;
+  color: #728076;
+  font-size: 0.84rem;
+  line-height: 1.5;
+}
+
 .formHint + .errorMessage,
 .lotForm > .errorMessage {
   margin: 0;

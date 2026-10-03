@@ -38,7 +38,7 @@ const erpNavigationGroups = [
     label: 'Operação',
     items: [
       { label: 'Validade', href: '/erp/validade', icon: CalendarDays },
-      { label: 'Registrar lote', href: '/erp/validade?action=register-lot', icon: Plus },
+      { label: 'Registrar lote', href: '/erp/registrar-lote', icon: Plus },
       { label: 'Regiões atendidas', href: '/erp/service-regions', icon: MapPin },
     ],
   },
@@ -82,13 +82,10 @@ export default function ERPLayout({ children }) {
             <span className="erp-nav-group-label">{group.label}</span>
             <div className="erp-nav-group-items">
               {group.items.map(({ label, href, icon: Icon }) => {
-                const actionItem = href.includes('?action=');
-                const active = !actionItem && (pathname === href || (href !== '/erp' && pathname.startsWith(href)));
+                const active = pathname === href || (href !== '/erp' && pathname.startsWith(href));
                 const content = <><Icon size={17} aria-hidden="true" /><span>{label}</span>{label === 'Pedidos' && newOrders > 0 && <><span className="erp-nav-badge" aria-hidden="true">{newOrders}</span><span className="visually-hidden">{newOrders} novos pedidos</span></>}</>;
                 const className = `erp-nav-item ${active ? 'active' : ''}`;
-                return actionItem
-                  ? <a key={label} href={href} className={className} aria-haspopup="dialog">{content}</a>
-                  : <Link key={label} href={href} className={className} aria-current={active ? 'page' : undefined}>{content}</Link>;
+                return <Link key={label} href={href} className={className} aria-current={active ? 'page' : undefined}>{content}</Link>;
               })}
             </div>
           </div>)}

@@ -179,11 +179,11 @@ export default function ERPProductsPage() {
       if (!isEditing) {
         const productReference = String(data.product?.id || '').trim();
         if (productReference) {
-          window.location.assign(`/erp/validade?productId=${encodeURIComponent(productReference)}&action=register-lot`);
+          window.location.assign(`/erp/registrar-lote?productId=${encodeURIComponent(productReference)}`);
           return;
         }
         setProduct(emptyProduct);
-        setFeedback('Produto cadastrado. Acesse Validade para registrar o estoque inicial em um novo lote.');
+        setFeedback('Produto cadastrado. Acesse Registrar lote para informar o estoque inicial.');
         return;
       }
       setProduct((current) => ({ ...current, ...data.product, price: formatBRL(data.product.price), cost: formatBRL(data.product.cost), promotionalPrice: formatBRL(data.product.promotionalPrice ?? data.product.price) }));
@@ -245,7 +245,7 @@ export default function ERPProductsPage() {
                 <p>Cada lote tem sua própria fabricação e validade. Altere-as sem afetar os demais lotes ou registre uma nova entrada.</p>
               </div>
               <div className="editor-expiry-actions">
-                <Link className="editor-expiry-register-link" href={`/erp/validade?productId=${encodeURIComponent(editId)}&action=register-lot`}>
+                <Link className="editor-expiry-register-link" href={`/erp/registrar-lote?productId=${encodeURIComponent(editId)}`}>
                   <Plus size={16} aria-hidden="true" />
                   <span>Registrar lote</span>
                 </Link>
@@ -256,7 +256,7 @@ export default function ERPProductsPage() {
                 </Link>
               </div>
             </div>
-            : <p className="editor-first-lot-help">Após salvar, o formulário <strong>Registrar lote</strong> será aberto para informar o estoque inicial, a fabricação e a validade. O prazo padrão acima será sugerido quando o lote usar validade em dias.</p>}
+            : <p className="editor-first-lot-help">Após salvar, a página <strong>Registrar lote</strong> será aberta para informar o estoque inicial, a fabricação e a validade. O prazo padrão acima será sugerido quando o lote usar validade em dias.</p>}
         </section>
         <div className="editor-toggle-grid"><label><input type="checkbox" checked={product.controlsLot} onChange={(event) => update('controlsLot', event.target.checked)} /> Controla lote</label><label><input type="checkbox" checked={product.controlsExpiry} onChange={(event) => update('controlsExpiry', event.target.checked)} /> Controla validade</label><label><input type="checkbox" checked={product.perishable} onChange={(event) => update('perishable', event.target.checked)} /> Perecível</label></div>
       </section></>}

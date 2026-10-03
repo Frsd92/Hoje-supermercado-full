@@ -4,17 +4,11 @@ import Link from 'next/link';
 import { AlertTriangle, CalendarDays, CheckCircle2, Clock3, Package, Pencil, RefreshCw, Search, ShieldAlert, X } from 'lucide-react';
 import { useCallback, useEffect, useMemo, useState } from 'react';
 import { expiryDateFromShelfLife } from '../api/inventory-lots.js';
+import InventoryLotFormFields, { emptyLotForm, formatExpiryDate } from '../components/inventory-lot-form-fields.js';
 import { EXPIRY_BANDS, getExpiryStatus, saoPauloDateString } from '../expiry.js';
 import styles from './expiry-page.module.css';
 
-const dateFormatter = new Intl.DateTimeFormat('pt-BR', { timeZone: 'UTC', dateStyle: 'medium' });
 const quantityFormatter = new Intl.NumberFormat('pt-BR', { maximumFractionDigits: 3 });
-const emptyLotForm = { productId: '', lotCode: '', quantity: '', expiry: '', manufactureDate: '', expiryMode: 'date', shelfLifeDays: '', location: '' };
-
-function formatExpiryDate(value) {
-  if (!value) return 'Sem data cadastrada';
-  return dateFormatter.format(new Date(`${value}T12:00:00.000Z`));
-}
 
 function urgencyGroup(status) {
   if (status.key === 'overdue') return 'expired';
@@ -51,7 +45,6 @@ export default function ERPExpiryPage() {
   const [saving, setSaving] = useState(false);
   const [feedback, setFeedback] = useState('');
   const [formError, setFormError] = useState('');
-  const [autoRegisterLotHandled, setAutoRegisterLotHandled] = useState(false);
 
   const loadData = useCallback(async () => {
     setLoading(true);
@@ -141,55 +134,6 @@ export default function ERPExpiryPage() {
   const selectedProduct = products.find((product) => product.id === lotForm.productId);
   const calculatedExpiry = expiryDateFromShelfLife(lotForm.manufactureDate, lotForm.shelfLifeDays);
   const effectiveExpiry = lotForm.expiryMode === 'days' ? calculatedExpiry : lotForm.expiry;
-
-  const openNewLot = useCallback((preferredProductId = '') => {
-    const productId = preferredProductId || (productFilter !== 'Todas'
-      ? productFilter
-      : '');
-    const product = products.find((item) => item.id === productId);
-    const shelfLifeDays = product?.shelfLifeDays ? String(product.shelfLifeDays) : '';
-    setEditingLot(null);
-    setLotForm({
-      ...emptyLotForm,
-      productId,
-      shelfLifeDays,
-      expiryMode: shelfLifeDays ? 'days' : 'date',
-      location: product?.location || '',
-    });
-    setFormError('');
-    setModalOpen(true);
-  }, [productFilter, products]);
-
-  useEffect(() => {
-    if (loading || error || autoRegisterLotHandled) return;
-    const url = new URL(window.location.href);
-    if (url.searchParams.get('action') !== 'register-lot') {
-      setAutoRegisterLotHandled(true);
-      return;
-    }
-
-    if (!products.length) {
-      setError('Cadastre um produto antes de registrar um lote.');
-      setAutoRegisterLotHandled(true);
-      return;
-    }
-
-    const requestedProductId = url.searchParams.get('productId');
-    const product = requestedProductId
-      ? products.find((item) => item.id === requestedProductId || item.externalId === requestedProductId)
-      : null;
-    if (requestedProductId && !product) {
-      setError('Não foi possível localizar o produto para registrar o lote. Selecione-o na lista e tente novamente.');
-      setAutoRegisterLotHandled(true);
-      return;
-    }
-
-    if (product) setProductFilter(product.id);
-    openNewLot(product?.id);
-    url.searchParams.delete('action');
-    window.history.replaceState(window.history.state, '', `${url.pathname}${url.search}${url.hash}`);
-    setAutoRegisterLotHandled(true);
-  }, [autoRegisterLotHandled, error, loading, openNewLot, products]);
 
   const openEditLot = (lot) => {
     setEditingLot(lot);
@@ -410,62 +354,15 @@ export default function ERPExpiryPage() {
               <button type="button" className={styles.dialogClose} aria-label="Fechar" onClick={() => setModalOpen(false)} disabled={saving}><X size={20} /></button>
             </header>
             <form className={styles.lotForm} onSubmit={saveLot}>
-              <label className={styles.formWide}>
-                Produto
-                <select value={lotForm.productId} onChange={(event) => {
-                  const product = products.find((item) => item.id === event.target.value);
-                  const shelfLifeDays = product?.shelfLifeDays ? String(product.shelfLifeDays) : '';
-                  setLotForm((current) => ({
-                    ...current,
-                    productId: event.target.value,
-                    lotCode: '',
-                    expiry: '',
-                    manufactureDate: '',
-                    expiryMode: shelfLifeDays ? 'days' : 'date',
-                    shelfLifeDays,
-                    location: product?.location || '',
-                  }));
-                }} required disabled={Boolean(editingLot)}>
-                  <option value="">Selecione um produto</option>
-                  {products.map((product) => <option key={product.id} value={product.id}>{product.title} · {product.sku || product.externalId}</option>)}
-                </select>
-                {selectedProduct && <small>Saldo agregado atual: {quantityFormatter.format(selectedProduct.quantity)} {selectedProduct.saleUnit}</small>}
-              </label>
-              <label>
-                Código do lote{selectedProduct?.controlsLot ? ' (obrigatório)' : ''}
-                <input value={lotForm.lotCode} onChange={(event) => setLotForm((current) => ({ ...current, lotCode: event.target.value }))} required={selectedProduct?.controlsLot === true && Number(lotForm.quantity) > 0} autoComplete="off" />
-              </label>
-              <label>
-                {editingLot ? 'Saldo físico atual' : 'Quantidade recebida'} ({selectedProduct?.saleUnit || 'un.'})
-                <input type="number" inputMode="decimal" min={editingLot ? '0' : '0.001'} step="0.001" value={lotForm.quantity} onChange={(event) => setLotForm((current) => ({ ...current, quantity: event.target.value }))} required />
-              </label>
-              <fieldset className={`${styles.expiryModeFieldset} ${styles.formWide}`}>
-                <legend>Como informar a validade</legend>
-                <div className={styles.expiryModeOptions}>
-                  <label><input type="radio" name="expiryMode" value="days" checked={lotForm.expiryMode === 'days'} onChange={() => setLotForm((current) => ({ ...current, expiryMode: 'days' }))} /> Calcular pela fabricação e dias</label>
-                  <label><input type="radio" name="expiryMode" value="date" checked={lotForm.expiryMode === 'date'} onChange={() => setLotForm((current) => ({ ...current, expiryMode: 'date' }))} /> Informar data manualmente</label>
-                </div>
-                {lotForm.expiryMode === 'days' && <p className={styles.formHint}>Validade calculada: {formatExpiryDate(effectiveExpiry)}</p>}
-              </fieldset>
-              <label>
-                Data de validade{(selectedProduct?.controlsExpiry || selectedProduct?.perishable) && Number(lotForm.quantity) > 0 ? ' (obrigatória)' : ''}
-                <input type="date" value={effectiveExpiry} onChange={(event) => setLotForm((current) => ({ ...current, expiry: event.target.value }))} required={lotForm.expiryMode === 'date' && (selectedProduct?.controlsExpiry || selectedProduct?.perishable) && Number(lotForm.quantity) > 0} disabled={lotForm.expiryMode === 'days'} />
-              </label>
-              {lotForm.expiryMode === 'days' && <label>
-                Prazo de validade (dias)
-                <input type="number" min="1" max="36500" step="1" value={lotForm.shelfLifeDays} onChange={(event) => setLotForm((current) => ({ ...current, shelfLifeDays: event.target.value }))} required />
-                <small>Conta a partir da data de fabricação.</small>
-              </label>}
-              <label>
-                Data de fabricação
-                <input type="date" value={lotForm.manufactureDate} onChange={(event) => setLotForm((current) => ({ ...current, manufactureDate: event.target.value }))} required={lotForm.expiryMode === 'days'} />
-              </label>
-              <label className={styles.formWide}>
-                Localização
-                <input value={lotForm.location} onChange={(event) => setLotForm((current) => ({ ...current, location: event.target.value }))} placeholder="Ex.: Câmara fria 2, prateleira A" />
-              </label>
-              {!editingLot && <p className={`${styles.formHint} ${styles.formWide}`}>Se o mesmo produto, código de lote e datas já estiverem cadastrados, a quantidade será somada ao saldo desse lote.</p>}
-              {formError && <div className={`${styles.errorMessage} ${styles.formWide}`} role="alert"><AlertTriangle size={17} aria-hidden="true" />{formError}</div>}
+              <InventoryLotFormFields
+                products={products}
+                lotForm={lotForm}
+                setLotForm={setLotForm}
+                selectedProduct={selectedProduct}
+                effectiveExpiry={effectiveExpiry}
+                editingLot={editingLot}
+                formError={formError}
+              />
               <footer className={`${styles.dialogActions} ${styles.formWide}`}>
                 <button type="button" className={styles.refreshButton} onClick={() => setModalOpen(false)} disabled={saving}>Cancelar</button>
                 <button type="submit" className={styles.addButton} disabled={saving || !products.length}>{saving ? 'Salvando...' : editingLot ? 'Salvar lote e recalcular saldo' : 'Registrar entrada'}</button>
