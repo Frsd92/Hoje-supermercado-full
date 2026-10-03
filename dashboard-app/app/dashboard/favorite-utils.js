@@ -10,11 +10,20 @@ function normalizeFavoriteIdentity(value) {
 function parsePrice(value) {
   if (typeof value === 'number') return Number.isFinite(value) ? value : null;
   const normalized = String(value ?? '').replace(/[^0-9,.-]/g, '');
+  if (!normalized || !/\d/.test(normalized)) return null;
   const decimalValue = normalized.includes(',')
     ? normalized.replace(/\./g, '').replace(',', '.')
     : normalized;
   const price = Number(decimalValue);
   return Number.isFinite(price) ? price : null;
+}
+
+export function getFavoriteDiscountPercent(favorite) {
+  if (!favorite || typeof favorite !== 'object') return 0;
+  const currentPrice = parsePrice(favorite.price);
+  const previousPrice = parsePrice(favorite.oldPrice);
+  if (currentPrice === null || previousPrice === null || previousPrice <= currentPrice || previousPrice <= 0) return 0;
+  return Math.round(((previousPrice - currentPrice) / previousPrice) * 100);
 }
 
 function formatPrice(value) {
