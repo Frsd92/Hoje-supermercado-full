@@ -6284,6 +6284,12 @@ button.metric-mini:focus-visible {
 .analytics-tabs { display: flex; gap: 6px; overflow-x: auto; padding: 4px; margin: 14px 0 18px; border-bottom: 1px solid #e8edef; }
 .analytics-tabs button { border: 0; border-bottom: 2px solid transparent; padding: 10px 13px; background: transparent; color: #71808a; font: inherit; font-size: .82rem; font-weight: 750; white-space: nowrap; cursor: pointer; }
 .analytics-tabs button.active { color: #26343d; border-bottom-color: #c3973f; }
+.analytics-tabs button:focus-visible { outline: 3px solid rgba(195,151,63,.5); outline-offset: 2px; border-radius: 6px; }
+.analytics-tabpanel { min-width: 0; }
+.analytics-tabpanel:focus-visible { outline: 3px solid rgba(47,118,86,.32); outline-offset: 4px; border-radius: 10px; }
+.analytics-refresh-warning { display: flex; align-items: center; justify-content: space-between; gap: 12px; }
+.analytics-refresh-warning button { flex: 0 0 auto; min-height: 36px; padding: 0 12px; border: 1px solid currentColor; border-radius: 8px; background: #fff; color: inherit; font: inherit; font-weight: 700; cursor: pointer; }
+.analytics-history-empty { margin-bottom: 16px; }
 .analytics-section { margin-top: 24px; }
 .analytics-section-heading { display: flex; justify-content: space-between; align-items: end; gap: 16px; margin-bottom: 13px; }
 .analytics-section-heading h2 { margin: 3px 0 0; color: #26343d; font-size: 1.25rem; }
@@ -6315,6 +6321,8 @@ button.metric-mini:focus-visible {
 
 @media (max-width: 900px) {
   .analytics-grid { grid-template-columns: 1fr; }
+  .analytics-refresh-warning { align-items: flex-start; flex-wrap: wrap; }
+  .analytics-refresh-warning button { margin-left: auto; }
   .analytics-geography-grid { grid-template-columns: 1fr; }
   .analytics-period-grid { grid-template-columns: 1fr; }
   .coupon-manager-grid { grid-template-columns: 1fr; }

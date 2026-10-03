@@ -17,19 +17,34 @@ export default function ERPOrdersPage() {
   const [status, setStatus] = useState('Todos');
   const [query, setQuery] = useState('');
   const [loading, setLoading] = useState(true);
+  const [loadError, setLoadError] = useState('');
+  const [ordersLoaded, setOrdersLoaded] = useState(false);
+  const [reloadToken, setReloadToken] = useState(0);
   const [acknowledged, setAcknowledged] = useState([]);
   const [selected, setSelected] = useState(null);
   const [busy, setBusy] = useState(false);
   const [actionError, setActionError] = useState('');
 
   useEffect(() => {
-    fetch('/api/erp/orders')
-      .then((response) => response.json())
-      .then(({ orders: savedOrders = [] }) => setOrders(savedOrders))
-      .catch(() => setOrders([]))
-      .finally(() => setLoading(false));
+    let active = true;
+    fetch('/api/erp/orders', { cache: 'no-store' })
+      .then(async (response) => {
+        const data = await response.json();
+        if (!response.ok) throw new Error(data.error || 'Não foi possível carregar os pedidos.');
+        if (!Array.isArray(data.orders)) throw new Error('A resposta de pedidos está inválida.');
+        if (active) {
+          setOrders(data.orders);
+          setOrdersLoaded(true);
+          setLoadError('');
+        }
+      })
+      .catch((error) => {
+        if (active) setLoadError(error.message || 'Não foi possível carregar os pedidos.');
+      })
+      .finally(() => { if (active) setLoading(false); });
     setAcknowledged(JSON.parse(localStorage.getItem('erp-acknowledged-orders') || '[]'));
-  }, []);
+    return () => { active = false; };
+  }, [reloadToken]);
 
   const newOrders = orders.filter((order) => order.status === 'Recebido' && !acknowledged.includes(order.id));
   const acknowledge = (id) => {
@@ -80,9 +95,10 @@ export default function ERPOrdersPage() {
           <p>Pedidos, separacao, expedicao e status de entrega.</p>
         </div>
       </div>
-      <div className="erp-customer-metrics">
+      {loadError && <p className="erp-budget-warning" role="alert">{loadError}<button type="button" onClick={() => setReloadToken((value) => value + 1)}>Tentar novamente</button></p>}
+      {ordersLoaded && <div className="erp-customer-metrics">
         {metrics.map(([label, value, Icon]) => <div className="erp-customer-metric" key={label}><Icon size={17} /><strong>{value}</strong><span>{label}</span></div>)}
-      </div>
+      </div>}
       {newOrders.length > 0 && <section className="erp-new-orders-alert">
         <div><strong>Novos pedidos aguardando atenção</strong><span>{newOrders.length} pedido(s) recebido(s) aguardando conferência e separação.</span></div>
         <div className="erp-new-order-list">
@@ -115,7 +131,7 @@ export default function ERPOrdersPage() {
                 <td><span className="erp-status">{order.status || 'Recebido'}</span></td>
               </tr>)}</tbody>
             </table></div>
-            : <div className="erp-empty-data">{loading ? 'Carregando pedidos reais...' : 'Nenhum pedido registrado ainda. Os pedidos aparecerão aqui quando uma compra real for finalizada.'}</div>}
+            : <div className="erp-empty-data">{loading ? 'Carregando pedidos reais...' : loadError ? 'Não foi possível carregar a fila de pedidos.' : 'Nenhum pedido registrado ainda. Os pedidos aparecerão aqui quando uma compra real for finalizada.'}</div>}
         </section>
         {selected && <aside className="erp-order-detail">
           <div className="erp-panel-title"><ShoppingBag size={17} /><div><h3>{selected.id}</h3><p>{selected.status}</p></div></div>

@@ -30,15 +30,61 @@
     <a href="index.html" class="category-back"><i data-lucide="arrow-left"></i> Voltar para a loja</a>
     <img src="imagens/logo/logo-hoje.webp" alt="Hoje Supermercado">
     <div class="search-bar category-search"><input type="text" id="search-input" placeholder="Buscar nesta categoria" aria-label="Buscar produtos nesta categoria" oninput="buscarProdutos()" onfocus="buscarProdutos()" autocomplete="off"><button type="button" id="search-submit" aria-label="Buscar produtos"><i data-lucide="search"></i></button><div id="search-results" class="search-results"></div></div>
-    <div class="location" id="location-summary" data-hj-suppress><i data-lucide="map-pin"></i><span>Selecione seu endereço</span></div>
+    <div class="location" id="location-summary" role="group" aria-label="Endereço de entrega" data-hj-suppress>
+      <span class="location-icon" aria-hidden="true"><i data-lucide="map-pin"></i></span>
+      <div class="location-copy">
+        <div class="location-heading">
+          <label class="location-label" for="store-address-select">Endereço de entrega</label>
+          <a class="location-manage-link" href="/dashboard/addresses" aria-label="Gerenciar endereços salvos">Gerenciar</a>
+        </div>
+        <div class="location-select-wrap">
+          <select id="store-address-select">
+            <option value="" selected>Selecione um endereço</option>
+          </select>
+          <i class="location-chevron" data-lucide="chevron-down" aria-hidden="true"></i>
+        </div>
+        <span class="location-description" id="location-address-details" aria-live="polite">Adicione um endereço para consultar a entrega.</span>
+      </div>
+    </div>
   </header>
   </div>
   <main class="category-page-content">
     <span class="category-kicker">Hoje Supermercado</span>
     <h1 id="category-title">Categoria</h1>
     <p id="category-description">Todos os produtos disponíveis nesta categoria.</p>
+    <section class="flash-offer-feature" id="flash-offer-feature" aria-labelledby="flash-offer-heading" hidden>
+      <div class="flash-offer-copy">
+        <span class="flash-offer-kicker"><i data-lucide="zap" aria-hidden="true"></i> Tempo limitado</span>
+        <h2 id="flash-offer-heading">Ofertas especiais para aproveitar agora</h2>
+        <p id="flash-offer-summary">Confira os preços especiais disponíveis por tempo limitado.</p>
+        <div class="flash-offer-meta">
+          <span class="flash-offer-count" id="flash-offer-active-count"></span>
+          <span class="flash-offer-note"><i data-lucide="badge-check" aria-hidden="true"></i> Confira preço e unidade em cada produto</span>
+        </div>
+      </div>
+      <div class="flash-countdown-card" id="flash-countdown-card" hidden>
+        <span class="flash-countdown-label" id="flash-countdown-label">A oferta termina em</span>
+        <div class="flash-countdown" id="category-flash-countdown" role="timer" aria-live="off" aria-label="Tempo restante da oferta">
+          <span class="flash-countdown-unit"><strong data-flash-days>00</strong><small>DIAS</small></span>
+          <span class="flash-countdown-unit"><strong data-flash-hours>00</strong><small>HRS</small></span>
+          <span class="flash-countdown-unit"><strong data-flash-minutes>00</strong><small>MIN</small></span>
+          <span class="flash-countdown-unit"><strong data-flash-seconds>00</strong><small>SEG</small></span>
+        </div>
+        <small class="flash-countdown-caption">A contagem acompanha o horário da oferta.</small>
+      </div>
+    </section>
+    <div class="flash-offer-list-heading" id="flash-offer-list-heading" hidden>
+      <div>
+        <h2>Escolha suas ofertas</h2>
+        <span class="flash-offer-list-count" id="flash-offer-list-count"></span>
+      </div>
+      <p><i data-lucide="clock-3" aria-hidden="true"></i> Ordenadas pelo prazo mais próximo</p>
+    </div>
     <div id="category-products" class="category-products-grid" aria-live="polite"></div>
-    <div id="category-empty" class="category-empty" hidden>Nenhum produto disponível nesta categoria.</div>
+    <div id="category-empty" class="category-empty" aria-live="polite" hidden>
+      <strong id="category-empty-message">Nenhum produto disponível nesta categoria.</strong>
+      <a class="flash-empty-link" id="category-empty-link" href="index.html" hidden>Voltar para a loja</a>
+    </div>
   </main>
   <footer class="category-privacy-links">
     <a href="/politica-de-privacidade.html">Política de Privacidade</a>

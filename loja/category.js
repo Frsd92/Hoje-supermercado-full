@@ -44,6 +44,97 @@ function categoryKey(category) {
   return normalizeCategory(category).replaceAll(' ', '-');
 }
 
+function getTimestamp(value) {
+  const timestamp = Date.parse(value);
+  return Number.isFinite(timestamp) ? timestamp : null;
+}
+
+function formatOfferCount(count, singular, plural) {
+  return `${count} ${count === 1 ? singular : plural}`;
+}
+
+function renderFlashOfferExperience(products, activeOffers) {
+  const feature = document.getElementById('flash-offer-feature');
+  const summary = document.getElementById('flash-offer-summary');
+  const activeCount = document.getElementById('flash-offer-active-count');
+  const countdownCard = document.getElementById('flash-countdown-card');
+  const countdownLabel = document.getElementById('flash-countdown-label');
+  const countdown = document.getElementById('category-flash-countdown');
+  const listHeading = document.getElementById('flash-offer-list-heading');
+  const listCount = document.getElementById('flash-offer-list-count');
+  const now = Date.now();
+  const scheduledOffers = products.filter((product) => {
+    const startsAt = getTimestamp(product.flashOfferScheduledStart);
+    const endsAt = getTimestamp(product.flashOfferEndsAt);
+    return startsAt !== null && startsAt > now && endsAt !== null && endsAt > startsAt;
+  });
+
+  feature.hidden = false;
+  listHeading.hidden = activeOffers.length === 0;
+  listCount.textContent = formatOfferCount(activeOffers.length, 'produto ativo', 'produtos ativos');
+
+  if (activeOffers.length) {
+    const scheduledCount = scheduledOffers.length;
+    summary.textContent = scheduledCount
+      ? 'Aproveite os preços especiais ativos agora. Uma nova oferta também pode começar durante esta campanha.'
+      : 'Aproveite os preços especiais ativos agora, antes que o prazo termine.';
+    activeCount.textContent = `${formatOfferCount(activeOffers.length, 'oferta ativa', 'ofertas ativas')} agora`;
+  } else if (scheduledOffers.length) {
+    summary.textContent = 'Nenhuma oferta está ativa neste momento. A próxima campanha começa em breve.';
+    activeCount.textContent = formatOfferCount(scheduledOffers.length, 'oferta programada', 'ofertas programadas');
+  } else {
+    summary.textContent = 'As ofertas especiais aparecem aqui quando estiverem ativas. Volte em breve para conferir as novidades.';
+    activeCount.textContent = 'Novas ofertas em breve';
+  }
+
+  const activeEnd = activeOffers.reduce((next, product) => {
+    const endsAt = getTimestamp(product.flashOfferEndsAt);
+    return endsAt !== null && endsAt > now ? Math.min(next, endsAt) : next;
+  }, Infinity);
+  const scheduledStart = scheduledOffers.reduce((next, product) => {
+    const startsAt = getTimestamp(product.flashOfferScheduledStart);
+    return startsAt !== null ? Math.min(next, startsAt) : next;
+  }, Infinity);
+  const nextOfferStartsFirst = scheduledStart < activeEnd;
+  const deadline = Math.min(activeEnd, scheduledStart);
+
+  if (!Number.isFinite(deadline)) {
+    countdownCard.hidden = true;
+    return { scheduledOffers };
+  }
+
+  countdownCard.hidden = false;
+  countdownLabel.textContent = activeOffers.length && !nextOfferStartsFirst
+    ? (activeOffers.length === 1 ? 'Esta oferta termina em' : 'A próxima oferta termina em')
+    : 'A próxima oferta começa em';
+  countdown.setAttribute('aria-label', countdownLabel.textContent);
+
+  const updateCountdown = () => {
+    const remainingSeconds = Math.max(0, Math.floor((deadline - Date.now()) / 1000));
+    const units = {
+      days: Math.floor(remainingSeconds / 86400),
+      hours: Math.floor((remainingSeconds % 86400) / 3600),
+      minutes: Math.floor((remainingSeconds % 3600) / 60),
+      seconds: remainingSeconds % 60,
+    };
+    Object.entries(units).forEach(([unit, value]) => {
+      countdown.querySelector(`[data-flash-${unit}]`).textContent = String(value).padStart(2, '0');
+    });
+
+    if (remainingSeconds === 0) {
+      window.clearInterval(countdownTimer);
+      summary.textContent = 'Atualizando as ofertas...';
+      window.setTimeout(() => window.location.reload(), 800);
+    }
+  };
+
+  countdownTimer = window.setInterval(updateCountdown, 1000);
+  updateCountdown();
+  return { scheduledOffers };
+}
+
+let countdownTimer = null;
+
 async function loadCategory() {
   const category = new URLSearchParams(location.search).get('categoria') || 'hortifruti';
   const title = categoryLabels[category] || 'Categoria';
@@ -69,7 +160,10 @@ async function loadCategory() {
   const filteredProducts = category === 'ofertas'
     ? products.filter((product) => produtoTemSeloDeVitrine(product, 'Oferta'))
     : category === 'ofertas-relampago'
-    ? products.filter((product) => product.flashOfferActive === true)
+    ? products.filter((product) => (
+      product.flashOfferActive === true
+      && getTimestamp(product.flashOfferEndsAt) > Date.now()
+    )).sort((first, second) => getTimestamp(first.flashOfferEndsAt) - getTimestamp(second.flashOfferEndsAt))
     : products.filter((product) => product.categories?.some((item) => categoryKey(item) === category)
       || categoryKey(product.department || '') === category);
 
@@ -89,21 +183,18 @@ async function loadCategory() {
   });
 
   const emptyState = document.getElementById('category-empty');
+  const emptyMessage = document.getElementById('category-empty-message');
+  const emptyLink = document.getElementById('category-empty-link');
   emptyState.hidden = filteredProducts.length > 0;
   if (category === 'ofertas-relampago') {
-    emptyState.textContent = 'Nenhuma oferta relâmpago ativa agora. Volte em breve para conferir as próximas ofertas.';
-  }
-  if (category === 'ofertas-relampago') {
-    const nextTransition = products.reduce((next, product) => {
-      const transition = product.flashOfferActive
-        ? Date.parse(product.flashOfferEndsAt)
-        : Date.parse(product.flashOfferScheduledStart);
-      return Number.isFinite(transition) && transition > Date.now() ? Math.min(next, transition) : next;
-    }, Infinity);
-    if (Number.isFinite(nextTransition)) {
-      const delay = Math.min(Math.max(nextTransition - Date.now() + 1000, 1000), 2_147_000_000);
-      window.setTimeout(() => window.location.reload(), delay);
-    }
+    const { scheduledOffers } = renderFlashOfferExperience(products, filteredProducts);
+    emptyMessage.textContent = scheduledOffers.length
+      ? 'Nenhuma oferta ativa agora. Confira a contagem acima para saber quando a próxima começa.'
+      : 'Nenhuma oferta relâmpago ativa agora. Volte em breve para conferir as próximas ofertas.';
+    emptyLink.hidden = false;
+  } else {
+    emptyMessage.textContent = 'Nenhum produto disponível nesta categoria.';
+    emptyLink.hidden = true;
   }
   adicionarCategoriasProdutos();
   adicionarBotoesFavorito();
@@ -114,4 +205,6 @@ async function loadCategory() {
 loadCategory().catch((error) => {
   console.error('Não foi possível carregar a categoria da loja:', error);
   document.getElementById('category-empty').hidden = false;
+  document.getElementById('category-empty-message').textContent = 'Não foi possível carregar os produtos. Verifique sua conexão e tente atualizar a página.';
+  document.getElementById('category-empty-link').hidden = true;
 });

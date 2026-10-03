@@ -380,9 +380,16 @@ async function carregarEnderecosDaApi() {
       const option = document.createElement('option');
       const streetAndNumber = [address.street, address.number].filter(Boolean).join(', ');
       const location = [address.neighborhood, address.city, address.state, address.country].filter(Boolean).join(', ');
+      const title = String(address.title || '').trim();
+      const shortAddress = [title, streetAndNumber || location].filter(Boolean).join(' · ');
+      const fullAddress = [title, streetAndNumber, location].filter(Boolean).join(' · ');
       option.value = String(address.id);
-      option.textContent = `${address.title} · ${[streetAndNumber, location].filter(Boolean).join(' · ')}`;
-      option.dataset.address = [address.title, streetAndNumber, location].filter(Boolean).join(' | ');
+      option.textContent = shortAddress || 'Endereço salvo';
+      option.dataset.address = fullAddress || option.textContent;
+      option.dataset.location = [
+        address.neighborhood,
+        [address.city, address.state].filter(Boolean).join('/'),
+      ].filter(Boolean).join(' · ') || address.country || '';
       headerSelect.appendChild(option);
     });
     const savedAddressId = localStorage.getItem(chaveEnderecoEntregaDashboard())
@@ -405,6 +412,8 @@ async function carregarEnderecosDaApi() {
   } catch (error) {
     erroEnderecosDaApi = error.message || 'Falha ao carregar endereços.';
     console.warn('Endereços cadastrados indisponíveis:', error.message);
+    const locationDetails = document.getElementById('location-address-details');
+    if (locationDetails) locationDetails.textContent = 'Não foi possível carregar seus endereços. Tente recarregar a página.';
     atualizarOrientacaoCheckout();
   }
 }
@@ -413,8 +422,22 @@ function updateAddressSummaryFromSelection() {
   const headerSelect = document.getElementById('store-address-select');
   const selected = headerSelect?.selectedOptions[0];
   const locationSummary = document.getElementById('location-summary');
+  const locationDetails = document.getElementById('location-address-details');
+  const selectedAddress = selected?.value
+    ? enderecosDaLoja.find((address) => String(address.id) === selected.value)
+    : null;
   if (locationSummary) {
-    locationSummary.setAttribute('aria-label', selected?.value ? selected.textContent.trim() : 'Selecione seu endereço');
+    locationSummary.setAttribute(
+      'aria-label',
+      selectedAddress ? `Endereço de entrega: ${selected.dataset.address || selected.textContent.trim()}` : 'Nenhum endereço de entrega selecionado',
+    );
+  }
+  if (locationDetails) {
+    locationDetails.textContent = selectedAddress
+      ? selected.dataset.location || 'Endereço selecionado para entrega.'
+      : enderecosDaLoja.length
+        ? 'Selecione onde deseja receber seu pedido.'
+        : 'Adicione um endereço para consultar a entrega.';
   }
   atualizarOrientacaoCheckout();
 }
@@ -1165,7 +1188,8 @@ function inicializarCarrinho() {
 
       const selectedAddressId = storeAddressSelect?.value || '';
       const selectedAddress = enderecosDaLoja.find((address) => String(address.id) === selectedAddressId);
-      const selectedAddressText = storeAddressSelect?.selectedOptions[0]?.textContent.trim() || '';
+      const selectedOption = storeAddressSelect?.selectedOptions[0];
+      const selectedAddressText = selectedOption?.dataset.address || selectedOption?.textContent.trim() || '';
       if (!selectedAddress || !selectedAddressText) {
         if (feedback) {
           feedback.textContent = enderecosDaLoja.length

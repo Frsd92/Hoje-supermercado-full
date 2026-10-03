@@ -143,11 +143,21 @@
   <div id="search-results" class="search-results"></div>
     </div>
 
-    <div class="location" id="location-summary" data-hj-suppress>
-      <i data-lucide="map-pin"></i>
-      <select id="store-address-select" aria-label="Selecionar endereço de entrega">
-        <option value="">Selecione seu endereço</option>
-      </select>
+    <div class="location" id="location-summary" role="group" aria-label="Endereço de entrega" data-hj-suppress>
+      <span class="location-icon" aria-hidden="true"><i data-lucide="map-pin"></i></span>
+      <div class="location-copy">
+        <div class="location-heading">
+          <label class="location-label" for="store-address-select">Endereço de entrega</label>
+          <a class="location-manage-link" href="/dashboard/addresses" aria-label="Gerenciar endereços salvos">Gerenciar</a>
+        </div>
+        <div class="location-select-wrap">
+          <select id="store-address-select">
+            <option value="" selected>Selecione um endereço</option>
+          </select>
+          <i class="location-chevron" data-lucide="chevron-down" aria-hidden="true"></i>
+        </div>
+        <span class="location-description" id="location-address-details" aria-live="polite">Adicione um endereço para consultar a entrega.</span>
+      </div>
     </div>
   </div>
 

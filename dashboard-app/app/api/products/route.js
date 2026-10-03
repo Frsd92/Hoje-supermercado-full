@@ -24,7 +24,6 @@ import { getProductOrganizationError } from '@/features/erp/product-organization
 import { prisma } from '@/lib/prisma';
 
 const productsFile = path.join(process.cwd(), 'data', 'products.json');
-const ordersFile = path.join(process.cwd(), 'data', 'orders.json');
 const allowedOrigins = new Set(['http://localhost:8010', 'http://localhost:5500', 'http://127.0.0.1:5500', 'null']);
 const privateProductFields = new Set([
   'cost',
@@ -295,18 +294,25 @@ async function deleteProduct(id, actor) {
 }
 
 async function readSales() {
-  try {
-    const orders = JSON.parse(await fs.readFile(ordersFile, 'utf8'));
-    return (Array.isArray(orders) ? orders : []).reduce((sales, order) => {
-      (order.items || []).forEach((item) => {
-        const key = String(item.productId || item.name || '').trim().toLowerCase();
-        if (key) sales[key] = (sales[key] || 0) + (Number(item.quantity) || 0);
-      });
-      return sales;
-    }, {});
-  } catch {
-    return {};
-  }
+  const items = await prisma.orderItem.findMany({
+    where: { order: { status: { not: 'Cancelado' } } },
+    select: {
+      name: true,
+      quantity: true,
+      product: { select: { id: true, externalId: true, title: true } },
+    },
+  });
+  return items.reduce((sales, item) => {
+    const quantity = Number(item.quantity) || 0;
+    const keys = new Set([
+      item.product?.id,
+      item.product?.externalId,
+      item.product?.title,
+      item.name,
+    ].map((value) => String(value || '').trim().toLowerCase()).filter(Boolean));
+    keys.forEach((key) => { sales[key] = (sales[key] || 0) + quantity; });
+    return sales;
+  }, {});
 }
 
 function ensurePriceHistory(product) {
