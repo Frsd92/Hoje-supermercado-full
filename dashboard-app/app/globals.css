@@ -5552,13 +5552,28 @@ button.metric-mini:focus-visible {
 .editor-card input, .editor-card textarea, .editor-card select { width: 100%; border: 1px solid #dbe3ea; border-radius: 8px; padding: 10px; color: #101826; background: #fff; outline: none; font: inherit; font-weight: 400; }
 .editor-card input:focus, .editor-card textarea:focus, .editor-card select:focus { border-color: #22c55e; box-shadow: 0 0 0 3px rgba(34,197,94,.1); }
 .editor-hint { margin: -5px 0 10px; color: #64748b; font-size: .72rem; }
-.editor-shelf-life-hint, .editor-expiry-calculation { grid-column: 1 / -1; margin: -6px 0 0; line-height: 1.5; }
-.editor-expiry-mode { grid-column: 1 / -1; min-width: 0; margin: 0; padding: 12px; border: 1px solid #dbe3ea; border-radius: 9px; background: #f8fafc; }
+.editor-expiry-section { display: grid; gap: 14px; margin-top: 18px; padding: 15px; border: 1px solid #e2e8f0; border-radius: 11px; background: #f8fafc; }
+.editor-expiry-heading { display: flex; align-items: flex-start; gap: 10px; color: #15803d; }
+.editor-expiry-heading > svg { flex: 0 0 auto; margin-top: 1px; }
+.editor-expiry-heading h3, .editor-initial-lot h4 { margin: 0; color: #1e293b; font-size: .82rem; font-weight: 800; }
+.editor-expiry-heading p, .editor-initial-lot > div > p { margin: 4px 0 0; color: #64748b; font-size: .7rem; line-height: 1.5; }
+.editor-expiry-default { max-width: 390px; }
+.editor-expiry-default > label { margin-top: 0; }
+.editor-expiry-default > p { margin: 5px 0 0; color: #64748b; font-size: .68rem; line-height: 1.5; }
+.editor-initial-lot { display: grid; gap: 11px; padding-top: 13px; border-top: 1px solid #e2e8f0; }
+.editor-expiry-mode { min-width: 0; margin: 0; padding: 12px; border: 1px solid #dbe3ea; border-radius: 9px; background: #fff; }
 .editor-expiry-mode legend { padding: 0 5px; color: #334155; font-size: .74rem; font-weight: 800; }
 .editor-expiry-mode-options { display: flex; flex-wrap: wrap; gap: 8px; }
 .editor-expiry-mode-options label { display: inline-flex; flex-direction: row; align-items: center; gap: 8px; min-height: 38px; margin: 0; padding: 7px 10px; border: 1px solid #dbe3ea; border-radius: 8px; background: #fff; color: #475569; cursor: pointer; font-size: .71rem; font-weight: 700; }
 .editor-expiry-mode-options input { width: 16px; height: 16px; margin: 0; accent-color: #15803d; }
-.editor-expiry-mode > p { margin: 9px 0 0; color: #64748b; font-size: .69rem; line-height: 1.5; }
+.editor-expiry-calculation { margin: 0; color: #166534; font-size: .7rem; font-weight: 650; line-height: 1.5; }
+.editor-expiry-manage-card { display: flex; align-items: center; justify-content: space-between; gap: 14px; padding: 13px; border: 1px solid #dbe3ea; border-radius: 9px; background: #fff; }
+.editor-expiry-manage-card > div { min-width: 0; }
+.editor-expiry-manage-card strong { color: #334155; font-size: .75rem; }
+.editor-expiry-manage-card p { margin: 4px 0 0; color: #64748b; font-size: .69rem; line-height: 1.5; }
+.editor-expiry-manage-link { display: inline-flex; flex: 0 0 auto; align-items: center; justify-content: center; gap: 7px; min-height: 40px; padding: 8px 11px; border: 1px solid #15803d; border-radius: 8px; background: #15803d; color: #fff; font-size: .7rem; font-weight: 750; text-decoration: none; transition: background-color .15s ease, border-color .15s ease; }
+.editor-expiry-manage-link:hover { border-color: #166534; background: #166534; }
+.editor-expiry-manage-link:focus-visible { outline: 3px solid rgb(34 197 94 / 35%); outline-offset: 2px; }
 .category-checklist { display: grid; gap: 7px; max-height: 310px; overflow-y: auto; }
 .category-checklist label { display: flex; flex-direction: row; align-items: center; gap: 7px; margin: 0; padding: 7px 8px; border-radius: 7px; background: #f8fafc; color: #334155; font-size: .75rem; font-weight: 600; }
 .category-checklist input { width: auto; accent-color: #16a34a; }
@@ -6162,6 +6177,9 @@ button.metric-mini:focus-visible {
   .product-editor-actions { width: 100%; justify-content: flex-end; }
   .editor-form-grid.two, .editor-form-grid.three { grid-template-columns: 1fr; }
   .editor-expiry-mode-options { flex-direction: column; }
+  .editor-expiry-section { padding: 12px; }
+  .editor-expiry-manage-card { align-items: stretch; flex-direction: column; }
+  .editor-expiry-manage-link { width: 100%; }
   .erp-customer-metrics { grid-template-columns: 1fr 1fr; }
   .erp-customer-header, .erp-customer-toolbar { align-items: stretch; flex-direction: column; }
   .erp-customer-search { max-width: none; }

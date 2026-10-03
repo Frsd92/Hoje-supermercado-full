@@ -1,7 +1,7 @@
 'use client';
 
 import Link from 'next/link';
-import { ArrowLeft, Check, ImagePlus, Plus, Save, Trash2 } from 'lucide-react';
+import { ArrowLeft, ArrowRight, CalendarClock, Check, ImagePlus, Plus, Save, Trash2 } from 'lucide-react';
 import { useEffect, useState } from 'react';
 import { formatAuditValue } from '../api/product-audit.js';
 import { expiryDateFromShelfLife } from '../api/inventory-lots.js';
@@ -17,6 +17,9 @@ const isKilogramSaleUnit = (value) => /^(kg|quilo|quilograma)s?$/i.test(String(v
 const auditFieldLabels = { title: 'Nome', description: 'Descrição', price: 'Preço', cost: 'Custo', discount: 'Desconto', quantity: 'Estoque', sku: 'SKU', barcode: 'Código de barras', barcodes: 'Códigos de barras', brand: 'Marca', manufacturer: 'Fabricante', supplier: 'Fornecedor', suppliers: 'Fornecedores', subcategory: 'Categoria', categories: 'Categorias', image: 'Imagem', status: 'Status', expiry: 'Validade', shelfLifeDays: 'Prazo padrão de validade (dias)', saleUnit: 'Unidade de venda', priceHistory: 'Histórico de preços', createdAt: 'Criado em', createdBy: 'Criado por', updatedAt: 'Atualizado em', updatedBy: 'Atualizado por' };
 const auditActionLabels = { CREATE: 'Produto cadastrado', UPDATE: 'Produto atualizado', DELETE: 'Produto excluído', LEGACY_BASELINE: 'Snapshot inicial legado', LEGACY_PRICE_HISTORY: 'Registro legado de preço' };
 const formatAuditDate = (value) => new Intl.DateTimeFormat('pt-BR', { dateStyle: 'medium', timeStyle: 'medium' }).format(new Date(value));
+const formatProductDate = (value) => value
+  ? new Intl.DateTimeFormat('pt-BR', { day: '2-digit', month: '2-digit', year: 'numeric', timeZone: 'UTC' }).format(new Date(`${value}T00:00:00.000Z`))
+  : '';
 
 export default function ERPProductsPage() {
   const [editId, setEditId] = useState('');
@@ -220,30 +223,62 @@ export default function ERPProductsPage() {
           {field('Localização padrão', 'location')}
           {field('Número de série', 'serialNumber')}
           {field('Validade mínima para venda', 'minimumShelfLife')}
-          {field('Prazo padrão de validade (dias)', 'shelfLifeDays', 'number', { min: '1', max: '36500', step: '1', placeholder: 'Ex.: 90', required: !isEditing && product.expiryMode === 'days' && Number(product.quantity) > 0 })}
-          <p className="editor-hint editor-shelf-life-hint">Usado como sugestão nos próximos lotes. O lote inicial pode calcular a validade com esse prazo ou receber uma data manual.</p>
-          {isEditing
-            ? <div className="editor-hint"><strong>Estoque por lote</strong><p>O saldo acima soma os lotes cadastrados. Quantidades e validades são alteradas individualmente no módulo Validade.</p><Link className="editor-link" href={`/erp/validade?productId=${encodeURIComponent(editId)}`}>Gerenciar lotes e validades</Link></div>
-            : <>
-              {field('Lote inicial', 'lot', 'text', { required: product.controlsLot && Number(product.quantity) > 0 })}
-              {field('Fabricação do lote inicial', 'manufactureDate', 'date', { required: product.expiryMode === 'days' && Number(product.quantity) > 0 })}
-              {field('Validade do lote inicial', 'expiry', 'date', {
-                required: product.expiryMode === 'days'
-                  ? Number(product.quantity) > 0
-                  : (product.controlsExpiry || product.perishable) && Number(product.quantity) > 0,
-                disabled: product.expiryMode === 'days',
-              })}
-              {product.expiryMode === 'days' && <p className="editor-hint editor-expiry-calculation">Validade calculada automaticamente: {calculatedInitialExpiry || 'informe a fabricação e os dias para calcular'}.</p>}
-              <fieldset className="editor-expiry-mode">
-                <legend>Validade do lote inicial</legend>
-                <div className="editor-expiry-mode-options">
-                  <label><input type="radio" name="product-expiry-mode" value="days" checked={product.expiryMode === 'days'} onChange={() => update('expiryMode', 'days')} /> Calcular pela fabricação e dias</label>
-                  <label><input type="radio" name="product-expiry-mode" value="date" checked={product.expiryMode !== 'days'} onChange={() => update('expiryMode', 'date')} /> Informar data manualmente</label>
-                </div>
-                <p>Use o cálculo quando o rótulo indicar fabricação e prazo em dias; selecione a data manual quando o rótulo já informar a validade.</p>
-              </fieldset>
-            </>}
         </div>
+        <section className="editor-expiry-section" aria-labelledby="product-expiry-heading">
+          <header className="editor-expiry-heading">
+            <CalendarClock size={19} aria-hidden="true" />
+            <div>
+              <h3 id="product-expiry-heading">Validade e fabricação</h3>
+              <p>Defina o prazo padrão e informe como controlar a validade de cada lote.</p>
+            </div>
+          </header>
+          <div className="editor-expiry-default">
+            {field('Prazo padrão de validade (dias)', 'shelfLifeDays', 'number', { min: '1', max: '36500', step: '1', placeholder: 'Ex.: 90', required: !isEditing && product.expiryMode === 'days' && Number(product.quantity) > 0 })}
+            <p>{isEditing
+              ? 'Alterar o prazo padrão não modifica os lotes já registrados; ele fica como sugestão para novas entradas.'
+              : 'Este prazo pode calcular a validade do lote inicial e fica como sugestão para os próximos recebimentos.'}</p>
+          </div>
+          {isEditing
+            ? <div className="editor-expiry-manage-card">
+              <div>
+                <strong>Datas dos lotes existentes</strong>
+                <p>Cada lote tem sua própria fabricação e validade. Altere-as sem afetar os demais lotes.</p>
+              </div>
+              <Link className="editor-expiry-manage-link" href={`/erp/validade?productId=${encodeURIComponent(editId)}`}>
+                <CalendarClock size={16} aria-hidden="true" />
+                <span>Editar datas dos lotes</span>
+                <ArrowRight size={15} aria-hidden="true" />
+              </Link>
+            </div>
+            : <section className="editor-initial-lot" aria-labelledby="initial-lot-expiry-heading">
+              <div>
+                <h4 id="initial-lot-expiry-heading">Validade do lote inicial</h4>
+                <p>Escolha a opção indicada na embalagem. A validade calculada aparecerá no campo abaixo.</p>
+              </div>
+              <fieldset className="editor-expiry-mode">
+                <legend>Como deseja informar a validade?</legend>
+                <div className="editor-expiry-mode-options">
+                  <label><input type="radio" name="product-expiry-mode" value="days" checked={product.expiryMode === 'days'} onChange={() => update('expiryMode', 'days')} /> Calcular pela fabricação e pelo prazo em dias</label>
+                  <label><input type="radio" name="product-expiry-mode" value="date" checked={product.expiryMode !== 'days'} onChange={() => update('expiryMode', 'date')} /> Informar a data do rótulo</label>
+                </div>
+              </fieldset>
+              <div className="editor-form-grid three">
+                {field('Código do lote inicial', 'lot', 'text', { required: product.controlsLot && Number(product.quantity) > 0, placeholder: 'Opcional' })}
+                {field(product.expiryMode === 'days' ? 'Data de fabricação' : 'Data de fabricação (opcional)', 'manufactureDate', 'date', { required: product.expiryMode === 'days' && Number(product.quantity) > 0 })}
+                {field(product.expiryMode === 'days' ? 'Validade calculada' : 'Data de validade do rótulo', 'expiry', 'date', {
+                  required: product.expiryMode === 'days'
+                    ? Number(product.quantity) > 0
+                    : (product.controlsExpiry || product.perishable) && Number(product.quantity) > 0,
+                  disabled: product.expiryMode === 'days',
+                })}
+              </div>
+              {product.expiryMode === 'days' && <p className="editor-expiry-calculation" role="status">
+                {calculatedInitialExpiry
+                  ? `Validade calculada: ${formatProductDate(calculatedInitialExpiry)}.`
+                  : 'Informe a fabricação e o prazo padrão para calcular a validade.'}
+              </p>}
+            </section>}
+        </section>
         <div className="editor-toggle-grid"><label><input type="checkbox" checked={product.controlsLot} onChange={(event) => update('controlsLot', event.target.checked)} /> Controla lote</label><label><input type="checkbox" checked={product.controlsExpiry} onChange={(event) => update('controlsExpiry', event.target.checked)} /> Controla validade</label><label><input type="checkbox" checked={product.perishable} onChange={(event) => update('perishable', event.target.checked)} /> Perecível</label></div>
       </section></>}
       {activeTab === 'Logística' && <section className="editor-card"><h2>Logística e conservação</h2><div className="editor-form-grid three">{field('Peso', 'weight')}{field('Altura', 'height')}{field('Largura', 'width')}{field('Comprimento', 'length')}{field('Peso da embalagem', 'packageWeight')}{field('Tipo de embalagem', 'packageType')}{field('Unidade de transporte', 'transportUnit')}<label>Forma de venda<select value={product.saleUnit} onChange={(event) => update('saleUnit', event.target.value)}><option value="Unidade">Unidade</option><option value="Quilograma">Quilograma (preço por kg)</option></select></label></div>{product.saleUnit === 'Quilograma' && <p className="editor-hint">Na loja, o primeiro clique adiciona 100 g. Cada + ou − altera o peso em 100 g; informe preço e estoque por kg.</p>}<div className="editor-toggle-grid"><label><input type="checkbox" checked={product.fragile} onChange={(event) => update('fragile', event.target.checked)} /> Frágil</label><label><input type="checkbox" checked={product.refrigerated} onChange={(event) => update('refrigerated', event.target.checked)} /> Refrigerado</label><label><input type="checkbox" checked={product.frozen} onChange={(event) => update('frozen', event.target.checked)} /> Congelado</label><label><input type="checkbox" checked={product.roomTemperature} onChange={(event) => update('roomTemperature', event.target.checked)} /> Temperatura ambiente</label><label><input type="checkbox" checked={product.specialCare} onChange={(event) => update('specialCare', event.target.checked)} /> Cuidado especial</label></div></section>}
