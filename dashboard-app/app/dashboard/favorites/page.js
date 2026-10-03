@@ -296,7 +296,7 @@ export default function FavoritesPage() {
               onClick={() => handleAddToCart(item)}
             >
               <ShoppingCart size={16} aria-hidden="true" />
-              Adicionar ao carrinho
+              Adicionar
             </button>
           )}
         </div>
