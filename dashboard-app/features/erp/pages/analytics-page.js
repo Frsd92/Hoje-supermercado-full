@@ -1,8 +1,10 @@
 'use client';
 
-import { Activity, BarChart3, CircleDollarSign, Clock3, FileText, MapPin, PackageCheck, ShoppingBag, Tag, Users, Zap } from 'lucide-react';
+import Link from 'next/link';
+import { Activity, BarChart3, CircleDollarSign, Clock3, FileText, MapPin, MessageSquareText, PackageCheck, ShoppingBag, Tag, TicketPercent, Trash2, Users, Zap } from 'lucide-react';
 import { useEffect, useRef, useState } from 'react';
 import { formatCartQuantity } from '@/app/dashboard/cart-utils';
+import { storeErpRecipientHandoff } from '@/features/erp/customer-recipient-handoff';
 
 const money = (value) => `R$ ${Number(value || 0).toFixed(2).replace('.', ',')}`;
 const percent = (value) => `${Number(value || 0).toFixed(1).replace('.', ',')}%`;
@@ -27,6 +29,67 @@ function PeriodCard({ label, summary, comparison }) {
 
 function GeographyRanking({ title, items }) {
   return <section className="analytics-panel"><div className="erp-panel-title"><MapPin size={17} /><div><h3>{title}</h3><p>Regiões com mais pedidos, em todo o histórico.</p></div></div>{items.length ? <div className="erp-table-scroll"><table className="erp-table"><thead><tr><th>Localidade</th><th>Pedidos</th><th>Faturamento</th></tr></thead><tbody>{items.map((item) => <tr key={item.label}><td><strong>{item.label}</strong></td><td>{item.orders}</td><td><strong>{money(item.revenue)}</strong></td></tr>)}</tbody></table></div> : <div className="erp-empty-data">Ainda não há pedidos com essa localização identificada.</div>}</section>;
+}
+
+function AbandonedCartActions({ cart, onCartCleared }) {
+  const [confirming, setConfirming] = useState(false);
+  const [clearing, setClearing] = useState(false);
+  const [actionError, setActionError] = useState('');
+
+  const prepareRecipientHandoff = (event, destination) => {
+    setActionError('');
+    try {
+      storeErpRecipientHandoff(cart.email, destination);
+    } catch (error) {
+      event.preventDefault();
+      console.error('Não foi possível preparar o destinatário do carrinho abandonado:', error);
+      setActionError('Não foi possível preparar o destinatário. Tente novamente.');
+    }
+  };
+
+  const clearCart = async () => {
+    setClearing(true);
+    setActionError('');
+    try {
+      const response = await fetch('/api/erp/abandoned-carts', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ email: cart.email, updatedAt: cart.updatedAt }),
+      });
+      const data = await response.json();
+      if (!response.ok) throw new Error(data.error || 'Não foi possível zerar o carrinho.');
+      setConfirming(false);
+      onCartCleared(cart.name);
+    } catch (error) {
+      setActionError(error.message || 'Não foi possível zerar o carrinho.');
+    } finally {
+      setClearing(false);
+    }
+  };
+
+  if (cart.type !== 'customer' || !cart.email) {
+    return <span className="analytics-cart-guest-note">Visitante sem cadastro: não é possível contatar ou alterar o carrinho remotamente.</span>;
+  }
+
+  return <div className="analytics-cart-actions">
+    <div className="analytics-cart-action-list">
+      <Link className="analytics-cart-action" href="/erp/communications" onClick={(event) => prepareRecipientHandoff(event, 'communications')} aria-label={`Criar comunicado para ${cart.name}`}>
+        <MessageSquareText size={14} />Comunicado
+      </Link>
+      <Link className="analytics-cart-action" href="/erp/promotions" onClick={(event) => prepareRecipientHandoff(event, 'promotions')} aria-label={`Criar cupom para ${cart.name}`}>
+        <TicketPercent size={14} />Cupom
+      </Link>
+      {!confirming && <button className="analytics-cart-action danger" type="button" onClick={() => { setActionError(''); setConfirming(true); }} aria-label={`Zerar carrinho de ${cart.name}`}>
+        <Trash2 size={14} />Zerar carrinho
+      </button>}
+    </div>
+    {confirming && <div className="analytics-cart-confirmation" role="group" aria-label={`Confirmar limpeza do carrinho de ${cart.name}`}>
+      <span>Remover os itens salvos deste cliente?</span>
+      <button className="analytics-cart-action danger" type="button" onClick={clearCart} disabled={clearing}>{clearing ? 'Zerando...' : 'Confirmar'}</button>
+      <button className="analytics-cart-action" type="button" onClick={() => setConfirming(false)} disabled={clearing}>Cancelar</button>
+    </div>}
+    {actionError && <small className="analytics-cart-action-error" role="alert">{actionError}</small>}
+  </div>;
 }
 
 function DemographicInsights({ insights }) {
@@ -240,6 +303,7 @@ export default function AnalyticsPage() {
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState('');
   const [reloadToken, setReloadToken] = useState(0);
+  const [cartActionFeedback, setCartActionFeedback] = useState('');
   const tabRefs = useRef([]);
 
   useEffect(() => {
@@ -344,16 +408,21 @@ export default function AnalyticsPage() {
           <div className="erp-customer-metric"><Users size={17} /><strong>{abandonedCarts.customers.length}</strong><span>Clientes identificados</span><small>Com carrinho parado</small></div>
           <div className="erp-customer-metric"><Users size={17} /><strong>{abandonedCarts.guestCarts}</strong><span>Visitantes sem cadastro</span><small>Com carrinho parado</small></div>
         </div>
+        {cartActionFeedback && <p className="notification-feedback success" role="status">{cartActionFeedback}</p>}
         <div className="analytics-grid">
           <section className="analytics-panel">
             <h3>Clientes e visitantes com carrinho parado</h3>
             {abandonedCarts.carts.length
               ? <div className="erp-table-scroll"><table className="erp-table">
-                <thead><tr><th>Identificação</th><th>Última atividade</th><th>Produtos e quantidades</th></tr></thead>
+                <thead><tr><th>Identificação</th><th>Última atividade</th><th>Produtos e quantidades</th><th>Ações</th></tr></thead>
                 <tbody>{abandonedCarts.carts.map((cart, index) => <tr key={cart.email || `visitante-${index}`}>
                   <td><strong>{cart.name}</strong><small>{cart.email || 'Sem conta identificada'}</small></td>
                   <td>{cart.updatedAt ? new Date(cart.updatedAt).toLocaleString('pt-BR') : 'Data não registrada'}</td>
                   <td>{cart.items.map((item) => `${item.name} (×${formatCartQuantity(item)})`).join(', ')}</td>
+                  <td><AbandonedCartActions cart={cart} onCartCleared={(name) => {
+                    setCartActionFeedback(`O carrinho de ${name} foi zerado.`);
+                    setReloadToken((current) => current + 1);
+                  }} /></td>
                 </tr>)}</tbody>
               </table></div>
               : <div className="erp-empty-data">Nenhum carrinho com mais de {abandonedCarts.idleThresholdHours} horas sem atividade.</div>}

@@ -2,6 +2,7 @@
 
 import { Bell, CheckSquare, Search, Send } from 'lucide-react';
 import { useEffect, useMemo, useState } from 'react';
+import { consumeErpRecipientHandoff } from '@/features/erp/customer-recipient-handoff';
 
 export default function CommunicationsPage() {
   const [customers, setCustomers] = useState([]);
@@ -18,11 +19,36 @@ export default function CommunicationsPage() {
 
   useEffect(() => {
     let active = true;
+    let recipientHandoffEmail = null;
+    try {
+      recipientHandoffEmail = consumeErpRecipientHandoff('communications');
+    } catch (error) {
+      console.error('Não foi possível recuperar o destinatário do comunicado:', error);
+      setFeedback('Não foi possível preparar o destinatário. Selecione-o novamente antes de enviar.');
+      setFeedbackError(true);
+    }
     fetch('/api/erp/customers')
       .then(async (response) => {
         const data = await response.json();
         if (!response.ok) throw new Error(data.error || 'Não foi possível carregar os clientes.');
-        if (active) setCustomers(data.customers || []);
+        if (active) {
+          const nextCustomers = Array.isArray(data.customers) ? data.customers : [];
+          setCustomers(nextCustomers);
+          if (recipientHandoffEmail) {
+            const recipient = nextCustomers.find((customer) => customer.email.toLowerCase() === recipientHandoffEmail);
+            if (recipient) {
+              setSelectedEmails([recipient.email.toLowerCase()]);
+              setAudience('selected');
+              setTitle((current) => current || 'Sentimos sua falta!');
+              setMessage((current) => current || 'Percebemos que você deixou produtos no carrinho. Volte para finalizar sua compra quando quiser.');
+              setFeedback(`${recipient.name} está selecionado para receber o comunicado.`);
+              setFeedbackError(false);
+            } else {
+              setFeedback('O cliente do carrinho não está mais disponível para receber comunicados.');
+              setFeedbackError(true);
+            }
+          }
+        }
       })
       .catch((error) => {
         if (active) {

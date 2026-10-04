@@ -2,6 +2,7 @@
 
 import { Bell, CheckSquare, Search, Send, TicketPercent } from 'lucide-react';
 import { useEffect, useMemo, useState } from 'react';
+import { consumeErpRecipientHandoff } from '@/features/erp/customer-recipient-handoff';
 
 export default function PromotionsPage() {
   const [customers, setCustomers] = useState([]);
@@ -19,14 +20,35 @@ export default function PromotionsPage() {
 
   useEffect(() => {
     let active = true;
+    let recipientHandoffEmail = null;
+    try {
+      recipientHandoffEmail = consumeErpRecipientHandoff('promotions');
+    } catch (error) {
+      console.error('Não foi possível recuperar o destinatário do cupom:', error);
+      setFeedback('Não foi possível preparar o destinatário. Selecione-o novamente antes de enviar.');
+      setFeedbackError(true);
+    }
     Promise.all([fetch('/api/erp/customers'), fetch('/api/erp/coupons')])
       .then(async ([customerResponse, campaignResponse]) => {
         const [customerData, campaignData] = await Promise.all([customerResponse.json(), campaignResponse.json()]);
         if (!customerResponse.ok) throw new Error(customerData.error || 'Não foi possível carregar os clientes.');
         if (!campaignResponse.ok) throw new Error(campaignData.error || 'Não foi possível carregar os cupons enviados.');
         if (active) {
-          setCustomers(customerData.customers || []);
+          const nextCustomers = Array.isArray(customerData.customers) ? customerData.customers : [];
+          setCustomers(nextCustomers);
           setCampaigns(campaignData.campaigns || []);
+          if (recipientHandoffEmail) {
+            const recipient = nextCustomers.find((customer) => customer.email.toLowerCase() === recipientHandoffEmail);
+            if (recipient) {
+              setSelectedEmails([recipient.email.toLowerCase()]);
+              setMessage((current) => current || 'Aproveite para voltar e concluir sua compra.');
+              setFeedback(`${recipient.name} está selecionado para receber o cupom. Revise o desconto e a validade antes de enviar.`);
+              setFeedbackError(false);
+            } else {
+              setFeedback('O cliente do carrinho não está mais disponível para receber cupons.');
+              setFeedbackError(true);
+            }
+          }
         }
       })
       .catch((error) => { if (active) { setFeedback(error.message); setFeedbackError(true); } })
