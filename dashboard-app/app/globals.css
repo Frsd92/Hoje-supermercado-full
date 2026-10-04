@@ -5914,6 +5914,7 @@ button.metric-mini:focus-visible {
 .erp-customer-header h1 { margin: 7px 0 4px; }
 .erp-customer-header p { margin: 0; color: #64748b; font-size: .82rem; }
 .erp-customer-metrics { display: grid; grid-template-columns: repeat(4, 1fr); gap: 14px; margin-bottom: 16px; }
+.analytics-cart-metrics { grid-template-columns: repeat(3, minmax(0, 1fr)); }
 .erp-customer-metric { display: grid; grid-template-columns: 30px 1fr; column-gap: 9px; padding: 14px; border: 1px solid #e2e8f0; border-radius: 12px; background: #fff; }
 .erp-customer-metric svg { grid-row: span 2; margin-top: 3px; color: #15803d; }
 .erp-customer-metric strong, .erp-customer-metric span { display: block; }

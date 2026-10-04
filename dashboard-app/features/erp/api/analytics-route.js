@@ -5,9 +5,9 @@ import { getDeliveryLocation } from '@/lib/delivery-location';
 import { prisma } from '@/lib/prisma';
 import { buildInvoiceCpfAnalytics } from './invoice-cpf-analytics.js';
 import { summarizeProfitability } from './analytics-metrics.js';
+import { abandonedCartIdleThresholdHours, summarizeAbandonedCarts } from './abandoned-carts.js';
 import { getFlashOfferStatus } from './product-pricing.js';
 
-const staleCartAfterMs = 24 * 60 * 60 * 1000;
 const ageGroups = [
   { label: 'Até 17 anos', min: 0, max: 17 },
   { label: '18–24 anos', min: 18, max: 24 },
@@ -72,14 +72,17 @@ export async function GET(request) {
   const session = await getServerSession(authOptions);
   if (!hasErpAccess(session?.user)) return Response.json({ error: 'Acesso negado.' }, { status: 403 });
 
+  const now = new Date();
+  const cartActivityCutoff = new Date(now.getTime() - abandonedCartIdleThresholdHours * 60 * 60 * 1000);
   let ordersValue;
   let productsValue;
   let customerProfiles;
   let customerCarts;
+  let guestCarts;
   let addressBooks;
   let couponCampaigns;
   try {
-    [ordersValue, productsValue, customerProfiles, customerCarts, addressBooks, couponCampaigns] = await Promise.all([
+    [ordersValue, productsValue, customerProfiles, customerCarts, guestCarts, addressBooks, couponCampaigns] = await Promise.all([
       prisma.order.findMany({
         include: { items: { include: { product: true } } },
         orderBy: { createdAt: 'desc' },
@@ -91,7 +94,12 @@ export async function GET(request) {
         select: { email: true, fullName: true, gender: true, birthDate: true },
       }),
       prisma.customerCart.findMany({
+        where: { updatedAt: { lte: cartActivityCutoff } },
         select: { email: true, items: true, updatedAt: true },
+      }),
+      prisma.guestCart.findMany({
+        where: { updatedAt: { lte: cartActivityCutoff } },
+        select: { items: true, updatedAt: true },
       }),
       prisma.customerAddressBook.findMany({
         select: { email: true, addresses: true },
@@ -105,12 +113,11 @@ export async function GET(request) {
     console.error('Não foi possível carregar as fontes de Analytics do banco de dados:', error);
     return Response.json({ error: 'Não foi possível carregar os indicadores agora. Tente novamente.' }, { status: 503 });
   }
-  if (customerCarts.some((cart) => !Array.isArray(cart.items))) {
+  if ([...customerCarts, ...guestCarts].some((cart) => !Array.isArray(cart.items))) {
     console.error('Um carrinho armazenado no banco possui formato inválido.');
     return Response.json({ error: 'Não foi possível calcular os indicadores de carrinho.' }, { status: 503 });
   }
 
-  const now = new Date();
   const orders = ordersValue
     .filter((order) => order.status !== 'Cancelado')
     .map((order) => ({
@@ -219,36 +226,13 @@ export async function GET(request) {
       }
     }
   });
-  const nowTimestamp = now.getTime();
-  const carts = customerCarts
-    .filter((cart) => cart.email.includes('@') && Array.isArray(cart.items) && cart.items.length > 0)
-    .map(({ email, items, updatedAt }) => {
-      const normalizedEmail = email.trim().toLowerCase();
-      const updatedTimestamp = updatedAt instanceof Date ? updatedAt.getTime() : Date.parse(updatedAt);
-      const stale = Number.isFinite(updatedTimestamp) && nowTimestamp - updatedTimestamp >= staleCartAfterMs;
-      const customerOrdersForEmail = customerOrdersForInsights.get(normalizedEmail) || [];
-      return {
-        email,
-        name: profilesByEmail.get(normalizedEmail)?.fullName || customerOrdersForEmail[0]?.customerName || email,
-        updatedAt: Number.isFinite(updatedTimestamp) ? new Date(updatedTimestamp).toISOString() : null,
-        stale,
-        items: items.map((item) => ({
-          name: String(item.name || 'Produto sem nome'),
-          quantity: item.saleUnit === 'Quilograma'
-            ? Math.max(0.1, Math.round((Number(item.quantity) || 0.1) * 10) / 10)
-            : Math.max(1, Number(item.quantity) || 1),
-          saleUnit: item.saleUnit === 'Quilograma' ? 'Quilograma' : 'Unidade',
-        })),
-      };
-    });
-  const abandonedCarts = carts.filter((cart) => cart.stale);
-  const abandonedCartProducts = new Map();
-  abandonedCarts.forEach((cart) => cart.items.forEach((item) => {
-    const current = abandonedCartProducts.get(item.name) || { label: item.name, carts: 0, quantity: 0, saleUnit: item.saleUnit };
-    current.carts += 1;
-    current.quantity += item.quantity;
-    abandonedCartProducts.set(item.name, current);
-  }));
+  const abandonedCartAnalytics = summarizeAbandonedCarts({
+    customerCarts,
+    guestCarts,
+    profilesByEmail,
+    customerOrdersForInsights,
+    now,
+  });
   const productMap = new Map(products.map((product) => [String(product.title).trim().toLowerCase(), product]));
   const productMapById = new Map(products.map((product) => [product.id, product]));
   const lineItems = orders.flatMap((order) => (order.items || []).map((item) => {
@@ -695,14 +679,7 @@ export async function GET(request) {
       customersWithOrders: customerOrdersForInsights.size,
     },
     addressInsights,
-    abandonedCarts: {
-      available: true,
-      idleThresholdHours: 24,
-      total: abandonedCarts.length,
-      customers: abandonedCarts,
-      cartsWithoutActivityDate: 0,
-      topProducts: [...abandonedCartProducts.values()].sort((first, second) => second.carts - first.carts || second.quantity - first.quantity).slice(0, 10),
-    },
+    abandonedCarts: abandonedCartAnalytics,
     geography,
     invoiceCpf,
     promotions,
