@@ -1,6 +1,6 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
-import { mergeCartItems, normalizeGuestCartId } from './cart-storage.js';
+import { latestCartActivityAt, mergeCartItems, normalizeGuestCartId } from './cart-storage.js';
 
 test('validates guest cart IDs before using them as persistent storage keys', () => {
   assert.equal(normalizeGuestCartId('550e8400-e29b-41d4-a716-446655440000'), '550e8400-e29b-41d4-a716-446655440000');
@@ -45,4 +45,12 @@ test('does not add duplicate products within the same saved cart during normaliz
 
   assert.equal(merged.length, 2);
   assert.equal(merged.find((item) => item.name === 'Maçã').quantity, 2);
+});
+
+test('preserves the most recent real activity time when a guest cart is merged into an account', () => {
+  const customerActivity = new Date('2026-10-03T10:00:00.000Z');
+  const guestActivity = new Date('2026-10-02T10:00:00.000Z');
+
+  assert.equal(latestCartActivityAt(customerActivity, guestActivity).toISOString(), customerActivity.toISOString());
+  assert.equal(latestCartActivityAt(guestActivity, customerActivity).toISOString(), customerActivity.toISOString());
 });

@@ -54,7 +54,12 @@ function AbandonedCartActions({ cart, onCartCleared }) {
       const response = await fetch('/api/erp/abandoned-carts', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ email: cart.email, updatedAt: cart.updatedAt }),
+        body: JSON.stringify({
+          cartType: cart.type,
+          email: cart.email,
+          cartRef: cart.cartRef,
+          updatedAt: cart.updatedAt,
+        }),
       });
       const data = await response.json();
       if (!response.ok) throw new Error(data.error || 'Não foi possível zerar o carrinho.');
@@ -67,24 +72,27 @@ function AbandonedCartActions({ cart, onCartCleared }) {
     }
   };
 
-  if (cart.type !== 'customer' || !cart.email) {
-    return <span className="analytics-cart-guest-note">Visitante sem cadastro: não é possível contatar ou alterar o carrinho remotamente.</span>;
-  }
+  const isCustomer = cart.type === 'customer' && Boolean(cart.email);
+  const isGuest = cart.type === 'guest' && Boolean(cart.cartRef);
+  if (!isCustomer && !isGuest) return <span className="analytics-cart-guest-note">Não foi possível preparar ações para este carrinho.</span>;
 
   return <div className="analytics-cart-actions">
+    {isGuest && <span className="analytics-cart-guest-note">Visitante sem cadastro: é possível zerar o carrinho, mas não enviar comunicado ou cupom direcionado.</span>}
     <div className="analytics-cart-action-list">
-      <Link className="analytics-cart-action" href="/erp/communications" onClick={(event) => prepareRecipientHandoff(event, 'communications')} aria-label={`Criar comunicado para ${cart.name}`}>
-        <MessageSquareText size={14} />Comunicado
-      </Link>
-      <Link className="analytics-cart-action" href="/erp/promotions" onClick={(event) => prepareRecipientHandoff(event, 'promotions')} aria-label={`Criar cupom para ${cart.name}`}>
-        <TicketPercent size={14} />Cupom
-      </Link>
+      {isCustomer && <>
+        <Link className="analytics-cart-action" href="/erp/communications" onClick={(event) => prepareRecipientHandoff(event, 'communications')} aria-label={`Criar comunicado para ${cart.name}`}>
+          <MessageSquareText size={14} />Comunicado
+        </Link>
+        <Link className="analytics-cart-action" href="/erp/promotions" onClick={(event) => prepareRecipientHandoff(event, 'promotions')} aria-label={`Criar cupom para ${cart.name}`}>
+          <TicketPercent size={14} />Cupom
+        </Link>
+      </>}
       {!confirming && <button className="analytics-cart-action danger" type="button" onClick={() => { setActionError(''); setConfirming(true); }} aria-label={`Zerar carrinho de ${cart.name}`}>
         <Trash2 size={14} />Zerar carrinho
       </button>}
     </div>
     {confirming && <div className="analytics-cart-confirmation" role="group" aria-label={`Confirmar limpeza do carrinho de ${cart.name}`}>
-      <span>Remover os itens salvos deste cliente?</span>
+      <span>Remover os itens salvos deste carrinho?</span>
       <button className="analytics-cart-action danger" type="button" onClick={clearCart} disabled={clearing}>{clearing ? 'Zerando...' : 'Confirmar'}</button>
       <button className="analytics-cart-action" type="button" onClick={() => setConfirming(false)} disabled={clearing}>Cancelar</button>
     </div>}
@@ -415,7 +423,7 @@ export default function AnalyticsPage() {
             {abandonedCarts.carts.length
               ? <div className="erp-table-scroll"><table className="erp-table">
                 <thead><tr><th>Identificação</th><th>Última atividade</th><th>Produtos e quantidades</th><th>Ações</th></tr></thead>
-                <tbody>{abandonedCarts.carts.map((cart, index) => <tr key={cart.email || `visitante-${index}`}>
+                <tbody>{abandonedCarts.carts.map((cart, index) => <tr key={cart.email || cart.cartRef || `visitante-${index}`}>
                   <td><strong>{cart.name}</strong><small>{cart.email || 'Sem conta identificada'}</small></td>
                   <td>{cart.updatedAt ? new Date(cart.updatedAt).toLocaleString('pt-BR') : 'Data não registrada'}</td>
                   <td>{cart.items.map((item) => `${item.name} (×${formatCartQuantity(item)})`).join(', ')}</td>

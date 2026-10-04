@@ -30,6 +30,8 @@ test('includes stale customer and visitor carts while ignoring active and empty 
   assert.equal(result.carts[1].name, 'Visitante sem cadastro');
   assert.equal(result.carts[1].email, null);
   assert.equal(Object.hasOwn(result.carts[1], 'id'), false);
+  assert.match(result.carts[1].cartRef, /^[a-f0-9]{64}$/);
+  assert.notEqual(result.carts[1].cartRef, 'private-guest-token');
   assert.deepEqual(result.topProducts, [{ label: 'Arroz', carts: 2, quantity: 3, saleUnit: 'Unidade' }]);
 });
 

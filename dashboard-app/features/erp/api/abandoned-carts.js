@@ -1,5 +1,11 @@
+import { createHash } from 'node:crypto';
+
 export const abandonedCartIdleThresholdHours = 24;
 const staleCartAfterMs = abandonedCartIdleThresholdHours * 60 * 60 * 1000;
+
+export function getGuestCartActionRef(id) {
+  return createHash('sha256').update(String(id)).digest('hex');
+}
 
 function normalizedItems(items) {
   return items.map((item) => ({
@@ -45,6 +51,7 @@ export function summarizeAbandonedCarts({
       const timestamp = activityTimestamp(cart.updatedAt);
       return {
         type: 'guest',
+        cartRef: getGuestCartActionRef(cart.id),
         email: null,
         name: 'Visitante sem cadastro',
         updatedAt: timestamp === null ? null : new Date(timestamp).toISOString(),

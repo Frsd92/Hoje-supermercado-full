@@ -5,7 +5,7 @@ import { getServerSession } from 'next-auth';
 import { authOptions } from '@/auth';
 import { normalizeCartItems } from '@/app/dashboard/cart-utils';
 import { hasCustomerDashboardAccess } from '@/features/auth/access';
-import { mergeCartItems, normalizeGuestCartId } from '@/features/cart/cart-storage';
+import { latestCartActivityAt, mergeCartItems, normalizeGuestCartId } from '@/features/cart/cart-storage';
 import { prisma } from '@/lib/prisma';
 
 const dataDirectory = path.join(process.cwd(), 'data');
@@ -120,12 +120,13 @@ export async function GET(request) {
             ? normalizeCartItems(latestCustomerCart.items)
             : legacyCustomerCart;
           const mergedCart = mergeCartItems(customerItems, guestItems);
+          const mergedUpdatedAt = latestCartActivityAt(latestCustomerCart?.updatedAt, latestGuestCart?.updatedAt);
 
           if (guestItems.length) {
             await transaction.customerCart.upsert({
               where: { email: identity.key },
-              create: { email: identity.key, items: mergedCart },
-              update: { items: mergedCart },
+              create: { email: identity.key, items: mergedCart, updatedAt: mergedUpdatedAt },
+              update: { items: mergedCart, updatedAt: mergedUpdatedAt },
             });
           }
           return { retry: false, cart: guestItems.length ? mergedCart : customerItems };

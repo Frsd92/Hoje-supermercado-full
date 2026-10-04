@@ -99,7 +99,7 @@ export async function GET(request) {
       }),
       prisma.guestCart.findMany({
         where: { updatedAt: { lte: cartActivityCutoff } },
-        select: { items: true, updatedAt: true },
+        select: { id: true, items: true, updatedAt: true },
       }),
       prisma.customerAddressBook.findMany({
         select: { email: true, addresses: true },

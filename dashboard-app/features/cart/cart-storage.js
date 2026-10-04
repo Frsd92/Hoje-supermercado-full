@@ -5,6 +5,13 @@ export function normalizeGuestCartId(value) {
   return /^[a-zA-Z0-9-]{1,80}$/.test(guestId) ? guestId : '';
 }
 
+export function latestCartActivityAt(...values) {
+  const timestamps = values
+    .map((value) => value instanceof Date ? value.getTime() : Date.parse(value))
+    .filter(Number.isFinite);
+  return new Date(timestamps.length ? Math.max(...timestamps) : Date.now());
+}
+
 function cartItemKey(item) {
   const name = String(item.name || '').trim();
   if (name) return `name:${name.toLocaleLowerCase().normalize('NFD').replace(/[\u0300-\u036f]/g, '')}`;
