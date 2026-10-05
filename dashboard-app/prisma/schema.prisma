@@ -7,28 +7,28 @@ datasource db {
 }
 
 model User {
-  id            String         @id @default(cuid())
-  email         String         @unique
+  id            String                  @id @default(cuid())
+  email         String                  @unique
   name          String?
   image         String?
   favorites     Favorite[]
   orders        Order[]
   notifications NotificationRecipient[]
-  createdAt     DateTime       @default(now())
-  updatedAt     DateTime       @updatedAt
+  createdAt     DateTime                @default(now())
+  updatedAt     DateTime                @updatedAt
 }
 
 model CustomerProfile {
-  email         String   @id
+  email         String    @id
   fullName      String?
-  whatsapp      String   @default("")
-  cpf           String   @default("")
-  gender        String   @default("")
+  whatsapp      String    @default("")
+  cpf           String    @default("")
+  gender        String    @default("")
   birthDate     DateTime? @db.Date
-  photo         String?  @db.Text
-  monthlyBudget Decimal  @default(0) @db.Decimal(12, 2)
-  memberSince   DateTime @default(now())
-  updatedAt     DateTime @updatedAt
+  photo         String?   @db.Text
+  monthlyBudget Decimal   @default(0) @db.Decimal(12, 2)
+  memberSince   DateTime  @default(now())
+  updatedAt     DateTime  @updatedAt
 }
 
 model CustomerAddressBook {
@@ -47,13 +47,13 @@ model ServiceRegionState {
 }
 
 model ServiceRegionMunicipality {
-  id        String            @id @default(cuid())
+  id        String             @id @default(cuid())
   name      String
   stateUf   String
-  enabled   Boolean           @default(false)
+  enabled   Boolean            @default(false)
   state     ServiceRegionState @relation(fields: [stateUf], references: [uf], onDelete: Cascade)
-  createdAt DateTime          @default(now())
-  updatedAt DateTime          @updatedAt
+  createdAt DateTime           @default(now())
+  updatedAt DateTime           @updatedAt
 
   @@unique([stateUf, name])
   @@index([stateUf, enabled])
@@ -72,30 +72,30 @@ model GuestCart {
 }
 
 model Product {
-  id                 String   @id @default(cuid())
-  externalId         String?  @unique
-  identityTitle      String?  @unique
-  identitySku        String?  @unique
-  identityBarcode    String?  @unique
+  id                 String              @id @default(cuid())
+  externalId         String?             @unique
+  identityTitle      String?             @unique
+  identitySku        String?             @unique
+  identityBarcode    String?             @unique
   title              String
-  description        String   @default("")
-  price              Decimal  @db.Decimal(12, 2)
-  cost               Decimal  @db.Decimal(12, 2)
-  discount           Decimal  @default(0) @db.Decimal(5, 2)
-  quantity           Decimal  @default(0) @db.Decimal(12, 3)
+  description        String              @default("")
+  price              Decimal             @db.Decimal(12, 2)
+  cost               Decimal             @db.Decimal(12, 2)
+  discount           Decimal             @default(0) @db.Decimal(5, 2)
+  quantity           Decimal             @default(0) @db.Decimal(12, 3)
   sku                String?
   barcode            String?
   brand              String?
   supplier           String?
   subcategory        String?
   image              String?
-  status             String   @default("Ativo")
+  status             String              @default("Ativo")
   expiry             DateTime?
   categories         String[]
-  metadata           Json     @default("{}")
+  metadata           Json                @default("{}")
   createdBy          String?
-  createdAt          DateTime @default(now())
-  updatedAt          DateTime @updatedAt
+  createdAt          DateTime            @default(now())
+  updatedAt          DateTime            @updatedAt
   favorites          Favorite[]
   inventoryLots      ProductLot[]
   orderItems         OrderItem[]
@@ -104,48 +104,48 @@ model Product {
 }
 
 model ProductLot {
-  id                String                  @id @default(cuid())
-  productId         String
-  identityKey       String                  @unique
-  lotCode           String?
-  quantity          Decimal                 @default(0) @db.Decimal(12, 3)
-  expiry            DateTime?               @db.Date
-  manufactureDate   DateTime?               @db.Date
-  shelfLifeDays     Int?
-  location          String?
-  source            String                  @default("MANUAL")
-  sourceReference   String?
-  createdBy         String?
-  createdAt         DateTime                @default(now())
-  updatedAt         DateTime                @updatedAt
-  product           Product                 @relation(fields: [productId], references: [id], onDelete: Restrict)
-  orderAllocations  InventoryLotAllocation[]
+  id               String                   @id @default(cuid())
+  productId        String
+  identityKey      String                   @unique
+  lotCode          String?
+  quantity         Decimal                  @default(0) @db.Decimal(12, 3)
+  expiry           DateTime?                @db.Date
+  manufactureDate  DateTime?                @db.Date
+  shelfLifeDays    Int?
+  location         String?
+  source           String                   @default("MANUAL")
+  sourceReference  String?
+  createdBy        String?
+  createdAt        DateTime                 @default(now())
+  updatedAt        DateTime                 @updatedAt
+  product          Product                  @relation(fields: [productId], references: [id], onDelete: Restrict)
+  orderAllocations InventoryLotAllocation[]
 
   @@index([productId, expiry])
   @@index([productId, quantity])
 }
 
 model InventoryOrderFulfillment {
-  orderId     String                  @id
+  orderId     String                   @id
   actor       String
-  createdAt   DateTime                @default(now())
+  createdAt   DateTime                 @default(now())
   allocations InventoryLotAllocation[]
 
   @@index([createdAt])
 }
 
 model InventoryLotAllocation {
-  id                  String                   @id @default(cuid())
-  orderId             String
-  orderItemIndex      Int
-  lotId               String
-  productId           String
-  productTitle        String
-  lotCode             String?
-  quantity            Decimal                  @db.Decimal(12, 3)
-  createdAt           DateTime                 @default(now())
-  fulfillment         InventoryOrderFulfillment @relation(fields: [orderId], references: [orderId], onDelete: Cascade)
-  lot                 ProductLot               @relation(fields: [lotId], references: [id], onDelete: Restrict)
+  id             String                    @id @default(cuid())
+  orderId        String
+  orderItemIndex Int
+  lotId          String
+  productId      String
+  productTitle   String
+  lotCode        String?
+  quantity       Decimal                   @db.Decimal(12, 3)
+  createdAt      DateTime                  @default(now())
+  fulfillment    InventoryOrderFulfillment @relation(fields: [orderId], references: [orderId], onDelete: Cascade)
+  lot            ProductLot                @relation(fields: [lotId], references: [id], onDelete: Restrict)
 
   @@unique([orderId, orderItemIndex, lotId])
   @@index([orderId])
@@ -187,38 +187,38 @@ model StoreLayoutAsset {
 }
 
 model Supplier {
-  id                  String   @id @default(cuid())
-  identityName        String   @unique
-  identityTaxId       String?  @unique
-  name                String
-  legalName           String?
-  taxId               String?
-  email               String?
-  phone               String?
-  whatsapp            String?
-  categories          String[] @default([])
-  status              String   @default("Em Análise")
-  statusReason        String?
-  contactName         String?
-  contactRole         String?
-  contactEmail        String?
-  contactPhone        String?
-  financeContact      String?
-  financeEmail        String?
-  financePhone        String?
-  address             String?
-  city                String?
-  state               String?
-  postalCode          String?
-  paymentTerms        String?
-  minimumOrderValue   Decimal? @db.Decimal(12, 2)
-  deliveryTerms       String?
-  createdBy           String
-  updatedBy           String?
-  createdAt           DateTime @default(now())
-  updatedAt           DateTime @updatedAt
-  auditLogs           SupplierAuditLog[]
-  purchaseOrders      PurchaseOrder[]
+  id                String             @id @default(cuid())
+  identityName      String             @unique
+  identityTaxId     String?            @unique
+  name              String
+  legalName         String?
+  taxId             String?
+  email             String?
+  phone             String?
+  whatsapp          String?
+  categories        String[]           @default([])
+  status            String             @default("Em Análise")
+  statusReason      String?
+  contactName       String?
+  contactRole       String?
+  contactEmail      String?
+  contactPhone      String?
+  financeContact    String?
+  financeEmail      String?
+  financePhone      String?
+  address           String?
+  city              String?
+  state             String?
+  postalCode        String?
+  paymentTerms      String?
+  minimumOrderValue Decimal?           @db.Decimal(12, 2)
+  deliveryTerms     String?
+  createdBy         String
+  updatedBy         String?
+  createdAt         DateTime           @default(now())
+  updatedAt         DateTime           @updatedAt
+  auditLogs         SupplierAuditLog[]
+  purchaseOrders    PurchaseOrder[]
 
   @@index([status, name])
 }
@@ -238,20 +238,20 @@ model SupplierAuditLog {
 }
 
 model PurchaseOrder {
-  id               String               @id @default(cuid())
-  code             String               @unique
+  id               String                  @id @default(cuid())
+  code             String                  @unique
   supplierId       String
-  status           String               @default("Rascunho")
-  orderedAt        DateTime             @default(now())
+  status           String                  @default("Rascunho")
+  orderedAt        DateTime                @default(now())
   expectedDelivery DateTime?
   receivedAt       DateTime?
   notes            String?
-  total            Decimal              @db.Decimal(14, 2)
+  total            Decimal                 @db.Decimal(14, 2)
   createdBy        String
   updatedBy        String?
-  createdAt        DateTime             @default(now())
-  updatedAt        DateTime             @updatedAt
-  supplier         Supplier             @relation(fields: [supplierId], references: [id], onDelete: Restrict)
+  createdAt        DateTime                @default(now())
+  updatedAt        DateTime                @updatedAt
+  supplier         Supplier                @relation(fields: [supplierId], references: [id], onDelete: Restrict)
   items            PurchaseOrderItem[]
   auditLogs        PurchaseOrderAuditLog[]
 
@@ -261,15 +261,15 @@ model PurchaseOrder {
 }
 
 model PurchaseOrderItem {
-  id               String       @id @default(cuid())
+  id               String        @id @default(cuid())
   purchaseOrderId  String
   productId        String
-  quantity         Decimal      @db.Decimal(12, 3)
-  unitPrice        Decimal      @db.Decimal(12, 2)
-  receivedQuantity Decimal      @default(0) @db.Decimal(12, 3)
-  receivedUnitCost Decimal?     @db.Decimal(12, 2)
+  quantity         Decimal       @db.Decimal(12, 3)
+  unitPrice        Decimal       @db.Decimal(12, 2)
+  receivedQuantity Decimal       @default(0) @db.Decimal(12, 3)
+  receivedUnitCost Decimal?      @db.Decimal(12, 2)
   purchaseOrder    PurchaseOrder @relation(fields: [purchaseOrderId], references: [id], onDelete: Cascade)
-  product          Product      @relation(fields: [productId], references: [id], onDelete: Restrict)
+  product          Product       @relation(fields: [productId], references: [id], onDelete: Restrict)
 
   @@unique([purchaseOrderId, productId])
   @@index([productId])
@@ -296,30 +296,32 @@ model Favorite {
   createdAt DateTime @default(now())
   user      User     @relation(fields: [userId], references: [id], onDelete: Cascade)
   product   Product  @relation(fields: [productId], references: [id], onDelete: Cascade)
+
   @@unique([userId, productId])
 }
 
 model Order {
-  id                    String      @id
+  id                    String               @id
   userId                String?
   customerName          String?
   customerEmail         String?
   address               String
   addressDetails        Json?
   total                 String
-  subtotal              Decimal     @default(0) @db.Decimal(12, 2)
-  paymentMethod         String      @default("nao_informado")
-  includeCpfOnReceipt   Boolean     @default(false)
+  subtotal              Decimal              @default(0) @db.Decimal(12, 2)
+  paymentMethod         String               @default("nao_informado")
+  includeCpfOnReceipt   Boolean              @default(false)
   invoiceCpf            String?
   couponCode            String?
   couponDiscountPercent Int?
-  couponDiscountAmount  Decimal     @default(0) @db.Decimal(12, 2)
-  status                String      @default("Recebido")
+  couponDiscountAmount  Decimal              @default(0) @db.Decimal(12, 2)
+  status                String               @default("Recebido")
   updatedBy             String?
-  createdAt             DateTime    @default(now())
-  updatedAt             DateTime    @updatedAt
-  user                  User?       @relation(fields: [userId], references: [id], onDelete: SetNull)
+  createdAt             DateTime             @default(now())
+  updatedAt             DateTime             @updatedAt
+  user                  User?                @relation(fields: [userId], references: [id], onDelete: SetNull)
   items                 OrderItem[]
+  refundRequests        OrderRefundRequest[]
 
   @@index([createdAt])
   @@index([customerEmail])
@@ -327,32 +329,65 @@ model Order {
 }
 
 model OrderItem {
-  id                 String   @id @default(cuid())
-  orderId            String
-  productId          String?
-  name               String
-  price              String
-  quantity           Decimal  @default(1) @db.Decimal(12, 3)
-  unit               String   @default("unidade")
-  unitCost           Decimal? @db.Decimal(12, 2)
-  promotionType      String?
-  promotionDiscount  Decimal  @default(0) @db.Decimal(12, 2)
-  order              Order    @relation(fields: [orderId], references: [id], onDelete: Cascade)
-  product            Product? @relation(fields: [productId], references: [id], onDelete: SetNull)
+  id                String   @id @default(cuid())
+  orderId           String
+  productId         String?
+  name              String
+  productCode       String?
+  price             String
+  quantity          Decimal  @default(1) @db.Decimal(12, 3)
+  unit              String   @default("unidade")
+  unitCost          Decimal? @db.Decimal(12, 2)
+  promotionType     String?
+  promotionDiscount Decimal  @default(0) @db.Decimal(12, 2)
+  order             Order    @relation(fields: [orderId], references: [id], onDelete: Cascade)
+  product           Product? @relation(fields: [productId], references: [id], onDelete: SetNull)
 
   @@index([productId])
 }
 
+model OrderRefundRequest {
+  id           String             @id
+  code         String             @unique
+  orderId      String
+  amount       Decimal            @db.Decimal(12, 2)
+  reason       String             @db.Text
+  status       String             @default("requested")
+  requestedBy  String
+  reviewedBy   String?
+  reviewedAt   DateTime?
+  decisionNote String?            @db.Text
+  createdAt    DateTime           @default(now())
+  updatedAt    DateTime           @updatedAt
+  order        Order              @relation(fields: [orderId], references: [id], onDelete: Restrict)
+  events       OrderRefundEvent[]
+
+  @@index([orderId, createdAt])
+  @@index([status, createdAt])
+}
+
+model OrderRefundEvent {
+  id              String             @id
+  refundRequestId String
+  action          String
+  actor           String
+  note            String?            @db.Text
+  createdAt       DateTime           @default(now())
+  refundRequest   OrderRefundRequest @relation(fields: [refundRequestId], references: [id], onDelete: Cascade)
+
+  @@index([refundRequestId, createdAt])
+}
+
 model Notification {
-  id           String                    @id
+  id           String                  @id
   title        String
   message      String
-  audience     String                    @default("all")
-  type         String                    @default("promotion")
+  audience     String                  @default("all")
+  type         String                  @default("promotion")
   durationDays Int
   expiresAt    DateTime
   createdBy    String
-  createdAt    DateTime                  @default(now())
+  createdAt    DateTime                @default(now())
   recipients   NotificationRecipient[]
 }
 
@@ -367,6 +402,7 @@ model CustomerAnnouncement {
   expiresAt    DateTime
   createdBy    String
   createdAt    DateTime @default(now())
+
   @@index([expiresAt])
   @@index([createdAt])
 }
@@ -377,6 +413,7 @@ model NotificationRecipient {
   userId         String
   notification   Notification @relation(fields: [notificationId], references: [id], onDelete: Cascade)
   user           User         @relation(fields: [userId], references: [id], onDelete: Cascade)
+
   @@unique([notificationId, userId])
 }
 
@@ -397,6 +434,7 @@ model CouponRecipient {
   campaignId String
   email      String
   campaign   CouponCampaign @relation(fields: [campaignId], references: [id], onDelete: Cascade)
+
   @@unique([campaignId, email])
   @@index([email])
 }
@@ -408,6 +446,7 @@ model CouponRedemption {
   orderId    String         @unique
   createdAt  DateTime       @default(now())
   campaign   CouponCampaign @relation(fields: [campaignId], references: [id], onDelete: Cascade)
+
   @@unique([campaignId, email])
   @@index([email])
 }

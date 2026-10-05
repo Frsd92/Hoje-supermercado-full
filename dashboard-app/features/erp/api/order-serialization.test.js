@@ -14,6 +14,7 @@ test('serializes fractional product quantities without exposing private cost fie
       price: 'R$ 25,00',
       quantity: 0.5,
       unit: 'kg',
+      productCode: '1234567890123',
       unitCost: 10,
       promotionDiscount: 2,
     }],
@@ -24,8 +25,33 @@ test('serializes fractional product quantities without exposing private cost fie
   assert.equal(serialized.items[0].quantity, 0.5);
   assert.equal(serialized.items[0].unit, 'kg');
   assert.equal(serialized.items[0].saleUnit, 'Quilograma');
+  assert.equal(serialized.items[0].productCode, '1234567890123');
+  assert.equal(serialized.items[0].promotionDiscount, 2);
   assert.equal('unitCost' in serialized.items[0], false);
-  assert.equal('promotionDiscount' in serialized.items[0], false);
+});
+
+test('serializes refund requests and their audit events', () => {
+  const serialized = serializeOrder({
+    id: 'PED-test',
+    items: [],
+    refundRequests: [{
+      id: 'refund-1',
+      code: 'EST-refund-1',
+      amount: { toNumber: () => 3.5 },
+      status: 'requested',
+      createdAt: new Date('2026-10-05T12:00:00.000Z'),
+      events: [{
+        id: 'event-1',
+        action: 'requested',
+        actor: 'cliente@example.com',
+        createdAt: new Date('2026-10-05T12:00:00.000Z'),
+      }],
+    }],
+  });
+
+  assert.equal(serialized.refundRequests[0].amount, 3.5);
+  assert.equal(serialized.refundRequests[0].createdAtIso, '2026-10-05T12:00:00.000Z');
+  assert.equal(serialized.refundRequests[0].events[0].createdAtIso, '2026-10-05T12:00:00.000Z');
 });
 
 test('formats a non-string total for API responses', () => {

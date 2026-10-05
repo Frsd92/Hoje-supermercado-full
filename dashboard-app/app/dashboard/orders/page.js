@@ -1,11 +1,14 @@
 'use client';
 
 import Link from 'next/link';
-import { FileText, PackageOpen, Printer, X } from 'lucide-react';
+import { FileText, PackageOpen, Printer, RotateCcw, X } from 'lucide-react';
 import { useEffect, useMemo, useRef, useState } from 'react';
 import { getOrderStatus, orderStages } from '../order-status';
 import { sortOrdersNewestFirst } from '@/lib/order-sort';
 import OrderReceipt from '@/features/orders/order-receipt';
+import { getRemainingRefundCents, refundRequestStatusLabels } from '@/features/orders/order-refund-utils';
+
+const currencyFormatter = new Intl.NumberFormat('pt-BR', { style: 'currency', currency: 'BRL' });
 
 const tabs = [
   { value: 'Todos', label: 'Todos' },
@@ -24,6 +27,13 @@ export default function OrdersPage() {
   const [retryCount, setRetryCount] = useState(0);
   const [receiptOrder, setReceiptOrder] = useState(null);
   const receiptDialogRef = useRef(null);
+  const [refundOrder, setRefundOrder] = useState(null);
+  const refundDialogRef = useRef(null);
+  const [refundAmount, setRefundAmount] = useState('');
+  const [refundReason, setRefundReason] = useState('');
+  const [refundBusy, setRefundBusy] = useState(false);
+  const [refundError, setRefundError] = useState('');
+  const [refundNotice, setRefundNotice] = useState('');
 
   useEffect(() => {
     let active = true;
@@ -63,6 +73,11 @@ export default function OrdersPage() {
     if (receiptOrder && dialog && !dialog.open) dialog.showModal();
   }, [receiptOrder]);
 
+  useEffect(() => {
+    const dialog = refundDialogRef.current;
+    if (refundOrder && dialog && !dialog.open) dialog.showModal();
+  }, [refundOrder]);
+
   const filteredOrders = useMemo(
     () => sortOrdersNewestFirst(activeTab === 'Todos' ? orders : orders.filter((order) => order.status === activeTab)),
     [activeTab, orders],
@@ -72,6 +87,39 @@ export default function OrdersPage() {
     setLoadError('');
     setIsLoading(true);
     setRetryCount((count) => count + 1);
+  };
+
+  const openRefundDialog = (order) => {
+    const availableCents = getRemainingRefundCents(order.total, order.refundRequests || []);
+    setRefundOrder(order);
+    setRefundAmount((availableCents / 100).toFixed(2));
+    setRefundReason('');
+    setRefundError('');
+  };
+
+  const submitRefundRequest = async (event) => {
+    event.preventDefault();
+    if (!refundOrder) return;
+    setRefundBusy(true);
+    setRefundError('');
+    try {
+      const response = await fetch(`/api/my/orders/${encodeURIComponent(refundOrder.id)}/refunds`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ amount: Number(refundAmount), reason: refundReason }),
+      });
+      const data = await response.json();
+      if (!response.ok) throw new Error(data.error || 'Não foi possível registrar a solicitação.');
+      setOrders((current) => current.map((order) => order.id === refundOrder.id
+        ? { ...order, refundRequests: [data.request, ...(order.refundRequests || [])] }
+        : order));
+      setRefundNotice(`Solicitação ${data.request.code} registrada para o pedido ${refundOrder.id}. Nenhum valor foi estornado.`);
+      refundDialogRef.current?.close();
+    } catch (error) {
+      setRefundError(error.message || 'Não foi possível registrar a solicitação.');
+    } finally {
+      setRefundBusy(false);
+    }
   };
 
   const emptyState = activeTab === 'Todos'
@@ -104,8 +152,9 @@ export default function OrdersPage() {
 
       <div className="customer-receipt-intro" role="note">
         <FileText size={17} aria-hidden="true" />
-        <span>O comprovante mostra o CNPJ da loja, os itens, os valores e a forma de pagamento informada. Você pode imprimi-lo ou salvá-lo em PDF; ele não substitui uma NFC-e/NF-e autorizada nem confirma a liquidação do pagamento.</span>
+        <span>O comprovante mostra os dados atuais do estabelecimento, itens e o código interno para localizar o pedido. Ele não substitui NFC-e/NF-e autorizada. Você pode registrar uma solicitação de estorno total ou parcial; o sistema não devolve dinheiro até haver integração de pagamento.</span>
       </div>
+      {refundNotice && <div className="customer-refund-notice" role="status">{refundNotice}</div>}
 
       <div className="tab-row order-status-tabs" role="group" aria-label="Filtrar pedidos por status">
         {tabs.map(({ value, label }) => {
@@ -162,6 +211,8 @@ export default function OrdersPage() {
             {filteredOrders.map((order) => {
               const info = getOrderStatus(order.status);
               const currentStage = orderStages.indexOf(order.status);
+              const refundRequests = order.refundRequests || [];
+              const remainingRefundCents = getRemainingRefundCents(order.total, refundRequests);
               return (
                 <div key={order.id} className="table-row" role="row">
                   <span className="customer-order-reference" role="cell">
@@ -169,6 +220,13 @@ export default function OrdersPage() {
                     <button type="button" className="customer-order-receipt-link" aria-label={`Ver comprovante informativo do pedido ${order.id}`} aria-haspopup="dialog" onClick={() => setReceiptOrder(order)}>
                       <FileText size={14} aria-hidden="true" />Ver comprovante
                     </button>
+                    <button type="button" className="customer-order-refund-link" disabled={remainingRefundCents <= 0} aria-haspopup="dialog" onClick={() => openRefundDialog(order)}>
+                      <RotateCcw size={14} aria-hidden="true" />{remainingRefundCents > 0 ? 'Solicitar estorno' : 'Limite solicitado'}
+                    </button>
+                    {refundRequests.map((request) => <span className="customer-refund-summary" key={request.id}>
+                      <strong>{request.code}</strong>
+                      <span>{currencyFormatter.format(request.amount)} · {refundRequestStatusLabels[request.status] || request.status}</span>
+                    </span>)}
                   </span>
                   <span className="order-status-cell" role="cell">
                     <span className={`status-badge ${info.tone}`}><span className="order-status-light" aria-hidden="true" />{info.label}</span>
@@ -215,6 +273,45 @@ export default function OrdersPage() {
           </div>
           <OrderReceipt order={receiptOrder} />
         </div>}
+      </dialog>
+      <dialog
+        ref={refundDialogRef}
+        className="refund-request-dialog"
+        aria-labelledby="refund-request-title"
+        aria-describedby="refund-request-description"
+        onClose={() => setRefundOrder(null)}
+        onClick={(event) => { if (event.target === refundDialogRef.current) event.currentTarget.close(); }}
+      >
+        {refundOrder && <form className="refund-request-form" onSubmit={submitRefundRequest}>
+          <header>
+            <span className="orders-kicker">Atendimento da compra</span>
+            <h2 id="refund-request-title">Solicitar estorno</h2>
+            <p id="refund-request-description">Pedido {refundOrder.id}</p>
+          </header>
+          <div className="refund-request-warning" role="note">
+            O registro não devolve dinheiro. A solicitação será analisada pela loja e qualquer estorno financeiro dependerá da integração com a gateway.
+          </div>
+          <p className="refund-request-limit">Saldo máximo ainda disponível para solicitar: <strong>{currencyFormatter.format(getRemainingRefundCents(refundOrder.total, refundOrder.refundRequests || []) / 100)}</strong></p>
+          <label htmlFor="refund-request-amount">Valor solicitado (R$)</label>
+          <input
+            id="refund-request-amount"
+            type="number"
+            min="0.01"
+            max={(getRemainingRefundCents(refundOrder.total, refundOrder.refundRequests || []) / 100).toFixed(2)}
+            step="0.01"
+            inputMode="decimal"
+            required
+            value={refundAmount}
+            onChange={(event) => setRefundAmount(event.target.value)}
+          />
+          <label htmlFor="refund-request-reason">Motivo</label>
+          <textarea id="refund-request-reason" minLength={8} maxLength={500} required value={refundReason} onChange={(event) => setRefundReason(event.target.value)} />
+          {refundError && <p className="refund-request-error" role="alert">{refundError}</p>}
+          <div className="refund-request-actions">
+            <button type="button" className="secondary-cta" disabled={refundBusy} onClick={() => refundDialogRef.current?.close()}>Cancelar</button>
+            <button type="submit" className="primary-cta" disabled={refundBusy}>{refundBusy ? 'Registrando...' : 'Registrar solicitação'}</button>
+          </div>
+        </form>}
       </dialog>
     </div>
   );

@@ -13,8 +13,27 @@ function dateToIso(value) {
   return Number.isNaN(date.getTime()) ? null : date.toISOString();
 }
 
+export function serializeRefundRequest(refundRequest) {
+  const { amount, events = [], ...fields } = refundRequest;
+  const serializedAmount = typeof amount?.toNumber === 'function' ? amount.toNumber() : Number(amount);
+  if (!Number.isFinite(serializedAmount)) throw new Error('Invalid amount in persisted refund request.');
+  return {
+    ...fields,
+    amount: serializedAmount,
+    createdAt: displayDate(refundRequest.createdAt),
+    createdAtIso: dateToIso(refundRequest.createdAt),
+    reviewedAt: displayDate(refundRequest.reviewedAt),
+    reviewedAtIso: dateToIso(refundRequest.reviewedAt),
+    events: events.map((event) => ({
+      ...event,
+      createdAt: displayDate(event.createdAt),
+      createdAtIso: dateToIso(event.createdAt),
+    })),
+  };
+}
+
 export function serializeOrder(order) {
-  const { items = [], ...orderFields } = order;
+  const { items = [], refundRequests = [], ...orderFields } = order;
 
   return {
     ...orderFields,
@@ -30,8 +49,10 @@ export function serializeOrder(order) {
         quantity: Number(item.quantity),
         unit,
         saleUnit: unit === 'kg' ? 'Quilograma' : 'Unidade',
+        promotionDiscount: Number(item.promotionDiscount) || 0,
       };
     }),
+    refundRequests: refundRequests.map(serializeRefundRequest),
   };
 }
 

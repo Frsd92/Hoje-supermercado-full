@@ -23,8 +23,11 @@ export function calculateOrderTotals(items, couponDiscountPercent = 0) {
       name: String(item?.name || 'Item do pedido'),
       quantity,
       unit: item?.unit === 'kg' || item?.saleUnit === 'Quilograma' ? 'kg' : 'unidade',
+      productCode: String(item?.productCode || '').trim(),
+      promotionType: String(item?.promotionType || ''),
       unitPrice: roundMoney(unitPrice),
       lineTotal: roundMoney(unitPrice * quantity),
+      promotionDiscount: Math.max(0, roundMoney(parseReceiptAmount(item?.promotionDiscount))),
     };
   });
   const subtotal = roundMoney(lines.reduce((sum, line) => sum + line.lineTotal, 0));
@@ -54,9 +57,11 @@ export function buildOrderReceiptData(order = {}) {
     && String(order.total).trim() !== '';
   const savedTotal = hasSavedTotal ? roundMoney(parseReceiptAmount(order.total)) : null;
   const couponCode = String(order.couponCode || '').trim().toUpperCase();
+  const promotionDiscountAmount = roundMoney(calculated.lines.reduce((sum, line) => sum + line.promotionDiscount, 0));
   const savedDiscount = parseReceiptAmount(order.couponDiscountAmount);
   const rawDiscountPercent = Number(order.couponDiscountPercent);
   const hasCoupon = Boolean(couponCode) || (Number.isFinite(rawDiscountPercent) && rawDiscountPercent > 0);
+  const invoiceCpf = order.includeCpfOnReceipt === true ? String(order.invoiceCpf || '').replace(/\D/g, '') : '';
   const couponDiscountAmount = savedDiscount > 0
     ? roundMoney(savedDiscount)
     : hasCoupon && savedTotal !== null
@@ -72,9 +77,18 @@ export function buildOrderReceiptData(order = {}) {
     status: String(order.status || 'Não informado'),
     paymentMethod: String(order.paymentMethod || ''),
     includeCpfOnReceipt: order.includeCpfOnReceipt === true,
+    invoiceCpf: invoiceCpf.length === 11 ? invoiceCpf : '',
     couponCode,
     couponDiscountPercent: Number.isFinite(rawDiscountPercent) ? rawDiscountPercent : 0,
     items: calculated.lines,
+    itemLineCount: calculated.lines.length,
+    totalUnitQuantity: roundMoney(calculated.lines
+      .filter((item) => item.unit === 'unidade')
+      .reduce((sum, item) => sum + item.quantity, 0)),
+    totalWeightQuantity: roundMoney(calculated.lines
+      .filter((item) => item.unit === 'kg')
+      .reduce((sum, item) => sum + item.quantity, 0)),
+    promotionDiscountAmount,
     itemSubtotal: calculated.subtotal,
     subtotal,
     subtotalAdjustment: roundMoney(subtotal - calculated.subtotal),

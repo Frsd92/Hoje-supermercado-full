@@ -11,7 +11,10 @@ export async function GET() {
   try {
     const orders = await prisma.order.findMany({
       where: { customerEmail: { equals: session.user.email.trim(), mode: 'insensitive' } },
-      include: { items: true },
+      include: {
+        items: true,
+        refundRequests: { include: { events: { orderBy: { createdAt: 'asc' } } }, orderBy: { createdAt: 'desc' } },
+      },
       orderBy: { createdAt: 'desc' },
     });
     return Response.json({ orders: sortOrdersNewestFirst(serializeOrders(orders)) });

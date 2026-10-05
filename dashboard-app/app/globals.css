@@ -3110,13 +3110,35 @@ body {
 .sr-only { position: absolute !important; width: 1px !important; height: 1px !important; padding: 0 !important; margin: -1px !important; overflow: hidden !important; clip: rect(0, 0, 0, 0) !important; white-space: nowrap !important; border: 0 !important; }
 .customer-order-receipt-link { display: inline-flex; align-items: center; justify-content: center; gap: 6px; min-height: 32px; padding: 6px 9px; border: 1px solid #cbded0; border-radius: 8px; color: #24583c; background: #f2f8f3; font: inherit; font-size: .7rem; font-weight: 800; cursor: pointer; }
 .customer-order-receipt-link:hover { border-color: #7cab8a; background: #e7f3e9; }
+.customer-order-refund-link { display: inline-flex; align-items: center; justify-content: center; gap: 6px; min-height: 32px; padding: 6px 9px; border: 1px solid #e7d5ad; border-radius: 8px; color: #725116; background: #fff9eb; font: inherit; font-size: .7rem; font-weight: 800; cursor: pointer; }
+.customer-order-refund-link:hover:not(:disabled) { border-color: #c99b42; background: #fff2d4; }
+.customer-order-refund-link:disabled { color: #69736b; background: #f3f5f3; border-color: #dce2dd; cursor: not-allowed; }
+.customer-refund-summary { display: grid; gap: 2px; max-width: 100%; padding: 7px 9px; border: 1px solid #e5e7eb; border-radius: 7px; color: #475569; font-size: .64rem; overflow-wrap: anywhere; }
+.customer-refund-summary strong { color: #1f2937; }
 .checkout-receipt-link { display: inline-block; margin-left: 7px; color: inherit; font-weight: 850; text-decoration: underline; text-underline-offset: 3px; }
 .checkout-receipt-link:focus-visible { outline: 2px solid currentColor; outline-offset: 2px; }
 .customer-receipt-intro { display: flex; align-items: flex-start; gap: 9px; padding: 11px 14px; border: 1px solid #d7e7dc; border-radius: 10px; color: #365b46; background: #f1f8f3; font-size: .78rem; line-height: 1.5; }
 .customer-receipt-intro svg { flex: 0 0 auto; margin-top: 1px; color: #2f7656; }
+.customer-refund-notice { padding: 12px 14px; border: 1px solid #b9d4c0; border-radius: 10px; color: #285c3d; background: #f3f9f4; font-size: .78rem; line-height: 1.5; }
 .dashboard-shell[data-dashboard-theme="dark"] .customer-receipt-intro { border-color: #35483b; color: #d5e5d9; background: #1c2d23; }
 .dashboard-shell[data-dashboard-theme="dark"] .customer-receipt-intro svg { color: #8bd4a0; }
-.customer-order-receipt-link:focus-visible, .order-receipt-actions button:focus-visible, .erp-order-receipt-button:focus-visible { outline: 3px solid #d1a74f; outline-offset: 3px; }
+.customer-order-receipt-link:focus-visible, .customer-order-refund-link:focus-visible, .order-receipt-actions button:focus-visible, .erp-order-receipt-button:focus-visible { outline: 3px solid #d1a74f; outline-offset: 3px; }
+.refund-request-dialog { width: min(92vw, 520px); max-width: none; max-height: min(92vh, 760px); padding: 0; overflow: auto; border: 0; border-radius: 16px; color: #1f2937; background: #fff; box-shadow: 0 24px 70px rgba(0, 0, 0, .25); }
+.refund-request-dialog::backdrop { background: rgba(8, 22, 15, .68); backdrop-filter: blur(3px); }
+.refund-request-form { display: grid; gap: 10px; padding: 24px; }
+.refund-request-form header h2 { margin: 4px 0; color: #173b28; font-size: 1.3rem; }
+.refund-request-form header p { margin: 0; color: #5b6670; font-size: .8rem; overflow-wrap: anywhere; }
+.refund-request-form label { margin-top: 4px; color: #26362c; font-size: .78rem; font-weight: 800; }
+.refund-request-form input, .refund-request-form textarea { width: 100%; min-height: 42px; padding: 10px 12px; border: 1px solid #cbd5ce; border-radius: 9px; color: #1f2937; background: #fff; font: inherit; font-size: .85rem; }
+.refund-request-form textarea { min-height: 104px; resize: vertical; }
+.refund-request-form input:focus-visible, .refund-request-form textarea:focus-visible, .erp-refund-review textarea:focus-visible { outline: 3px solid #b9d4c0; outline-offset: 2px; border-color: #36734c; }
+.refund-request-warning { padding: 11px 12px; border: 1px solid #e8d7b2; border-radius: 9px; color: #59471f; background: #fff9eb; font-size: .74rem; line-height: 1.5; }
+.refund-request-limit { margin: 0; color: #4b5563; font-size: .78rem; }
+.refund-request-limit strong { color: #183d29; }
+.refund-request-error { margin: 0; color: #b42318; font-size: .76rem; }
+.refund-request-actions { display: flex; flex-wrap: wrap; justify-content: flex-end; gap: 9px; margin-top: 6px; }
+.refund-request-actions button { min-height: 40px; }
+.refund-request-actions button:disabled { opacity: .65; cursor: wait; }
 .order-receipt-dialog { width: min(94vw, 570px); max-width: none; max-height: min(92vh, 960px); padding: 0; overflow: auto; border: 0; border-radius: 18px; background: transparent; color: inherit; }
 .order-receipt-dialog::backdrop { background: rgba(8, 22, 15, .72); backdrop-filter: blur(3px); }
 .order-receipt-dialog-inner { display: grid; justify-items: center; gap: 12px; padding: 14px; }
@@ -3130,8 +3152,9 @@ body {
 .order-receipt-store { margin: 2px 0 0; font-size: .87rem; font-weight: 900; letter-spacing: .12em; }
 .order-receipt-issuer-name, .order-receipt-issuer-cnpj { margin: 0; font-size: .68rem; overflow-wrap: anywhere; }
 .order-receipt-issuer-cnpj { font-weight: 800; }
+.order-receipt-issuer-details { max-width: 100%; margin: 0; color: #515b54; font-size: .65rem; overflow-wrap: anywhere; }
 .order-receipt-header h2 { margin: 2px 0; font-size: 1.02rem; }
-.order-receipt-document-badge { display: inline-flex; margin-top: 3px; padding: 4px 8px; border: 1px solid #b9d4c0; border-radius: 4px; color: #285c3d; background: #f3f9f4; font-family: Arial, sans-serif; font-size: .62rem; font-weight: 900; letter-spacing: .08em; }
+.order-receipt-document-badge { display: inline-flex; margin-top: 3px; padding: 4px 8px; border: 1px solid #e8d7b2; border-radius: 4px; color: #74531b; background: #fff9eb; font-family: Arial, sans-serif; font-size: .62rem; font-weight: 900; letter-spacing: .08em; }
 .order-receipt-metadata { display: grid; gap: 7px; margin: 14px 0; padding-bottom: 14px; border-bottom: 1px dashed #788078; }
 .order-receipt-metadata > div, .order-receipt-totals > div { display: flex; align-items: baseline; justify-content: space-between; gap: 12px; }
 .order-receipt-metadata dt, .order-receipt-totals dt { color: #515b54; }
@@ -3165,12 +3188,51 @@ body {
 .erp-order-fiscal-control p { margin: 0; font-size: .72rem; line-height: 1.45; }
 .erp-order-fiscal-state { justify-self: start; padding: 4px 8px; border-radius: 99px; color: #744719; background: #f7e8cd; font-size: .67rem; font-weight: 850; }
 .erp-order-receipt-button { display: inline-flex; align-items: center; justify-content: center; gap: 7px; }
+.erp-refund-count { display: inline-flex; padding: 4px 7px; border-radius: 99px; color: #744719; background: #fff3d9; font-size: .66rem; font-weight: 800; white-space: nowrap; }
+.erp-refund-list { display: grid; gap: 9px; margin-top: 16px; padding-top: 12px; border-top: 1px solid #e2e8f0; }
+.erp-refund-list-heading { display: flex; align-items: center; justify-content: space-between; gap: 8px; }
+.erp-refund-list-heading h4 { margin: 0; }
+.erp-refund-list-heading > span { min-width: 25px; padding: 3px 7px; border-radius: 99px; color: #334155; background: #f1f5f9; font-size: .68rem; font-weight: 850; text-align: center; }
+.erp-refund-list > p { margin: 0; color: #64748b; font-size: .68rem; line-height: 1.45; }
+.erp-refund-list > .erp-refund-available { color: #334155; }
+.erp-refund-available strong { color: #183d29; }
+.erp-refund-empty { padding: 10px; border: 1px dashed #cbd5e1; border-radius: 8px; color: #64748b; font-size: .72rem; text-align: center; }
+.erp-refund-card { display: grid; gap: 8px; padding: 11px; border: 1px solid #e2e8f0; border-radius: 10px; background: #fbfcfd; }
+.erp-refund-card-heading { display: grid; gap: 6px; }
+.erp-refund-card-heading > strong { color: #1e293b; font-size: .72rem; overflow-wrap: anywhere; }
+.erp-refund-status { justify-self: start; padding: 4px 7px; border-radius: 99px; font-size: .64rem; font-weight: 850; line-height: 1.3; }
+.erp-refund-status.requested { color: #795613; background: #fff0cb; }
+.erp-refund-status.approved_waiting_gateway { color: #334b7b; background: #eaf0ff; }
+.erp-refund-status.rejected { color: #9a2929; background: #ffeded; }
+.erp-refund-status.completed { color: #24613b; background: #e7f5e9; }
+.erp-refund-card dl { display: grid; gap: 5px; margin: 0; }
+.erp-refund-card dl > div { display: flex; justify-content: space-between; gap: 8px; font-size: .68rem; }
+.erp-refund-card dt { color: #64748b; }
+.erp-refund-card dd { margin: 0; color: #1e293b; font-weight: 800; text-align: right; }
+.erp-refund-reason { margin: 0; color: #475569; font-size: .7rem; line-height: 1.45; overflow-wrap: anywhere; }
+.erp-refund-events { display: grid; gap: 7px; margin: 0; padding: 8px 0 0 17px; border-top: 1px solid #e2e8f0; }
+.erp-refund-events li { display: grid; gap: 2px; color: #64748b; font-size: .63rem; }
+.erp-refund-events strong { color: #475569; overflow-wrap: anywhere; }
+.erp-refund-events small { line-height: 1.4; overflow-wrap: anywhere; }
+.erp-refund-review { display: grid; gap: 7px; padding-top: 8px; border-top: 1px solid #e2e8f0; }
+.erp-refund-review label { color: #475569; font-size: .67rem; font-weight: 800; }
+.erp-refund-review textarea { width: 100%; min-height: 56px; padding: 8px; border: 1px solid #cbd5e1; border-radius: 7px; font: inherit; font-size: .7rem; resize: vertical; }
+.erp-refund-review > div { display: grid; gap: 6px; }
+.erp-refund-review button { display: inline-flex; align-items: center; justify-content: center; gap: 5px; min-height: 34px; padding: 6px 8px; border: 1px solid #b9d4c0; border-radius: 7px; color: #24583c; background: #f2f8f3; font: inherit; font-size: .66rem; font-weight: 800; cursor: pointer; }
+.erp-refund-review button:last-child { border-color: #e5c1c1; color: #923b3b; background: #fff7f7; }
+.erp-refund-review button:disabled { opacity: .6; cursor: wait; }
+.erp-refund-review button:disabled:last-child { cursor: not-allowed; }
+.erp-refund-action-notice { margin: 0; padding: 8px; border: 1px solid #b9d4c0; border-radius: 7px; color: #285c3d; background: #f3f9f4; font-size: .68rem; line-height: 1.4; }
 @media (max-width: 540px) {
   .order-receipt-dialog { width: 100vw; max-height: 100dvh; margin: 0; border-radius: 0; }
   .order-receipt-dialog-inner { min-height: 100%; padding: 10px; }
   .order-receipt { padding: 17px; }
   .order-receipt-metadata > div { align-items: flex-start; }
   .order-receipt-metadata dd { max-width: 58%; }
+  .refund-request-dialog { width: 100vw; max-height: 100dvh; margin: 0; border-radius: 0; }
+  .refund-request-form { padding: 18px; }
+  .refund-request-actions { flex-direction: column-reverse; }
+  .refund-request-actions button { width: 100%; }
   .erp-receipt-integration-note { padding: 12px; }
 }
 @media (prefers-reduced-motion: reduce) {
@@ -6831,14 +6893,20 @@ button.metric-mini:focus-visible {
 .erp-new-order-item > span { flex: 1; margin: 0; color: #334155; }
 .erp-new-order-item button { padding: 6px 8px; border: 1px solid #fecaca; border-radius: 7px; color: #b91c1c; background: #fff; cursor: pointer; font-size: .68rem; font-weight: 800; }
 .erp-new-order-item .erp-ack-button { color: #fff; background: #166534; border-color: #166534; }
+.erp-refund-overview { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 10px 18px; padding: 14px 16px; border: 1px solid #ead9b4; border-radius: 12px; color: #59471f; background: #fff9eb; }
+.erp-refund-overview > div { display: flex; align-items: center; justify-content: space-between; gap: 10px; font-size: .78rem; }
+.erp-refund-overview > div strong { color: #183d29; font-size: 1.05rem; }
+.erp-refund-overview > p { grid-column: 1 / -1; margin: 0; font-size: .72rem; line-height: 1.45; }
 .erp-order-workspace { display: grid; grid-template-columns: minmax(0, 1fr) 330px; gap: 16px; align-items: start; }
 .erp-order-detail { position: sticky; top: 18px; padding: 18px; border: 1px solid #e2e8f0; border-radius: 12px; background: #fff; box-shadow: 0 8px 20px rgba(15,23,42,.04); }
+.erp-order-tracking-code { margin: 4px 0; padding: 8px 9px; border-radius: 7px; color: #285c3d; background: #f1f8f3; font-size: .68rem; font-weight: 750; line-height: 1.4; }
 .erp-order-customer, .erp-order-address { display: flex; align-items: center; gap: 8px; padding: 10px 0; color: #475569; font-size: .74rem; }
 .erp-order-customer { flex-wrap: wrap; border-bottom: 1px solid #e2e8f0; }
 .erp-order-customer span { width: 100%; margin-left: 23px; color: #64748b; }
 .erp-order-detail h4 { margin: 16px 0 8px; font-size: .8rem; }
 .erp-order-items { display: grid; gap: 8px; }
-.erp-order-items div { display: flex; justify-content: space-between; gap: 8px; padding: 9px; border-radius: 8px; background: #f8fafc; font-size: .72rem; }
+.erp-order-items div { display: flex; align-items: flex-start; justify-content: space-between; gap: 8px; padding: 9px; border-radius: 8px; background: #f8fafc; font-size: .72rem; }
+.erp-order-items strong small { display: block; margin-top: 3px; color: #64748b; font-size: .62rem; font-weight: 500; overflow-wrap: anywhere; }
 .erp-order-items span { color: #64748b; }
 .erp-order-fefo-note, .erp-order-action-error { display: flex; align-items: flex-start; gap: 8px; margin: 12px 0 0; padding: 10px; border-radius: 8px; font-size: .7rem; line-height: 1.5; }
 .erp-order-fefo-note { border: 1px solid #cfe7d5; background: #f2faf4; color: #27603a; }

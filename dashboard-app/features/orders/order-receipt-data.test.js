@@ -31,19 +31,24 @@ test('builds a traceable receipt from persisted order totals and coupon data', (
     status: 'Recebido',
     paymentMethod: 'pix',
     includeCpfOnReceipt: true,
+    invoiceCpf: '123.456.789-01',
     subtotal: '10.00',
     total: 'R$ 8,50',
     couponCode: 'cliente15',
     couponDiscountPercent: 15,
     couponDiscountAmount: '1.50',
-    items: [{ name: 'Arroz', price: 'R$ 10,00', quantity: 1 }],
+    items: [{ name: 'Arroz', productCode: '789123', price: 'R$ 10,00', quantity: 1, promotionDiscount: 2 }],
   });
 
   assert.equal(receipt.orderId, 'PED-trace-001');
   assert.equal(receipt.createdAt, '2026-10-05T12:30:00.000Z');
   assert.equal(receipt.couponCode, 'CLIENTE15');
   assert.equal(receipt.includeCpfOnReceipt, true);
+  assert.equal(receipt.invoiceCpf, '12345678901');
   assert.equal(receipt.subtotal, 10);
+  assert.equal(receipt.items[0].productCode, '789123');
+  assert.equal(receipt.promotionDiscountAmount, 2);
+  assert.equal(receipt.totalUnitQuantity, 1);
   assert.equal(receipt.couponDiscountAmount, 1.5);
   assert.equal(receipt.total, 8.5);
   assert.equal(receipt.totalAdjustment, 0);
@@ -57,6 +62,7 @@ test('uses order items for legacy subtotal and does not invent coupon discounts'
   });
 
   assert.equal(receipt.subtotal, 4);
+  assert.equal(receipt.invoiceCpf, '');
   assert.equal(receipt.couponDiscountAmount, 0);
   assert.equal(receipt.total, 4);
 });

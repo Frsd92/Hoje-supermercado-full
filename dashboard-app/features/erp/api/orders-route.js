@@ -59,6 +59,8 @@ async function loadProductsForOrder(items) {
       id: true,
       externalId: true,
       title: true,
+      sku: true,
+      barcode: true,
       price: true,
       cost: true,
       discount: true,
@@ -103,6 +105,8 @@ async function loadProductsForOrder(items) {
       databaseId: record.id,
       externalId: record.externalId,
       title: record.title,
+      sku: record.sku || metadata.sku || legacyProduct.sku || '',
+      barcode: record.barcode || metadata.barcode || legacyProduct.barcode || '',
       price: Number(record.price),
       cost: Number(record.cost),
       discount: Number(record.discount),
@@ -121,7 +125,13 @@ export async function GET(request) {
   if (!hasErpAccess(session?.user)) return Response.json({ error: 'Acesso negado.' }, { status: 403, headers: corsHeaders(request) });
 
   try {
-    const orders = await prisma.order.findMany({ include: { items: true }, orderBy: { createdAt: 'desc' } });
+    const orders = await prisma.order.findMany({
+      include: {
+        items: true,
+        refundRequests: { include: { events: { orderBy: { createdAt: 'asc' } } }, orderBy: { createdAt: 'desc' } },
+      },
+      orderBy: { createdAt: 'desc' },
+    });
     return Response.json({ orders: sortOrdersNewestFirst(serializeOrders(orders)) }, { headers: corsHeaders(request) });
   } catch (error) {
     console.error('Não foi possível carregar os pedidos do banco de dados:', error);
@@ -281,6 +291,7 @@ export async function POST(request) {
       unitCost: Number(product.cost) > 0 ? Number(product.cost) : null,
       promotionType: promotionSnapshot.promotionType,
       promotionDiscount: promotionSnapshot.promotionDiscount,
+      productCode: String(product.barcode || product.sku || '').trim() || null,
     });
   }
   const { subtotal, couponDiscountAmount, total } = calculateOrderTotals(orderItems, appliedDiscountPercent);
@@ -341,7 +352,10 @@ export async function PATCH(request) {
 
   let order;
   try {
-    const record = await prisma.order.findUnique({ where: { id }, include: { items: true } });
+    const record = await prisma.order.findUnique({
+      where: { id },
+      include: { items: true, refundRequests: { include: { events: { orderBy: { createdAt: 'asc' } } } } },
+    });
     if (!record || record.status !== status) return Response.json({ error: 'Pedido não está no status esperado.' }, { status: 409, headers: corsHeaders(request) });
     order = serializeOrder(record);
   } catch (error) {
@@ -375,7 +389,13 @@ export async function PATCH(request) {
     if (result.count !== 1) {
       return Response.json({ error: 'O pedido já foi atualizado por outra operação. Atualize a fila.' }, { status: 409, headers: corsHeaders(request) });
     }
-    const updatedOrder = await prisma.order.findUnique({ where: { id }, include: { items: true } });
+    const updatedOrder = await prisma.order.findUnique({
+      where: { id },
+      include: {
+        items: true,
+        refundRequests: { include: { events: { orderBy: { createdAt: 'asc' } } } },
+      },
+    });
     if (!updatedOrder) throw new Error('O pedido atualizado não foi encontrado.');
     return Response.json({ order: serializeOrder(updatedOrder) }, { headers: corsHeaders(request) });
   } catch (error) {
