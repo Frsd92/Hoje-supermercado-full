@@ -6264,13 +6264,37 @@ button.metric-mini:focus-visible {
 .price-history-empty > span { max-width: 440px; font-size: .76rem; line-height: 1.5; }
 .price-history-empty .primary-cta { margin-top: 3px; }
 .price-history-chart-panel { margin-bottom: 16px; }
+.price-history-chart-panel { --price-chart-line: #9aa0a6; border-color: #3c4043; background: linear-gradient(180deg, #202124, #18191b); color: #e8eaed; box-shadow: 0 14px 30px rgba(15,23,42,.16); }
+.price-history-chart-panel.price-trend-up { --price-chart-line: #34a853; }
+.price-history-chart-panel.price-trend-down { --price-chart-line: #ea4335; }
 .price-history-chart-panel .erp-table-heading { align-items: center; }
 .price-history-chart-panel .erp-table-heading h2 { margin: 5px 0; color: #f0fdf4; font-size: 1.15rem; }
-.price-history-chart-panel .erp-table-heading p { margin: 0; }
+.price-history-chart-panel .erp-table-heading p { margin: 0; color: #9aa0a6; }
+.price-history-chart-panel .eyebrow { color: #9aa0a6; }
 .price-history-current-price { display: grid; gap: 4px; justify-items: end; }
-.price-history-current-price span { color: #b7d5c5; font-size: .68rem; font-weight: 750; }
-.price-history-current-price strong { color: #f0fdf4; font-size: 1.2rem; font-variant-numeric: tabular-nums; }
+.price-history-current-price span { color: #9aa0a6; font-size: .68rem; font-weight: 750; }
+.price-history-current-price strong { color: #e8eaed; font-size: 1.2rem; font-variant-numeric: tabular-nums; }
 .price-history-chart-panel .erp-chart-summary > span { display: inline-flex; align-items: center; gap: 4px; }
+.price-history-chart-panel .erp-chart-summary strong { color: #f1f3f4; }
+.price-history-chart-panel .erp-chart-summary span.up { color: #34a853; }
+.price-history-chart-panel .erp-chart-summary span.down { color: #ea4335; }
+.price-history-chart-panel .erp-chart-ranges { max-width: 100%; overflow-x: auto; scrollbar-width: thin; }
+.price-history-chart-panel .erp-chart-ranges button { flex: 0 0 auto; min-height: 34px; border: 1px solid transparent; color: #9aa0a6; }
+.price-history-chart-panel .erp-chart-ranges button:hover,
+.price-history-chart-panel .erp-chart-ranges button.active { border-color: rgba(154,160,166,.2); background: rgba(154,160,166,.14); color: var(--price-chart-line); }
+.price-history-chart-panel .erp-chart-ranges button:focus-visible { outline: 2px solid var(--price-chart-line); outline-offset: 2px; }
+.price-history-chart-panel .erp-line-chart { border-color: rgba(232,234,237,.1); border-radius: 8px; background: #202124; }
+.price-history-chart-panel .erp-line-chart:focus-visible { outline: 2px solid #e8eaed; outline-offset: 3px; }
+.price-history-chart-panel .chart-grid-line { stroke: rgba(232,234,237,.1); }
+.price-history-chart-panel .chart-axis-label { fill: #9aa0a6; }
+.price-history-chart-panel .chart-line { stroke: var(--price-chart-line); stroke-width: 1.5; filter: none; stroke-linecap: round; stroke-linejoin: round; }
+.price-history-chart-panel .chart-crosshair path { stroke: rgba(232,234,237,.5); }
+.price-history-chart-panel .chart-hover-point circle:first-child { fill: var(--price-chart-line); stroke: #f1f3f4; }
+.price-history-chart-panel .chart-hover-point circle:last-child { stroke: var(--price-chart-line); opacity: .45; }
+.price-history-chart-panel .chart-tooltip rect { fill: #303134; stroke: #5f6368; }
+.price-history-chart-panel .chart-tooltip text { fill: #f1f3f4; }
+.price-history-chart-panel .erp-chart-time-labels { color: #9aa0a6; }
+.price-history-chart-help { margin: 6px 0 0; color: #9aa0a6; font-size: .68rem; line-height: 1.4; }
 .price-history-records { overflow: hidden; }
 .price-history-records .erp-panel-title { margin-bottom: 12px; }
 .price-history-records .erp-panel-title h2 { margin: 0; color: #1e293b; font-size: .92rem; }

@@ -120,8 +120,7 @@ export default function ERPPriceHistoryPage() {
   }));
   const chartPath = chartCoordinates.reduce((path, point, index) => {
     if (index === 0) return `M ${point.x.toFixed(2)} ${point.y.toFixed(2)}`;
-    const previous = chartCoordinates[index - 1];
-    return `${path} L ${point.x.toFixed(2)} ${previous.y.toFixed(2)} L ${point.x.toFixed(2)} ${point.y.toFixed(2)}`;
+    return `${path} L ${point.x.toFixed(2)} ${point.y.toFixed(2)}`;
   }, '');
   const completeChartPath = chartPath
     ? `${chartPath} L 380 ${chartCoordinates[chartCoordinates.length - 1].y.toFixed(2)}`
@@ -135,6 +134,13 @@ export default function ERPPriceHistoryPage() {
   const latestPrice = Number(selectedProduct?.salePrice ?? selectedProduct?.price ?? 0);
   const priceSyncStatus = getPriceHistorySyncStatus(historyRecords, latestPrice);
   const hoveredPricePoint = hoveredPriceIndex === null ? null : chartCoordinates[hoveredPriceIndex] || null;
+  const firstChartPrice = chartCoordinates[0]?.price;
+  const lastChartPrice = chartCoordinates.at(-1)?.price;
+  const chartTrend = firstChartPrice === undefined || lastChartPrice === undefined ? 0 : lastChartPrice - firstChartPrice;
+  const chartTrendClass = chartTrend > 0 ? 'up' : chartTrend < 0 ? 'down' : 'flat';
+  const chartLineColor = chartTrend > 0 ? '#34a853' : chartTrend < 0 ? '#ea4335' : '#9aa0a6';
+  const activeChartPoint = hoveredPricePoint || chartCoordinates.at(-1) || null;
+  const activeChartIndex = hoveredPriceIndex ?? Math.max(0, chartCoordinates.length - 1);
   const openingPrice = chartData.points[0]?.price ?? null;
   const displayedPrice = hoveredPricePoint?.price ?? latestPrice;
   const displayedDelta = openingPrice === null ? 0 : displayedPrice - Number(openingPrice);
@@ -214,7 +220,7 @@ export default function ERPPriceHistoryPage() {
         <div className="erp-empty-data">Selecione um produto da lista para exibir o histórico.</div>
       ) : (
         <>
-          <section className="erp-chart-panel price-history-chart-panel" aria-labelledby="price-history-chart-title">
+          <section className={`erp-chart-panel price-history-chart-panel price-trend-${chartTrendClass}`} aria-labelledby="price-history-chart-title">
             <div className="erp-table-heading">
               <div>
                 <span className="eyebrow">Variação registrada</span>
@@ -239,16 +245,51 @@ export default function ERPPriceHistoryPage() {
             <div className="erp-chart-ranges" role="group" aria-label="Filtrar período do gráfico">
               {PRICE_RANGES.map(({ id, label }) => <button type="button" key={id} aria-pressed={priceRange === id} className={priceRange === id ? 'active' : ''} onClick={() => setPriceRange(id)}>{label}</button>)}
             </div>
-            {chartData.points.length ? <div className="erp-line-chart" onPointerMove={(event) => {
-              const bounds = event.currentTarget.getBoundingClientRect();
-              const x = 32 + ((event.clientX - bounds.left) / bounds.width) * 348;
-              const nearestIndex = chartCoordinates.reduce((nearest, point, index) => (
-                Math.abs(point.x - x) < Math.abs(chartCoordinates[nearest].x - x) ? index : nearest
-              ), 0);
-              setHoveredPriceIndex(nearestIndex);
-            }} onPointerLeave={() => setHoveredPriceIndex(null)}>
-              <svg viewBox="0 0 390 100" role="img" aria-label={`Histórico de preço de ${selectedProduct.title} no período ${priceRange}`} preserveAspectRatio="none">
-                <defs><linearGradient id="price-chart-area" x1="0" x2="0" y1="0" y2="1"><stop offset="0%" stopColor="#8ab4f8" stopOpacity=".24" /><stop offset="100%" stopColor="#8ab4f8" stopOpacity="0" /></linearGradient></defs>
+            {chartData.points.length ? <div
+              className="erp-line-chart"
+              role="slider"
+              tabIndex={0}
+              aria-label={`Histórico de preço de ${selectedProduct.title}`}
+              aria-describedby="price-history-chart-help"
+              aria-orientation="horizontal"
+              aria-valuemin={0}
+              aria-valuemax={Math.max(0, chartCoordinates.length - 1)}
+              aria-valuenow={activeChartIndex}
+              aria-valuetext={activeChartPoint ? `${formatPrice(activeChartPoint.price)}, ${formatHistoryDate(activeChartPoint.date)}` : ''}
+              onFocus={() => {
+                if (hoveredPriceIndex === null) setHoveredPriceIndex(chartCoordinates.length - 1);
+              }}
+              onBlur={() => setHoveredPriceIndex(null)}
+              onKeyDown={(event) => {
+                const lastIndex = chartCoordinates.length - 1;
+                const currentIndex = hoveredPriceIndex ?? lastIndex;
+                const nextIndex = event.key === 'ArrowLeft'
+                  ? currentIndex - 1
+                  : event.key === 'ArrowRight'
+                    ? currentIndex + 1
+                    : event.key === 'Home'
+                      ? 0
+                      : event.key === 'End'
+                        ? lastIndex
+                        : null;
+                if (nextIndex === null) return;
+                event.preventDefault();
+                setHoveredPriceIndex(Math.min(lastIndex, Math.max(0, nextIndex)));
+              }}
+              onPointerMove={(event) => {
+                const bounds = event.currentTarget.getBoundingClientRect();
+                const x = 32 + ((event.clientX - bounds.left) / bounds.width) * 348;
+                const nearestIndex = chartCoordinates.reduce((nearest, point, index) => (
+                  Math.abs(point.x - x) < Math.abs(chartCoordinates[nearest].x - x) ? index : nearest
+                ), 0);
+                setHoveredPriceIndex(nearestIndex);
+              }}
+              onPointerLeave={(event) => {
+                if (event.currentTarget !== document.activeElement) setHoveredPriceIndex(null);
+              }}
+            >
+              <svg viewBox="0 0 390 100" aria-hidden="true" preserveAspectRatio="none">
+                <defs><linearGradient id="price-chart-area" x1="0" x2="0" y1="0" y2="1"><stop offset="0%" stopColor={chartLineColor} stopOpacity=".24" /><stop offset="100%" stopColor={chartLineColor} stopOpacity="0" /></linearGradient></defs>
                 {chartData.ticks.map((tick) => {
                   const y = priceChartY(tick, chartData.min, chartData.max);
                   return <g key={tick}><path className="chart-grid-line" d={`M 32 ${y} H 380`} /><text className="chart-axis-label" x="28" y={y + 1.5} textAnchor="end">{formatPriceAxis(tick)}</text></g>;
@@ -256,12 +297,12 @@ export default function ERPPriceHistoryPage() {
                 {hoveredPricePoint && <g className="chart-crosshair"><path d={`M ${hoveredPricePoint.x} 10 V 90`} /><path d={`M 32 ${hoveredPricePoint.y} H 380`} /></g>}
                 <path className="chart-area" d={chartAreaPath} />
                 <path className="chart-line" d={completeChartPath} />
-                {chartCoordinates.filter((point) => !point.baseline).map((point, index) => <circle key={`${point.date.toISOString()}-${index}`} cx={point.x} cy={point.y} r="1.5" className="chart-point"><title>{new Intl.DateTimeFormat('pt-BR', { dateStyle: 'short', timeStyle: 'short', timeZone: 'America/Sao_Paulo' }).format(point.date)} · {formatPrice(point.price)}</title></circle>)}
                 {hoveredPricePoint && <g className="chart-hover-point"><circle cx={hoveredPricePoint.x} cy={hoveredPricePoint.y} r="2.8" /><circle cx={hoveredPricePoint.x} cy={hoveredPricePoint.y} r="5" /></g>}
                 {hoveredPricePoint && <g className="chart-tooltip" transform={`translate(${tooltipX} ${tooltipY})`}><rect width="76" height="15" rx="2" /><text x="3" y="6">{formatPrice(hoveredPricePoint.price)}</text><text x="3" y="11">{new Intl.DateTimeFormat('pt-BR', { dateStyle: 'short', timeZone: 'America/Sao_Paulo' }).format(hoveredPricePoint.date)}</text></g>}
               </svg>
             </div> : <div className="erp-empty-data">Não há alterações de preço neste período.</div>}
             {chartTimeLabels.length > 0 && <div className="erp-chart-time-labels"><span>{formatPriceTimeAxis(chartTimeLabels[0], priceRange)}</span><span>{formatPriceTimeAxis(chartTimeLabels[1], priceRange)}</span><span>{formatPriceTimeAxis(chartTimeLabels[2], priceRange)}</span></div>}
+            {chartData.points.length > 0 && <p className="price-history-chart-help" id="price-history-chart-help">Passe o cursor sobre o gráfico ou use ← e → para percorrer os registros.</p>}
           </section>
 
           <section className="erp-audit-panel price-history-records" aria-labelledby="price-history-records-title">
