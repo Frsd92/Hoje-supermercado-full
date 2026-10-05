@@ -2,6 +2,11 @@ import { formatCartQuantity } from '@/app/dashboard/cart-utils';
 import { buildOrderReceiptData } from './order-receipt-data';
 
 const currencyFormatter = new Intl.NumberFormat('pt-BR', { style: 'currency', currency: 'BRL' });
+const receiptIssuer = {
+  tradeName: 'HOJE SUPERMERCADO',
+  legalName: 'Francisco Roges da Silva Diogenes',
+  cnpj: '36.915.196/0001-91',
+};
 
 const orderStatusLabels = {
   Recebido: 'Recebido pela loja',
@@ -13,9 +18,9 @@ const orderStatusLabels = {
 };
 
 const paymentLabels = {
-  pix: 'Pix informado',
-  cartao: 'Cartão informado',
-  dinheiro: 'Dinheiro informado',
+  pix: 'Pix',
+  cartao: 'Cartão',
+  dinheiro: 'Dinheiro',
   outro: 'A combinar',
 };
 
@@ -40,16 +45,18 @@ export default function OrderReceipt({ order }) {
   return <section className="order-receipt" aria-labelledby="order-receipt-title">
     <header className="order-receipt-header">
       <span className="order-receipt-brand-mark" aria-hidden="true">H</span>
-      <p className="order-receipt-store">HOJE SUPERMERCADO</p>
-      <h2 id="order-receipt-title">Comprovante do pedido</h2>
-      <span className="order-receipt-document-badge">DIGITAL · NÃO FISCAL</span>
+      <p className="order-receipt-store">{receiptIssuer.tradeName}</p>
+      <p className="order-receipt-issuer-name">Razão social: {receiptIssuer.legalName}</p>
+      <p className="order-receipt-issuer-cnpj">CNPJ: {receiptIssuer.cnpj}</p>
+      <h2 id="order-receipt-title">Comprovante de compra</h2>
+      <span className="order-receipt-document-badge">COMPROVANTE DE VENDA</span>
     </header>
 
     <dl className="order-receipt-metadata">
       <div><dt>Referência rastreável</dt><dd>{receipt.orderId || 'Pedido sem identificação'}</dd></div>
       <div><dt>Data do pedido</dt><dd>{formatDate(receipt.createdAt)}</dd></div>
       <div><dt>Situação</dt><dd>{orderStatusLabels[receipt.status] || receipt.status}</dd></div>
-      <div><dt>Forma informada</dt><dd>{paymentLabels[receipt.paymentMethod] || 'Não informada'}</dd></div>
+      <div><dt>Forma de pagamento informada</dt><dd>{paymentLabels[receipt.paymentMethod] || 'Não informada'}</dd></div>
       <div><dt>CPF solicitado para documento fiscal</dt><dd>{receipt.includeCpfOnReceipt ? 'Sim' : 'Não'}</dd></div>
     </dl>
 
@@ -84,8 +91,8 @@ export default function OrderReceipt({ order }) {
     </dl>
 
     <p className="order-receipt-disclaimer" id="order-receipt-disclaimer">
-      <strong>Este comprovante não tem valor fiscal e não comprova pagamento.</strong>
-      Não substitui uma NFC-e/NF-e autorizada. A emissão de documento fiscal oficial ainda depende da configuração da integração fiscal.
+      <strong>Comprovante de venda sem valor fiscal; não substitui uma NFC-e/NF-e autorizada.</strong>
+      A forma de pagamento exibida foi informada no pedido e não confirma a liquidação do pagamento. A emissão fiscal oficial depende da configuração da integração.
     </p>
     <footer className="order-receipt-footer">
       Para atendimento e rastreio, informe a referência completa do pedido acima.

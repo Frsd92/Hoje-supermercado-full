@@ -113,7 +113,7 @@ export default function ERPOrdersPage() {
       </div>
       <div className="erp-receipt-integration-note" role="note">
         <FileText size={18} aria-hidden="true" />
-        <span><strong>Comprovantes e situação fiscal</strong><span>Os comprovantes desta tela são informativos e vinculados ao ID e à data do pedido. Não são NFC-e/NF-e. A emissão fiscal oficial ainda depende da configuração de uma integração autorizada.</span></span>
+        <span><strong>Comprovantes e situação fiscal</strong><span>Os comprovantes exibem a razão social, o CNPJ, os itens, os valores e a forma de pagamento informada, vinculados ao ID e à data do pedido. Não substituem NFC-e/NF-e autorizada; a emissão fiscal oficial depende da configuração de uma integração autorizada.</span></span>
       </div>
       {loadError && <p className="erp-budget-warning" role="alert">{loadError}<button type="button" onClick={() => setReloadToken((value) => value + 1)}>Tentar novamente</button></p>}
       {ordersLoaded && <div className="erp-customer-metrics">

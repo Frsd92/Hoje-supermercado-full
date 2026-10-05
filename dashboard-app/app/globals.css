@@ -3128,8 +3128,10 @@ body {
 .order-receipt-header { display: grid; justify-items: center; gap: 4px; padding-bottom: 14px; border-bottom: 1px dashed #788078; text-align: center; }
 .order-receipt-brand-mark { display: grid; place-items: center; width: 34px; height: 34px; border: 2px solid #253b2c; border-radius: 50%; color: #253b2c; font-family: Arial, sans-serif; font-size: 1.1rem; font-weight: 900; }
 .order-receipt-store { margin: 2px 0 0; font-size: .87rem; font-weight: 900; letter-spacing: .12em; }
+.order-receipt-issuer-name, .order-receipt-issuer-cnpj { margin: 0; font-size: .68rem; overflow-wrap: anywhere; }
+.order-receipt-issuer-cnpj { font-weight: 800; }
 .order-receipt-header h2 { margin: 2px 0; font-size: 1.02rem; }
-.order-receipt-document-badge { display: inline-flex; margin-top: 3px; padding: 4px 8px; border: 1px solid #a65b1d; border-radius: 4px; color: #8b4513; font-family: Arial, sans-serif; font-size: .62rem; font-weight: 900; letter-spacing: .08em; }
+.order-receipt-document-badge { display: inline-flex; margin-top: 3px; padding: 4px 8px; border: 1px solid #b9d4c0; border-radius: 4px; color: #285c3d; background: #f3f9f4; font-family: Arial, sans-serif; font-size: .62rem; font-weight: 900; letter-spacing: .08em; }
 .order-receipt-metadata { display: grid; gap: 7px; margin: 14px 0; padding-bottom: 14px; border-bottom: 1px dashed #788078; }
 .order-receipt-metadata > div, .order-receipt-totals > div { display: flex; align-items: baseline; justify-content: space-between; gap: 12px; }
 .order-receipt-metadata dt, .order-receipt-totals dt { color: #515b54; }

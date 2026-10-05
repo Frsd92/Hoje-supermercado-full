@@ -104,7 +104,7 @@ export default function OrdersPage() {
 
       <div className="customer-receipt-intro" role="note">
         <FileText size={17} aria-hidden="true" />
-        <span>Você pode imprimir ou salvar o comprovante de cada pedido em PDF. Ele é informativo: não substitui uma NFC-e/NF-e e não confirma pagamento.</span>
+        <span>O comprovante mostra o CNPJ da loja, os itens, os valores e a forma de pagamento informada. Você pode imprimi-lo ou salvá-lo em PDF; ele não substitui uma NFC-e/NF-e autorizada nem confirma a liquidação do pagamento.</span>
       </div>
 
       <div className="tab-row order-status-tabs" role="group" aria-label="Filtrar pedidos por status">
