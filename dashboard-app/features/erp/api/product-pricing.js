@@ -42,6 +42,23 @@ export function calculateSalePrice(product, now = Date.now()) {
   return calculateRegularSalePrice(product);
 }
 
+export function getOrderPromotionSnapshot(product, quantity, now = Date.now()) {
+  const flashOffer = getFlashOfferStatus(product, now);
+  const salePrice = flashOffer.state === 'active' ? flashOffer.price : calculateRegularSalePrice(product);
+  const listPrice = parseAmount(product?.price);
+  const promotionType = flashOffer.state === 'active'
+    ? 'flash_offer'
+    : salePrice < listPrice
+      ? parseAmount(product?.promotionalPrice) > 0 ? 'catalog_price' : 'catalog_discount'
+      : 'regular';
+
+  return {
+    salePrice,
+    promotionType,
+    promotionDiscount: Math.max(0, Number(((listPrice - salePrice) * quantity).toFixed(2))),
+  };
+}
+
 export function validateFlashOfferConfiguration(product, input, now = Date.now()) {
   if (product?.status !== 'Ativo') {
     return { error: 'Ative o produto no catálogo antes de programar uma oferta relâmpago.' };

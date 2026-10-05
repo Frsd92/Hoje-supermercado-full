@@ -2,6 +2,7 @@ import test from 'node:test';
 import assert from 'node:assert/strict';
 import {
   calculateSalePrice,
+  getOrderPromotionSnapshot,
   getFlashOfferStatus,
   validateFlashOfferConfiguration,
 } from './product-pricing.js';
@@ -20,6 +21,41 @@ test('uses the regular price when there is no promotion or discount', () => {
 
 test('parses prices and discounts formatted in Brazilian Portuguese', () => {
   assert.equal(calculateSalePrice({ price: 'R$ 58,43', promotionalPrice: '', discount: '12,5' }), 51.13);
+});
+
+test('snapshots regular catalog promotions and their discount amount for new orders', () => {
+  assert.deepEqual(getOrderPromotionSnapshot({ price: 10, promotionalPrice: 8, discount: 0 }, 2), {
+    salePrice: 8,
+    promotionType: 'catalog_price',
+    promotionDiscount: 4,
+  });
+  assert.deepEqual(getOrderPromotionSnapshot({ price: 10, promotionalPrice: 0, discount: 20 }, 2), {
+    salePrice: 8,
+    promotionType: 'catalog_discount',
+    promotionDiscount: 4,
+  });
+  assert.deepEqual(getOrderPromotionSnapshot({ price: 10, promotionalPrice: 0, discount: 0 }, 2), {
+    salePrice: 10,
+    promotionType: 'regular',
+    promotionDiscount: 0,
+  });
+});
+
+test('snapshots the complete line discount while a flash offer is active', () => {
+  const product = {
+    price: 20,
+    discount: 10,
+    flashOfferEnabled: true,
+    flashOfferPrice: 12,
+    flashOfferStart: '2026-05-01T10:00:00.000Z',
+    flashOfferEnd: '2026-05-01T12:00:00.000Z',
+  };
+
+  assert.deepEqual(getOrderPromotionSnapshot(product, 2, Date.parse('2026-05-01T11:00:00.000Z')), {
+    salePrice: 12,
+    promotionType: 'flash_offer',
+    promotionDiscount: 16,
+  });
 });
 
 test('uses a flash offer only while its scheduled window is active', () => {

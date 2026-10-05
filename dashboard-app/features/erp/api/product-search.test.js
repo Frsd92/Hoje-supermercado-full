@@ -43,6 +43,19 @@ test('prioritizes product names that start with the query before partial and ide
   assert.equal(result.totalMatches, 4);
 });
 
+test('returns product suggestions after the first typed character', () => {
+  const products = [
+    { id: 'rice', title: 'Arroz branco' },
+    { id: 'milk', title: 'Leite integral' },
+    { id: 'yogurt', title: 'Iogurte natural' },
+  ];
+
+  const result = searchProductsByPriority(products, 'l');
+
+  assert.equal(result.items[0].id, 'milk');
+  assert.equal(result.totalMatches, 2);
+});
+
 test('prioritizes identifiers that start with numeric searches and limits displayed results', () => {
   const products = [
     { id: 'name-prefix', title: '789 Biscoito', barcode: '000001' },

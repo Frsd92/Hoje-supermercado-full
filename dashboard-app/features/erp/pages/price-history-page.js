@@ -2,7 +2,8 @@
 
 import Link from 'next/link';
 import { ArrowUpRight, History, Package, RefreshCw, TrendingDown, TrendingUp } from 'lucide-react';
-import { useEffect, useRef, useState } from 'react';
+import { useEffect, useMemo, useRef, useState } from 'react';
+import { searchProductsByPriority } from '../api/product-search.js';
 import { buildPriceChart, formatPriceAxis, formatPriceTimeAxis, getEffectiveRecordedPrice, getPriceHistorySyncStatus, PRICE_RANGES, priceChartY } from './price-chart.js';
 
 const saoPauloDateFormatter = new Intl.DateTimeFormat('en-CA', {
@@ -18,6 +19,29 @@ function normalizeProductName(value) {
     .replace(/[\u0300-\u036f]/g, '')
     .trim()
     .toLocaleLowerCase('pt-BR');
+}
+
+function normalizeProductIdentifier(value) {
+  return normalizeProductName(value).replace(/[^a-z0-9]/g, '');
+}
+
+function getProductBarcodes(product) {
+  return [...new Set([
+    product?.barcode,
+    ...(Array.isArray(product?.barcodes) ? product.barcodes : []),
+  ].map((value) => String(value || '').trim()).filter(Boolean))];
+}
+
+function findExactProduct(products, query) {
+  const normalizedName = normalizeProductName(query);
+  const normalizedIdentifier = normalizeProductIdentifier(query);
+  if (!normalizedName || !normalizedIdentifier) return null;
+
+  return products.find((product) => (
+    normalizeProductName(product.title) === normalizedName
+    || [product.sku, ...getProductBarcodes(product)]
+      .some((identifier) => normalizeProductIdentifier(identifier) === normalizedIdentifier)
+  )) || null;
 }
 
 function formatPrice(value) {
@@ -56,6 +80,8 @@ export default function ERPPriceHistoryPage() {
   const [products, setProducts] = useState([]);
   const [selectedProductId, setSelectedProductId] = useState('');
   const [productQuery, setProductQuery] = useState('');
+  const [isProductSearchOpen, setIsProductSearchOpen] = useState(false);
+  const [activeProductSuggestionIndex, setActiveProductSuggestionIndex] = useState(-1);
   const [priceRange, setPriceRange] = useState('1D');
   const [hoveredPriceIndex, setHoveredPriceIndex] = useState(null);
   const [loading, setLoading] = useState(true);
@@ -104,6 +130,11 @@ export default function ERPPriceHistoryPage() {
   }, [selectedProductId, priceRange]);
 
   const selectedProduct = products.find((product) => String(product.id) === selectedProductId);
+  const productSearchResults = useMemo(
+    () => searchProductsByPriority(products, productQuery),
+    [products, productQuery],
+  );
+  const productSuggestions = productSearchResults.items;
   const historyRecords = (selectedProduct?.priceHistory || [])
     .filter((point) => !Number.isNaN(new Date(point.date).getTime()) && Number.isFinite(Number(point.price)))
     .map((point) => ({ ...point, date: new Date(point.date) }))
@@ -150,12 +181,56 @@ export default function ERPPriceHistoryPage() {
   const latestPriceDate = historyRecords.at(-1)?.date || null;
   const productsWithHistory = products.filter((product) => Array.isArray(product.priceHistory) && product.priceHistory.length).length;
 
-  const handleProductQueryChange = (value) => {
-    setProductQuery(value);
-    const match = products.find((product) => normalizeProductName(product.title) === normalizeProductName(value));
-    const selectedId = match ? String(match.id) : '';
+  const selectProduct = (product) => {
+    const selectedId = String(product.id);
     selectedProductIdRef.current = selectedId;
     setSelectedProductId(selectedId);
+    setHoveredPriceIndex(null);
+    setProductQuery(product.title);
+    setIsProductSearchOpen(false);
+    setActiveProductSuggestionIndex(-1);
+  };
+
+  const handleProductQueryChange = (value) => {
+    setProductQuery(value);
+    setActiveProductSuggestionIndex(-1);
+
+    const exactMatch = findExactProduct(products, value);
+    if (exactMatch) {
+      selectProduct(exactMatch);
+      return;
+    }
+
+    selectedProductIdRef.current = '';
+    setSelectedProductId('');
+    setIsProductSearchOpen(Boolean(value.trim()));
+  };
+
+  const handleProductSearchKeyDown = (event) => {
+    if (!productSuggestions.length) {
+      if (event.key === 'Escape') setIsProductSearchOpen(false);
+      return;
+    }
+
+    if (event.key === 'ArrowDown') {
+      event.preventDefault();
+      setIsProductSearchOpen(true);
+      setActiveProductSuggestionIndex((index) => (
+        index < productSuggestions.length - 1 ? index + 1 : 0
+      ));
+    } else if (event.key === 'ArrowUp') {
+      event.preventDefault();
+      setIsProductSearchOpen(true);
+      setActiveProductSuggestionIndex((index) => (
+        index <= 0 ? productSuggestions.length - 1 : index - 1
+      ));
+    } else if (event.key === 'Enter' && isProductSearchOpen) {
+      event.preventDefault();
+      selectProduct(productSuggestions[Math.max(0, activeProductSuggestionIndex)]);
+    } else if (event.key === 'Escape') {
+      setIsProductSearchOpen(false);
+      setActiveProductSuggestionIndex(-1);
+    }
   };
 
   return (
@@ -173,23 +248,74 @@ export default function ERPPriceHistoryPage() {
       </div>
 
       <section className="price-history-toolbar" aria-label="Selecionar produto">
-        <label htmlFor="price-history-product">
-          <span>Pesquisar produto</span>
-          <input
-            id="price-history-product"
-            type="search"
-            list="price-history-product-options"
-            value={productQuery}
-            onChange={(event) => handleProductQueryChange(event.target.value)}
-            placeholder="Digite o nome do produto"
-            autoComplete="off"
-            aria-describedby="price-history-product-help"
-          />
-          <datalist id="price-history-product-options">
-            {products.map((product) => <option key={product.id} value={product.title} />)}
-          </datalist>
-          <small id="price-history-product-help">Escolha uma sugestão para abrir o histórico.</small>
-        </label>
+        <div className="price-history-product-search">
+          <label htmlFor="price-history-product">
+            <span>Pesquisar produto</span>
+            <input
+              id="price-history-product"
+              type="search"
+              role="combobox"
+              aria-autocomplete="list"
+              aria-expanded={isProductSearchOpen && Boolean(productQuery.trim())}
+              aria-controls={isProductSearchOpen && productSuggestions.length ? 'price-history-product-options' : undefined}
+              aria-activedescendant={activeProductSuggestionIndex >= 0
+                ? `price-history-product-option-${activeProductSuggestionIndex}`
+                : undefined}
+              value={productQuery}
+              onChange={(event) => handleProductQueryChange(event.target.value)}
+              onFocus={() => {
+                if (productQuery.trim()) setIsProductSearchOpen(true);
+              }}
+              onBlur={() => {
+                setIsProductSearchOpen(false);
+                setActiveProductSuggestionIndex(-1);
+              }}
+              onKeyDown={handleProductSearchKeyDown}
+              placeholder="Nome, SKU ou código de barras"
+              autoComplete="off"
+              aria-describedby="price-history-product-help"
+            />
+            <small id="price-history-product-help">Digite para buscar na hora por nome, SKU ou código de barras.</small>
+          </label>
+          {isProductSearchOpen && productQuery.trim() && (
+            productSuggestions.length ? (
+              <div className="price-history-product-suggestions">
+                <div id="price-history-product-options" role="listbox" aria-label="Sugestões de produto">
+                  {productSuggestions.map((product, index) => {
+                    const barcodeValues = getProductBarcodes(product);
+                    const identifiers = [
+                      product.sku && `SKU ${product.sku}`,
+                      ...barcodeValues.map((barcode) => `Código ${barcode}`),
+                    ].filter(Boolean);
+                    return (
+                      <div
+                        id={`price-history-product-option-${index}`}
+                        className="price-history-product-option"
+                        key={product.id}
+                        role="option"
+                        aria-selected={activeProductSuggestionIndex === index}
+                        onMouseDown={(event) => event.preventDefault()}
+                        onClick={() => selectProduct(product)}
+                      >
+                        <strong>{product.title}</strong>
+                        <span>{identifiers.join(' · ') || 'Produto cadastrado no estoque'}</span>
+                      </div>
+                    );
+                  })}
+                </div>
+                <p className="price-history-product-suggestion-count" role="status" aria-live="polite">
+                  {productSearchResults.totalMatches > productSuggestions.length
+                    ? `Mostrando ${productSuggestions.length} de ${productSearchResults.totalMatches} produtos. Refine a busca.`
+                    : `${productSearchResults.totalMatches} produto(s) encontrado(s).`}
+                </p>
+              </div>
+            ) : (
+              <div className="price-history-product-suggestions-empty" role="status" aria-live="polite">
+                Nenhum produto encontrado por nome, SKU ou código de barras.
+              </div>
+            )
+          )}
+        </div>
         <div className="price-history-selection">
           <span>Produto selecionado</span>
           <strong>{selectedProduct?.title || (loading ? 'Carregando produtos…' : 'Nenhum produto selecionado')}</strong>
@@ -241,9 +367,13 @@ export default function ERPPriceHistoryPage() {
             </div>
             {priceSyncStatus.status === 'mismatch' && <p className="erp-chart-data-warning" role="status">O preço atual ({formatPrice(priceSyncStatus.currentPrice)}) difere do último registro real ({formatPrice(priceSyncStatus.recordedPrice)}). O gráfico mantém apenas alterações registradas.</p>}
             {priceSyncStatus.status === 'missing' && <p className="erp-chart-data-warning" role="status">Este produto ainda não possui alterações de preço registradas. O gráfico não estima dados anteriores.</p>}
-            {hoveredPricePoint && <p className="erp-chart-hover-date">{new Intl.DateTimeFormat('pt-BR', { dateStyle: 'full', timeStyle: 'short', timeZone: 'America/Sao_Paulo' }).format(hoveredPricePoint.date)}</p>}
+            {chartData.points.length > 0 && <p className="erp-chart-hover-date" aria-hidden={!hoveredPricePoint}>
+              {hoveredPricePoint
+                ? new Intl.DateTimeFormat('pt-BR', { dateStyle: 'full', timeStyle: 'short', timeZone: 'America/Sao_Paulo' }).format(hoveredPricePoint.date)
+                : '\u00a0'}
+            </p>}
             <div className="erp-chart-ranges" role="group" aria-label="Filtrar período do gráfico">
-              {PRICE_RANGES.map(({ id, label }) => <button type="button" key={id} aria-pressed={priceRange === id} className={priceRange === id ? 'active' : ''} onClick={() => setPriceRange(id)}>{label}</button>)}
+              {PRICE_RANGES.map(({ id, label }) => <button type="button" key={id} aria-pressed={priceRange === id} className={priceRange === id ? 'active' : ''} onClick={() => { setPriceRange(id); setHoveredPriceIndex(null); }}>{label}</button>)}
             </div>
             {chartData.points.length ? <div
               className="erp-line-chart"
@@ -282,7 +412,7 @@ export default function ERPPriceHistoryPage() {
                 const nearestIndex = chartCoordinates.reduce((nearest, point, index) => (
                   Math.abs(point.x - x) < Math.abs(chartCoordinates[nearest].x - x) ? index : nearest
                 ), 0);
-                setHoveredPriceIndex(nearestIndex);
+                setHoveredPriceIndex((currentIndex) => currentIndex === nearestIndex ? currentIndex : nearestIndex);
               }}
               onPointerLeave={(event) => {
                 if (event.currentTarget !== document.activeElement) setHoveredPriceIndex(null);

@@ -6,7 +6,7 @@ import { sortOrdersNewestFirst } from '@/lib/order-sort';
 import { erpActorLabel, hasErpAccess } from '@/features/erp/access';
 import { normalizeDeliveryLocation } from '@/lib/delivery-location';
 import { allocateOrderInventory } from '@/features/erp/api/order-inventory-fulfillment';
-import { calculateSalePrice, getFlashOfferStatus } from '@/features/erp/api/product-pricing';
+import { getOrderPromotionSnapshot } from '@/features/erp/api/product-pricing';
 import {
   getServiceRegionError,
   getServiceRegionMatch,
@@ -267,14 +267,11 @@ export async function POST(request) {
     const quantity = weightBased
       ? Math.max(0.1, Math.round(requestedQuantity * 10) / 10)
       : Math.max(1, Math.trunc(requestedQuantity));
-    const currentPrice = calculateSalePrice(product, pricingTime);
+    const promotionSnapshot = getOrderPromotionSnapshot(product, quantity, pricingTime);
+    const currentPrice = promotionSnapshot.salePrice;
     if (!Number.isFinite(currentPrice) || currentPrice <= 0) {
       return Response.json({ error: `Não foi possível confirmar o preço de ${product.title}.` }, { status: 409, headers: corsHeaders(request) });
     }
-    const flashOffer = getFlashOfferStatus(product, pricingTime);
-    const regularPrice = Number(product.promotionalPrice) > 0
-      ? Number(product.promotionalPrice)
-      : Math.round(money(product.price) * (1 - Math.min(100, Math.max(0, money(product.discount))) / 100) * 100) / 100;
     orderItems.push({
       productId: product.databaseId,
       name: product.title,
@@ -282,10 +279,8 @@ export async function POST(request) {
       quantity,
       unit: weightBased ? 'kg' : 'unidade',
       unitCost: Number(product.cost) > 0 ? Number(product.cost) : null,
-      promotionType: flashOffer.state === 'active' ? 'flash_offer' : null,
-      promotionDiscount: flashOffer.state === 'active'
-        ? Math.max(0, Number(((regularPrice - currentPrice) * quantity).toFixed(2)))
-        : 0,
+      promotionType: promotionSnapshot.promotionType,
+      promotionDiscount: promotionSnapshot.promotionDiscount,
     });
   }
   const subtotal = orderItems.reduce((sum, item) => sum + money(item.price) * item.quantity, 0);
