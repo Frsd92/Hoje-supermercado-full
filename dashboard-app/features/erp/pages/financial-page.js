@@ -102,6 +102,25 @@ function exportFinancialCsv(data) {
     ['Promoções por tipo', 'Pedidos', 'Itens', 'Faturamento associado', 'Desconto de item', 'Lucro bruto', 'Margem bruta'],
     ...data.promotionTypes.map((item) => [item.label, item.orders, item.itemCount, money(item.revenue), money(item.promotionDiscount), money(item.grossProfit), percent(item.grossMargin)]),
     [],
+    ['Combinações de descontos', 'Pedidos', 'Unidades', 'Desconto em itens', 'Desconto em cupons', 'Outro desconto no pedido', 'Descontos totais', 'Valor líquido cobrado', 'CMV', 'Lucro após CMV', 'Margem'],
+    ...data.discountCombinations.map((item) => [item.label, item.orders, item.quantity, money(item.itemPromotionDiscount), money(item.couponDiscount), money(item.otherOrderDiscount), money(item.totalDiscount), money(item.revenue), money(item.costOfGoodsSold), money(item.grossProfit), percent(item.grossMargin)]),
+    [],
+    ['Rastreador por pedido (até 50 mais recentes)', 'Data', 'Descontos aplicados', 'Subtotal após promoções de item', 'Desconto em itens', 'Desconto em cupom', 'Outro desconto no pedido', 'Descontos totais', 'Valor líquido cobrado', 'CMV conhecido', 'Lucro após CMV', 'Margem'],
+    ...data.discountOrders.map((item) => [
+      item.id,
+      formatDate(item.createdAt),
+      item.discountBreakdown.map((discount) => `${discount.label}: ${money(discount.amount)}`).join(' | '),
+      money(item.subtotal),
+      money(item.itemPromotionDiscount),
+      money(item.couponDiscount),
+      money(item.otherOrderDiscount),
+      money(item.totalDiscount),
+      money(item.netRevenue),
+      money(item.costOfGoodsSold ?? item.knownCostOfGoodsSold),
+      money(item.grossProfit),
+      percent(item.grossMargin),
+    ]),
+    [],
     ['Produtos por faturamento', 'Pedidos', 'Unidades', 'Faturamento', 'CMV conhecido', 'Lucro bruto', 'Margem bruta'],
     ...data.products.map((item) => [item.title, item.orders, item.quantity, money(item.revenue), money(item.knownCost), money(item.grossProfit), percent(item.grossMargin)]),
     [],
@@ -323,6 +342,60 @@ export default function FinancialPage() {
           </table>
         </div> : <EmptyState>Ainda não há itens vendidos no período.</EmptyState>}
         <p className="financial-source-note">Pedidos podem combinar promoção de item e cupom. O faturamento associado a cada tipo é comparativo e não deve ser somado como se fossem grupos exclusivos.</p>
+      </section>
+
+      <section className="financial-panel" aria-labelledby="financial-discount-combinations-title">
+        <div className="financial-section-heading">
+          <div><span className="eyebrow">Rastreador de descontos</span><h2 id="financial-discount-combinations-title">Combinações aplicadas e resultado</h2></div>
+          {data.bestSellingDiscount && <span className="financial-best-promotion"><TrendingUp size={14} aria-hidden="true" />Mais comprada: {data.bestSellingDiscount.label} · {data.bestSellingDiscount.orders} pedido(s)</span>}
+        </div>
+        <p className="financial-explainer">O valor líquido é o total cobrado depois dos descontos. O lucro após CMV subtrai o custo registrado dos itens; não inclui taxas de pagamento, impostos, frete ou outras despesas que não estejam registradas.</p>
+        {data.discountCombinations.length ? <div className="financial-table-scroll" role="region" aria-label="Resultado por combinação de descontos" tabIndex={0}>
+          <table>
+            <caption>Combinações exclusivas por pedido, ordenadas pelo número de compras; “Não rastreado” identifica histórico sem classificação</caption>
+            <thead><tr><th scope="col">Combinação aplicada</th><th scope="col">Pedidos</th><th scope="col">Unidades</th><th scope="col">Desconto nos itens</th><th scope="col">Desconto em cupons</th><th scope="col">Outro desconto no pedido</th><th scope="col">Descontos totais</th><th scope="col">Valor líquido</th><th scope="col">CMV</th><th scope="col">Lucro após CMV</th><th scope="col">Margem</th></tr></thead>
+            <tbody>{data.discountCombinations.map((combination) => <tr key={combination.key}>
+              <th scope="row">{combination.label}</th>
+              <td>{combination.orders}</td>
+              <td>{combination.quantity.toLocaleString('pt-BR', { maximumFractionDigits: 3 })}</td>
+              <td>{money(combination.itemPromotionDiscount)}</td>
+              <td>{money(combination.couponDiscount)}</td>
+              <td>{money(combination.otherOrderDiscount)}</td>
+              <td>{money(combination.totalDiscount)}</td>
+              <td>{money(combination.revenue)}</td>
+              <td>{combination.costOfGoodsSold === null ? `${money(combination.knownCostOfGoodsSold)} parcial` : money(combination.costOfGoodsSold)}</td>
+              <td className={combination.grossProfit !== null && combination.grossProfit < 0 ? 'financial-negative' : ''}>{money(combination.grossProfit)}</td>
+              <td>{percent(combination.grossMargin)}</td>
+            </tr>)}</tbody>
+          </table>
+        </div> : <EmptyState>Nenhum pedido disponível para comparar combinações de descontos.</EmptyState>}
+        <p className="financial-source-note">As combinações permitem comparar compras com promoção, cupom e descontos acumulados. O resultado por desconto não prova causalidade; custos ou valores sem conciliação ficam sem lucro estimado.</p>
+      </section>
+
+      <section className="financial-panel" aria-labelledby="financial-discount-orders-title">
+        <div className="financial-section-heading">
+          <div><span className="eyebrow">Conferência pedido a pedido</span><h2 id="financial-discount-orders-title">Descontos e valor final cobrado</h2></div>
+          <span>Até 50 pedidos mais recentes com desconto</span>
+        </div>
+        {data.discountOrders.length ? <div className="financial-table-scroll" role="region" aria-label="Rastreamento de descontos e resultado por pedido" tabIndex={0}>
+          <table>
+            <caption>Valores registrados no pedido; subtotal após descontos de item, antes de cupom ou desconto no pedido</caption>
+            <thead><tr><th scope="col">Pedido / data</th><th scope="col">Descontos aplicados</th><th scope="col">Subtotal após promoções</th><th scope="col">Desconto nos itens</th><th scope="col">Desconto em cupom</th><th scope="col">Outro desconto no pedido</th><th scope="col">Descontos totais</th><th scope="col">Valor líquido cobrado</th><th scope="col">CMV conhecido</th><th scope="col">Lucro após CMV</th><th scope="col">Margem</th></tr></thead>
+            <tbody>{data.discountOrders.map((order) => <tr key={order.id}>
+              <th scope="row">{order.id}<small>{formatDate(order.createdAt)}</small></th>
+              <td>{order.discountBreakdown.map((discount) => `${discount.label}: ${money(discount.amount)}`).join(' · ') || '—'}</td>
+              <td>{money(order.subtotal)}</td>
+              <td>{money(order.itemPromotionDiscount)}</td>
+              <td>{money(order.couponDiscount)}</td>
+              <td>{money(order.otherOrderDiscount)}</td>
+              <td>{money(order.totalDiscount)}</td>
+              <td>{money(order.netRevenue)}</td>
+              <td>{order.costOfGoodsSold === null ? `${money(order.knownCostOfGoodsSold)} parcial` : money(order.costOfGoodsSold)}</td>
+              <td className={order.grossProfit !== null && order.grossProfit < 0 ? 'financial-negative' : ''}>{money(order.grossProfit)}</td>
+              <td>{percent(order.grossMargin)}</td>
+            </tr>)}</tbody>
+          </table>
+        </div> : <EmptyState>Nenhum pedido com desconto registrado neste período.</EmptyState>}
       </section>
 
       <section className="financial-panel" aria-labelledby="financial-loss-leaders-title">

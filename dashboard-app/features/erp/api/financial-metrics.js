@@ -14,6 +14,28 @@ const promotionLabels = {
   other: 'Outro tipo',
 };
 
+const discountTypeLabels = {
+  flash_offer: promotionLabels.flash_offer,
+  catalog_price: promotionLabels.catalog_price,
+  catalog_discount: promotionLabels.catalog_discount,
+  coupon: 'Cupom',
+  other: 'Outro desconto de item',
+  unclassified_order_discount: 'Desconto no pedido não identificado',
+  unclassified: 'Desconto não rastreado',
+  no_discount: 'Sem desconto registrado',
+};
+
+const discountTypeOrder = [
+  'flash_offer',
+  'catalog_price',
+  'catalog_discount',
+  'coupon',
+  'other',
+  'unclassified_order_discount',
+  'unclassified',
+  'no_discount',
+];
+
 function parseAmount(value) {
   if (typeof value === 'number') return Number.isFinite(value) ? value : null;
   if (value === null || value === undefined || value === '') return null;
@@ -44,6 +66,102 @@ function getPromotionKey(item) {
   const value = String(item.promotionType || '').trim().toLowerCase();
   if (!value) return 'unclassified';
   return Object.hasOwn(promotionLabels, value) ? value : 'other';
+}
+
+function getItemDiscountType(line) {
+  if (line.promotionKey === 'unclassified') return 'unclassified';
+  if (line.promotionKey === 'regular') return line.promotionDiscount > 0 ? 'other' : null;
+  return line.promotionKey;
+}
+
+function getOrderDiscountTypes(lines, couponCode, orderDiscount) {
+  const types = new Set();
+  lines.forEach((line) => {
+    const type = getItemDiscountType(line);
+    if (type) types.add(type);
+  });
+  if (couponCode) types.add('coupon');
+  else if (orderDiscount > 0) types.add('unclassified_order_discount');
+  if (!types.size) types.add('no_discount');
+
+  return [...types].sort((first, second) => discountTypeOrder.indexOf(first) - discountTypeOrder.indexOf(second));
+}
+
+function getDiscountBreakdown(lines, couponCode, orderDiscount) {
+  const breakdown = new Map();
+  const addDiscount = (key, label, amount) => {
+    const existing = breakdown.get(key) || { key, label, amount: 0 };
+    existing.amount += amount;
+    breakdown.set(key, existing);
+  };
+
+  lines.forEach((line) => {
+    const key = getItemDiscountType(line);
+    if (key) addDiscount(key, discountTypeLabels[key] || discountTypeLabels.other, line.promotionDiscount);
+  });
+  if (couponCode) {
+    addDiscount('coupon', `Cupom ${couponCode}`, orderDiscount);
+  } else if (orderDiscount > 0) {
+    addDiscount('unclassified_order_discount', discountTypeLabels.unclassified_order_discount, orderDiscount);
+  }
+
+  return [...breakdown.values()].map((discount) => ({
+    ...discount,
+    amount: roundMoney(discount.amount),
+  }));
+}
+
+function createDiscountCombinationAccumulator(key, discountTypes) {
+  return {
+    key,
+    discountTypes,
+    label: discountTypes.map((type) => discountTypeLabels[type] || discountTypeLabels.other).join(' + '),
+    orderIds: new Set(),
+    itemCount: 0,
+    quantity: 0,
+    revenue: 0,
+    itemPromotionDiscount: 0,
+    couponDiscount: 0,
+    otherOrderDiscount: 0,
+    totalDiscount: 0,
+    cost: 0,
+    missingCostItems: 0,
+    ordersWithoutItems: 0,
+    invalidOrders: 0,
+    unreconciledOrders: 0,
+  };
+}
+
+function summarizeDiscountCombination(accumulator) {
+  const orders = accumulator.orderIds.size;
+  const costsComplete = orders > 0
+    && accumulator.itemCount > 0
+    && accumulator.missingCostItems === 0
+    && accumulator.ordersWithoutItems === 0
+    && accumulator.invalidOrders === 0
+    && accumulator.unreconciledOrders === 0;
+  const grossProfit = costsComplete ? accumulator.revenue - accumulator.cost : null;
+
+  return {
+    key: accumulator.key,
+    discountTypes: accumulator.discountTypes,
+    label: accumulator.label,
+    orders,
+    itemCount: accumulator.itemCount,
+    quantity: Number(accumulator.quantity.toFixed(3)),
+    itemPromotionDiscount: roundMoney(accumulator.itemPromotionDiscount),
+    couponDiscount: roundMoney(accumulator.couponDiscount),
+    otherOrderDiscount: roundMoney(accumulator.otherOrderDiscount),
+    totalDiscount: roundMoney(accumulator.totalDiscount),
+    revenue: roundMoney(accumulator.revenue),
+    knownCostOfGoodsSold: roundMoney(accumulator.cost),
+    costOfGoodsSold: costsComplete ? roundMoney(accumulator.cost) : null,
+    grossProfit: grossProfit === null ? null : roundMoney(grossProfit),
+    grossMargin: grossProfit === null || !accumulator.revenue
+      ? null
+      : Number((grossProfit / accumulator.revenue * 100).toFixed(2)),
+    missingCostItems: accumulator.missingCostItems,
+  };
 }
 
 function createLineAccumulator() {
@@ -176,7 +294,9 @@ export function buildFinancialMetrics({
   const promotionStats = new Map();
   const productStats = new Map();
   const couponStats = new Map();
+  const discountCombinationStats = new Map();
   const candidateStats = new Map();
+  const discountOrderReports = [];
   const firstCustomerOrders = new Map();
   const firstPurchaseCustomersInPeriod = new Set();
   const returningCustomersInPeriod = new Set();
@@ -300,6 +420,57 @@ export function buildFinancialMetrics({
       unreconciledOrders += 1;
     }
 
+    const orderItemPromotionDiscount = lines.reduce((sum, line) => sum + line.promotionDiscount, 0);
+    const orderCost = lines.reduce((sum, line) => sum + line.cost, 0);
+    const discountTypes = getOrderDiscountTypes(lines, couponCode, orderDiscount);
+    const discountKey = discountTypes.join('+');
+    const discountCombination = discountCombinationStats.get(discountKey)
+      || createDiscountCombinationAccumulator(discountKey, discountTypes);
+    discountCombination.orderIds.add(orderId);
+    discountCombination.itemCount += lines.length;
+    discountCombination.quantity += lines.reduce((sum, line) => sum + line.quantity, 0);
+    discountCombination.revenue += orderTotal || 0;
+    discountCombination.itemPromotionDiscount += orderItemPromotionDiscount;
+    discountCombination.couponDiscount += couponCode ? orderDiscount : 0;
+    discountCombination.otherOrderDiscount += couponCode ? 0 : orderDiscount;
+    discountCombination.totalDiscount += orderItemPromotionDiscount + orderDiscount;
+    discountCombination.cost += orderCost;
+    discountCombination.missingCostItems += lines.filter((line) => !line.costKnown).length;
+    if (sourceItems.length === 0 && (orderTotal || 0) > 0) discountCombination.ordersWithoutItems += 1;
+    if (orderTotal === null) discountCombination.invalidOrders += 1;
+    if (sourceItems.length && !orderReconciled) discountCombination.unreconciledOrders += 1;
+    discountCombinationStats.set(discountKey, discountCombination);
+
+    const totalOrderDiscount = orderItemPromotionDiscount + orderDiscount;
+    const hasDiscountTracking = totalOrderDiscount > 0
+      || Boolean(couponCode)
+      || discountTypes.some((type) => !['no_discount', 'unclassified'].includes(type));
+    if (hasDiscountTracking) {
+      const orderCostsComplete = lines.length > 0
+        && orderTotal !== null
+        && orderReconciled
+        && lines.every((line) => line.valid && line.costKnown);
+      const orderGrossProfit = orderCostsComplete ? orderTotal - orderCost : null;
+      discountOrderReports.push({
+        id: orderId,
+        createdAt: date.toISOString(),
+        discountTypes,
+        discountBreakdown: getDiscountBreakdown(lines, couponCode, orderDiscount),
+        subtotal: roundMoney(orderSubtotal),
+        itemPromotionDiscount: roundMoney(orderItemPromotionDiscount),
+        couponDiscount: roundMoney(couponCode ? orderDiscount : 0),
+        otherOrderDiscount: roundMoney(couponCode ? 0 : orderDiscount),
+        totalDiscount: roundMoney(totalOrderDiscount),
+        netRevenue: orderTotal === null ? null : roundMoney(orderTotal),
+        knownCostOfGoodsSold: roundMoney(orderCost),
+        costOfGoodsSold: orderCostsComplete ? roundMoney(orderCost) : null,
+        grossProfit: orderGrossProfit === null ? null : roundMoney(orderGrossProfit),
+        grossMargin: orderGrossProfit === null || !orderTotal
+          ? null
+          : Number((orderGrossProfit / orderTotal * 100).toFixed(2)),
+      });
+    }
+
     const basket = new Map();
     lines.forEach((line) => {
       const entry = basket.get(line.productKey) || {
@@ -418,6 +589,16 @@ export function buildFinancialMetrics({
     ['flash_offer', 'catalog_price', 'catalog_discount', 'other'].includes(item.key)
   ));
   const bestSellingPromotion = promotionLeaders[0] || null;
+  const discountCombinations = [...discountCombinationStats.values()]
+    .map(summarizeDiscountCombination)
+    .sort((first, second) => second.orders - first.orders
+      || second.quantity - first.quantity
+      || second.revenue - first.revenue
+      || first.label.localeCompare(second.label, 'pt-BR'));
+  const bestSellingDiscount = discountCombinations.find((combination) => (
+    combination.discountTypes.length > 0
+    && combination.discountTypes.every((type) => !['no_discount', 'unclassified', 'unclassified_order_discount'].includes(type))
+  )) || null;
   const products = lineItems
     .map((accumulator) => ({
       productId: accumulator.productId,
@@ -510,6 +691,19 @@ export function buildFinancialMetrics({
       ? { key: bestSellingPromotion.key, label: bestSellingPromotion.label, revenue: bestSellingPromotion.revenue, orders: bestSellingPromotion.orders, quantity: bestSellingPromotion.quantity }
       : null,
     promotionTypes,
+    bestSellingDiscount: bestSellingDiscount
+      ? {
+        key: bestSellingDiscount.key,
+        label: bestSellingDiscount.label,
+        orders: bestSellingDiscount.orders,
+        quantity: bestSellingDiscount.quantity,
+        revenue: bestSellingDiscount.revenue,
+      }
+      : null,
+    discountCombinations,
+    discountOrders: discountOrderReports
+      .sort((first, second) => second.createdAt.localeCompare(first.createdAt) || second.id.localeCompare(first.id))
+      .slice(0, 50),
     lossLeaders,
     products,
     coupons,

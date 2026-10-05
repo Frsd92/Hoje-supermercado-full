@@ -67,6 +67,81 @@ test('calculates realized gross margin after item promotion, coupon allocation a
   assert.equal(metrics.promotionTypes.find((promotion) => promotion.key === 'flash_offer').revenue, 27);
   assert.equal(metrics.coupons[0].discount, 9);
   assert.equal(metrics.coverage.costCoveragePercent, 100);
+  assert.equal(metrics.discountCombinations[0].key, 'flash_offer+coupon');
+  assert.equal(metrics.discountCombinations[0].itemPromotionDiscount, 6);
+  assert.equal(metrics.discountCombinations[0].couponDiscount, 9);
+  assert.equal(metrics.discountCombinations[0].totalDiscount, 15);
+  assert.equal(metrics.discountCombinations[0].revenue, 81);
+  assert.equal(metrics.discountCombinations[0].grossProfit, 2);
+  assert.equal(metrics.bestSellingDiscount.orders, 1);
+  assert.deepEqual(
+    metrics.discountOrders[0].discountBreakdown.map(({ label, amount }) => [label, amount]),
+    [['Oferta relâmpago', 6], ['Cupom BEMVINDO', 9]],
+  );
+  assert.equal(metrics.discountOrders[0].netRevenue, 81);
+  assert.equal(metrics.discountOrders[0].totalDiscount, 15);
+  assert.equal(metrics.discountOrders[0].grossProfit, 2);
+});
+
+test('tracks multiple item promotions stacked with a coupon and reports the final order result', () => {
+  const metrics = buildFinancialMetrics({
+    orders: [order({
+      id: 'stacked-discounts',
+      subtotal: 130,
+      total: 'R$ 117,00',
+      couponCode: 'COMBINA10',
+      couponDiscountAmount: 13,
+      items: [
+        item({ productId: 'milk', name: 'Leite', price: 'R$ 40,00', quantity: 2, unitCost: 15, promotionType: 'flash_offer', promotionDiscount: 20 }),
+        item({ productId: 'rice', name: 'Arroz', price: 'R$ 50,00', unitCost: 20, promotionType: 'catalog_discount', promotionDiscount: 10 }),
+      ],
+    })],
+  });
+
+  const combination = metrics.discountCombinations[0];
+  const trackedOrder = metrics.discountOrders[0];
+  assert.equal(combination.key, 'flash_offer+catalog_discount+coupon');
+  assert.equal(combination.orders, 1);
+  assert.equal(combination.itemPromotionDiscount, 30);
+  assert.equal(combination.couponDiscount, 13);
+  assert.equal(combination.totalDiscount, 43);
+  assert.equal(combination.revenue, 117);
+  assert.equal(combination.costOfGoodsSold, 50);
+  assert.equal(combination.grossProfit, 67);
+  assert.equal(metrics.bestSellingDiscount.key, combination.key);
+  assert.equal(trackedOrder.subtotal, 130);
+  assert.equal(trackedOrder.netRevenue, 117);
+  assert.equal(trackedOrder.grossMargin, 57.26);
+  assert.deepEqual(
+    trackedOrder.discountBreakdown.map(({ label, amount }) => [label, amount]),
+    [['Oferta relâmpago', 20], ['Desconto de catálogo', 10], ['Cupom COMBINA10', 13]],
+  );
+});
+
+test('ranks discount combinations by number of orders before revenue', () => {
+  const metrics = buildFinancialMetrics({
+    orders: [
+      order({
+        id: 'higher-revenue',
+        subtotal: 1000,
+        total: 'R$ 950,00',
+        couponCode: 'FLASH10',
+        couponDiscountAmount: 50,
+        items: [item({ productId: 'tv', name: 'Televisão', price: 'R$ 1.000,00', unitCost: 100, promotionType: 'flash_offer', promotionDiscount: 100 })],
+      }),
+      ...['popular-1', 'popular-2'].map((id) => order({
+        id,
+        subtotal: 20,
+        total: 'R$ 18,00',
+        couponCode: 'POPULAR10',
+        couponDiscountAmount: 2,
+        items: [item({ productId: 'bread', name: 'Pão', price: 'R$ 20,00', unitCost: 10, promotionType: 'catalog_price', promotionDiscount: 5 })],
+      })),
+    ],
+  });
+
+  assert.equal(metrics.bestSellingDiscount.key, 'catalog_price+coupon');
+  assert.equal(metrics.bestSellingDiscount.orders, 2);
 });
 
 test('does not report an overall margin when any sold line lacks a cost snapshot', () => {
