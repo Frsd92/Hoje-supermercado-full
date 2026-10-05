@@ -7,6 +7,7 @@ import { erpActorLabel, hasErpAccess } from '@/features/erp/access';
 import { normalizeDeliveryLocation } from '@/lib/delivery-location';
 import { allocateOrderInventory } from '@/features/erp/api/order-inventory-fulfillment';
 import { getOrderPromotionSnapshot } from '@/features/erp/api/product-pricing';
+import { calculateOrderTotals } from '@/features/orders/order-receipt-data';
 import {
   getServiceRegionError,
   getServiceRegionMatch,
@@ -18,7 +19,6 @@ import { serializeOrder, serializeOrders } from './order-serialization.js';
 
 const productsFile = path.join(process.cwd(), 'data', 'products.json');
 const allowedOrigins = new Set(['http://localhost:8010', 'http://localhost:5500', 'http://127.0.0.1:5500', 'null']);
-const money = (value) => Number(String(value || '').replace(/[^0-9,.-]/g, '').replace(/\.(?=\d{3}(?:\D|$))/g, '').replace(',', '.')) || 0;
 
 function corsHeaders(request) {
   const origin = request.headers.get('origin');
@@ -283,8 +283,7 @@ export async function POST(request) {
       promotionDiscount: promotionSnapshot.promotionDiscount,
     });
   }
-  const subtotal = orderItems.reduce((sum, item) => sum + money(item.price) * item.quantity, 0);
-  const total = subtotal * (1 - appliedDiscountPercent / 100);
+  const { subtotal, couponDiscountAmount, total } = calculateOrderTotals(orderItems, appliedDiscountPercent);
   const paymentMethod = body.paymentMethod;
   const orderId = `PED-${randomUUID()}`;
   try {
@@ -308,7 +307,7 @@ export async function POST(request) {
           invoiceCpf: body.includeCpfOnReceipt ? invoiceCpf : null,
           couponCode: campaignCoupon ? couponCode : null,
           couponDiscountPercent: campaignCoupon ? appliedDiscountPercent : null,
-          couponDiscountAmount: Number((subtotal - total).toFixed(2)),
+          couponDiscountAmount,
           status: 'Recebido',
           items: { create: orderItems },
         },

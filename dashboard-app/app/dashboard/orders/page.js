@@ -1,10 +1,11 @@
 'use client';
 
 import Link from 'next/link';
-import { PackageOpen } from 'lucide-react';
-import { useEffect, useMemo, useState } from 'react';
+import { FileText, PackageOpen, Printer, X } from 'lucide-react';
+import { useEffect, useMemo, useRef, useState } from 'react';
 import { getOrderStatus, orderStages } from '../order-status';
 import { sortOrdersNewestFirst } from '@/lib/order-sort';
+import OrderReceipt from '@/features/orders/order-receipt';
 
 const tabs = [
   { value: 'Todos', label: 'Todos' },
@@ -21,6 +22,8 @@ export default function OrdersPage() {
   const [isLoading, setIsLoading] = useState(true);
   const [loadError, setLoadError] = useState('');
   const [retryCount, setRetryCount] = useState(0);
+  const [receiptOrder, setReceiptOrder] = useState(null);
+  const receiptDialogRef = useRef(null);
 
   useEffect(() => {
     let active = true;
@@ -55,6 +58,11 @@ export default function OrdersPage() {
     };
   }, [retryCount]);
 
+  useEffect(() => {
+    const dialog = receiptDialogRef.current;
+    if (receiptOrder && dialog && !dialog.open) dialog.showModal();
+  }, [receiptOrder]);
+
   const filteredOrders = useMemo(
     () => sortOrdersNewestFirst(activeTab === 'Todos' ? orders : orders.filter((order) => order.status === activeTab)),
     [activeTab, orders],
@@ -86,13 +94,18 @@ export default function OrdersPage() {
         <div>
           <span className="orders-kicker">Central de acompanhamento</span>
           <h1>Meus pedidos</h1>
-          <p>Acompanhe cada etapa da sua compra e consulte o histórico de pedidos.</p>
+          <p>Acompanhe cada etapa da sua compra e consulte o comprovante informativo de cada pedido.</p>
         </div>
         <div className="orders-header-mark" aria-live="polite">
           <span className="orders-header-dot" />
           {isLoading ? 'Carregando pedidos' : loadError && !orders.length ? 'Pedidos indisponíveis' : `${orders.length} ${orders.length === 1 ? 'pedido' : 'pedidos'}`}
         </div>
       </header>
+
+      <div className="customer-receipt-intro" role="note">
+        <FileText size={17} aria-hidden="true" />
+        <span>Você pode imprimir ou salvar o comprovante de cada pedido em PDF. Ele é informativo: não substitui uma NFC-e/NF-e e não confirma pagamento.</span>
+      </div>
 
       <div className="tab-row order-status-tabs" role="group" aria-label="Filtrar pedidos por status">
         {tabs.map(({ value, label }) => {
@@ -151,7 +164,12 @@ export default function OrdersPage() {
               const currentStage = orderStages.indexOf(order.status);
               return (
                 <div key={order.id} className="table-row" role="row">
-                  <span role="cell">{order.id}</span>
+                  <span className="customer-order-reference" role="cell">
+                    <strong>{order.id}</strong>
+                    <button type="button" className="customer-order-receipt-link" aria-label={`Ver comprovante informativo do pedido ${order.id}`} aria-haspopup="dialog" onClick={() => setReceiptOrder(order)}>
+                      <FileText size={14} aria-hidden="true" />Ver comprovante
+                    </button>
+                  </span>
                   <span className="order-status-cell" role="cell">
                     <span className={`status-badge ${info.tone}`}><span className="order-status-light" aria-hidden="true" />{info.label}</span>
                     <span className="order-progress" role="group" aria-label={`Andamento do pedido ${order.id}: ${info.label}`}>
@@ -182,6 +200,22 @@ export default function OrdersPage() {
           </div>
         </div>
       )}
+      <dialog
+        ref={receiptDialogRef}
+        className="order-receipt-dialog"
+        aria-labelledby="order-receipt-title"
+        aria-describedby="order-receipt-disclaimer"
+        onClose={() => setReceiptOrder(null)}
+        onClick={(event) => { if (event.target === receiptDialogRef.current) event.currentTarget.close(); }}
+      >
+        {receiptOrder && <div className="order-receipt-dialog-inner">
+          <div className="order-receipt-actions">
+            <button type="button" className="order-receipt-print" onClick={() => window.print()}><Printer size={16} aria-hidden="true" />Imprimir ou salvar em PDF</button>
+            <button type="button" className="order-receipt-close" autoFocus onClick={() => receiptDialogRef.current?.close()}><X size={16} aria-hidden="true" />Fechar</button>
+          </div>
+          <OrderReceipt order={receiptOrder} />
+        </div>}
+      </dialog>
     </div>
   );
 }

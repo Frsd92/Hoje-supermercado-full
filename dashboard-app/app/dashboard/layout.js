@@ -6,6 +6,7 @@ import { usePathname } from 'next/navigation';
 import { signOut, useSession } from 'next-auth/react';
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { adjustCartQuantity, formatCartQuantity, getCartItemCount, normalizeCartItems } from './cart-utils';
+import { calculateOrderTotals } from '@/features/orders/order-receipt-data';
 import contentModeration from '@/lib/content-moderation.js';
 import {
   DEFAULT_PAYMENT_METHOD,
@@ -105,6 +106,13 @@ export default function DashboardLayout({ children }) {
   const validCoupons = appliedCouponCode === normalizedCoupon && normalizedCoupon
     ? { [normalizedCoupon]: couponDiscountPercent / 100 }
     : {};
+  const activeCouponDiscountPercent = appliedCouponCode === normalizedCoupon && normalizedCoupon
+    ? couponDiscountPercent
+    : 0;
+  const cartTotals = useMemo(
+    () => calculateOrderTotals(cartItems, activeCouponDiscountPercent),
+    [cartItems, activeCouponDiscountPercent],
+  );
   const [checkoutStatus, setCheckoutStatus] = useState('');
   const [checkoutLoading, setCheckoutLoading] = useState(false);
   const [searchableProducts, setSearchableProducts] = useState([]);
@@ -638,9 +646,7 @@ export default function DashboardLayout({ children }) {
     setCpfNoteDialogOpen(false);
     setCheckoutLoading(true);
     setCheckoutStatus('');
-    const subtotal = cartItems.reduce((sum, item) => sum + (Number(String(item.price || '').replace(/[^0-9,]/g, '').replace(',', '.')) || 0) * (item.quantity || 1), 0);
-    const discount = subtotal * (couponDiscountPercent / 100);
-    const total = subtotal - discount;
+    const total = cartTotals.total;
     try {
       const response = await fetch('/api/erp/orders', {
         method: 'POST',
@@ -1037,16 +1043,16 @@ export default function DashboardLayout({ children }) {
             <div className="cart-summary-box">
               <div className="summary-row">
                 <span>Subtotal ({cartCount} itens)</span>
-                <strong>R$ {cartItems.reduce((sum, item) => sum + (Number(String(item.price || '').replace(/[^0-9,]/g, '').replace(',', '.')) || 0) * (item.quantity || 1), 0).toFixed(2).replace('.', ',')}</strong>
+                <strong>R$ {cartTotals.subtotal.toFixed(2).replace('.', ',')}</strong>
               </div>
               <div className="summary-row">
                 <span>Descontos</span>
-                <strong>R$ {(cartItems.reduce((sum, item) => sum + (Number(String(item.price || '').replace(/[^0-9,]/g, '').replace(',', '.')) || 0) * (item.quantity || 1), 0) * (validCoupons[coupon.trim().toUpperCase()] || 0)).toFixed(2).replace('.', ',')}</strong>
+                <strong>R$ {cartTotals.couponDiscountAmount.toFixed(2).replace('.', ',')}</strong>
               </div>
               <div className="summary-row"><span>Frete</span><strong>R$ 0,00</strong></div>
               <div className="summary-row total">
                 <span>Total</span>
-                <strong>R$ {(cartItems.reduce((sum, item) => sum + (Number(String(item.price || '').replace(/[^0-9,]/g, '').replace(',', '.')) || 0) * (item.quantity || 1), 0) * (1 - (validCoupons[coupon.trim().toUpperCase()] || 0))).toFixed(2).replace('.', ',')}</strong>
+                <strong>R$ {cartTotals.total.toFixed(2).replace('.', ',')}</strong>
               </div>
             </div>
             <div className="cart-coupon">
@@ -1095,7 +1101,10 @@ export default function DashboardLayout({ children }) {
               {checkoutLoading ? 'Finalizando...' : 'Finalizar Pedido'}
             </button>
             <button type="button" className="btn-limpar" onClick={() => saveCart([])}>Limpar Carrinho</button>
-            {checkoutStatus && <p className={`coupon-feedback ${checkoutStatus.includes('sucesso') ? 'success' : 'error'}`} role="status">{checkoutStatus}</p>}
+            {checkoutStatus && <p className={`coupon-feedback ${checkoutStatus.includes('sucesso') ? 'success' : 'error'}`} role="status" aria-live="polite">
+              {checkoutStatus}
+              {checkoutStatus.includes('realizado com sucesso') && <Link className="checkout-receipt-link" href="/dashboard/orders" onClick={() => { setCartOpen(false); setCheckoutStatus(''); }}>Ver pedido e comprovante</Link>}
+            </p>}
             <dialog
               ref={cpfNoteDialogRef}
               className="cpf-note-dialog"
@@ -1104,12 +1113,12 @@ export default function DashboardLayout({ children }) {
               onCancel={(event) => { event.preventDefault(); setCpfNoteDialogOpen(false); }}
             >
               <div className="cpf-note-dialog-content">
-                <span className="settings-kicker">Nota fiscal</span>
-                <h2 id="dashboard-cpf-note-title">Deseja CPF na nota?</h2>
-                <p id="dashboard-cpf-note-description">A escolha é obrigatória para enviar o pedido. Se responder Sim, usaremos o CPF cadastrado no seu perfil.</p>
+                <span className="settings-kicker">Dados para documento fiscal</span>
+                <h2 id="dashboard-cpf-note-title">Deseja registrar CPF para a nota fiscal?</h2>
+                <p id="dashboard-cpf-note-description">A escolha é obrigatória para enviar o pedido. Se responder Sim, registraremos o CPF do seu perfil. A NFC-e oficial ainda não é emitida por este sistema; o comprovante do pedido não a substitui.</p>
                 <div className="cpf-note-dialog-actions">
                   <button ref={cpfNoteNoButtonRef} type="button" className="cpf-note-choice cpf-note-no" disabled={checkoutLoading} onClick={() => submitPurchase(false)}>Não, continuar sem CPF</button>
-                  <button type="button" className="cpf-note-choice cpf-note-yes" disabled={checkoutLoading} onClick={() => submitPurchase(true)}>Sim, quero CPF na nota</button>
+                  <button type="button" className="cpf-note-choice cpf-note-yes" disabled={checkoutLoading} onClick={() => submitPurchase(true)}>Sim, registrar meu CPF</button>
                   <button type="button" className="cpf-note-cancel" onClick={() => setCpfNoteDialogOpen(false)}>Voltar ao carrinho</button>
                 </div>
               </div>

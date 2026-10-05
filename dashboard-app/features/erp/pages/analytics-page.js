@@ -133,11 +133,11 @@ function InvoiceCpfInsights({ insights }) {
 
   return <section className="analytics-section">
     <div className="analytics-section-heading">
-      <div><span className="eyebrow">Notas fiscais</span><h2>Clientes que pedem CPF na nota</h2></div>
-      <span>Histórico de pedidos ativos com consentimento explícito.</span>
+      <div><span className="eyebrow">Solicitação fiscal</span><h2>Clientes que solicitaram CPF</h2></div>
+      <span>Solicitações registradas nos pedidos; isso não confirma emissão de NFC-e/NF-e.</span>
     </div>
     <div className="erp-customer-metrics">
-      <div className="erp-customer-metric"><FileText size={17} /><strong>{insights.totalOrders || 0}</strong><span>Pedidos com CPF na nota</span></div>
+      <div className="erp-customer-metric"><FileText size={17} /><strong>{insights.totalOrders || 0}</strong><span>Pedidos com CPF solicitado</span></div>
       <div className="erp-customer-metric"><Users size={17} /><strong>{insights.totalCustomers || 0}</strong><span>Clientes solicitantes</span></div>
       <div className="erp-customer-metric"><Users size={17} /><strong>{leadingGroup?.label || 'Sem dados'}</strong><span>Mais clientes solicitantes</span><small>{leadingGroup ? `${leadingGroup.customers} cliente(s)` : 'Gênero não informado'}</small></div>
     </div>
@@ -147,14 +147,14 @@ function InvoiceCpfInsights({ insights }) {
         <h3>Solicitações por gênero do perfil</h3>
         {genderGroups.length
           ? <div className="analytics-category-list">{genderGroups.map((group) => <div key={group.label}><div><strong>{group.label}</strong><span>{group.customers} cliente(s) · {group.orders} pedido(s)</span></div></div>)}</div>
-          : <div className="erp-empty-data">Ainda não há pedidos com CPF na nota.</div>}
+          : <div className="erp-empty-data">Ainda não há solicitações de CPF nos pedidos.</div>}
         <p className="analytics-source-note">A comparação de gênero conta clientes únicos e também mostra o total de pedidos. Perfis sem gênero informado ficam separados.</p>
       </section>
       <section className="analytics-panel">
-        <div className="erp-panel-title"><Users size={17} /><div><h3>Quem solicitou</h3><p>Clientes com ao menos um pedido ativo que inclui CPF na nota.</p></div></div>
+        <div className="erp-panel-title"><Users size={17} /><div><h3>Quem solicitou</h3><p>Clientes com ao menos um pedido ativo que registra a solicitação de CPF.</p></div></div>
         {requesters.length
           ? <div className="erp-table-scroll"><table className="erp-table"><thead><tr><th>Cliente</th><th>Gênero</th><th>Pedidos</th></tr></thead><tbody>{requesters.map((customer) => <tr key={customer.key}><td><strong>{customer.name}</strong><small>{customer.email || 'E-mail não informado'}</small></td><td>{customer.gender}</td><td>{customer.requests}</td></tr>)}</tbody></table></div>
-          : <div className="erp-empty-data">Nenhum cliente solicitou CPF na nota até agora.</div>}
+          : <div className="erp-empty-data">Nenhum cliente solicitou CPF nos pedidos até agora.</div>}
       </section>
     </div>
   </section>;
@@ -352,7 +352,7 @@ export default function AnalyticsPage() {
   const abandonedCarts = data?.abandonedCarts || { available: true, idleThresholdHours: 24, total: 0, customers: [], carts: [], guestCarts: 0, cartsWithoutActivityDate: 0, topProducts: [] };
   const geography = data?.geography || { totalOrders: 0, unlocatedOrders: 0, states: [], municipalities: [], neighborhoods: [] };
   const periods = sales.periods || { today: { revenue: 0, orders: 0, averageTicket: 0 }, week: { revenue: 0, orders: 0, averageTicket: 0 }, month: { revenue: 0, orders: 0, averageTicket: 0 }, previousWeek: { revenue: 0 }, previousMonth: { revenue: 0 } };
-  const tabs = [['overview', 'Visão geral'], ['sales', 'Vendas'], ['profitability', 'Lucratividade'], ['inventory', 'Estoque'], ['customers', 'Clientes'], ['demographics', 'Sexo e idade'], ['invoiceCpf', 'CPF na nota'], ['promotions', 'Promoções']];
+  const tabs = [['overview', 'Visão geral'], ['sales', 'Vendas'], ['profitability', 'Lucratividade'], ['inventory', 'Estoque'], ['customers', 'Clientes'], ['demographics', 'Sexo e idade'], ['invoiceCpf', 'CPF solicitado'], ['promotions', 'Promoções']];
   const metrics = [
     ['Receita', money(sales.revenue), `${sales.orders || 0} pedidos`, CircleDollarSign],
     ['Lucro bruto', profitability.available ? money(profitability.grossProfit) : 'Sem dados', profitability.available ? `CMV ${money(profitability.cmv)}` : 'Custo por item incompleto', Activity],

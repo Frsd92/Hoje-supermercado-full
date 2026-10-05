@@ -20,6 +20,7 @@ test('serializes fractional product quantities without exposing private cost fie
   });
 
   assert.equal(serialized.total, 'R$ 12,50');
+  assert.equal(serialized.createdAtIso, '2026-10-03T12:00:00.000Z');
   assert.equal(serialized.items[0].quantity, 0.5);
   assert.equal(serialized.items[0].unit, 'kg');
   assert.equal(serialized.items[0].saleUnit, 'Quilograma');

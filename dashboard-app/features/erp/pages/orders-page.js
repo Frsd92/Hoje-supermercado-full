@@ -1,9 +1,10 @@
 'use client';
 
-import { AlertCircle, CheckCircle2, ClipboardList, Clock3, CreditCard, FileText, MapPin, PackageCheck, Search, ShoppingBag, Truck, UserRound } from 'lucide-react';
-import { useEffect, useMemo, useState } from 'react';
+import { AlertCircle, CheckCircle2, ClipboardList, Clock3, CreditCard, FileText, MapPin, PackageCheck, Printer, Search, ShoppingBag, Truck, UserRound, X } from 'lucide-react';
+import { useEffect, useMemo, useRef, useState } from 'react';
 import { sortOrdersNewestFirst } from '@/lib/order-sort';
 import { formatCartQuantity } from '@/app/dashboard/cart-utils';
+import OrderReceipt from '@/features/orders/order-receipt';
 
 const statuses = ['Todos', 'Recebido', 'Separacao', 'Expedicao', 'Em transito', 'Concluido', 'Cancelado'];
 const paymentLabels = { pix: 'Pix', cartao: 'Cartão', dinheiro: 'Dinheiro', outro: 'Outro / combinar' };
@@ -15,6 +16,7 @@ const formatInvoiceCpf = (value) => {
 export default function ERPOrdersPage() {
   const [orders, setOrders] = useState([]);
   const [status, setStatus] = useState('Todos');
+  const [cpfRequestFilter, setCpfRequestFilter] = useState('all');
   const [query, setQuery] = useState('');
   const [loading, setLoading] = useState(true);
   const [loadError, setLoadError] = useState('');
@@ -22,6 +24,8 @@ export default function ERPOrdersPage() {
   const [reloadToken, setReloadToken] = useState(0);
   const [acknowledged, setAcknowledged] = useState([]);
   const [selected, setSelected] = useState(null);
+  const [receiptOrder, setReceiptOrder] = useState(null);
+  const receiptDialogRef = useRef(null);
   const [busy, setBusy] = useState(false);
   const [actionError, setActionError] = useState('');
 
@@ -45,6 +49,11 @@ export default function ERPOrdersPage() {
     setAcknowledged(JSON.parse(localStorage.getItem('erp-acknowledged-orders') || '[]'));
     return () => { active = false; };
   }, [reloadToken]);
+
+  useEffect(() => {
+    const dialog = receiptDialogRef.current;
+    if (receiptOrder && dialog && !dialog.open) dialog.showModal();
+  }, [receiptOrder]);
 
   const newOrders = orders.filter((order) => order.status === 'Recebido' && !acknowledged.includes(order.id));
   const acknowledge = (id) => {
@@ -75,8 +84,14 @@ export default function ERPOrdersPage() {
 
   const filteredOrders = useMemo(() => sortOrdersNewestFirst(orders.filter((order) => {
     const text = `${order.id || ''} ${order.customerName || ''} ${order.customerEmail || ''}`.toLowerCase();
-    return text.includes(query.toLowerCase()) && (status === 'Todos' || order.status === status);
-  })), [orders, query, status]);
+    const cpfRequestMatches = cpfRequestFilter === 'all'
+      || (cpfRequestFilter === 'requested' && order.includeCpfOnReceipt === true)
+      || (cpfRequestFilter === 'not-requested' && order.includeCpfOnReceipt === false)
+      || (cpfRequestFilter === 'unknown' && (order.includeCpfOnReceipt === null || order.includeCpfOnReceipt === undefined));
+    return text.includes(query.toLowerCase())
+      && (status === 'Todos' || order.status === status)
+      && cpfRequestMatches;
+  })), [cpfRequestFilter, orders, query, status]);
 
   const metrics = [
     ['Pedidos recebidos', orders.filter((order) => order.status === 'Recebido').length, ClipboardList],
@@ -84,6 +99,7 @@ export default function ERPOrdersPage() {
     ['Em expedicao', orders.filter((order) => order.status === 'Expedicao').length, Truck],
     ['Em transito', orders.filter((order) => order.status === 'Em transito').length, Clock3],
     ['Concluido', orders.filter((order) => order.status === 'Concluido').length, CheckCircle2],
+    ['CPF solicitado', orders.filter((order) => order.includeCpfOnReceipt === true).length, FileText],
   ];
 
   return (
@@ -94,6 +110,10 @@ export default function ERPOrdersPage() {
           <h1>Pedidos</h1>
           <p>Pedidos, separacao, expedicao e status de entrega.</p>
         </div>
+      </div>
+      <div className="erp-receipt-integration-note" role="note">
+        <FileText size={18} aria-hidden="true" />
+        <span><strong>Comprovantes e situação fiscal</strong><span>Os comprovantes desta tela são informativos e vinculados ao ID e à data do pedido. Não são NFC-e/NF-e. A emissão fiscal oficial ainda depende da configuração de uma integração autorizada.</span></span>
       </div>
       {loadError && <p className="erp-budget-warning" role="alert">{loadError}<button type="button" onClick={() => setReloadToken((value) => value + 1)}>Tentar novamente</button></p>}
       {ordersLoaded && <div className="erp-customer-metrics">
@@ -111,7 +131,13 @@ export default function ERPOrdersPage() {
       </section>}
       <div className="erp-customer-toolbar">
         <div className="erp-customer-search"><Search size={16} /><input placeholder="Buscar por pedido ou cliente" value={query} onChange={(event) => setQuery(event.target.value)} /></div>
-        <select value={status} onChange={(event) => setStatus(event.target.value)}>{statuses.map((item) => <option key={item}>{item}</option>)}</select>
+        <select aria-label="Filtrar pedidos por situação" value={status} onChange={(event) => setStatus(event.target.value)}>{statuses.map((item) => <option key={item}>{item}</option>)}</select>
+        <select aria-label="Filtrar pedidos por solicitação de CPF" value={cpfRequestFilter} onChange={(event) => setCpfRequestFilter(event.target.value)}>
+          <option value="all">Todos os pedidos · CPF</option>
+          <option value="requested">CPF solicitado</option>
+          <option value="not-requested">Sem CPF solicitado</option>
+          <option value="unknown">Solicitação não informada</option>
+        </select>
       </div>
       <div className="erp-order-workspace">
         <section className="erp-customer-table-card">
@@ -120,7 +146,7 @@ export default function ERPOrdersPage() {
           </div>
           {filteredOrders.length
             ? <div className="erp-table-scroll"><table className="erp-table">
-              <thead><tr><th>Pedido</th><th>Cliente</th><th>Data</th><th>Itens</th><th>Total</th><th>CPF na nota</th><th>Status</th></tr></thead>
+              <thead><tr><th>Pedido</th><th>Cliente</th><th>Data</th><th>Itens</th><th>Total</th><th>CPF solicitado</th><th>Status</th></tr></thead>
               <tbody>{filteredOrders.map((order) => <tr key={order.id} className={selected?.id === order.id ? 'selected-row' : ''} onClick={() => { setSelected(order); setActionError(''); }}>
                 <td><strong>{order.id}</strong><small>{order.address || 'Endereço não informado'}</small></td>
                 <td>{order.customerName || order.customerEmail || 'Cliente não identificado'}</td>
@@ -141,12 +167,20 @@ export default function ERPOrdersPage() {
           <div className="erp-order-address erp-order-invoice-cpf">
             <FileText size={15} />
             <span>
-              CPF na nota: <strong>{selected.includeCpfOnReceipt === true ? 'Solicitado' : selected.includeCpfOnReceipt === false ? 'Não solicitado' : 'Não informado (pedido antigo)'}</strong>
+              CPF solicitado para documento fiscal: <strong>{selected.includeCpfOnReceipt === true ? 'Sim' : selected.includeCpfOnReceipt === false ? 'Não' : 'Não informado (pedido antigo)'}</strong>
               {selected.includeCpfOnReceipt === true && (formatInvoiceCpf(selected.invoiceCpf)
                 ? <small>CPF: {formatInvoiceCpf(selected.invoiceCpf)}</small>
                 : <small>CPF não registrado neste pedido.</small>)}
             </span>
           </div>
+          <div className="erp-order-fiscal-control">
+            <span className="erp-order-fiscal-state">Sem registro de emissão</span>
+            <strong>Documento fiscal oficial (NFC-e/NF-e)</strong>
+            <p>O pedido registra a preferência de CPF, mas este sistema ainda não emite nem armazena documento fiscal autorizado.</p>
+          </div>
+          <button type="button" className="secondary-cta erp-order-receipt-button" aria-haspopup="dialog" onClick={() => setReceiptOrder(selected)}>
+            <FileText size={16} aria-hidden="true" />Abrir comprovante informativo
+          </button>
           <h4>Itens comprados</h4>
           <div className="erp-order-items">{(selected.items || []).map((item) => <div key={item.name}><strong>{item.name}</strong><span>Qtd. {formatCartQuantity(item)} · {item.price}</span></div>)}</div>
           {selected.status === 'Recebido' && <p className="erp-order-fefo-note"><PackageCheck size={15} /> Ao iniciar a separação, o sistema reserva primeiro os lotes com validade mais próxima.</p>}
@@ -156,6 +190,22 @@ export default function ERPOrdersPage() {
           </button>
         </aside>}
       </div>
+      <dialog
+        ref={receiptDialogRef}
+        className="order-receipt-dialog"
+        aria-labelledby="order-receipt-title"
+        aria-describedby="order-receipt-disclaimer"
+        onClose={() => setReceiptOrder(null)}
+        onClick={(event) => { if (event.target === receiptDialogRef.current) event.currentTarget.close(); }}
+      >
+        {receiptOrder && <div className="order-receipt-dialog-inner">
+          <div className="order-receipt-actions">
+            <button type="button" className="order-receipt-print" onClick={() => window.print()}><Printer size={16} aria-hidden="true" />Imprimir ou salvar em PDF</button>
+            <button type="button" className="order-receipt-close" autoFocus onClick={() => receiptDialogRef.current?.close()}><X size={16} aria-hidden="true" />Fechar</button>
+          </div>
+          <OrderReceipt order={receiptOrder} />
+        </div>}
+      </dialog>
     </div>
   );
 }
