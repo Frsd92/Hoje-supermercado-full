@@ -6,6 +6,7 @@ import { useEffect, useMemo, useState } from 'react';
 
 const filters = [
   { value: 'available', label: 'Disponíveis' },
+  { value: 'processing', label: 'Em processamento' },
   { value: 'redeemed', label: 'Resgatados' },
   { value: 'expired', label: 'Expirados' },
   { value: 'all', label: 'Todos' },
@@ -13,6 +14,7 @@ const filters = [
 
 const statusLabels = {
   available: 'Disponível',
+  processing: 'Em processamento',
   redeemed: 'Resgatado',
   expired: 'Expirado',
 };
@@ -78,7 +80,7 @@ export default function CustomerCouponsPage() {
   const couponCounts = useMemo(() => coupons.reduce((counts, coupon) => ({
     ...counts,
     [coupon.status]: (counts[coupon.status] || 0) + 1,
-  }), { available: 0, redeemed: 0, expired: 0 }), [coupons]);
+  }), { available: 0, processing: 0, redeemed: 0, expired: 0 }), [coupons]);
 
   const copyCoupon = async (code) => {
     try {
@@ -115,6 +117,7 @@ export default function CustomerCouponsPage() {
 
     <section className="customer-coupon-summary" aria-label="Resumo dos seus cupons">
       <div><TicketPercent size={18} aria-hidden="true" /><span>Disponíveis</span><strong>{couponCounts.available}</strong></div>
+      <div><Clock3 size={18} aria-hidden="true" /><span>Em processamento</span><strong>{couponCounts.processing}</strong></div>
       <div><Check size={18} aria-hidden="true" /><span>Já resgatados</span><strong>{couponCounts.redeemed}</strong></div>
       <div><Clock3 size={18} aria-hidden="true" /><span>Expirados</span><strong>{couponCounts.expired}</strong></div>
     </section>
@@ -167,18 +170,29 @@ export default function CustomerCouponsPage() {
             <dl className="customer-coupon-dates">
               <div><dt>Válido até</dt><dd>{formatDate(coupon.expiresAt)}</dd></div>
               {coupon.status === 'redeemed' && coupon.redeemedAt && <div><dt>Resgatado em</dt><dd>{formatDate(coupon.redeemedAt)}</dd></div>}
+              {coupon.status === 'processing' && coupon.redeemedAt && <div><dt>Pedido iniciado em</dt><dd>{formatDate(coupon.redeemedAt)}</dd></div>}
               {coupon.status === 'expired' && <div><dt>Situação</dt><dd>Prazo encerrado</dd></div>}
             </dl>
             {coupon.status === 'available' ? <div className="customer-coupon-actions">
               <button type="button" className="customer-coupon-use" onClick={() => useCoupon(coupon)}><ShoppingBag size={16} aria-hidden="true" />Usar no carrinho</button>
               <button type="button" className="customer-coupon-copy" onClick={() => copyCoupon(coupon.code)} aria-label={`Copiar código ${coupon.code}`}><Copy size={16} aria-hidden="true" />Copiar código</button>
-            </div> : <p className="customer-coupon-closed">{coupon.status === 'redeemed' ? 'Este cupom já foi utilizado.' : 'Este cupom não pode mais ser aplicado.'}</p>}
+            </div> : <p className="customer-coupon-closed">{coupon.status === 'processing'
+              ? 'Seu pagamento está sendo confirmado. O cupom será liberado se a compra não for concluída.'
+              : coupon.status === 'redeemed'
+                ? 'Este cupom já foi utilizado.'
+                : 'Este cupom não pode mais ser aplicado.'}</p>}
             {feedback?.code === coupon.code && <p className={`customer-coupon-card-feedback${feedback.error ? ' error' : ''}`} role={feedback.error ? 'alert' : 'status'}>{feedback.message}</p>}
           </article>)}
         </div> : (
           <div className="empty-state customer-coupon-empty">
             <div className="empty-state-box"><TicketPercent size={34} aria-hidden="true" /></div>
-            <h3>{activeFilter === 'available' ? 'Nenhum cupom disponível agora' : activeFilter === 'all' ? 'Você ainda não recebeu cupons' : `Nenhum cupom ${activeFilter === 'redeemed' ? 'resgatado' : 'expirado'}`}</h3>
+            <h3>{activeFilter === 'available'
+              ? 'Nenhum cupom disponível agora'
+              : activeFilter === 'all'
+                ? 'Você ainda não recebeu cupons'
+                : activeFilter === 'processing'
+                  ? 'Nenhum pagamento em processamento'
+                  : `Nenhum cupom ${activeFilter === 'redeemed' ? 'resgatado' : 'expirado'}`}</h3>
             <p>{activeFilter === 'available' ? 'Quando a loja enviar uma oferta para sua conta, ela aparecerá aqui.' : 'Seus cupons e o histórico de uso ficam organizados nesta área.'}</p>
             <Link href="/" className="secondary-cta"><ShoppingBag size={16} aria-hidden="true" />Voltar à loja</Link>
           </div>

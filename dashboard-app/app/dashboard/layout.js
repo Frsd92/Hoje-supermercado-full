@@ -97,6 +97,9 @@ export default function DashboardLayout({ children }) {
   const [selectedAddressId, setSelectedAddressId] = useState('');
   const [deliveryAddressOpen, setDeliveryAddressOpen] = useState(false);
   const [paymentMethod, setPaymentMethod] = useState(DEFAULT_PAYMENT_METHOD);
+  const [pagarmeConfig, setPagarmeConfig] = useState({ pixAvailable: false, cardAvailable: false, publicKey: '' });
+  const [profileCpf, setProfileCpf] = useState('');
+  const [profilePhone, setProfilePhone] = useState('');
   const [cpfNoteDialogOpen, setCpfNoteDialogOpen] = useState(false);
   const [coupon, setCoupon] = useState('');
   const [couponDiscountPercent, setCouponDiscountPercent] = useState(0);
@@ -114,6 +117,7 @@ export default function DashboardLayout({ children }) {
     [cartItems, activeCouponDiscountPercent],
   );
   const [checkoutStatus, setCheckoutStatus] = useState('');
+  const [checkoutOrderId, setCheckoutOrderId] = useState('');
   const [checkoutLoading, setCheckoutLoading] = useState(false);
   const [searchableProducts, setSearchableProducts] = useState([]);
   const [failedSearchImages, setFailedSearchImages] = useState({});
@@ -129,6 +133,8 @@ export default function DashboardLayout({ children }) {
   const cpfNoteNoButtonRef = useRef(null);
   const cartPanelRef = useRef(null);
   const cartOpenerRef = useRef(null);
+  const cardFieldsRef = useRef(null);
+  const checkoutRequestIdRef = useRef(null);
   const cartItemsRef = useRef([]);
   const cartWriteQueueRef = useRef(Promise.resolve());
   const savedAddressesRef = useRef([]);
@@ -185,6 +191,11 @@ export default function DashboardLayout({ children }) {
     };
     const applyPaymentMethodUpdate = (event) => {
       if (event.detail?.email !== accountEmail || !isPaymentMethod(event.detail?.method)) return;
+      checkoutRequestIdRef.current = null;
+      setCheckoutOrderId('');
+      if (event.detail.method !== 'cartao') {
+        cardFieldsRef.current?.querySelectorAll('input').forEach((input) => { input.value = ''; });
+      }
       setPaymentMethod(event.detail.method);
     };
 
@@ -282,9 +293,13 @@ export default function DashboardLayout({ children }) {
 
   useEffect(() => {
     let active = true;
+    setProfileCpf('');
+    setProfilePhone('');
     const updatePhoto = (profile) => {
       setProfilePhoto(profile?.photo || profile?.googlePhoto || session?.user?.image || '');
       setProfileName(profile?.fullName || session?.user?.name || '');
+      setProfileCpf(profile?.cpf || '');
+      setProfilePhone(profile?.whatsapp || '');
     };
     fetch('/api/profile', { cache: 'no-store' })
       .then((response) => {
@@ -302,6 +317,26 @@ export default function DashboardLayout({ children }) {
       window.removeEventListener('dashboard-profile-updated', handleProfileUpdated);
     };
   }, [session?.user?.image, session?.user?.email]);
+
+  useEffect(() => {
+    let active = true;
+    fetch('/api/pagarme/config', { cache: 'no-store' })
+      .then(async (response) => {
+        const data = await response.json();
+        if (!response.ok) throw new Error(data.error || 'Não foi possível verificar o pagamento online.');
+        return data;
+      })
+      .then((config) => {
+        if (active) setPagarmeConfig(config);
+      })
+      .catch((error) => {
+        console.error('Não foi possível verificar a configuração do Pagar.me:', error);
+        if (active) setPagarmeConfig({ pixAvailable: false, cardAvailable: false, publicKey: '' });
+      });
+    return () => {
+      active = false;
+    };
+  }, []);
 
   useEffect(() => {
     const addressStorageKey = deliveryAddressStorageKey(session?.user?.email);
@@ -529,6 +564,7 @@ export default function DashboardLayout({ children }) {
   const saveCart = async (nextCart) => {
     const cartStorageKey = `hoje-dashboard-cart-${session?.user?.email || 'guest'}`;
     const normalizedCart = normalizeCartItems(nextCart);
+    checkoutRequestIdRef.current = null;
     cartItemsRef.current = normalizedCart;
     setCartItems(normalizedCart);
     setCartCount(getCartItemCount(normalizedCart));
@@ -628,9 +664,70 @@ export default function DashboardLayout({ children }) {
     if (addressLoadError) return setCheckoutStatus(`Não foi possível confirmar seus endereços: ${addressLoadError}`);
     if (!selectedDeliveryAddress) return setCheckoutStatus('Cadastre um endereço no painel do cliente antes de concluir a compra.');
     if (!isPaymentMethod(paymentMethod)) return setCheckoutStatus('Selecione uma forma no campo Forma de pagamento; você também pode defini-la na aba Formas de pagamento.');
+    if (paymentMethod === 'pix' && !pagarmeConfig.pixAvailable) {
+      return setCheckoutStatus('O Pix pela Pagar.me ainda não está configurado. Escolha outro método ou tente mais tarde.');
+    }
+    if (paymentMethod === 'cartao' && !pagarmeConfig.cardAvailable) {
+      return setCheckoutStatus('O cartão pela Pagar.me ainda não está configurado. Escolha outro método ou tente mais tarde.');
+    }
+    if (['pix', 'cartao'].includes(paymentMethod)) {
+      const cpf = String(profileCpf).replace(/\D/g, '');
+      const phone = String(profilePhone).replace(/\D/g, '').replace(/^55(?=\d{10,11}$)/, '');
+      if (cpf.length !== 11 || ![10, 11].includes(phone.length)) {
+        return setCheckoutStatus('Para pagar com Pix ou cartão, complete seu CPF e celular com DDD no perfil. Isso não define se o CPF será impresso no comprovante.');
+      }
+    }
 
     setCheckoutStatus('');
+    setCheckoutOrderId('');
     setCpfNoteDialogOpen(true);
+  };
+
+  const tokenizeCard = async () => {
+    const fields = cardFieldsRef.current;
+    const readField = (name) => fields?.querySelector(`[name="${name}"]`)?.value || '';
+    const number = readField('cardNumber').replace(/\D/g, '');
+    const holderName = readField('cardHolder').trim();
+    const expiration = readField('cardExpiration');
+    const cvv = readField('cardCvv').replace(/\D/g, '');
+    const expirationMatch = /^(\d{4})-(0[1-9]|1[0-2])$/.exec(expiration);
+    const expirationDate = expirationMatch
+      ? new Date(Number(expirationMatch[1]), Number(expirationMatch[2]), 0, 23, 59, 59)
+      : null;
+    if (number.length < 13 || number.length > 19 || holderName.length < 2 || !expirationDate || expirationDate < new Date() || ![3, 4].includes(cvv.length)) {
+      throw new Error('Confira o número, nome, validade e código de segurança do cartão.');
+    }
+    if (!pagarmeConfig.publicKey) throw new Error('A tokenização segura do cartão não está configurada.');
+
+    try {
+      const response = await fetch(`https://api.pagar.me/core/v5/tokens?appId=${encodeURIComponent(pagarmeConfig.publicKey)}`, {
+        method: 'POST',
+        headers: { Accept: 'application/json', 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          type: 'card',
+          card: {
+            number,
+            holder_name: holderName,
+            exp_month: Number(expirationMatch[2]),
+            exp_year: Number(expirationMatch[1]),
+            cvv,
+          },
+        }),
+      });
+      if (!response.ok) throw new Error('Não foi possível proteger o cartão com a Pagar.me. Confira os dados e tente novamente.');
+      const token = await response.json();
+      if (!/^token_[A-Za-z0-9]+$/.test(String(token?.id || ''))) {
+        throw new Error('A Pagar.me não retornou um token válido para o cartão.');
+      }
+      return token.id;
+    } catch (error) {
+      if (error instanceof TypeError) {
+        throw new Error('Não foi possível conectar à tokenização da Pagar.me. Tente novamente.');
+      }
+      throw error;
+    } finally {
+      fields?.querySelectorAll('input').forEach((input) => { input.value = ''; });
+    }
   };
 
   const submitPurchase = async (includeCpfOnReceipt) => {
@@ -648,6 +745,9 @@ export default function DashboardLayout({ children }) {
     setCheckoutStatus('');
     const total = cartTotals.total;
     try {
+      const cardToken = paymentMethod === 'cartao' ? await tokenizeCard() : null;
+      const checkoutRequestId = checkoutRequestIdRef.current || window.crypto.randomUUID();
+      checkoutRequestIdRef.current = checkoutRequestId;
       const response = await fetch('/api/erp/orders', {
         method: 'POST',
         credentials: 'include',
@@ -658,19 +758,25 @@ export default function DashboardLayout({ children }) {
           addressId: selectedAddressId,
           addressDetails: selectedDeliveryAddress,
           paymentMethod,
+          checkoutRequestId,
+          ...(cardToken ? { cardToken } : {}),
           includeCpfOnReceipt,
           couponCode: coupon.trim().toUpperCase(),
           total: `R$ ${total.toFixed(2).replace('.', ',')}`,
         }),
       });
       const data = await response.json();
-      if (!response.ok) throw new Error(data.error || 'Não foi possível finalizar a compra.');
+      if (!response.ok) {
+        if (response.status < 500) checkoutRequestIdRef.current = null;
+        throw new Error(data.error || 'Não foi possível finalizar a compra.');
+      }
       await saveCart([]);
       setCoupon('');
       setCouponDiscountPercent(0);
       setAppliedCouponCode('');
       setCouponStatus('');
-      setCheckoutStatus(`Pedido ${data.order.id} realizado com sucesso.`);
+      setCheckoutOrderId(data.order.id);
+      setCheckoutStatus(data.message || `Pedido ${data.order.id} realizado com sucesso.`);
       window.dispatchEvent(new Event('dashboard-coupons-updated'));
     } catch (error) {
       setCheckoutStatus(error.message);
@@ -1084,6 +1190,11 @@ export default function DashboardLayout({ children }) {
                 required
                 value={paymentMethod || ''}
                 onChange={(event) => {
+                  checkoutRequestIdRef.current = null;
+                  setCheckoutOrderId('');
+                  if (event.target.value !== 'cartao') {
+                    cardFieldsRef.current?.querySelectorAll('input').forEach((input) => { input.value = ''; });
+                  }
                   try {
                     savePaymentMethod(session?.user?.email, event.target.value);
                     setCheckoutStatus('');
@@ -1097,13 +1208,36 @@ export default function DashboardLayout({ children }) {
               </select>
             </label>
             <small className="checkout-field-hint">Obrigatória para concluir o pedido. <Link href="/dashboard/payment-methods">Gerenciar formas de pagamento</Link></small>
+            {['pix', 'cartao'].includes(paymentMethod) && <div className="checkout-field-hint" role="status">
+              <p>O processamento pela Pagar.me exige CPF e celular com DDD cadastrados no perfil. Esses dados são enviados à processadora para o pagamento e não determinam se o CPF será impresso no comprovante.</p>
+              {profileCpf.replace(/\D/g, '').length !== 11 || ![10, 11].includes(profilePhone.replace(/\D/g, '').replace(/^55(?=\d{10,11}$)/, '').length)
+                ? <Link href="/dashboard/profile">Completar CPF e celular no perfil</Link>
+                : <span>CPF e celular cadastrados no perfil.</span>}
+            </div>}
+            {paymentMethod === 'pix' && !pagarmeConfig.pixAvailable && <p className="checkout-field-hint" role="alert">Pix Pagar.me indisponível até a configuração das chaves no servidor.</p>}
+            {paymentMethod === 'cartao' && !pagarmeConfig.cardAvailable && <p className="checkout-field-hint" role="alert">Cartão Pagar.me indisponível até a configuração das chaves no servidor.</p>}
+            {paymentMethod === 'cartao' && pagarmeConfig.cardAvailable && <div className="checkout-card-fields" ref={cardFieldsRef}>
+              <p className="checkout-field-hint">Os dados do cartão são tokenizados diretamente pela Pagar.me; não são enviados nem salvos pela loja.</p>
+              <label className="delivery-address-field">Número do cartão
+                <input name="cardNumber" type="text" inputMode="numeric" autoComplete="cc-number" maxLength={23} required />
+              </label>
+              <label className="delivery-address-field">Nome impresso no cartão
+                <input name="cardHolder" type="text" autoComplete="cc-name" maxLength={100} required />
+              </label>
+              <label className="delivery-address-field">Validade
+                <input name="cardExpiration" type="month" autoComplete="cc-exp" required />
+              </label>
+              <label className="delivery-address-field">Código de segurança
+                <input name="cardCvv" type="password" inputMode="numeric" autoComplete="cc-csc" maxLength={4} required />
+              </label>
+            </div>}
             <button className="btn-finalizar" type="submit" disabled={checkoutLoading || !cartItems.length}>
               {checkoutLoading ? 'Finalizando...' : 'Finalizar Pedido'}
             </button>
             <button type="button" className="btn-limpar" onClick={() => saveCart([])}>Limpar Carrinho</button>
-            {checkoutStatus && <p className={`coupon-feedback ${checkoutStatus.includes('sucesso') ? 'success' : 'error'}`} role="status" aria-live="polite">
+            {checkoutStatus && <p className={`coupon-feedback ${checkoutOrderId || checkoutStatus.includes('sucesso') ? 'success' : 'error'}`} role="status" aria-live="polite">
               {checkoutStatus}
-              {checkoutStatus.includes('realizado com sucesso') && <Link className="checkout-receipt-link" href="/dashboard/orders" onClick={() => { setCartOpen(false); setCheckoutStatus(''); }}>Ver pedido e comprovante</Link>}
+              {checkoutOrderId && <Link className="checkout-receipt-link" href="/dashboard/orders" onClick={() => { setCartOpen(false); setCheckoutStatus(''); }}>Ver pedido e pagamento · {checkoutOrderId}</Link>}
             </p>}
             <dialog
               ref={cpfNoteDialogRef}

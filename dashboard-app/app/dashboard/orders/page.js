@@ -9,6 +9,15 @@ import OrderReceipt from '@/features/orders/order-receipt';
 import { getRemainingRefundCents, refundRequestStatusLabels } from '@/features/orders/order-refund-utils';
 
 const currencyFormatter = new Intl.NumberFormat('pt-BR', { style: 'currency', currency: 'BRL' });
+const paymentStatusLabels = {
+  pending: 'Aguardando pagamento',
+  paid: 'Pago',
+  failed: 'Pagamento não aprovado',
+  canceled: 'Pagamento cancelado',
+  partially_refunded: 'Estorno parcial',
+  refunded: 'Estornado',
+  manual: 'Pagamento combinado com a loja',
+};
 
 const tabs = [
   { value: 'Todos', label: 'Todos' },
@@ -34,6 +43,8 @@ export default function OrdersPage() {
   const [refundBusy, setRefundBusy] = useState(false);
   const [refundError, setRefundError] = useState('');
   const [refundNotice, setRefundNotice] = useState('');
+  const [copiedPixOrderId, setCopiedPixOrderId] = useState('');
+  const [pixCopyError, setPixCopyError] = useState('');
 
   useEffect(() => {
     let active = true;
@@ -87,6 +98,20 @@ export default function OrdersPage() {
     setLoadError('');
     setIsLoading(true);
     setRetryCount((count) => count + 1);
+  };
+
+  const copyPixCode = async (order) => {
+    const pixCode = order.paymentDetails?.pixQrCode;
+    if (!pixCode) return;
+    try {
+      await navigator.clipboard.writeText(pixCode);
+      setCopiedPixOrderId(order.id);
+      setPixCopyError('');
+    } catch (error) {
+      console.error('Não foi possível copiar o código Pix:', error);
+      setCopiedPixOrderId('');
+      setPixCopyError('Não foi possível copiar automaticamente. Selecione e copie o código Pix abaixo.');
+    }
   };
 
   const openRefundDialog = (order) => {
@@ -212,7 +237,7 @@ export default function OrdersPage() {
               const info = getOrderStatus(order.status);
               const currentStage = orderStages.indexOf(order.status);
               const refundRequests = order.refundRequests || [];
-              const remainingRefundCents = getRemainingRefundCents(order.total, refundRequests);
+              const remainingRefundCents = getRemainingRefundCents(order.total, refundRequests, order.refundedAmount);
               return (
                 <div key={order.id} className="table-row" role="row">
                   <span className="customer-order-reference" role="cell">
@@ -227,6 +252,15 @@ export default function OrdersPage() {
                       <strong>{request.code}</strong>
                       <span>{currencyFormatter.format(request.amount)} · {refundRequestStatusLabels[request.status] || request.status}</span>
                     </span>)}
+                    {order.paymentStatus === 'pending' && order.paymentMethod === 'pix' && order.paymentDetails?.pixQrCode && <span className="customer-pix-payment">
+                      <strong>Pix aguardando pagamento</strong>
+                      {order.paymentDetails.pixQrCodeUrl && <img src={order.paymentDetails.pixQrCodeUrl} alt={`QR Code Pix do pedido ${order.id}`} />}
+                      <textarea aria-label={`Código Pix do pedido ${order.id}`} value={order.paymentDetails.pixQrCode} readOnly rows={3} />
+                      <button type="button" onClick={() => copyPixCode(order)}>{copiedPixOrderId === order.id ? 'Código Pix copiado' : 'Copiar código Pix'}</button>
+                      {order.paymentDetails.pixExpiresAt && <small>Válido até {new Date(order.paymentDetails.pixExpiresAt).toLocaleString('pt-BR')}</small>}
+                      {pixCopyError && <small role="alert">{pixCopyError}</small>}
+                    </span>}
+                    {order.paymentStatus === 'pending' && !order.paymentDetails?.pixQrCode && <span className="customer-pix-payment" role="status">Pagamento aguardando confirmação. Confira novamente antes de tentar pagar outra vez.</span>}
                   </span>
                   <span className="order-status-cell" role="cell">
                     <span className={`status-badge ${info.tone}`}><span className="order-status-light" aria-hidden="true" />{info.label}</span>
@@ -251,7 +285,7 @@ export default function OrdersPage() {
                     </span>
                   </span>
                   <span role="cell">{order.items?.length || 0}</span>
-                  <span role="cell">{order.total || 'R$ 0,00'}</span>
+                  <span role="cell">{order.total || 'R$ 0,00'}<small className="customer-order-payment-status">Pagamento: {paymentStatusLabels[order.paymentStatus] || order.paymentStatus || 'Não informado'}</small></span>
                 </div>
               );
             })}

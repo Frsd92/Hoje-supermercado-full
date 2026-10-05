@@ -1,8 +1,8 @@
 export const PAYMENT_METHODS = [
-  { value: 'pix', label: 'Pix', description: 'Use Pix como forma preferida para finalizar pedidos.' },
-  { value: 'cartao', label: 'Cartão', description: 'Use cartão como forma preferida para finalizar pedidos.' },
-  { value: 'dinheiro', label: 'Dinheiro', description: 'Use dinheiro como forma preferida para finalizar pedidos.' },
-  { value: 'outro', label: 'Outro / combinar', description: 'Escolha outra opção ou combine o pagamento no atendimento.' },
+  { value: 'pix', label: 'Pix · Pagar.me', description: 'Pagamento online com QR Code e confirmação automática.' },
+  { value: 'cartao', label: 'Cartão · Pagar.me', description: 'Cartão tokenizado no navegador e confirmação automática.' },
+  { value: 'dinheiro', label: 'Dinheiro', description: 'Pagamento combinado com a loja, sem processamento pela Pagar.me.' },
+  { value: 'outro', label: 'Outro / combinar', description: 'Combine outra forma de pagamento diretamente com a loja.' },
 ];
 
 export const DEFAULT_PAYMENT_METHOD = null;

@@ -16,6 +16,14 @@ import {
 import { prisma } from '@/lib/prisma';
 import { randomUUID } from 'crypto';
 import { serializeOrder, serializeOrders } from './order-serialization.js';
+import {
+  buildPagarmeOrderPayload,
+  createPagarmeOrder,
+  getPagarmePaymentSnapshot,
+  isValidCpf,
+  PagarmeApiError,
+  splitBrazilianMobilePhone,
+} from '@/features/payments/pagarme';
 
 const productsFile = path.join(process.cwd(), 'data', 'products.json');
 const allowedOrigins = new Set(['http://localhost:8010', 'http://localhost:5500', 'http://127.0.0.1:5500', 'null']);
@@ -155,12 +163,68 @@ export async function POST(request) {
   if (!['pix', 'cartao', 'dinheiro', 'outro'].includes(body.paymentMethod)) {
     return Response.json({ error: 'Selecione uma forma de pagamento válida antes de finalizar.' }, { status: 400, headers: corsHeaders(request) });
   }
+  const usesPagarme = body.paymentMethod === 'pix' || body.paymentMethod === 'cartao';
+  if (usesPagarme && !process.env.PAGARME_SECRET_KEY) {
+    return Response.json({ error: 'O pagamento online ainda não está configurado. Escolha outro método ou tente mais tarde.' }, { status: 503, headers: corsHeaders(request) });
+  }
+  if (body.paymentMethod === 'cartao' && !process.env.PAGARME_PUBLIC_KEY) {
+    return Response.json({ error: 'A tokenização segura do cartão ainda não está configurada. Escolha outro método ou tente mais tarde.' }, { status: 503, headers: corsHeaders(request) });
+  }
   if (typeof body.includeCpfOnReceipt !== 'boolean') {
     return Response.json({ error: 'Informe se deseja CPF na nota para continuar.' }, { status: 400, headers: corsHeaders(request) });
   }
 
   const email = String(session.user.email || '').trim().toLowerCase();
   if (!email) return Response.json({ error: 'Não foi possível identificar sua conta para validar o endereço.' }, { status: 400, headers: corsHeaders(request) });
+  const checkoutRequestId = String(body.checkoutRequestId || '').trim();
+  if ((usesPagarme && !checkoutRequestId) || (checkoutRequestId && !/^[0-9a-f]{8}-[0-9a-f]{4}-[1-8][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i.test(checkoutRequestId))) {
+    return Response.json({ error: 'Não foi possível identificar esta tentativa de compra. Atualize o carrinho e tente novamente.' }, { status: 400, headers: corsHeaders(request) });
+  }
+  if (checkoutRequestId) {
+    try {
+      const existingOrder = await prisma.order.findFirst({
+        where: { checkoutRequestId, customerEmail: email },
+        include: {
+          items: true,
+          refundRequests: { include: { events: { orderBy: { createdAt: 'asc' } } }, orderBy: { createdAt: 'desc' } },
+        },
+      });
+      if (existingOrder) {
+        if (['failed', 'canceled'].includes(existingOrder.paymentStatus)) {
+          return Response.json({ error: 'Esta tentativa de pagamento não foi aprovada. Confira os dados e inicie uma nova tentativa.' }, { status: 409, headers: corsHeaders(request) });
+        }
+        return Response.json({
+          order: serializeOrder(existingOrder),
+          reused: true,
+          message: 'Esta tentativa já foi registrada; confira o pedido antes de iniciar outro pagamento.',
+        }, { status: 200, headers: corsHeaders(request) });
+      }
+    } catch (error) {
+      console.error('Não foi possível verificar uma tentativa anterior de checkout:', error);
+      return Response.json({ error: 'Não foi possível verificar o pedido anterior agora.' }, { status: 500, headers: corsHeaders(request) });
+    }
+  }
+
+  let customerProfile = null;
+  if (body.includeCpfOnReceipt || usesPagarme) {
+    try {
+      customerProfile = await prisma.customerProfile.findUnique({
+        where: { email },
+        select: { cpf: true, whatsapp: true, fullName: true },
+      });
+    } catch (error) {
+      console.error('Não foi possível consultar os dados de pagamento do perfil:', error);
+      return Response.json({ error: 'Não foi possível confirmar os dados do perfil agora.' }, { status: 500, headers: corsHeaders(request) });
+    }
+  }
+  if (usesPagarme) {
+    if (!isValidCpf(customerProfile?.cpf)) {
+      return Response.json({ error: 'Cadastre um CPF válido no perfil para pagar com Pix ou cartão.' }, { status: 422, headers: corsHeaders(request) });
+    }
+    if (!splitBrazilianMobilePhone(customerProfile?.whatsapp)) {
+      return Response.json({ error: 'Cadastre um celular com DDD no perfil para pagar com Pix ou cartão.' }, { status: 422, headers: corsHeaders(request) });
+    }
+  }
 
   let savedAddress;
   let serviceRegions;
@@ -208,17 +272,7 @@ export async function POST(request) {
 
   let invoiceCpf = '';
   if (body.includeCpfOnReceipt) {
-    let profile;
-    try {
-      profile = await prisma.customerProfile.findUnique({
-        where: { email },
-        select: { cpf: true },
-      });
-    } catch (error) {
-      console.error('Não foi possível consultar o CPF do perfil para o pedido:', error);
-      return Response.json({ error: 'Não foi possível consultar o CPF do perfil agora.' }, { status: 500, headers: corsHeaders(request) });
-    }
-    invoiceCpf = String(profile?.cpf || '').replace(/\D/g, '');
+    invoiceCpf = String(customerProfile?.cpf || '').replace(/\D/g, '');
     if (invoiceCpf.length !== 11) {
       return Response.json({ error: 'Cadastre um CPF com 11 dígitos no seu perfil antes de solicitar CPF na nota.' }, { status: 400, headers: corsHeaders(request) });
     }
@@ -297,8 +351,41 @@ export async function POST(request) {
   const { subtotal, couponDiscountAmount, total } = calculateOrderTotals(orderItems, appliedDiscountPercent);
   const paymentMethod = body.paymentMethod;
   const orderId = `PED-${randomUUID()}`;
+  let pagarmePayload = null;
+  if (usesPagarme) {
+    try {
+      pagarmePayload = buildPagarmeOrderPayload({
+        orderId,
+        items: orderItems,
+        total,
+        customer: {
+          name: customerProfile?.fullName || session.user.name || 'Cliente',
+          email,
+          cpf: customerProfile?.cpf,
+          phone: customerProfile?.whatsapp,
+        },
+        paymentMethod,
+        cardToken: body.cardToken,
+        address: normalizedAddress,
+      });
+    } catch (error) {
+      return Response.json({ error: error.message || 'Não foi possível preparar o pagamento.' }, { status: 422, headers: corsHeaders(request) });
+    }
+  }
   try {
     const order = await prisma.$transaction(async (transaction) => {
+      const customer = await transaction.user.upsert({
+        where: { email },
+        create: {
+          email,
+          name: customerProfile?.fullName || session.user.name || null,
+          image: session.user.image || null,
+        },
+        update: {
+          name: customerProfile?.fullName || session.user.name || undefined,
+          image: session.user.image || undefined,
+        },
+      });
       if (campaignCoupon) {
         await transaction.couponRedemption.create({
           data: { id: randomUUID(), campaignId: campaignCoupon.id, email, orderId },
@@ -307,13 +394,16 @@ export async function POST(request) {
       return transaction.order.create({
         data: {
           id: orderId,
-          customerName: session.user.name || 'Cliente',
+          userId: customer.id,
+          customerName: customerProfile?.fullName || session.user.name || 'Cliente',
           customerEmail: email,
           address: addressLabel,
           addressDetails,
           total: `R$ ${total.toFixed(2).replace('.', ',')}`,
           subtotal: Number(subtotal.toFixed(2)),
           paymentMethod,
+          paymentStatus: usesPagarme ? 'pending' : 'manual',
+          checkoutRequestId: checkoutRequestId || null,
           includeCpfOnReceipt: body.includeCpfOnReceipt,
           invoiceCpf: body.includeCpfOnReceipt ? invoiceCpf : null,
           couponCode: campaignCoupon ? couponCode : null,
@@ -325,8 +415,94 @@ export async function POST(request) {
         include: { items: true },
       });
     });
-    return Response.json({ order: serializeOrder(order) }, { status: 201, headers: corsHeaders(request) });
+    if (!usesPagarme) {
+      return Response.json({ order: serializeOrder(order) }, { status: 201, headers: corsHeaders(request) });
+    }
+
+    try {
+      const pagarmeOrder = await createPagarmeOrder(pagarmePayload, orderId);
+      const paymentSnapshot = getPagarmePaymentSnapshot(pagarmeOrder);
+      if (!paymentSnapshot.pagarmeOrderId) throw new Error('A Pagar.me retornou um pedido sem identificador.');
+
+      const updatedOrder = await prisma.$transaction(async (transaction) => {
+        const savedOrder = await transaction.order.update({
+          where: { id: orderId },
+          data: paymentSnapshot,
+          include: { items: true },
+        });
+        if (['failed', 'canceled'].includes(paymentSnapshot.paymentStatus) && campaignCoupon) {
+          await transaction.couponRedemption.deleteMany({ where: { orderId } });
+        }
+        return savedOrder;
+      });
+      if (['failed', 'canceled'].includes(paymentSnapshot.paymentStatus)) {
+        return Response.json({
+          error: 'A Pagar.me não aprovou o pagamento. Confira os dados e tente outra forma de pagamento.',
+          order: serializeOrder(updatedOrder),
+        }, { status: 402, headers: corsHeaders(request) });
+      }
+
+      return Response.json({
+        order: serializeOrder(updatedOrder),
+        message: paymentSnapshot.paymentStatus === 'pending'
+          ? 'Pedido criado. Conclua o pagamento para liberar a separação.'
+          : 'Pagamento confirmado e pedido criado.',
+      }, { status: 201, headers: corsHeaders(request) });
+    } catch (error) {
+      const definitivelyRejected = error instanceof PagarmeApiError
+        && [400, 401, 403, 404, 422].includes(error.status);
+      try {
+        const updatedOrder = await prisma.$transaction(async (transaction) => {
+          const savedOrder = await transaction.order.update({
+            where: { id: orderId },
+            data: { paymentStatus: definitivelyRejected ? 'failed' : 'pending', paymentDetails: null },
+            include: { items: true },
+          });
+          if (definitivelyRejected && campaignCoupon) {
+            await transaction.couponRedemption.deleteMany({ where: { orderId } });
+          }
+          return savedOrder;
+        });
+        if (definitivelyRejected) {
+          console.warn('A Pagar.me recusou o pedido de pagamento:', error.status);
+          return Response.json({
+            error: 'A Pagar.me não aprovou o pagamento. Confira os dados e tente outra forma de pagamento.',
+            order: serializeOrder(updatedOrder),
+          }, { status: 402, headers: corsHeaders(request) });
+        }
+
+        console.error('Não foi possível confirmar imediatamente a resposta da Pagar.me:', error);
+        return Response.json({
+          order: serializeOrder(updatedOrder),
+          message: `O pedido ${orderId} foi registrado e aguarda confirmação do pagamento. Confira o status em Meus Pedidos antes de tentar novamente.`,
+        }, { status: 202, headers: corsHeaders(request) });
+      } catch (persistError) {
+        console.error('Não foi possível registrar o resultado pendente do pagamento Pagar.me:', persistError);
+        return Response.json({ error: 'O pedido foi iniciado, mas não foi possível atualizar o pagamento. Entre em contato com a loja antes de tentar novamente.' }, { status: 500, headers: corsHeaders(request) });
+      }
+    }
   } catch (error) {
+    if (checkoutRequestId && error.code === 'P2002') {
+      try {
+        const existingOrder = await prisma.order.findUnique({
+          where: { checkoutRequestId },
+          include: {
+            items: true,
+            refundRequests: { include: { events: { orderBy: { createdAt: 'asc' } } }, orderBy: { createdAt: 'desc' } },
+          },
+        });
+        if (existingOrder) {
+          return Response.json({
+            order: serializeOrder(existingOrder),
+            reused: true,
+            message: 'Esta tentativa já foi registrada; confira o pedido antes de iniciar outro pagamento.',
+          }, { status: 200, headers: corsHeaders(request) });
+        }
+      } catch (lookupError) {
+        console.error('Não foi possível consultar o pedido criado em uma tentativa concorrente:', lookupError);
+        return Response.json({ error: 'Não foi possível confirmar se o pedido já foi registrado.' }, { status: 500, headers: corsHeaders(request) });
+      }
+    }
     if (campaignCoupon && error.code === 'P2002') {
       return Response.json({ error: 'Este cupom já foi utilizado.' }, { status: 400, headers: corsHeaders(request) });
     }
@@ -357,6 +533,12 @@ export async function PATCH(request) {
       include: { items: true, refundRequests: { include: { events: { orderBy: { createdAt: 'asc' } } } } },
     });
     if (!record || record.status !== status) return Response.json({ error: 'Pedido não está no status esperado.' }, { status: 409, headers: corsHeaders(request) });
+    if (status === 'Recebido'
+      && ['pix', 'cartao'].includes(record.paymentMethod)
+      && record.paymentStatus !== 'manual'
+      && !['paid', 'partially_refunded'].includes(record.paymentStatus)) {
+      return Response.json({ error: 'A separação só pode começar depois da confirmação do pagamento pela Pagar.me.' }, { status: 409, headers: corsHeaders(request) });
+    }
     order = serializeOrder(record);
   } catch (error) {
     console.error('Não foi possível carregar o pedido para atualizar o status:', error);

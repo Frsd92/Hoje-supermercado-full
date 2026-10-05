@@ -276,7 +276,8 @@ export function buildFinancialMetrics({
   now = new Date(),
 }) {
   const allOrders = (Array.isArray(sourceOrders) ? sourceOrders : [])
-    .filter((order) => order.status !== 'Cancelado')
+    .filter((order) => order.status !== 'Cancelado'
+      && !['pending', 'failed', 'canceled'].includes(String(order.paymentStatus || '').toLowerCase()))
     .map((order, index) => ({
       order,
       index,
@@ -327,6 +328,10 @@ export function buildFinancialMetrics({
   for (const { order, date } of allOrders) {
     const orderId = String(order.id || '');
     const orderTotal = parseAmount(order.total);
+    const refundedAmount = orderTotal === null
+      ? 0
+      : Math.min(orderTotal, Math.max(0, parseAmount(order.refundedAmount) || 0));
+    const netOrderRevenue = orderTotal === null ? null : Math.max(0, orderTotal - refundedAmount);
     const sourceItems = Array.isArray(order.items) ? order.items : [];
     const rawLineTotal = sourceItems.reduce((sum, item) => {
       const price = parseAmount(item.price);
@@ -354,7 +359,7 @@ export function buildFinancialMetrics({
 
     overallOrderIds.add(orderId);
     if (orderTotal === null) invalidOrders += 1;
-    else revenue += orderTotal;
+    else revenue += netOrderRevenue;
     if (sourceItems.length === 0 && (orderTotal || 0) > 0) ordersWithoutItems += 1;
     const couponDiscountForOrder = couponCode ? orderDiscount : 0;
     couponDiscount += couponDiscountForOrder;
@@ -368,7 +373,10 @@ export function buildFinancialMetrics({
       const safeQuantity = valid ? quantity : 0;
       const grossRevenue = valid ? unitPrice * safeQuantity : 0;
       const lineCouponDiscount = rawLineTotal > 0 ? grossRevenue * allocationRatio : 0;
-      const lineRevenue = Math.max(0, grossRevenue - lineCouponDiscount);
+      const lineRevenueBeforeRefund = Math.max(0, grossRevenue - lineCouponDiscount);
+      const lineRevenue = orderTotal > 0
+        ? lineRevenueBeforeRefund * (netOrderRevenue / orderTotal)
+        : lineRevenueBeforeRefund;
       const unitCost = parseAmount(item.unitCost);
       const costKnown = valid && unitCost !== null && unitCost > 0;
       const cost = costKnown ? unitCost * safeQuantity : 0;
@@ -429,7 +437,7 @@ export function buildFinancialMetrics({
     discountCombination.orderIds.add(orderId);
     discountCombination.itemCount += lines.length;
     discountCombination.quantity += lines.reduce((sum, line) => sum + line.quantity, 0);
-    discountCombination.revenue += orderTotal || 0;
+    discountCombination.revenue += netOrderRevenue || 0;
     discountCombination.itemPromotionDiscount += orderItemPromotionDiscount;
     discountCombination.couponDiscount += couponCode ? orderDiscount : 0;
     discountCombination.otherOrderDiscount += couponCode ? 0 : orderDiscount;
@@ -450,7 +458,7 @@ export function buildFinancialMetrics({
         && orderTotal !== null
         && orderReconciled
         && lines.every((line) => line.valid && line.costKnown);
-      const orderGrossProfit = orderCostsComplete ? orderTotal - orderCost : null;
+      const orderGrossProfit = orderCostsComplete ? netOrderRevenue - orderCost : null;
       discountOrderReports.push({
         id: orderId,
         createdAt: date.toISOString(),
@@ -461,13 +469,13 @@ export function buildFinancialMetrics({
         couponDiscount: roundMoney(couponCode ? orderDiscount : 0),
         otherOrderDiscount: roundMoney(couponCode ? 0 : orderDiscount),
         totalDiscount: roundMoney(totalOrderDiscount),
-        netRevenue: orderTotal === null ? null : roundMoney(orderTotal),
+        netRevenue: netOrderRevenue === null ? null : roundMoney(netOrderRevenue),
         knownCostOfGoodsSold: roundMoney(orderCost),
         costOfGoodsSold: orderCostsComplete ? roundMoney(orderCost) : null,
         grossProfit: orderGrossProfit === null ? null : roundMoney(orderGrossProfit),
-        grossMargin: orderGrossProfit === null || !orderTotal
+        grossMargin: orderGrossProfit === null || !netOrderRevenue
           ? null
-          : Number((orderGrossProfit / orderTotal * 100).toFixed(2)),
+          : Number((orderGrossProfit / netOrderRevenue * 100).toFixed(2)),
       });
     }
 
@@ -530,7 +538,7 @@ export function buildFinancialMetrics({
       coupon.id ||= `unregistered-${couponCode}`;
       coupon.code = couponCode;
       coupon.orderIds.add(orderId);
-      coupon.revenue += orderTotal || 0;
+      coupon.revenue += netOrderRevenue || 0;
       coupon.discount += orderDiscount;
       coupon.itemCount += lines.length;
       if (sourceItems.length === 0 && (orderTotal || 0) > 0) coupon.ordersWithoutItems += 1;
@@ -563,7 +571,9 @@ export function buildFinancialMetrics({
   for (const { order, date } of inPeriod) {
     const key = trendGranularity === 'day' ? getDateKey(date) : getDateKey(date).slice(0, 7);
     const entry = formattedTrend.get(key) || { revenue: 0, orders: 0 };
-    entry.revenue += parseAmount(order.total) || 0;
+    const orderTotal = parseAmount(order.total) || 0;
+    const refundedAmount = Math.min(orderTotal, Math.max(0, parseAmount(order.refundedAmount) || 0));
+    entry.revenue += orderTotal - refundedAmount;
     entry.orders += 1;
     formattedTrend.set(key, entry);
   }

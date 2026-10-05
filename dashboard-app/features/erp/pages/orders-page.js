@@ -9,6 +9,15 @@ import { getRemainingRefundCents, refundRequestStatus, refundRequestStatusLabels
 
 const statuses = ['Todos', 'Recebido', 'Separacao', 'Expedicao', 'Em transito', 'Concluido', 'Cancelado'];
 const paymentLabels = { pix: 'Pix', cartao: 'Cartão', dinheiro: 'Dinheiro', outro: 'Outro / combinar' };
+const paymentStatusLabels = {
+  pending: 'Aguardando pagamento',
+  paid: 'Pago',
+  failed: 'Pagamento não aprovado',
+  canceled: 'Pagamento cancelado',
+  partially_refunded: 'Estorno parcial',
+  refunded: 'Estornado',
+  manual: 'Pagamento manual / combinado',
+};
 const currencyFormatter = new Intl.NumberFormat('pt-BR', { style: 'currency', currency: 'BRL' });
 const formatInvoiceCpf = (value) => {
   const digits = String(value || '').replace(/\D/g, '');
@@ -112,13 +121,15 @@ export default function ERPOrdersPage() {
         }),
       });
       const data = await response.json();
-      if (!response.ok) throw new Error(data.error || 'Não foi possível atualizar a solicitação.');
       const replaceRequest = (order) => ({
         ...order,
         refundRequests: (order.refundRequests || []).map((item) => item.id === data.request.id ? data.request : item),
       });
-      setOrders((current) => current.map((order) => order.id === selected?.id ? replaceRequest(order) : order));
-      setSelected((current) => current?.id === selected?.id ? replaceRequest(current) : current);
+      if (data.request) {
+        setOrders((current) => current.map((order) => order.id === selected?.id ? replaceRequest(order) : order));
+        setSelected((current) => current?.id === selected?.id ? replaceRequest(current) : current);
+      }
+      if (!response.ok || data.error) throw new Error(data.error || 'Não foi possível atualizar a solicitação.');
       setRefundDecisionNotes((current) => ({ ...current, [refundRequest.id]: '' }));
       setRefundActionNotice(data.message || 'Solicitação atualizada.');
     } catch (error) {
@@ -135,10 +146,15 @@ export default function ERPOrdersPage() {
       || (cpfRequestFilter === 'requested' && order.includeCpfOnReceipt === true)
       || (cpfRequestFilter === 'not-requested' && order.includeCpfOnReceipt === false)
       || (cpfRequestFilter === 'unknown' && (order.includeCpfOnReceipt === null || order.includeCpfOnReceipt === undefined));
+    const waitingGatewayStatuses = [
+      refundRequestStatus.approvedWaitingGateway,
+      refundRequestStatus.gatewayProcessing,
+      refundRequestStatus.gatewayFailed,
+    ];
     const refundRequestMatches = refundFilter === 'all'
       || (refundFilter === 'with-requests' && refundRequests.length > 0)
       || (refundFilter === 'awaiting-review' && refundRequests.some((request) => request.status === refundRequestStatus.requested))
-      || (refundFilter === 'waiting-gateway' && refundRequests.some((request) => request.status === refundRequestStatus.approvedWaitingGateway));
+      || (refundFilter === 'waiting-gateway' && refundRequests.some((request) => waitingGatewayStatuses.includes(request.status)));
     return text.includes(query.toLowerCase())
       && (status === 'Todos' || order.status === status)
       && cpfRequestMatches
@@ -155,7 +171,11 @@ export default function ERPOrdersPage() {
   ];
   const refundRequests = orders.flatMap((order) => order.refundRequests || []);
   const refundsAwaitingReview = refundRequests.filter((request) => request.status === refundRequestStatus.requested).length;
-  const refundsWaitingGateway = refundRequests.filter((request) => request.status === refundRequestStatus.approvedWaitingGateway).length;
+  const refundsWaitingGateway = refundRequests.filter((request) => [
+    refundRequestStatus.approvedWaitingGateway,
+    refundRequestStatus.gatewayProcessing,
+    refundRequestStatus.gatewayFailed,
+  ].includes(request.status)).length;
 
   return (
     <div className="erp-orders-page">
@@ -221,7 +241,7 @@ export default function ERPOrdersPage() {
                 <td>{order.total || 'R$ 0,00'}</td>
                 <td>{order.includeCpfOnReceipt === true ? <span className="erp-invoice-cpf-requested">Sim</span> : order.includeCpfOnReceipt === false ? 'Não' : '—'}</td>
                 <td>{order.refundRequests?.length ? <span className="erp-refund-count">{order.refundRequests.length} · {order.refundRequests.filter((request) => request.status === refundRequestStatus.requested).length} pendente(s)</span> : '—'}</td>
-                <td><span className="erp-status">{order.status || 'Recebido'}</span></td>
+                <td><span className="erp-status">{order.status || 'Recebido'}</span><small>{paymentStatusLabels[order.paymentStatus] || 'Pagamento não informado'}</small></td>
               </tr>)}</tbody>
             </table></div>
             : <div className="erp-empty-data">{loading ? 'Carregando pedidos reais...' : loadError ? 'Não foi possível carregar a fila de pedidos.' : 'Nenhum pedido registrado ainda. Os pedidos aparecerão aqui quando uma compra real for finalizada.'}</div>}
@@ -231,7 +251,8 @@ export default function ERPOrdersPage() {
           <p className="erp-order-tracking-code">Código interno de rastreio e referência para estorno</p>
           <div className="erp-order-customer"><UserRound size={15} /><strong>{selected.customerName || 'Cliente não identificado'}</strong><span>{selected.customerEmail}</span></div>
           <div className="erp-order-address"><MapPin size={15} /><span>{selected.address || 'Endereço não informado'}</span></div>
-          <div className="erp-order-address"><CreditCard size={15} /><span>Forma informada: {paymentLabels[selected.paymentMethod] || 'Não informada'} · não confirma recebimento</span></div>
+          <div className="erp-order-address"><CreditCard size={15} /><span>Forma: {paymentLabels[selected.paymentMethod] || 'Não informada'} · Pagamento: <strong>{paymentStatusLabels[selected.paymentStatus] || 'Não informado'}</strong></span></div>
+          {selected.paymentStatus === 'pending' && <p className="erp-order-fefo-note" role="status">A separação está bloqueada até a confirmação do pagamento pela Pagar.me.</p>}
           <div className="erp-order-address erp-order-invoice-cpf">
             <FileText size={15} />
             <span>
@@ -251,8 +272,8 @@ export default function ERPOrdersPage() {
           </button>
           <section className="erp-refund-list" aria-labelledby="erp-refund-list-title">
             <div className="erp-refund-list-heading"><h4 id="erp-refund-list-title">Rastreio de estornos</h4><span>{selected.refundRequests?.length || 0}</span></div>
-            <p>Solicitações parciais e totais ficam vinculadas ao código PED. Aprovar não devolve dinheiro: apenas deixa a solicitação aguardando a gateway.</p>
-            <p className="erp-refund-available">Saldo ainda disponível para novas solicitações: <strong>{currencyFormatter.format(getRemainingRefundCents(selected.total, selected.refundRequests || []) / 100)}</strong></p>
+            <p>Solicitações parciais e totais ficam vinculadas ao código PED. Pedidos pagos pela Pagar.me podem ser estornados por aqui; outros métodos permanecem para tratamento manual.</p>
+            <p className="erp-refund-available">Saldo ainda disponível para novas solicitações: <strong>{currencyFormatter.format(getRemainingRefundCents(selected.total, selected.refundRequests || [], selected.refundedAmount) / 100)}</strong></p>
             {!selected.refundRequests?.length && <div className="erp-refund-empty">Nenhuma solicitação de estorno vinculada a este pedido.</div>}
             {(selected.refundRequests || []).map((request) => <article className="erp-refund-card" key={request.id}>
               <div className="erp-refund-card-heading">
@@ -273,14 +294,18 @@ export default function ERPOrdersPage() {
                   {event.note && <small>{event.note}</small>}
                 </li>)}
               </ol>}
-              {request.status === refundRequestStatus.requested && <div className="erp-refund-review">
+              {[refundRequestStatus.requested, refundRequestStatus.gatewayFailed].includes(request.status) && <div className="erp-refund-review">
                 <label htmlFor={`refund-note-${request.id}`}>Observação da decisão</label>
                 <textarea id={`refund-note-${request.id}`} maxLength={500} value={refundDecisionNotes[request.id] || ''} onChange={(event) => setRefundDecisionNotes((current) => ({ ...current, [request.id]: event.target.value }))} />
                 <div>
                   <button type="button" disabled={refundBusyId === request.id} onClick={() => updateRefundRequest(request, 'approve')}>
-                    <RotateCcw size={14} />Aprovar · aguardar integração
+                    <RotateCcw size={14} />{request.status === refundRequestStatus.gatewayFailed
+                      ? 'Tentar estorno novamente'
+                      : selected.pagarmeChargeId && ['paid', 'partially_refunded'].includes(selected.paymentStatus)
+                        ? 'Aprovar e estornar via Pagar.me'
+                        : 'Aprovar · encaminhar estorno manual'}
                   </button>
-                  <button type="button" disabled={refundBusyId === request.id || (refundDecisionNotes[request.id] || '').trim().length < 8} onClick={() => updateRefundRequest(request, 'reject')}>Recusar</button>
+                  {request.status === refundRequestStatus.requested && <button type="button" disabled={refundBusyId === request.id || (refundDecisionNotes[request.id] || '').trim().length < 8} onClick={() => updateRefundRequest(request, 'reject')}>Recusar</button>}
                 </div>
               </div>}
             </article>)}

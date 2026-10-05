@@ -310,6 +310,12 @@ model Order {
   total                 String
   subtotal              Decimal              @default(0) @db.Decimal(12, 2)
   paymentMethod         String               @default("nao_informado")
+  paymentStatus         String               @default("manual")
+  checkoutRequestId     String?              @unique
+  pagarmeOrderId        String?              @unique
+  pagarmeChargeId       String?              @unique
+  paymentDetails        Json?
+  refundedAmount        Decimal              @default(0) @db.Decimal(12, 2)
   includeCpfOnReceipt   Boolean              @default(false)
   invoiceCpf            String?
   couponCode            String?
@@ -322,10 +328,22 @@ model Order {
   user                  User?                @relation(fields: [userId], references: [id], onDelete: SetNull)
   items                 OrderItem[]
   refundRequests        OrderRefundRequest[]
+  paymentEvents         PagarmeWebhookEvent[]
 
   @@index([createdAt])
   @@index([customerEmail])
   @@index([status])
+}
+
+model PagarmeWebhookEvent {
+  id          String   @id
+  eventType   String
+  orderId     String?
+  receivedAt  DateTime @default(now())
+  order       Order?   @relation(fields: [orderId], references: [id], onDelete: SetNull)
+
+  @@index([orderId, receivedAt])
+  @@index([eventType, receivedAt])
 }
 
 model OrderItem {

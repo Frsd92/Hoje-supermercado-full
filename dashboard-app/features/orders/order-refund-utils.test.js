@@ -47,3 +47,13 @@ test('converts persisted decimal objects without losing cents', () => {
   assert.equal(result.amountCents, 500);
   assert.equal(result.remainingCents, 1275);
 });
+
+test('does not allow external confirmed refunds or in-flight gateway refunds to exceed the order total', () => {
+  const remaining = getRemainingRefundCents('R$ 100,00', [
+    { status: refundRequestStatus.gatewayProcessing, amount: 25 },
+    { status: refundRequestStatus.gatewayFailed, amount: 15 },
+  ], 30);
+
+  assert.equal(remaining, 6000);
+  assert.equal(getRemainingRefundCents('R$ 100,00', [], 120), 0);
+});

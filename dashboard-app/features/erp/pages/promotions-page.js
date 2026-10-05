@@ -38,6 +38,7 @@ const campaignStatusLabels = {
 
 const recipientStatusLabels = {
   available: 'Disponível',
+  processing: 'Pagamento em processamento',
   redeemed: 'Resgatado',
   expired: 'Expirado',
 };

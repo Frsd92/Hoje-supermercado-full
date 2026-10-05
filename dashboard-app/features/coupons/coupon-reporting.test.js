@@ -54,17 +54,62 @@ test('summarizes campaign reach, redemptions, net sales and recipient history', 
 
   assert.equal(report.status, 'active');
   assert.equal(report.recipientsCount, 3);
-  assert.equal(report.redeemedCount, 2);
-  assert.equal(report.availableCount, 1);
+  assert.equal(report.redeemedCount, 1);
+  assert.equal(report.availableCount, 2);
   assert.equal(report.expiredCount, 0);
-  assert.equal(report.redemptionRate, 66.7);
+  assert.equal(report.redemptionRate, 33.3);
   assert.equal(report.ordersCount, 1);
   assert.equal(report.cancelledOrdersCount, 1);
   assert.equal(report.revenue, 90);
   assert.equal(report.discountGiven, 10);
-  assert.deepEqual(report.recipientStatuses.map(({ status }) => status), ['redeemed', 'redeemed', 'available']);
-  assert.equal(report.recipientStatuses[1].orderStatus, 'Cancelado');
+  assert.deepEqual(report.recipientStatuses.map(({ status }) => status), ['redeemed', 'available', 'available']);
   assert.equal(report.recipientStatuses[2].email, 'cliente3@example.com');
+});
+
+test('shows pending coupons as processing and subtracts refunds from campaign sales', () => {
+  const campaign = {
+    id: 'CPN-3',
+    code: 'PAGUEI10',
+    discountPercent: 10,
+    expiresAt: new Date('2026-10-12T12:00:00.000Z'),
+    recipients: [{ email: 'cliente@example.com' }],
+    redemptions: [{
+      email: 'cliente@example.com',
+      orderId: 'PED-PENDING',
+      createdAt: now,
+    }],
+  };
+  const report = summarizeCouponCampaign(campaign, [
+    {
+      id: 'PED-PENDING',
+      couponCode: 'PAGUEI10',
+      customerEmail: 'cliente@example.com',
+      total: 90,
+      couponDiscountAmount: 10,
+      paymentStatus: 'pending',
+      status: 'Aguardando pagamento',
+      createdAt: now,
+    },
+    {
+      id: 'PED-REFUNDED',
+      couponCode: 'PAGUEI10',
+      customerEmail: 'outro@example.com',
+      total: 90,
+      couponDiscountAmount: 10,
+      paymentStatus: 'partially_refunded',
+      refundedAmount: 25,
+      status: 'Concluido',
+      createdAt: now,
+    },
+  ], now);
+
+  assert.equal(report.redeemedCount, 0);
+  assert.equal(report.availableCount, 0);
+  assert.equal(report.processingCount, 1);
+  assert.equal(report.ordersCount, 1);
+  assert.equal(report.revenue, 65);
+  assert.equal(report.status, 'active');
+  assert.equal(report.recipientStatuses[0].status, 'processing');
 });
 
 test('marks an unredeemed campaign expired and a current campaign fully redeemed', () => {

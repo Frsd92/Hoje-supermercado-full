@@ -35,15 +35,24 @@ export async function POST(request, { params }) {
         select: {
           id: true,
           total: true,
+          refundedAmount: true,
+          paymentStatus: true,
+          paymentMethod: true,
           refundRequests: { select: { amount: true, status: true } },
         },
       });
       if (!order) return { error: 'O pedido não foi encontrado na sua conta.', status: 404 };
+      if (['pix', 'cartao'].includes(order.paymentMethod)
+        && order.paymentStatus !== 'manual'
+        && !['paid', 'partially_refunded'].includes(order.paymentStatus)) {
+        return { error: 'Só é possível solicitar estorno depois que o pagamento estiver confirmado.', status: 409 };
+      }
 
       const validation = validateRefundAmount({
         amount: body.amount,
         orderTotal: order.total,
         refundRequests: order.refundRequests,
+        refundedAmount: order.refundedAmount,
       });
       if (validation.error) return { error: validation.error, status: 400 };
 

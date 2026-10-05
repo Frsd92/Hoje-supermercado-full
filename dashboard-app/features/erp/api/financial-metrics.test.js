@@ -11,6 +11,8 @@ const order = ({
   couponCode = null,
   couponDiscountAmount = 0,
   status = 'Concluido',
+  paymentStatus = 'manual',
+  refundedAmount = 0,
   items = [],
 }) => ({
   id,
@@ -21,6 +23,8 @@ const order = ({
   couponCode,
   couponDiscountAmount,
   status,
+  paymentStatus,
+  refundedAmount,
   items,
 });
 
@@ -276,4 +280,42 @@ test('keeps cancelled orders out of historical revenue and customer cohorts', ()
   assert.equal(metrics.period.orders, 0);
   assert.equal(metrics.totals.revenue, 0);
   assert.equal(metrics.period.firstOrderDate, null);
+});
+
+test('excludes unconfirmed payments and subtracts refunds from realized revenue and margin', () => {
+  const metrics = buildFinancialMetrics({
+    orders: [
+      order({
+        id: 'partially-refunded',
+        subtotal: 100,
+        total: 90,
+        couponCode: 'REFUND10',
+        couponDiscountAmount: 10,
+        refundedAmount: 20,
+        items: [item({ productId: 'coffee', name: 'Café', price: 100, unitCost: 60 })],
+      }),
+      order({
+        id: 'pending',
+        total: 500,
+        paymentStatus: 'pending',
+        items: [item({ productId: 'television', name: 'Televisão', price: 500, unitCost: 200 })],
+      }),
+      order({
+        id: 'failed',
+        total: 300,
+        paymentStatus: 'failed',
+        items: [item({ productId: 'phone', name: 'Telefone', price: 300, unitCost: 100 })],
+      }),
+    ],
+  });
+
+  assert.equal(metrics.period.orders, 1);
+  assert.equal(metrics.totals.revenue, 70);
+  assert.equal(metrics.totals.grossProfit, 10);
+  assert.equal(metrics.totals.grossMargin, 14.29);
+  assert.equal(metrics.promotionTypes.find((promotion) => promotion.key === 'regular').revenue, 70);
+  assert.equal(metrics.coupons[0].revenue, 70);
+  assert.equal(metrics.discountCombinations[0].revenue, 70);
+  assert.equal(metrics.discountOrders[0].netRevenue, 70);
+  assert.equal(metrics.discountOrders[0].grossProfit, 10);
 });

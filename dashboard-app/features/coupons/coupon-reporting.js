@@ -21,8 +21,28 @@ function dateTime(value) {
   return Number.isFinite(time) ? time : 0;
 }
 
+export function isRealizedCouponOrder(order) {
+  if (!order) return false;
+  return order.status !== 'Cancelado'
+    && !['pending', 'failed', 'canceled'].includes(String(order.paymentStatus || '').toLowerCase());
+}
+
+function isProcessingCouponOrder(order) {
+  if (!order) return false;
+  return String(order.paymentStatus || '').toLowerCase() === 'pending' && order.status !== 'Cancelado';
+}
+
+function getNetRevenue(order) {
+  const total = Math.max(0, parseMoney(order.total));
+  const refundedAmount = Math.min(total, Math.max(0, parseMoney(order.refundedAmount)));
+  return roundMoney(total - refundedAmount);
+}
+
 export function getCouponRecipientStatus(expiresAt, redemption, now = new Date()) {
-  if (redemption) return 'redeemed';
+  if (redemption) {
+    if (isProcessingCouponOrder(redemption)) return 'processing';
+    if (isRealizedCouponOrder(redemption)) return 'redeemed';
+  }
 
   const expiryTime = expiresAt instanceof Date ? expiresAt.getTime() : Date.parse(expiresAt);
   return Number.isFinite(expiryTime) && expiryTime > now.getTime() ? 'available' : 'expired';
@@ -35,12 +55,24 @@ export function summarizeCouponCampaign(campaign, sourceOrders = [], now = new D
   const ordersByEmail = new Map();
   const campaignOrders = (Array.isArray(sourceOrders) ? sourceOrders : [])
     .filter((order) => String(order.couponCode || '').trim().toUpperCase() === code);
+  const realizedOrders = campaignOrders.filter(isRealizedCouponOrder);
+  const displayableOrders = campaignOrders.filter((order) => (
+    isRealizedCouponOrder(order) || isProcessingCouponOrder(order)
+  ));
+  const allOrdersById = new Map(campaignOrders.map((order) => [String(order.id), order]));
 
   (Array.isArray(campaign.redemptions) ? campaign.redemptions : []).forEach((redemption) => {
     const email = normalizeEmail(redemption.email);
-    if (email && !redemptionsByEmail.has(email)) redemptionsByEmail.set(email, redemption);
+    const linkedOrder = allOrdersById.get(String(redemption.orderId));
+    const validOrder = !linkedOrder || isRealizedCouponOrder(linkedOrder) || isProcessingCouponOrder(linkedOrder);
+    if (email && validOrder && !redemptionsByEmail.has(email)) {
+      redemptionsByEmail.set(email, {
+        ...redemption,
+        ...(linkedOrder ? { status: linkedOrder.status, paymentStatus: linkedOrder.paymentStatus } : {}),
+      });
+    }
   });
-  campaignOrders.forEach((order) => {
+  displayableOrders.forEach((order) => {
     ordersById.set(String(order.id), order);
     const email = normalizeEmail(order.customerEmail);
     if (!email) return;
@@ -66,22 +98,25 @@ export function summarizeCouponCampaign(campaign, sourceOrders = [], now = new D
       redeemedAt: redemption?.createdAt || order?.createdAt || null,
       orderId: redemption?.orderId || order?.id || null,
       orderStatus: order?.status || null,
-      orderTotal: order && order.status !== 'Cancelado' ? roundMoney(parseMoney(order.total)) : null,
-      discountAmount: order && order.status !== 'Cancelado' ? roundMoney(parseMoney(order.couponDiscountAmount)) : null,
+      orderTotal: isRealizedCouponOrder(order) ? roundMoney(parseMoney(order.total)) : null,
+      discountAmount: isRealizedCouponOrder(order) ? roundMoney(parseMoney(order.couponDiscountAmount)) : null,
     };
   });
 
   const recipientsCount = recipientStatuses.length;
   const redeemedCount = recipientStatuses.filter((recipient) => recipient.status === 'redeemed').length;
+  const processingCount = recipientStatuses.filter((recipient) => recipient.status === 'processing').length;
   const availableCount = recipientStatuses.filter((recipient) => recipient.status === 'available').length;
   const expiredCount = recipientStatuses.filter((recipient) => recipient.status === 'expired').length;
-  const activeOrders = campaignOrders.filter((order) => order.status !== 'Cancelado');
-  const cancelledOrders = campaignOrders.filter((order) => order.status === 'Cancelado');
-  const revenue = activeOrders.reduce((sum, order) => sum + parseMoney(order.total), 0);
+  const activeOrders = realizedOrders;
+  const cancelledOrders = campaignOrders.filter((order) => (
+    order.status === 'Cancelado' || ['failed', 'canceled'].includes(String(order.paymentStatus || '').toLowerCase())
+  ));
+  const revenue = activeOrders.reduce((sum, order) => sum + getNetRevenue(order), 0);
   const discountGiven = activeOrders.reduce((sum, order) => sum + parseMoney(order.couponDiscountAmount), 0);
   const campaignStatus = expiresAt.getTime() <= now.getTime()
     ? 'expired'
-    : recipientsCount > 0 && availableCount === 0
+    : recipientsCount > 0 && availableCount === 0 && processingCount === 0
       ? 'fully_redeemed'
       : 'active';
 
@@ -95,6 +130,7 @@ export function summarizeCouponCampaign(campaign, sourceOrders = [], now = new D
     status: campaignStatus,
     recipientsCount,
     redeemedCount,
+    processingCount,
     availableCount,
     expiredCount,
     redemptionRate: recipientsCount ? Number((redeemedCount / recipientsCount * 100).toFixed(1)) : 0,

@@ -23,7 +23,7 @@ export default function FavoritesPage() {
   const [favoritesLoadError, setFavoritesLoadError] = useState('');
   const [isLoading, setIsLoading] = useState(true);
   const [retryCount, setRetryCount] = useState(0);
-  const [removingFavoriteName, setRemovingFavoriteName] = useState('');
+  const [removingFavoriteKey, setRemovingFavoriteKey] = useState('');
   const [carouselStates, setCarouselStates] = useState({});
   const [failedFavoriteImages, setFailedFavoriteImages] = useState({});
   const carouselRefs = useRef({});
@@ -155,13 +155,13 @@ export default function FavoritesPage() {
   };
 
   const toggleFavorite = async (item) => {
-    if (removingFavoriteName) return;
-    const { name } = item;
+    if (removingFavoriteKey) return;
+    const favoriteKey = getFavoriteKey(item);
     const previousFavorites = favorites;
-    const nextFavorites = favorites.filter((item) => item.name !== name);
-    const removedIndex = favorites.findIndex((favorite) => favorite.name === name);
+    const nextFavorites = favorites.filter((favorite) => getFavoriteKey(favorite) !== favoriteKey);
+    const removedIndex = favorites.findIndex((favorite) => getFavoriteKey(favorite) === favoriteKey);
     const nextFocusFavorite = nextFavorites[Math.min(removedIndex, nextFavorites.length - 1)];
-    setRemovingFavoriteName(name);
+    setRemovingFavoriteKey(favoriteKey);
     setFavorites(nextFavorites);
     if (activeCategory !== ALL_CATEGORIES && !nextFavorites.some((item) => getFavoriteCategory(item) === activeCategory)) {
       setActiveCategory(ALL_CATEGORIES);
@@ -172,15 +172,20 @@ export default function FavoritesPage() {
       (nextRemoveButton || allCategoriesRef.current || favoritesHeadingRef.current)?.focus();
     });
     try {
-      const response = await fetch(FAVORITES_API, { method: 'DELETE', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ name }) });
-      if (!response.ok) throw new Error('Não foi possível atualizar os favoritos.');
+      const response = await fetch(FAVORITES_API, {
+        method: 'DELETE',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ productId: item.productId || item.id }),
+      });
+      const data = await response.json();
+      if (!response.ok) throw new Error(data.error || 'Não foi possível atualizar os favoritos.');
       setFavoriteFeedback('');
     } catch (error) {
       setFavorites(previousFavorites);
       window.dispatchEvent(new CustomEvent('dashboard-favorites-updated', { detail: previousFavorites.length }));
       setFavoriteFeedback(error.message);
     } finally {
-      setRemovingFavoriteName('');
+      setRemovingFavoriteKey('');
     }
   };
 
@@ -237,8 +242,8 @@ export default function FavoritesPage() {
             className="icon-button-small heart-filled"
             aria-label={`Remover ${item.name} dos favoritos`}
             aria-pressed="true"
-            aria-busy={removingFavoriteName === item.name}
-            disabled={Boolean(removingFavoriteName)}
+            aria-busy={removingFavoriteKey === favoriteKey}
+            disabled={Boolean(removingFavoriteKey)}
             onClick={() => toggleFavorite(item)}
           >
             <Heart size={17} fill="currentColor" aria-hidden="true" />

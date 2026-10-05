@@ -2245,9 +2245,19 @@ body {
 }
 .delivery-address-field { display: flex; flex-direction: column; gap: 6px; margin: 14px 0; color: #6b7280; font-size: 12px; font-weight: 700; }
 .delivery-address-field select { width: 100%; padding: 10px 12px; border: 1px solid rgba(148,163,184,0.24); border-radius: 10px; color: #101826; background: #fff; outline: none; }
+.delivery-address-field input { width: 100%; padding: 10px 12px; border: 1px solid rgba(148,163,184,0.24); border-radius: 10px; color: #101826; background: #fff; outline: none; }
+.delivery-address-field input:focus-visible { border-color: #16803d; box-shadow: 0 0 0 3px rgba(22,128,61,0.14); }
 .checkout-field-hint { display: block; margin: -8px 0 8px; color: #718177; font-size: 11px; font-weight: 500; line-height: 1.45; }
 .checkout-field-hint a { color: #15803d; font-weight: 800; text-decoration: underline; text-underline-offset: 2px; }
 .checkout-field-hint a:focus-visible { outline: 2px solid #15803d; outline-offset: 2px; border-radius: 2px; }
+.checkout-card-fields { margin: 10px 0 14px; padding: 10px 13px; border: 1px solid #cfe3d4; border-radius: 12px; background: #f7fbf8; }
+.checkout-card-fields > .checkout-field-hint { margin: 0 0 10px; }
+.customer-order-payment-status { display: block; margin-top: 5px; color: #64748b; font-size: 11px; }
+.customer-pix-payment { display: grid; gap: 8px; width: min(100%, 360px); margin-top: 10px; padding: 12px; border: 1px solid #b9ddc3; border-radius: 12px; color: #174b2a; background: #f0faf2; }
+.customer-pix-payment img { width: min(100%, 190px); height: auto; border-radius: 8px; background: #fff; }
+.customer-pix-payment textarea { width: 100%; resize: vertical; padding: 9px; border: 1px solid #cbd5e1; border-radius: 8px; color: #1f2937; background: #fff; font-size: 11px; }
+.customer-pix-payment button { justify-self: start; padding: 8px 12px; border: 0; border-radius: 8px; color: #fff; background: #166534; font-weight: 700; cursor: pointer; }
+.customer-pix-payment button:focus-visible { outline: 3px solid #f4cf48; outline-offset: 2px; }
 .btn-finalizar, .btn-limpar { width: 100%; border-radius: 14px; font-size: 15px; font-weight: 700; cursor: pointer; }
 .btn-finalizar { position: relative; padding: 15px 18px; margin-bottom: 10px; border: 0; color: #fff; background: linear-gradient(135deg, #1a7a3c, #155f34); box-shadow: 0 18px 30px rgba(26,122,60,0.22), inset 0 1px 0 rgba(255,255,255,0.18); }
 .btn-finalizar::before { display: inline-block; width: 10px; height: 10px; margin-right: 8px; border-radius: 50%; background: #f5c518; box-shadow: 0 0 0 4px rgba(245,197,24,0.18); content: ''; vertical-align: middle; }
@@ -2433,7 +2443,7 @@ body {
   --customer-coupon-muted: #627267;
   --customer-coupon-accent: #24613b;
 }
-.customer-coupon-summary { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 12px; margin: 20px 0; }
+.customer-coupon-summary { display: grid; grid-template-columns: repeat(4, minmax(0, 1fr)); gap: 12px; margin: 20px 0; }
 .customer-coupon-summary > div { display: grid; grid-template-columns: 22px 1fr auto; align-items: center; gap: 9px; min-width: 0; padding: 15px 16px; border: 1px solid var(--customer-coupon-border); border-radius: 13px; color: var(--customer-coupon-muted); background: var(--customer-coupon-surface); }
 .customer-coupon-summary svg { color: var(--customer-coupon-accent); }
 .customer-coupon-summary span { font-size: .82rem; font-weight: 650; }
@@ -2449,6 +2459,7 @@ body {
 .customer-coupon-card { display: grid; align-content: start; gap: 13px; min-width: 0; padding: 18px; border: 1px dashed var(--customer-coupon-border); border-radius: 15px; color: var(--customer-coupon-text); background: var(--customer-coupon-surface); box-shadow: 0 8px 22px rgba(24, 54, 36, .045); }
 .customer-coupon-card-heading { display: flex; flex-wrap: wrap; align-items: center; justify-content: space-between; gap: 8px; color: var(--customer-coupon-accent); font-size: .9rem; font-weight: 800; }
 .customer-coupon-status { display: inline-flex; align-items: center; min-height: 26px; padding: 4px 9px; border-radius: 99px; color: #1c6835; background: #eaf7ed; font-size: .72rem; font-weight: 800; }
+.customer-coupon-status.status-processing { color: #75521a; background: #fbf1dc; }
 .customer-coupon-status.status-redeemed { color: #39546e; background: #edf3f8; }
 .customer-coupon-status.status-expired { color: #745a37; background: #f7f1e6; }
 .customer-coupon-card-message { margin: 0; color: var(--customer-coupon-muted); font-size: .84rem; line-height: 1.5; }
@@ -2479,6 +2490,7 @@ body {
   --customer-coupon-accent: #8bd4a0;
 }
 .dashboard-shell[data-dashboard-theme="dark"] .customer-coupon-status { color: #a5e8b4; background: #23432e; }
+.dashboard-shell[data-dashboard-theme="dark"] .customer-coupon-status.status-processing { color: #f0d4a1; background: #493c27; }
 .dashboard-shell[data-dashboard-theme="dark"] .customer-coupon-status.status-redeemed { color: #bfd8ed; background: #263b4d; }
 .dashboard-shell[data-dashboard-theme="dark"] .customer-coupon-status.status-expired { color: #f0d4a1; background: #493c27; }
 .dashboard-shell[data-dashboard-theme="dark"] .customer-coupon-actions .customer-coupon-use { border-color: #3a8956; color: #102318; background: #8bd4a0; }

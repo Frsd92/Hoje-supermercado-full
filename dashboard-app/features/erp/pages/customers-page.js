@@ -1,7 +1,7 @@
 'use client';
 
 import { CalendarDays, ChevronRight, Mail, MapPin, Phone, PiggyBank, Search, ShoppingBag, Star, UserRound, X } from 'lucide-react';
-import { useEffect, useMemo, useState } from 'react';
+import { useCallback, useEffect, useMemo, useState } from 'react';
 
 const initialCustomers = [];
 
@@ -16,21 +16,31 @@ export default function ERPCustomersPage() {
   const [statusFilter, setStatusFilter] = useState('Todos');
   const [selected, setSelected] = useState(null);
   const [budgetDataAvailable, setBudgetDataAvailable] = useState(true);
+  const [loadError, setLoadError] = useState('');
+
+  const loadCustomers = useCallback(async () => {
+    setLoading(true);
+    setLoadError('');
+    try {
+      const response = await fetch('/api/erp/customers', { cache: 'no-store' });
+      const data = await response.json();
+      if (!response.ok) throw new Error(data.error || 'Não foi possível carregar os clientes.');
+      const savedCustomers = data.customers || [];
+      setCustomers(savedCustomers);
+      setSelected((current) => current
+        ? savedCustomers.find((customer) => customer.email === current.email) || null
+        : null);
+      setBudgetDataAvailable(data.budgetDataAvailable !== false);
+    } catch (error) {
+      setLoadError(error.message || 'Não foi possível carregar os clientes.');
+    } finally {
+      setLoading(false);
+    }
+  }, []);
 
   useEffect(() => {
-    fetch('/api/erp/customers')
-      .then(async (response) => {
-        const data = await response.json();
-        if (!response.ok) throw new Error(data.error || 'Não foi possível carregar os clientes.');
-        return data;
-      })
-      .then(({ customers: savedCustomers = [], budgetDataAvailable: hasBudgetData = true }) => {
-        setCustomers(savedCustomers);
-        setBudgetDataAvailable(hasBudgetData);
-      })
-      .catch(() => setCustomers([]))
-      .finally(() => setLoading(false));
-  }, []);
+    void loadCustomers();
+  }, [loadCustomers]);
 
   const filteredCustomers = useMemo(() => customers.filter((customer) => {
     const searchText = normalizeSearch([
@@ -64,7 +74,11 @@ export default function ERPCustomersPage() {
 
   return (
     <div className="erp-customers-page">
+      {loadError && <p className="erp-budget-warning" role="alert">{loadError}</p>}
       <div className="erp-customer-header"><div><span className="eyebrow">Relacionamento e dados</span><h1>Clientes</h1><p>Visao completa de cadastro, comportamento, compras e preferencias.</p></div><button type="button" className="primary-cta">+ Novo cliente</button></div>
+      <button type="button" className="editor-ghost" onClick={loadCustomers} disabled={loading}>
+        {loading ? 'Atualizando clientes...' : 'Atualizar clientes e favoritos'}
+      </button>
       <div className="erp-customer-metrics">{metrics.map(([label, value, Icon]) => <div className="erp-customer-metric" key={label}><Icon size={17} /><strong>{value}</strong><span>{label}</span></div>)}</div>
       <div className="erp-customer-toolbar"><div className="erp-customer-search"><Search size={16} /><input placeholder="Buscar cliente por nome, e-mail, telefone, cidade ou ID" value={query} onChange={(event) => setQuery(event.target.value)} />{query && <button type="button" aria-label="Limpar busca" onClick={() => setQuery('')}><X size={15} /></button>}</div><select value={statusFilter} onChange={(event) => setStatusFilter(event.target.value)}><option>Todos</option><option>Ativo</option><option>Inativo</option></select></div>
       <div className="erp-customer-layout"><section className="erp-customer-table-card"><div className="erp-table-heading"><div><h3>Base de clientes</h3><p>{loading ? 'Carregando dados reais...' : `${filteredCustomers.length} registros encontrados`}</p></div></div>{!budgetDataAvailable && <p className="erp-budget-warning" role="status">Os planos orçamentários estão indisponíveis porque não foi possível conectar ao banco de dados.</p>}{filteredCustomers.length ? <div className="erp-table-scroll"><table className="erp-table erp-customers-table"><thead><tr><th>Cliente</th><th>Status</th><th>Última compra</th><th>Dias sem comprar</th><th>Pedidos</th><th>Total gasto</th><th>Plano orçamentário</th><th></th></tr></thead><tbody>{filteredCustomers.map((customer) => <tr key={customer.id} className={selected?.id === customer.id ? 'selected-row' : ''} onClick={() => setSelected(customer)}><td><strong>{customer.name}</strong><small>{customer.id} · {customer.email}</small></td><td><span className={`erp-status ${customer.status.toLowerCase()}`}>{customer.status}</span></td><td>{customer.lastPurchase}</td><td><span className={customer.daysWithoutPurchase >= 30 ? 'customer-risk' : ''}>{customer.daysWithoutPurchase === null ? 'Sem dados' : `${customer.daysWithoutPurchase} dias`}</span></td><td>{customer.orders}</td><td>{formatCurrency(customer.spent)}</td><td>{!customer.budgetDataAvailable ? 'Indisponível' : customer.monthlyBudget ? formatCurrency(customer.monthlyBudget) : 'Não definido'}</td><td><ChevronRight size={15} /></td></tr>)}</tbody></table></div> : <div className="erp-empty-data">{loading ? 'Carregando dados reais...' : 'Nenhum cliente com atividade registrada.'}</div>}</section>

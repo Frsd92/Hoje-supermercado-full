@@ -3,6 +3,8 @@ import { parseReceiptAmount } from './order-receipt-data.js';
 export const refundRequestStatus = Object.freeze({
   requested: 'requested',
   approvedWaitingGateway: 'approved_waiting_gateway',
+  gatewayProcessing: 'gateway_processing',
+  gatewayFailed: 'gateway_failed',
   rejected: 'rejected',
   completed: 'completed',
 });
@@ -10,12 +12,16 @@ export const refundRequestStatus = Object.freeze({
 export const reservedRefundStatuses = Object.freeze([
   refundRequestStatus.requested,
   refundRequestStatus.approvedWaitingGateway,
+  refundRequestStatus.gatewayProcessing,
+  refundRequestStatus.gatewayFailed,
   refundRequestStatus.completed,
 ]);
 
 export const refundRequestStatusLabels = Object.freeze({
   [refundRequestStatus.requested]: 'Aguardando análise',
-  [refundRequestStatus.approvedWaitingGateway]: 'Aprovado · aguarda integração',
+  [refundRequestStatus.approvedWaitingGateway]: 'Aprovado · estorno manual pendente',
+  [refundRequestStatus.gatewayProcessing]: 'Estorno enviado · aguardando confirmação',
+  [refundRequestStatus.gatewayFailed]: 'Falha no estorno · requer nova tentativa',
   [refundRequestStatus.rejected]: 'Recusado',
   [refundRequestStatus.completed]: 'Estorno confirmado pela gateway',
 });
@@ -52,13 +58,15 @@ export function getReservedRefundCents(refundRequests = []) {
   ), 0);
 }
 
-export function getRemainingRefundCents(orderTotal, refundRequests = []) {
-  return Math.max(0, amountToCents(orderTotal) - getReservedRefundCents(refundRequests));
+export function getRemainingRefundCents(orderTotal, refundRequests = [], refundedAmount = 0) {
+  const reservedCents = getReservedRefundCents(refundRequests);
+  const confirmedRefundedCents = amountToCents(refundedAmount);
+  return Math.max(0, amountToCents(orderTotal) - Math.max(reservedCents, confirmedRefundedCents));
 }
 
-export function validateRefundAmount({ amount, orderTotal, refundRequests = [] }) {
+export function validateRefundAmount({ amount, orderTotal, refundRequests = [], refundedAmount = 0 }) {
   const amountCents = amountToCents(amount);
-  const remainingCents = getRemainingRefundCents(orderTotal, refundRequests);
+  const remainingCents = getRemainingRefundCents(orderTotal, refundRequests, refundedAmount);
 
   if (amountCents <= 0) return { error: 'Informe um valor de estorno maior que zero.', amountCents, remainingCents };
   if (amountCents > remainingCents) {

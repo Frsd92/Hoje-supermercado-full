@@ -576,16 +576,21 @@ async function sincronizarFavorito(card, button) {
   }
 
   const favorite = obterDadosFavorito(card);
+  if (!favorite.productId) {
+    console.error('Não foi possível salvar o favorito porque o produto não tem identificador no catálogo.');
+    return;
+  }
   const ativo = button.classList.toggle('is-favorite');
   button.setAttribute('aria-pressed', String(ativo));
   button.setAttribute('aria-label', ativo ? 'Remover dos favoritos' : 'Adicionar aos favoritos');
 
   try {
     const response = await fetch(FAVORITES_API, ativo
-      ? { method: 'POST', credentials: 'include', headers: { 'Content-Type': 'text/plain' }, body: JSON.stringify({ favorite }) }
-      : { method: 'DELETE', credentials: 'include', headers: { 'Content-Type': 'text/plain' }, body: JSON.stringify({ name: favorite.name }) });
+      ? { method: 'POST', credentials: 'include', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ favorite: { productId: favorite.productId } }) }
+      : { method: 'DELETE', credentials: 'include', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ productId: favorite.productId }) });
 
-    if (!response.ok) throw new Error('Não foi possível sincronizar o favorito.');
+    const data = await response.json();
+    if (!response.ok) throw new Error(data.error || 'Não foi possível sincronizar o favorito.');
   } catch (error) {
     button.classList.toggle('is-favorite', !ativo);
     button.setAttribute('aria-pressed', String(!ativo));
@@ -991,10 +996,14 @@ function adicionarBotoesFavorito(cards = document.querySelectorAll('.product-car
     }
 
     btn.type = 'button';
-    btn.disabled = !sessaoLoja.authenticated;
-    const nome = card.querySelector('.product-name')?.textContent.trim();
-    const ativo = favoritosLoja.has(nome);
-    btn.title = sessaoLoja.authenticated ? 'Adicionar aos favoritos' : 'Entre para favoritar';
+    const productId = card.dataset.id || '';
+    btn.disabled = !sessaoLoja.authenticated || !productId;
+    const ativo = favoritosLoja.has(productId);
+    btn.title = !sessaoLoja.authenticated
+      ? 'Entre para favoritar'
+      : productId
+        ? 'Adicionar aos favoritos'
+        : 'Produto indisponível para favoritar';
     btn.setAttribute('aria-label', ativo ? 'Remover dos favoritos' : 'Adicionar aos favoritos');
     btn.setAttribute('aria-pressed', String(ativo));
     btn.classList.toggle('is-favorite', ativo);
@@ -1017,16 +1026,15 @@ async function carregarFavoritosDaApi() {
     if (!response.ok) return;
     const data = await response.json();
     if (!Array.isArray(data?.favorites)) throw new Error('Resposta inválida ao carregar favoritos.');
-    favoritosLoja = new Set(data.favorites.map((item) => item.name));
+    favoritosLoja = new Set(data.favorites.map((item) => String(item.productId || item.id || '')).filter(Boolean));
 
     const favoritesElement = document.getElementById('store-favorites-count');
     if (favoritesElement) favoritesElement.textContent = `${favoritosLoja.size} ${favoritosLoja.size === 1 ? 'item' : 'itens'}`;
 
     document.querySelectorAll('.product-card').forEach((card) => {
-      const nome = card.querySelector('.product-name')?.textContent.trim();
       const button = card.querySelector('.fav-btn');
       if (!button) return;
-      const ativo = favoritosLoja.has(nome);
+      const ativo = favoritosLoja.has(card.dataset.id || '');
       button.classList.toggle('is-favorite', ativo);
       button.setAttribute('aria-pressed', String(ativo));
       button.setAttribute('aria-label', ativo ? 'Remover dos favoritos' : 'Adicionar aos favoritos');

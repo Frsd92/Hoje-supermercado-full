@@ -19,7 +19,16 @@ export async function GET() {
       }),
       prisma.customerCart.findMany({ select: { email: true, items: true } }),
       prisma.order.findMany({
-        select: { id: true, customerEmail: true, customerName: true, total: true, status: true, createdAt: true },
+        select: {
+          id: true,
+          customerEmail: true,
+          customerName: true,
+          total: true,
+          status: true,
+          paymentStatus: true,
+          refundedAmount: true,
+          createdAt: true,
+        },
       }),
       prisma.customerProfile.findMany({
         select: { email: true, fullName: true, monthlyBudget: true },
@@ -60,17 +69,20 @@ export async function GET() {
       const favorites = favoritesByUser.get(email) || [];
       const cart = cartsByEmail.get(email) || [];
       const customerOrders = orderList.filter((order) => order.customerEmail?.trim().toLowerCase() === email);
-      const activeOrders = customerOrders.filter((order) => order.status !== 'Cancelado');
+      const activeOrders = customerOrders.filter((order) => (
+        order.status !== 'Cancelado'
+        && !['pending', 'failed', 'canceled'].includes(String(order.paymentStatus || '').toLowerCase())
+      ));
       const datedOrders = activeOrders
         .map((order) => ({ order, date: parseOrderDate(order.createdAt) }))
         .filter(({ date }) => date)
         .sort((first, second) => second.date.getTime() - first.date.getTime());
-      const totalSpent = activeOrders.reduce((total, order) => total + money(order.total), 0);
+      const totalSpent = activeOrders.reduce((total, order) => total + realizedRevenue(order), 0);
       const now = new Date();
       const currentMonthSpent = activeOrders.reduce((total, order) => {
         const orderDate = parseOrderDate(order.createdAt);
         return orderDate && orderDate.getFullYear() === now.getFullYear() && orderDate.getMonth() === now.getMonth()
-          ? total + money(order.total)
+          ? total + realizedRevenue(order)
           : total;
       }, 0);
       const lastOrder = datedOrders[0]?.order;
@@ -110,4 +122,10 @@ function money(value) {
     ? normalized.replace(/\./g, '').replace(',', '.')
     : normalized;
   return Number(decimalValue) || 0;
+}
+
+function realizedRevenue(order) {
+  const total = Math.max(0, money(order.total));
+  const refundedAmount = Math.min(total, Math.max(0, money(order.refundedAmount)));
+  return total - refundedAmount;
 }

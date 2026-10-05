@@ -105,7 +105,10 @@ export async function GET(request) {
         select: { email: true, addresses: true },
       }),
       prisma.couponCampaign.findMany({
-        include: { _count: { select: { recipients: true, redemptions: true } } },
+        include: {
+          _count: { select: { recipients: true } },
+          redemptions: { select: { orderId: true } },
+        },
         orderBy: { createdAt: 'desc' },
       }),
     ]);
@@ -119,24 +122,31 @@ export async function GET(request) {
   }
 
   const orders = ordersValue
-    .filter((order) => order.status !== 'Cancelado')
-    .map((order) => ({
-      ...order,
-      items: order.items.map((item) => ({
-        ...item,
-        quantity: Number(item.quantity),
-        unitCost: item.unitCost === null ? null : Number(item.unitCost),
-        promotionDiscount: Number(item.promotionDiscount),
-        product: item.product
-          ? {
-            ...item.product,
-            price: Number(item.product.price),
-            cost: Number(item.product.cost),
-            discount: Number(item.product.discount),
-          }
-          : null,
-      })),
-    }));
+    .filter((order) => order.status !== 'Cancelado'
+      && !['pending', 'failed', 'canceled'].includes(String(order.paymentStatus || '').toLowerCase()))
+    .map((order) => {
+      const grossTotal = Math.max(0, money(order.total));
+      const refundedAmount = Math.min(grossTotal, Math.max(0, money(order.refundedAmount)));
+      return {
+        ...order,
+        grossTotal,
+        total: grossTotal - refundedAmount,
+        items: order.items.map((item) => ({
+          ...item,
+          quantity: Number(item.quantity),
+          unitCost: item.unitCost === null ? null : Number(item.unitCost),
+          promotionDiscount: Number(item.promotionDiscount),
+          product: item.product
+            ? {
+              ...item.product,
+              price: Number(item.product.price),
+              cost: Number(item.product.cost),
+              discount: Number(item.product.discount),
+            }
+            : null,
+        })),
+      };
+    });
   const products = productsValue.map((product) => {
     const metadata = product.metadata && typeof product.metadata === 'object' && !Array.isArray(product.metadata)
       ? product.metadata
@@ -241,9 +251,10 @@ export async function GET(request) {
     const itemSubtotal = money(item.price) * quantity;
     const orderSubtotal = Number(order.subtotal) || order.items.reduce((sum, orderItem) => sum + money(orderItem.price) * Number(orderItem.quantity), 0);
     const couponDiscount = Number(order.couponDiscountAmount)
-      || Math.max(0, orderSubtotal - money(order.total));
+      || Math.max(0, orderSubtotal - money(order.grossTotal));
     const revenueShare = orderSubtotal > 0 ? Math.max(0, (orderSubtotal - couponDiscount) / orderSubtotal) : 1;
-    const revenue = itemSubtotal * revenueShare;
+    const refundRatio = order.grossTotal > 0 ? money(order.total) / order.grossTotal : 1;
+    const revenue = itemSubtotal * revenueShare * refundRatio;
     const costKnown = item.unitCost !== null && Number.isFinite(Number(item.unitCost)) && Number(item.unitCost) > 0;
     const cost = costKnown ? Number(item.unitCost) * quantity : null;
     return {
@@ -259,7 +270,7 @@ export async function GET(request) {
   }));
   const revenue = orders.reduce((sum, order) => sum + money(order.total), 0);
   const profitabilitySummary = summarizeProfitability({
-    orders: orders.map((order) => ({ ...order, totalAmount: money(order.total) })),
+    orders: orders.map((order) => ({ ...order, totalAmount: money(order.grossTotal) })),
     lineItems,
     revenue,
   });
@@ -534,6 +545,9 @@ export async function GET(request) {
         discount: sales.discount,
       };
     });
+  const realizedOrderIds = new Set(orders.map((order) => order.id));
+  const realizedRedemptions = (campaign) => campaign.redemptions
+    .filter((redemption) => realizedOrderIds.has(redemption.orderId)).length;
   const promotions = {
     available: true,
     flashOffers,
@@ -542,7 +556,7 @@ export async function GET(request) {
       const couponOrders = orders.filter((order) => String(order.couponCode || '').toUpperCase() === code);
       const discount = couponOrders.reduce((sum, order) => {
         const savedDiscount = Number(order.couponDiscountAmount);
-        return sum + (savedDiscount || Math.max(0, (Number(order.subtotal) || 0) - money(order.total)));
+        return sum + (savedDiscount || Math.max(0, (Number(order.subtotal) || 0) - money(order.grossTotal)));
       }, 0);
       return {
         id: campaign.id,
@@ -552,7 +566,7 @@ export async function GET(request) {
         expiresAt: campaign.expiresAt,
         expired: campaign.expiresAt.getTime() <= now.getTime(),
         recipients: campaign._count.recipients,
-        redemptions: campaign._count.redemptions,
+        redemptions: realizedRedemptions(campaign),
         orders: couponOrders.length,
         revenue: couponOrders.reduce((sum, order) => sum + money(order.total), 0),
         discount,
@@ -562,7 +576,7 @@ export async function GET(request) {
       activeFlashOffers: flashOffers.filter((offer) => offer.state === 'active').length,
       scheduledFlashOffers: flashOffers.filter((offer) => offer.state === 'scheduled').length,
       couponCampaigns: couponCampaigns.length,
-      redeemedCoupons: couponCampaigns.reduce((sum, campaign) => sum + campaign._count.redemptions, 0),
+      redeemedCoupons: couponCampaigns.reduce((sum, campaign) => sum + realizedRedemptions(campaign), 0),
       flashOfferOrders: new Set(flashOfferItems.map((item) => item.order.id)).size,
       flashOfferRevenue: flashOfferItems.reduce((sum, item) => sum + item.revenue, 0),
     },

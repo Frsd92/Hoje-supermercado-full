@@ -35,6 +35,8 @@ export async function GET() {
           total: true,
           couponDiscountAmount: true,
           status: true,
+          paymentStatus: true,
+          refundedAmount: true,
           createdAt: true,
         },
       })
