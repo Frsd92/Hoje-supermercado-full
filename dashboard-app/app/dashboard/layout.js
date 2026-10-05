@@ -37,6 +37,7 @@ import {
   LogOut,
   X,
   Menu,
+  TicketPercent,
 } from 'lucide-react';
 
 const navigationGroups = [
@@ -48,6 +49,7 @@ const navigationGroups = [
     label: 'Minhas compras',
     items: [
       { label: 'Meus Pedidos', href: '/dashboard/orders', icon: ShoppingBag },
+      { label: 'Meus cupons', href: '/dashboard/cupons', icon: TicketPercent },
       { label: 'Favoritos', href: '/dashboard/favorites', icon: Star },
       { label: 'Orçamento', href: '/dashboard/budget', icon: CircleDollarSign },
     ],
@@ -132,6 +134,26 @@ export default function DashboardLayout({ children }) {
     setCartOpen(false);
     window.requestAnimationFrame(() => cartOpenerRef.current?.focus());
   }, []);
+
+  useEffect(() => {
+    const handleCouponRequest = (event) => {
+      const code = String(event.detail?.code || '').trim().toUpperCase();
+      if (!/^[A-Z0-9_-]{3,24}$/.test(code)) {
+        openCart();
+        setCheckoutStatus('Não foi possível carregar este código de cupom. Confira-o e tente novamente.');
+        return;
+      }
+      setCoupon(code);
+      setCouponDiscountPercent(0);
+      setAppliedCouponCode('');
+      setCouponStatus('');
+      setCheckoutStatus('');
+      openCart();
+      window.requestAnimationFrame(() => document.getElementById('cart-coupon-code')?.focus());
+    };
+    window.addEventListener('dashboard-use-coupon', handleCouponRequest);
+    return () => window.removeEventListener('dashboard-use-coupon', handleCouponRequest);
+  }, [openCart]);
 
   useEffect(() => {
     const dialog = cpfNoteDialogRef.current;
@@ -643,6 +665,7 @@ export default function DashboardLayout({ children }) {
       setAppliedCouponCode('');
       setCouponStatus('');
       setCheckoutStatus(`Pedido ${data.order.id} realizado com sucesso.`);
+      window.dispatchEvent(new Event('dashboard-coupons-updated'));
     } catch (error) {
       setCheckoutStatus(error.message);
     } finally {
@@ -1028,14 +1051,16 @@ export default function DashboardLayout({ children }) {
             </div>
             <div className="cart-coupon">
               <input
+                id="cart-coupon-code"
                 value={coupon}
                 onChange={(event) => { setCoupon(event.target.value); setCouponDiscountPercent(0); setAppliedCouponCode(''); setCouponStatus(''); }}
                 placeholder="Insira seu Cupom"
                 maxLength={24}
+                aria-label="Código do cupom"
               />
               <button className="btn-coupon" type="button" onClick={applyCoupon}>Aplicar</button>
             </div>
-            <p className={`coupon-feedback ${couponStatus.includes('sucesso') ? 'success' : couponStatus ? 'error' : ''}`}>{couponStatus}</p>
+            <p className={`coupon-feedback ${couponStatus.includes('sucesso') ? 'success' : couponStatus ? 'error' : ''}`} role="status" aria-live="polite">{couponStatus}</p>
             {addressLoadError ? (
               <small className="checkout-field-hint" role="alert">Não foi possível confirmar seus endereços: {addressLoadError}</small>
             ) : addressesLoading ? (

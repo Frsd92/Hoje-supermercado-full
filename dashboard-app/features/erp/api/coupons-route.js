@@ -3,6 +3,7 @@ import { getServerSession } from 'next-auth';
 import { authOptions } from '@/auth';
 import { erpActorLabel, hasErpAccess } from '@/features/erp/access';
 import { prisma } from '@/lib/prisma';
+import { summarizeCouponCampaign } from '@/features/coupons/coupon-reporting';
 
 export async function GET() {
   const session = await getServerSession(authOptions);
@@ -10,19 +11,41 @@ export async function GET() {
 
   try {
     const campaigns = await prisma.couponCampaign.findMany({
-      include: { recipients: { select: { email: true } } },
+      select: {
+        id: true,
+        code: true,
+        discountPercent: true,
+        expiresAt: true,
+        createdAt: true,
+        createdBy: true,
+        message: true,
+        recipients: { select: { email: true } },
+        redemptions: { select: { email: true, orderId: true, createdAt: true } },
+      },
       orderBy: { createdAt: 'desc' },
     });
-    return Response.json({ campaigns: campaigns.map((campaign) => ({
-      id: campaign.id,
-      code: campaign.code,
-      discountPercent: campaign.discountPercent,
-      expiresAt: campaign.expiresAt,
-      createdAt: campaign.createdAt,
-      recipientsCount: campaign.recipients.length,
-      recipientEmails: campaign.recipients.map((recipient) => recipient.email),
-      message: campaign.message,
-    })) });
+    const codes = campaigns.map((campaign) => campaign.code);
+    const orders = codes.length
+      ? await prisma.order.findMany({
+        where: { couponCode: { in: codes } },
+        select: {
+          id: true,
+          couponCode: true,
+          customerEmail: true,
+          total: true,
+          couponDiscountAmount: true,
+          status: true,
+          createdAt: true,
+        },
+      })
+      : [];
+    const now = new Date();
+    return Response.json({
+      campaigns: campaigns.map((campaign) => ({
+        ...summarizeCouponCampaign(campaign, orders, now),
+        createdBy: campaign.createdBy,
+      })),
+    });
   } catch (error) {
     console.error('Não foi possível carregar os cupons enviados:', error);
     return Response.json({ error: 'Não foi possível carregar os cupons enviados.' }, { status: 500 });
