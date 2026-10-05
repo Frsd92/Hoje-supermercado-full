@@ -1,10 +1,13 @@
 import GoogleProviderModule from 'next-auth/providers/google';
+import AppleProviderModule from 'next-auth/providers/apple';
 import CredentialsProviderModule from 'next-auth/providers/credentials';
 import { verifyErpCredentials } from './features/erp/password.js';
 
 const GoogleProvider = typeof GoogleProviderModule === 'function' ? GoogleProviderModule : GoogleProviderModule.default;
+const AppleProvider = typeof AppleProviderModule === 'function' ? AppleProviderModule : AppleProviderModule.default;
 const CredentialsProvider = typeof CredentialsProviderModule === 'function' ? CredentialsProviderModule : CredentialsProviderModule.default;
 const hasGoogleConfig = Boolean(process.env.GOOGLE_CLIENT_ID && process.env.GOOGLE_CLIENT_SECRET);
+const hasAppleConfig = Boolean(process.env.APPLE_CLIENT_ID && process.env.APPLE_CLIENT_SECRET);
 
 export const authOptions = {
   secret: process.env.NEXTAUTH_SECRET,
@@ -15,6 +18,12 @@ export const authOptions = {
       GoogleProvider({
         clientId: process.env.GOOGLE_CLIENT_ID,
         clientSecret: process.env.GOOGLE_CLIENT_SECRET,
+      }),
+    ] : []),
+    ...(hasAppleConfig ? [
+      AppleProvider({
+        clientId: process.env.APPLE_CLIENT_ID,
+        clientSecret: process.env.APPLE_CLIENT_SECRET,
       }),
     ] : []),
     CredentialsProvider({

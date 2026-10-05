@@ -452,6 +452,23 @@ body {
   margin-bottom: 6px;
 }
 
+.apple-signin {
+  margin-top: 10px;
+  padding: 0 18px;
+  background: #111;
+  color: #fff;
+  box-shadow: 0 18px 30px rgba(15, 23, 42, 0.14), inset 0 1px 0 rgba(255,255,255,0.12);
+}
+
+.apple-signin:hover {
+  background: #262626;
+}
+
+.apple-signin:disabled {
+  cursor: wait;
+  opacity: 0.72;
+}
+
 .security-mark {
   display: grid;
   place-items: center;

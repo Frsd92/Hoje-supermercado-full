@@ -3,6 +3,10 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <meta name="theme-color" content="#145c32">
+    <meta name="apple-mobile-web-app-capable" content="yes">
+    <meta name="apple-mobile-web-app-title" content="Hoje">
+    <meta name="apple-mobile-web-app-status-bar-style" content="default">
     <title>Hoje Supermercado | Ofertas e compras online</title>
     <meta name="description" content="Encontre ofertas, produtos frescos e tudo o que precisa no Hoje Supermercado. Consulte o catálogo, monte seu carrinho e compre com praticidade.">
     <meta name="robots" content="index, follow">
@@ -15,6 +19,9 @@
     <meta property="og:image" content="https://www.hojesupermercado.com.br/imagens/tudo_o_que_vc_precisa.webp">
     <meta property="og:image:alt" content="Compre no Hoje Supermercado">
     <meta name="twitter:card" content="summary_large_image">
+    <link rel="manifest" href="/manifest.webmanifest">
+    <link rel="apple-touch-icon" sizes="180x180" href="/imagens/logo/app-icon-180.png">
+    <link rel="icon" type="image/png" sizes="192x192" href="/imagens/logo/app-icon-192.png">
     <link rel="preload" as="image" href="imagens/tudo_o_que_vc_precisa.webp" type="image/webp" fetchpriority="high">
     <link rel="icon" type="image/webp" href="imagens/logo/logo-hj.webp">
     <link rel="stylesheet" href="style.css">
@@ -1665,6 +1672,7 @@
   <!-- script.js precisa vir ANTES de chamar as funções nele definidas -->
   <script src="content-moderation.js"></script>
   <script src="script.js"></script>
+  <script src="pwa-register.js" defer></script>
   <script>
     document.addEventListener('DOMContentLoaded', () => {
       adicionarBotoesFavorito();

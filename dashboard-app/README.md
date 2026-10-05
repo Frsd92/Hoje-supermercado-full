@@ -13,7 +13,7 @@ Aplicação Next.js que reúne o dashboard do cliente e o ERP interno.
 
 ## Acesso ao ERP
 
-O dashboard do cliente em `/dashboard` aceita somente sessões iniciadas com Google; o ERP usa credenciais separadas do CEO. O ERP entra por `/erp` e usa a tela exclusiva `/erp/login`. Configure `ERP_CEO_USERNAME` e `ERP_CEO_PASSWORD_HASH` no `.env.local` e nas variáveis de produção do projeto que serve `www.hojesupermercado.com.br`. O nome de usuário aceita de 3 a 32 letras, números, pontos, hífens e sublinhados. No Vercel, o **Root Directory** do projeto deve ser `dashboard-app`; o domínio `www.hojesupermercado.com.br` já está associado e `NEXTAUTH_URL` aponta para ele. Gere a senha localmente, sem colocá-la no código ou enviá-la por mensagem:
+O dashboard do cliente em `/dashboard` aceita sessões iniciadas com Google ou Apple quando o respectivo provedor está configurado; o ERP usa credenciais separadas do CEO. O ERP entra por `/erp` e usa a tela exclusiva `/erp/login`. Configure `ERP_CEO_USERNAME` e `ERP_CEO_PASSWORD_HASH` no `.env.local` e nas variáveis de produção do projeto que serve `www.hojesupermercado.com.br`. O nome de usuário aceita de 3 a 32 letras, números, pontos, hífens e sublinhados. No Vercel, o **Root Directory** do projeto deve ser `dashboard-app`; o domínio `www.hojesupermercado.com.br` já está associado e `NEXTAUTH_URL` aponta para ele. Gere a senha localmente, sem colocá-la no código ou enviá-la por mensagem:
 
 ```powershell
 npm run erp:hash-password
@@ -21,7 +21,13 @@ npm run erp:hash-password
 
 O comando solicita a senha sem exibi-la e imprime o hash `scrypt` para salvar em `ERP_CEO_PASSWORD_HASH`. Use uma senha única entre 12 e 1024 caracteres. O acesso exige o nome de usuário configurado em `ERP_CEO_USERNAME` e a senha correspondente; o nome de usuário não diferencia maiúsculas de minúsculas. A sessão administrativa expira após 8 horas. Mantenha `NEXTAUTH_SECRET` forte e habilite HTTPS. Para proteção adicional, aplique limite de tentativas na rota de autenticação no provedor de hospedagem e ative MFA quando disponível.
 
-Para ativar os logins em produção, adicione às variáveis **Production** do projeto Vercel `NEXTAUTH_SECRET`, `ERP_CEO_USERNAME` e `ERP_CEO_PASSWORD_HASH`. Para o login Google da loja/dashboard, configure também `GOOGLE_CLIENT_ID` e `GOOGLE_CLIENT_SECRET`. Não reutilize valores de desenvolvimento nem compartilhe segredos por chat. No Google Cloud, cadastre `https://www.hojesupermercado.com.br` como origem autorizada e `https://www.hojesupermercado.com.br/api/auth/callback/google` como URI de redirecionamento. Depois de salvar as variáveis, faça um novo deploy de produção.
+Para ativar os logins em produção, adicione às variáveis **Production** do projeto Vercel `NEXTAUTH_SECRET`, `ERP_CEO_USERNAME` e `ERP_CEO_PASSWORD_HASH`. Para o login Google da loja/dashboard, configure `GOOGLE_CLIENT_ID` e `GOOGLE_CLIENT_SECRET`. Para habilitar “Entrar com Apple”, configure `APPLE_CLIENT_ID` com o Services ID e `APPLE_CLIENT_SECRET` com o JWT de cliente criado no Apple Developer; cadastre `https://www.hojesupermercado.com.br/api/auth/callback/apple` como URL de retorno. O Services ID deve estar associado a um App ID habilitado para Sign in with Apple. Não reutilize valores de desenvolvimento nem compartilhe segredos por chat; a chave privada `.p8` e os segredos devem permanecer em armazenamento seguro, e o JWT de cliente precisa ser renovado antes de expirar. Depois de salvar as variáveis, faça um novo deploy de produção.
+
+## App para Android e iPhone
+
+A loja pode ser instalada como PWA pelo navegador. O manifest e os ícones são mantidos em `../loja`; `npm run build` e `npm run dev` os copiam para `public`. O service worker mantém páginas, scripts, estilos e imagens estáticas em cache para abrir a loja sem conexão; respostas de API, login, dashboard e ERP nunca são armazenadas. A loja continua exigindo conexão para consultar catálogo atualizado, conta, carrinho sincronizado e finalizar pedidos.
+
+O projeto Android TWA está em `../android-app/` com o identificador permanente `br.com.hojesupermercado.app` e target API 36. A compilação debug foi validada. Antes de distribuir, publique o PWA, valide o domínio e configure `/.well-known/assetlinks.json` com a impressão SHA-256 do certificado de assinatura do Google Play. O release precisa de uma chave de upload protegida; não coloque keystores nem chaves privadas no repositório.
 
 ## Desenvolvimento
 

@@ -1,8 +1,8 @@
 "use client";
 
-import { ArrowLeft, ArrowRight, Check, CircleUserRound, ShieldCheck, Sparkles, Star, Truck } from 'lucide-react';
+import { Apple, ArrowLeft, Check, CircleUserRound, ShieldCheck, Sparkles, Star, Truck } from 'lucide-react';
 import Script from 'next/script';
-import { signIn } from 'next-auth/react';
+import { getProviders, signIn } from 'next-auth/react';
 import { useRouter } from 'next/navigation';
 import { useEffect, useState } from 'react';
 
@@ -16,7 +16,8 @@ const featureList = [
 export default function LoginPage() {
   const router = useRouter();
   const [authError, setAuthError] = useState('');
-  const [isGoogleSubmitting, setIsGoogleSubmitting] = useState(false);
+  const [availableProviders, setAvailableProviders] = useState({});
+  const [submittingProvider, setSubmittingProvider] = useState('');
   const [callbackUrl, setCallbackUrl] = useState('/dashboard');
 
   useEffect(() => {
@@ -24,37 +25,61 @@ export default function LoginPage() {
     const error = params.get('error') || '';
     const requestedCallback = params.get('callbackUrl');
     setAuthError(error === 'google-required'
-      ? 'Para acessar o painel do cliente, entre com sua conta Google.'
+      ? 'Para acessar o painel do cliente, entre com sua conta Google ou Apple.'
       : error);
     if (requestedCallback) setCallbackUrl(requestedCallback);
   }, []);
 
-  const handleGoogleLogin = async () => {
-    setIsGoogleSubmitting(true);
+  useEffect(() => {
+    let isMounted = true;
+
+    getProviders()
+      .then((providers) => {
+        if (isMounted) {
+          setAvailableProviders({
+            google: Boolean(providers?.google),
+            apple: Boolean(providers?.apple),
+          });
+        }
+      })
+      .catch((error) => {
+        console.error('Não foi possível carregar os provedores de login:', error);
+        if (isMounted) setAuthError('Não foi possível carregar as opções de login. Tente novamente.');
+      });
+
+    return () => {
+      isMounted = false;
+    };
+  }, []);
+
+  const handleSocialLogin = async (provider) => {
+    const providerName = provider === 'apple' ? 'Apple' : 'Google';
+    setSubmittingProvider(provider);
     setAuthError('');
 
     try {
-      const result = await signIn('google', {
+      const result = await signIn(provider, {
         callbackUrl,
         redirect: false,
       });
 
       if (result?.error) {
         const messages = {
-          AccessDenied: 'Este e-mail não tem acesso ao dashboard.',
-          Configuration: 'O login Google ainda não está configurado no servidor.',
-          OAuthCallback: 'O Google não conseguiu concluir o retorno do login.',
-          OAuthSignin: 'Não foi possível iniciar o login com Google.',
+          AccessDenied: 'Esta conta não tem acesso ao painel do cliente.',
+          Configuration: `O login com ${providerName} ainda não está configurado no servidor.`,
+          OAuthCallback: `${providerName} não conseguiu concluir o retorno do login.`,
+          OAuthSignin: `Não foi possível iniciar o login com ${providerName}.`,
         };
-        setAuthError(messages[result.error] || `Não foi possível entrar com Google (${result.error}).`);
-        setIsGoogleSubmitting(false);
+        setAuthError(messages[result.error] || `Não foi possível entrar com ${providerName} (${result.error}).`);
+        setSubmittingProvider('');
         return;
       }
 
       if (result?.url) window.location.assign(result.url);
+      else setSubmittingProvider('');
     } catch {
-      setAuthError('Não foi possível conectar ao login do Google. Tente novamente.');
-      setIsGoogleSubmitting(false);
+      setAuthError(`Não foi possível conectar ao login com ${providerName}. Tente novamente.`);
+      setSubmittingProvider('');
     }
   };
 
@@ -116,10 +141,17 @@ export default function LoginPage() {
           <h1>Entrar no Hoje</h1>
           <p className="login-subtitle">Continue com sua conta para acessar o painel do cliente.</p>
 
-          <button className="primary-action google-signin" onClick={handleGoogleLogin} disabled={isGoogleSubmitting}>
+          <button className="primary-action google-signin" onClick={() => handleSocialLogin('google')} disabled={Boolean(submittingProvider)}>
             <span className="google-mark">G</span>
-            {isGoogleSubmitting ? 'Conectando...' : 'Entrar com Google'}
+            {submittingProvider === 'google' ? 'Conectando...' : 'Entrar com Google'}
           </button>
+
+          {availableProviders.apple && (
+            <button className="primary-action apple-signin" onClick={() => handleSocialLogin('apple')} disabled={Boolean(submittingProvider)}>
+              <Apple size={20} aria-hidden="true" />
+              {submittingProvider === 'apple' ? 'Conectando...' : 'Entrar com Apple'}
+            </button>
+          )}
 
           {authError && (
             <p className="login-error">

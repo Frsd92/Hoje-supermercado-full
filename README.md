@@ -3,6 +3,7 @@
 ## Organização da plataforma
 
 - `loja/`: arquivos-fonte da loja e suas páginas legais.
+- `android-app/`: projeto Android TWA que abre a PWA da loja.
 - `dashboard-app/app/dashboard/`: páginas do dashboard do cliente.
 - `dashboard-app/app/erp/`: rotas do ERP, mantidas separadas para preservar as URLs.
 - `dashboard-app/features/erp/`: implementação exclusiva do ERP, com páginas e componentes.
