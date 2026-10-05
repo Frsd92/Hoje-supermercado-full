@@ -2,7 +2,6 @@ export const PAYMENT_METHODS = [
   { value: 'pix', label: 'Pix · Pagar.me', description: 'Pagamento online com QR Code e confirmação automática.' },
   { value: 'cartao', label: 'Cartão · Pagar.me', description: 'Cartão tokenizado no navegador e confirmação automática.' },
   { value: 'dinheiro', label: 'Dinheiro', description: 'Pagamento combinado com a loja, sem processamento pela Pagar.me.' },
-  { value: 'outro', label: 'Outro / combinar', description: 'Combine outra forma de pagamento diretamente com a loja.' },
 ];
 
 export const DEFAULT_PAYMENT_METHOD = null;

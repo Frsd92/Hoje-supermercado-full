@@ -30,9 +30,10 @@ async function getEmail() {
 function isAddress(address) {
   if (!address || typeof address !== 'object' || Array.isArray(address)) return false;
   const requiredFields = ['id', 'title', 'street', 'city', 'cep'];
-  const optionalFields = ['number', 'neighborhood', 'state', 'stateCode', 'country', 'type'];
+  const optionalFields = ['number', 'complement', 'neighborhood', 'state', 'stateCode', 'country', 'type'];
   return requiredFields.every((field) => typeof address[field] === 'string' && address[field].trim())
-    && optionalFields.every((field) => address[field] === undefined || typeof address[field] === 'string');
+    && optionalFields.every((field) => address[field] === undefined || typeof address[field] === 'string')
+    && String(address.complement || '').length <= 120;
 }
 
 function getRegionStates() {

@@ -38,6 +38,7 @@ export function normalizeSavedAddress(address, states = []) {
   return {
     ...address,
     number: String(address?.number || ''),
+    complement: String(address?.complement || '').trim(),
     neighborhood,
     city,
     state: String(address?.state || state?.name || stateSuffix?.[2]?.toUpperCase() || ''),

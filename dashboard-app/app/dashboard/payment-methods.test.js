@@ -11,10 +11,11 @@ import {
   savePaymentMethod,
 } from './payment-methods.js';
 
-test('exposes the payment methods supported by the existing checkout', () => {
-  assert.deepEqual(PAYMENT_METHODS.map(({ value }) => value), ['pix', 'cartao', 'dinheiro', 'outro']);
+test('exposes only payment methods available to customers', () => {
+  assert.deepEqual(PAYMENT_METHODS.map(({ value }) => value), ['pix', 'cartao', 'dinheiro']);
   assert.equal(DEFAULT_PAYMENT_METHOD, null);
   assert.equal(isPaymentMethod('cartao'), true);
+  assert.equal(isPaymentMethod('outro'), false);
   assert.equal(isPaymentMethod('transferencia'), false);
 });
 
@@ -63,6 +64,8 @@ test('requires an explicitly saved preference instead of silently defaulting to 
   try {
     assert.equal(readPaymentMethod('cliente@example.com'), null);
     storedValues.set(getPaymentMethodStorageKey('cliente@example.com'), 'invalid');
+    assert.equal(readPaymentMethod('cliente@example.com'), null);
+    storedValues.set(getPaymentMethodStorageKey('cliente@example.com'), 'outro');
     assert.equal(readPaymentMethod('cliente@example.com'), null);
     storedValues.set(getPaymentMethodStorageKey('cliente@example.com'), 'pix');
     assert.equal(readPaymentMethod('cliente@example.com'), 'pix');

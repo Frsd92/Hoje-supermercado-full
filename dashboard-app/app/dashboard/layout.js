@@ -71,13 +71,14 @@ const getAddressStreet = (address) => [address?.street, address?.number].filter(
 
 function getAddressValue(address) {
   return `${address.title || 'Endereço'} | ${[
-    getAddressStreet(address), address.neighborhood, address.city, address.state, address.country,
+    getAddressStreet(address), address.complement, address.neighborhood, address.city, address.state, address.country,
   ].filter(Boolean).join(' | ')}`;
 }
 
 function getAddressHeading(address) {
   return [
     getAddressStreet(address),
+    address?.complement,
     address?.city,
   ].filter(Boolean).join(', ') || address?.neighborhood || 'Escolher endereço';
 }

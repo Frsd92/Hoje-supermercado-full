@@ -160,7 +160,7 @@ export async function POST(request) {
   if (!Array.isArray(body?.items) || !body.items.length || !String(body?.addressId || '').trim()) {
     return Response.json({ error: 'Itens e endereço de entrega são obrigatórios.' }, { status: 400, headers: corsHeaders(request) });
   }
-  if (!['pix', 'cartao', 'dinheiro', 'outro'].includes(body.paymentMethod)) {
+  if (!['pix', 'cartao', 'dinheiro'].includes(body.paymentMethod)) {
     return Response.json({ error: 'Selecione uma forma de pagamento válida antes de finalizar.' }, { status: 400, headers: corsHeaders(request) });
   }
   const usesPagarme = body.paymentMethod === 'pix' || body.paymentMethod === 'cartao';
@@ -260,6 +260,7 @@ export async function POST(request) {
   const addressLabel = [
     normalizedAddress.title,
     [normalizedAddress.street, normalizedAddress.number].filter(Boolean).join(', '),
+    normalizedAddress.complement,
     normalizedAddress.neighborhood,
     [normalizedAddress.city, normalizedAddress.stateCode || normalizedAddress.state].filter(Boolean).join(' - '),
     normalizedAddress.country,
