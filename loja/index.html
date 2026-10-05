@@ -35,7 +35,7 @@
   <!-- ===================================================== -->
   <!-- TOPBAR: faixa verde no topo com frete, login, carrinho -->
   <!-- ===================================================== -->
-  <header class="topbar">
+  <header class="topbar home-topbar">
     <div class="topbar-item">
       <i data-lucide="shield-check"></i>
       <div class="topbar-text">
@@ -67,6 +67,12 @@
         <span id="store-favorites-count">Entre para favoritar</span>
       </div>
     </div>
+
+    <button id="install-app-button" class="topbar-item install-app-button" type="button" aria-label="Instalar app Hoje" title="Instalar app Hoje">
+      <i data-lucide="download" aria-hidden="true"></i>
+      <span class="install-app-full-label">Instalar app</span>
+      <span class="install-app-short-label" aria-hidden="true">Instalar</span>
+    </button>
 
     <div class="topbar-item cart-trigger" id="cart-trigger">
       <div class="cart-icon-wrap" aria-label="Abrir carrinho">
@@ -166,6 +172,7 @@
         <span class="location-description" id="location-address-details" aria-live="polite" hidden>Adicione um endereço para consultar a entrega.</span>
       </div>
     </div>
+
   </div>
 
   <!-- ===================================================== -->
@@ -206,6 +213,20 @@
   </div>
 
   </div>
+
+  <dialog id="install-app-dialog" class="install-app-dialog" aria-labelledby="install-app-dialog-title" aria-describedby="install-app-dialog-description">
+    <div class="install-app-dialog-content">
+      <button id="install-app-dialog-close" class="install-app-dialog-close" type="button" aria-label="Fechar instruções de instalação">×</button>
+      <span class="install-app-dialog-icon" aria-hidden="true"><i data-lucide="download"></i></span>
+      <h2 id="install-app-dialog-title">Instale o app Hoje</h2>
+      <p id="install-app-dialog-description">O navegador pode instalar a loja na tela inicial do seu aparelho.</p>
+      <ul>
+        <li><strong>Android:</strong> no Chrome, toque em ⋮ e escolha <strong>Instalar app</strong> ou <strong>Adicionar à tela inicial</strong>.</li>
+        <li><strong>iPhone ou iPad:</strong> no Safari, toque em <strong>Compartilhar</strong> e depois em <strong>Adicionar à Tela de Início</strong>.</li>
+        <li><strong>Computador:</strong> use a opção <strong>Instalar</strong> no menu ou na barra de endereço do navegador.</li>
+      </ul>
+    </div>
+  </dialog>
 
   <!-- ===================================================== -->
   <!-- CONTEÚDO PRINCIPAL: 3 colunas (sidebar + conteúdo + painel direito) -->

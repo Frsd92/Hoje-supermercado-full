@@ -815,6 +815,141 @@
   z-index: 1004;
 }
 
+.install-app-button {
+  display: inline-flex;
+  flex: 0 0 auto;
+  align-items: center;
+  justify-content: center;
+  gap: 8px;
+  min-height: 42px;
+  padding: 10px 14px;
+  border: 1px solid #eab308;
+  border-radius: 12px;
+  background: linear-gradient(135deg, #f8d84e, #f5c518);
+  box-shadow: 0 8px 18px rgba(21, 128, 61, 0.16);
+  color: #173b25;
+  cursor: pointer;
+  font-size: 0.8rem;
+  font-weight: 800;
+  white-space: nowrap;
+  transition: transform 0.18s ease, box-shadow 0.18s ease, background 0.18s ease;
+}
+
+.install-app-button:hover {
+  transform: translateY(-1px);
+  background: linear-gradient(135deg, #ffe879, #f5c518);
+  box-shadow: 0 11px 22px rgba(21, 128, 61, 0.22);
+}
+
+.install-app-button:focus-visible {
+  outline: 3px solid #145c32;
+  outline-offset: 3px;
+}
+
+.install-app-button [data-lucide] {
+  width: 18px;
+  height: 18px;
+}
+
+.install-app-short-label {
+  display: none;
+}
+
+.install-app-button[hidden] {
+  display: none;
+}
+
+.install-app-dialog {
+  width: min(460px, calc(100vw - 32px));
+  max-height: calc(100vh - 32px);
+  margin: auto;
+  padding: 0;
+  overflow: auto;
+  border: 0;
+  border-radius: 20px;
+  background: #fff;
+  box-shadow: 0 24px 70px rgba(15, 23, 42, 0.28);
+  color: #101826;
+}
+
+.install-app-dialog::backdrop {
+  background: rgba(15, 23, 42, 0.58);
+  backdrop-filter: blur(4px);
+}
+
+.install-app-dialog-content {
+  position: relative;
+  padding: 28px;
+}
+
+.install-app-dialog-icon {
+  display: grid;
+  width: 44px;
+  height: 44px;
+  margin-bottom: 14px;
+  place-items: center;
+  border-radius: 14px;
+  background: #ebf9f1;
+  color: #145c32;
+}
+
+.install-app-dialog-icon [data-lucide] {
+  width: 22px;
+  height: 22px;
+}
+
+.install-app-dialog h2 {
+  margin: 0 40px 8px 0;
+  color: #12351f;
+  font-size: 1.2rem;
+}
+
+.install-app-dialog p {
+  margin-bottom: 16px;
+  color: #5f6d7a;
+  font-size: 0.9rem;
+  line-height: 1.5;
+}
+
+.install-app-dialog ul {
+  display: grid;
+  gap: 12px;
+  padding-left: 20px;
+  color: #334155;
+  font-size: 0.85rem;
+  line-height: 1.5;
+}
+
+.install-app-dialog li::marker {
+  color: #1a7a3c;
+}
+
+.install-app-dialog-close {
+  position: absolute;
+  top: 12px;
+  right: 12px;
+  display: grid;
+  width: 36px;
+  height: 36px;
+  place-items: center;
+  border: 0;
+  border-radius: 50%;
+  background: #f1f5f2;
+  color: #334155;
+  cursor: pointer;
+  font-size: 24px;
+  line-height: 1;
+}
+
+.install-app-dialog-close:hover {
+  background: #e5eee8;
+}
+
+.install-app-dialog-close:focus-visible {
+  outline: 3px solid #145c32;
+  outline-offset: 2px;
+}
+
 .store-header-shell {
   position: sticky;
   top: 0;
@@ -3643,6 +3778,31 @@ body {
     padding: 6px 10px;
   }
 
+  .topbar.home-topbar {
+    grid-template-columns: repeat(6, minmax(0, 1fr));
+  }
+
+  .topbar.home-topbar .install-app-button {
+    width: 100%;
+    min-width: 0;
+    min-height: 42px;
+    flex: 1 1 auto;
+    flex-direction: column;
+    gap: 2px;
+    padding: 5px 2px;
+  }
+
+  .topbar.home-topbar .install-app-full-label {
+    display: none;
+  }
+
+  .topbar.home-topbar .install-app-short-label {
+    display: block;
+    font-size: 10px;
+    font-weight: 800;
+    line-height: 1;
+  }
+
   .category-topbar {
     grid-template-columns: repeat(3, minmax(0, 1fr));
   }
@@ -3996,5 +4156,11 @@ body {
   .carousel-load-more {
     flex-basis: 145px;
     min-height: 230px;
+  }
+}
+
+@media (max-width: 340px) {
+  .topbar.home-topbar .install-app-short-label {
+    display: none;
   }
 }
