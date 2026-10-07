@@ -9,6 +9,7 @@ import {
   getPagarmeRefundedCents,
   isValidCpf,
   pagarmeRequest,
+  refundPagarmeCharge,
   splitBrazilianMobilePhone,
 } from './pagarme.js';
 
@@ -253,6 +254,23 @@ test('maps provider payment and refund results', () => {
   });
   assert.equal(getPagarmeRefundedCents(order), 500);
   assert.equal(getPagarmePaymentStatus({ status: 'paid' }), 'paid');
+});
+
+test('sends partial Pagar.me refunds as charge cancellations in cents', async () => {
+  let request;
+  const charge = await refundPagarmeCharge('ch_123', 2750, 'EST-123', {
+    secretKey: 'sk_test_example',
+    fetchImpl: async (url, options) => {
+      request = { url, options };
+      return { ok: true, json: async () => ({ id: 'ch_123', canceled_amount: 2750 }) };
+    },
+  });
+
+  assert.equal(request.url, 'https://api.pagar.me/core/v5/charges/ch_123');
+  assert.equal(request.options.method, 'DELETE');
+  assert.deepEqual(JSON.parse(request.options.body), { amount: 2750 });
+  assert.equal(request.options.headers['Idempotency-Key'], 'EST-123');
+  assert.equal(charge.canceled_amount, 2750);
 });
 
 test('authenticates Pagar.me API requests with a secret key and rejects provider errors', async () => {

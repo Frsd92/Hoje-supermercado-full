@@ -323,10 +323,13 @@ export function getPagarmeOrder(orderId) {
   return pagarmeRequest(`/orders/${encodeURIComponent(orderId)}`);
 }
 
-export function refundPagarmeCharge(chargeId, amountCents, idempotencyKey) {
-  return pagarmeRequest(`/charges/${encodeURIComponent(chargeId)}`, {
+export function refundPagarmeCharge(chargeId, amountCents, idempotencyKey, { secretKey, fetchImpl } = {}) {
+  const requestOptions = {
     method: 'DELETE',
     body: { amount: amountCents },
     idempotencyKey,
-  });
+  };
+  if (secretKey) requestOptions.secretKey = secretKey;
+  if (fetchImpl) requestOptions.fetchImpl = fetchImpl;
+  return pagarmeRequest(`/charges/${encodeURIComponent(chargeId)}`, requestOptions);
 }

@@ -54,6 +54,25 @@ test('serializes refund requests and their audit events', () => {
   assert.equal(serialized.refundRequests[0].events[0].createdAtIso, '2026-10-05T12:00:00.000Z');
 });
 
+test('serializes customer service requests with review timestamps', () => {
+  const serialized = serializeOrder({
+    id: 'PED-test',
+    items: [],
+    serviceRequests: [{
+      id: 'service-1',
+      code: 'SOL-service-1',
+      type: 'exchange',
+      status: 'requested',
+      createdAt: new Date('2026-10-06T12:00:00.000Z'),
+      reviewedAt: null,
+    }],
+  });
+
+  assert.equal(serialized.serviceRequests[0].type, 'exchange');
+  assert.equal(serialized.serviceRequests[0].createdAtIso, '2026-10-06T12:00:00.000Z');
+  assert.equal(serialized.serviceRequests[0].reviewedAtIso, null);
+});
+
 test('formats a non-string total for API responses', () => {
   const serialized = serializeOrder({ id: 'PED-test', total: 12.5, items: [] });
 

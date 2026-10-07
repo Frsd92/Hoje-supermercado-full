@@ -53,6 +53,9 @@ export default function ERPOrdersPage() {
   const [refundActionError, setRefundActionError] = useState('');
   const [refundActionNotice, setRefundActionNotice] = useState('');
   const [refundDecisionNotes, setRefundDecisionNotes] = useState({});
+  const [internalRefundAmount, setInternalRefundAmount] = useState('');
+  const [internalRefundReason, setInternalRefundReason] = useState('');
+  const [internalRefundBusy, setInternalRefundBusy] = useState(false);
 
   useEffect(() => {
     let active = true;
@@ -79,6 +82,11 @@ export default function ERPOrdersPage() {
     const dialog = receiptDialogRef.current;
     if (receiptOrder && dialog && !dialog.open) dialog.showModal();
   }, [receiptOrder]);
+
+  useEffect(() => {
+    setInternalRefundAmount('');
+    setInternalRefundReason('');
+  }, [selected?.id]);
 
   const newOrders = orders.filter((order) => order.status === 'Recebido' && !acknowledged.includes(order.id));
   const acknowledge = (id) => {
@@ -136,6 +144,36 @@ export default function ERPOrdersPage() {
       setRefundActionError(error.message || 'Não foi possível atualizar a solicitação.');
     } finally {
       setRefundBusyId('');
+    }
+  };
+
+  const submitInternalRefund = async (event) => {
+    event.preventDefault();
+    if (!selected) return;
+    setInternalRefundBusy(true);
+    setRefundActionError('');
+    setRefundActionNotice('');
+    try {
+      const response = await fetch(`/api/erp/orders/${encodeURIComponent(selected.id)}/refunds`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ amount: Number(internalRefundAmount), reason: internalRefundReason }),
+      });
+      const data = await response.json();
+      if (!response.ok) throw new Error(data.error || 'Não foi possível registrar o estorno parcial.');
+      const updateOrder = (order) => ({
+        ...order,
+        refundRequests: [data.request, ...(order.refundRequests || [])],
+      });
+      setOrders((current) => current.map((order) => order.id === selected.id ? updateOrder(order) : order));
+      setSelected((current) => current?.id === selected.id ? updateOrder(current) : current);
+      setInternalRefundAmount('');
+      setInternalRefundReason('');
+      setRefundActionNotice(data.message || 'Estorno parcial registrado para análise.');
+    } catch (error) {
+      setRefundActionError(error.message || 'Não foi possível registrar o estorno parcial.');
+    } finally {
+      setInternalRefundBusy(false);
     }
   };
 
@@ -312,6 +350,35 @@ export default function ERPOrdersPage() {
             {refundActionError && <p className="erp-order-action-error" role="alert"><AlertCircle size={16} />{refundActionError}</p>}
             {refundActionNotice && <p className="erp-refund-action-notice" role="status">{refundActionNotice}</p>}
           </section>
+          {selected.pagarmeChargeId && ['paid', 'partially_refunded'].includes(selected.paymentStatus) && <form className="erp-refund-create-form" onSubmit={submitInternalRefund}>
+            <h4>Devolver diferença ao cliente</h4>
+            <p>Use para ajustar peso real inferior ao previsto ou item indisponível. O registro não envia dinheiro automaticamente: após revisar, confirme o estorno na solicitação acima.</p>
+            <p className="erp-refund-available">Saldo disponível: <strong>{currencyFormatter.format(getRemainingRefundCents(selected.total, selected.refundRequests || [], selected.refundedAmount) / 100)}</strong></p>
+            <label htmlFor="erp-internal-refund-amount">Valor a devolver (R$)</label>
+            <input
+              id="erp-internal-refund-amount"
+              type="number"
+              min="0.01"
+              max={(getRemainingRefundCents(selected.total, selected.refundRequests || [], selected.refundedAmount) / 100).toFixed(2)}
+              step="0.01"
+              inputMode="decimal"
+              required
+              value={internalRefundAmount}
+              onChange={(event) => setInternalRefundAmount(event.target.value)}
+            />
+            <label htmlFor="erp-internal-refund-reason">Motivo</label>
+            <textarea
+              id="erp-internal-refund-reason"
+              minLength={8}
+              maxLength={500}
+              required
+              value={internalRefundReason}
+              onChange={(event) => setInternalRefundReason(event.target.value)}
+            />
+            <button type="submit" disabled={internalRefundBusy || getRemainingRefundCents(selected.total, selected.refundRequests || [], selected.refundedAmount) <= 0}>
+              {internalRefundBusy ? 'Registrando...' : 'Registrar estorno parcial'}
+            </button>
+          </form>}
           <h4>Itens comprados</h4>
           <div className="erp-order-items">{(selected.items || []).map((item) => <div key={item.id || item.name}><strong>{item.name}<small>Código: {item.productCode || 'não registrado'}</small></strong><span>Qtd. {formatCartQuantity(item)} · {item.price}</span></div>)}</div>
           {selected.status === 'Recebido' && <p className="erp-order-fefo-note"><PackageCheck size={15} /> Ao iniciar a separação, o sistema reserva primeiro os lotes com validade mais próxima.</p>}

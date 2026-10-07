@@ -27,11 +27,12 @@ test('calculates elapsed purchase days from Brazilian date and time', () => {
   assert.equal(getDaysSincePurchase('invalid date', now), null);
 });
 
-test('counts calendar days even when less than 24 hours have elapsed', () => {
+test('counts only full 24-hour periods since the purchase', () => {
   const now = new Date(2026, 9, 1, 1, 14, 0);
 
-  assert.equal(getDaysSincePurchase('30/09/2026, 23:45:00', now), 1);
-  assert.equal(getDaysSincePurchase('01/10/2026, 00:05:00', now), 0);
+  assert.equal(getDaysSincePurchase('30/09/2026, 23:45:00', now), 0);
+  assert.equal(getDaysSincePurchase('30/09/2026, 01:14:00', now), 1);
+  assert.equal(getDaysSincePurchase('30/09/2026, 01:15:00', now), 0);
   assert.equal(getDaysSincePurchase('02/10/2026, 12:00:00', now), 0);
 });
 

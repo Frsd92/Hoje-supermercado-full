@@ -10,7 +10,7 @@ export async function GET() {
   if (!hasErpAccess(session?.user)) return Response.json({ error: 'Acesso negado.' }, { status: 403 });
 
   try {
-    const [favoriteRecords, carts, orderList, profiles, addressBooks] = await Promise.all([
+    const [favoriteRecords, carts, orderList, profiles, addressBooks, users] = await Promise.all([
       prisma.favorite.findMany({
         select: {
           user: { select: { email: true } },
@@ -28,12 +28,30 @@ export async function GET() {
           paymentStatus: true,
           refundedAmount: true,
           createdAt: true,
+          serviceRequests: {
+            select: {
+              id: true,
+              code: true,
+              type: true,
+              reason: true,
+              orderItemName: true,
+              replacementProduct: true,
+              status: true,
+              requestedBy: true,
+              reviewedBy: true,
+              reviewedAt: true,
+              decisionNote: true,
+              createdAt: true,
+            },
+            orderBy: { createdAt: 'desc' },
+          },
         },
       }),
       prisma.customerProfile.findMany({
-        select: { email: true, fullName: true, monthlyBudget: true },
+        select: { email: true, fullName: true, monthlyBudget: true, memberSince: true },
       }),
       prisma.customerAddressBook.findMany({ select: { email: true, addresses: true } }),
+      prisma.user.findMany({ select: { email: true, createdAt: true } }),
     ]);
 
     const favoritesByUser = new Map();
@@ -58,11 +76,13 @@ export async function GET() {
       return [addressBook.email.trim().toLowerCase(), addressBook.addresses.length];
     }));
     const profilesByEmail = new Map(profiles.map((profile) => [profile.email.toLowerCase(), profile]));
+    const userCreatedAtByEmail = new Map(users.map((user) => [user.email.trim().toLowerCase(), user.createdAt]));
     const customerEmails = new Set([
       ...favoritesByUser.keys(),
       ...cartsByEmail.keys(),
       ...orderList.map((order) => order.customerEmail?.trim().toLowerCase()).filter(Boolean),
       ...profiles.map((profile) => profile.email.trim().toLowerCase()),
+      ...users.map((user) => user.email.trim().toLowerCase()),
     ].filter((customerEmail) => customerEmail.includes('@')));
     const customers = [...customerEmails].map((email, index) => {
       const profile = profilesByEmail.get(email);
@@ -87,6 +107,14 @@ export async function GET() {
       }, 0);
       const lastOrder = datedOrders[0]?.order;
       const lastPurchaseDate = datedOrders[0]?.date;
+      const serviceRequests = customerOrders.flatMap((order) => (order.serviceRequests || []).map((request) => ({
+        ...request,
+        orderId: order.id,
+        orderStatus: order.status,
+        orderCreatedAt: order.createdAt,
+      }))).sort((first, second) => (
+        (parseOrderDate(second.createdAt)?.getTime() || 0) - (parseOrderDate(first.createdAt)?.getTime() || 0)
+      ));
       return {
         id: `CLI-${String(index + 1).padStart(4, '0')}`,
         name: profile?.fullName || email,
@@ -104,8 +132,11 @@ export async function GET() {
         savedAddressCount: addressesByEmail.get(email) || 0,
         preferences: [],
         tags: [],
-        daysWithoutPurchase: getDaysSincePurchase(lastPurchaseDate),
+        daysWithoutPurchase: getDaysSincePurchase(
+          lastPurchaseDate || profile?.memberSince || userCreatedAtByEmail.get(email),
+        ),
         lastPurchase: lastOrder?.createdAt || 'Sem compras registradas',
+        serviceRequests,
       };
     });
 

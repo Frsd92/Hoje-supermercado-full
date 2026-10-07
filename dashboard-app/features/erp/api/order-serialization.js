@@ -32,8 +32,18 @@ export function serializeRefundRequest(refundRequest) {
   };
 }
 
+export function serializeServiceRequest(serviceRequest) {
+  return {
+    ...serviceRequest,
+    createdAt: displayDate(serviceRequest.createdAt),
+    createdAtIso: dateToIso(serviceRequest.createdAt),
+    reviewedAt: displayDate(serviceRequest.reviewedAt),
+    reviewedAtIso: dateToIso(serviceRequest.reviewedAt),
+  };
+}
+
 export function serializeOrder(order) {
-  const { items = [], refundRequests = [], ...orderFields } = order;
+  const { items = [], refundRequests = [], serviceRequests = [], ...orderFields } = order;
 
   return {
     ...orderFields,
@@ -53,6 +63,7 @@ export function serializeOrder(order) {
       };
     }),
     refundRequests: refundRequests.map(serializeRefundRequest),
+    serviceRequests: serviceRequests.map(serializeServiceRequest),
   };
 }
 

@@ -1,12 +1,20 @@
 'use client';
 
 import Link from 'next/link';
-import { FileText, PackageOpen, Printer, RotateCcw, X } from 'lucide-react';
+import { FileText, PackageOpen, Printer, X } from 'lucide-react';
 import { useEffect, useMemo, useRef, useState } from 'react';
 import { getOrderStatus, orderStages } from '../order-status';
 import { sortOrdersNewestFirst } from '@/lib/order-sort';
 import OrderReceipt from '@/features/orders/order-receipt';
-import { getRemainingRefundCents, refundRequestStatusLabels } from '@/features/orders/order-refund-utils';
+import { refundRequestStatusLabels } from '@/features/orders/order-refund-utils';
+import {
+  canRequestOrderService,
+  hasOpenOrderServiceRequest,
+  orderServiceRequestStatus,
+  orderServiceRequestStatusLabels,
+  orderServiceRequestType,
+  orderServiceRequestTypeLabels,
+} from '@/features/orders/order-service-request-utils';
 
 const currencyFormatter = new Intl.NumberFormat('pt-BR', { style: 'currency', currency: 'BRL' });
 const paymentStatusLabels = {
@@ -36,13 +44,15 @@ export default function OrdersPage() {
   const [retryCount, setRetryCount] = useState(0);
   const [receiptOrder, setReceiptOrder] = useState(null);
   const receiptDialogRef = useRef(null);
-  const [refundOrder, setRefundOrder] = useState(null);
-  const refundDialogRef = useRef(null);
-  const [refundAmount, setRefundAmount] = useState('');
-  const [refundReason, setRefundReason] = useState('');
-  const [refundBusy, setRefundBusy] = useState(false);
-  const [refundError, setRefundError] = useState('');
-  const [refundNotice, setRefundNotice] = useState('');
+  const [serviceRequestOrder, setServiceRequestOrder] = useState(null);
+  const [serviceRequestType, setServiceRequestType] = useState('');
+  const serviceRequestDialogRef = useRef(null);
+  const [serviceRequestItemId, setServiceRequestItemId] = useState('');
+  const [replacementProduct, setReplacementProduct] = useState('');
+  const [serviceRequestReason, setServiceRequestReason] = useState('');
+  const [serviceRequestBusy, setServiceRequestBusy] = useState(false);
+  const [serviceRequestError, setServiceRequestError] = useState('');
+  const [serviceRequestNotice, setServiceRequestNotice] = useState('');
   const [copiedPixOrderId, setCopiedPixOrderId] = useState('');
   const [pixCopyError, setPixCopyError] = useState('');
   const [checkingPaymentOrderId, setCheckingPaymentOrderId] = useState('');
@@ -87,9 +97,9 @@ export default function OrdersPage() {
   }, [receiptOrder]);
 
   useEffect(() => {
-    const dialog = refundDialogRef.current;
-    if (refundOrder && dialog && !dialog.open) dialog.showModal();
-  }, [refundOrder]);
+    const dialog = serviceRequestDialogRef.current;
+    if (serviceRequestOrder && dialog && !dialog.open) dialog.showModal();
+  }, [serviceRequestOrder]);
 
   const filteredOrders = useMemo(
     () => sortOrdersNewestFirst(activeTab === 'Todos' ? orders : orders.filter((order) => order.status === activeTab)),
@@ -138,36 +148,43 @@ export default function OrdersPage() {
     }
   };
 
-  const openRefundDialog = (order) => {
-    const availableCents = getRemainingRefundCents(order.total, order.refundRequests || []);
-    setRefundOrder(order);
-    setRefundAmount((availableCents / 100).toFixed(2));
-    setRefundReason('');
-    setRefundError('');
+  const openServiceRequestDialog = (order, type) => {
+    setServiceRequestOrder(order);
+    setServiceRequestType(type);
+    setServiceRequestItemId(type === orderServiceRequestType.exchange ? order.items?.[0]?.id || '' : '');
+    setReplacementProduct('');
+    setServiceRequestReason('');
+    setServiceRequestError('');
   };
 
-  const submitRefundRequest = async (event) => {
+  const submitServiceRequest = async (event) => {
     event.preventDefault();
-    if (!refundOrder) return;
-    setRefundBusy(true);
-    setRefundError('');
+    if (!serviceRequestOrder) return;
+    setServiceRequestBusy(true);
+    setServiceRequestError('');
     try {
-      const response = await fetch(`/api/my/orders/${encodeURIComponent(refundOrder.id)}/refunds`, {
+      const response = await fetch(`/api/my/orders/${encodeURIComponent(serviceRequestOrder.id)}/service-requests`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ amount: Number(refundAmount), reason: refundReason }),
+        body: JSON.stringify({
+          type: serviceRequestType,
+          reason: serviceRequestReason,
+          ...(serviceRequestType === orderServiceRequestType.exchange
+            ? { orderItemId: serviceRequestItemId, replacementProduct }
+            : {}),
+        }),
       });
       const data = await response.json();
-      if (!response.ok) throw new Error(data.error || 'Não foi possível registrar a solicitação.');
-      setOrders((current) => current.map((order) => order.id === refundOrder.id
-        ? { ...order, refundRequests: [data.request, ...(order.refundRequests || [])] }
+      if (!response.ok) throw new Error(data.error || 'Não foi possível registrar o pedido.');
+      setOrders((current) => current.map((order) => order.id === serviceRequestOrder.id
+        ? { ...order, serviceRequests: [data.serviceRequest, ...(order.serviceRequests || [])] }
         : order));
-      setRefundNotice(`Solicitação ${data.request.code} registrada para o pedido ${refundOrder.id}. Nenhum valor foi estornado.`);
-      refundDialogRef.current?.close();
+      setServiceRequestNotice(`${data.message} Código ${data.serviceRequest.code}.`);
+      serviceRequestDialogRef.current?.close();
     } catch (error) {
-      setRefundError(error.message || 'Não foi possível registrar a solicitação.');
+      setServiceRequestError(error.message || 'Não foi possível registrar o pedido.');
     } finally {
-      setRefundBusy(false);
+      setServiceRequestBusy(false);
     }
   };
 
@@ -201,9 +218,9 @@ export default function OrdersPage() {
 
       <div className="customer-receipt-intro" role="note">
         <FileText size={17} aria-hidden="true" />
-        <span>O comprovante mostra os dados atuais do estabelecimento, itens e o código interno para localizar o pedido. Ele não substitui NFC-e/NF-e autorizada. Você pode registrar uma solicitação de estorno total ou parcial; o sistema não devolve dinheiro até haver integração de pagamento.</span>
+        <span>O comprovante informativo mostra os itens e o código interno do pedido; ele não substitui NFC-e/NF-e autorizada. Por aqui você pode solicitar cancelamento ou troca. Estornos, quando cabíveis, são analisados e processados pela loja.</span>
       </div>
-      {refundNotice && <div className="customer-refund-notice" role="status">{refundNotice}</div>}
+      {serviceRequestNotice && <div className="customer-service-notice" role="status">{serviceRequestNotice}</div>}
 
       <div className="tab-row order-status-tabs" role="group" aria-label="Filtrar pedidos por status">
         {tabs.map(({ value, label }) => {
@@ -261,7 +278,7 @@ export default function OrdersPage() {
               const info = getOrderStatus(order.status);
               const currentStage = orderStages.indexOf(order.status);
               const refundRequests = order.refundRequests || [];
-              const remainingRefundCents = getRemainingRefundCents(order.total, refundRequests, order.refundedAmount);
+              const serviceRequests = order.serviceRequests || [];
               return (
                 <div key={order.id} className="table-row" role="row">
                   <span className="customer-order-reference" role="cell">
@@ -269,9 +286,14 @@ export default function OrdersPage() {
                     <button type="button" className="customer-order-receipt-link" aria-label={`Ver comprovante informativo do pedido ${order.id}`} aria-haspopup="dialog" onClick={() => setReceiptOrder(order)}>
                       <FileText size={14} aria-hidden="true" />Ver comprovante
                     </button>
-                    <button type="button" className="customer-order-refund-link" disabled={remainingRefundCents <= 0} aria-haspopup="dialog" onClick={() => openRefundDialog(order)}>
-                      <RotateCcw size={14} aria-hidden="true" />{remainingRefundCents > 0 ? 'Solicitar estorno' : 'Limite solicitado'}
-                    </button>
+                    <div className="customer-order-service-actions">
+                      {canRequestOrderService(order, orderServiceRequestType.cancellation) && !hasOpenOrderServiceRequest(serviceRequests, orderServiceRequestType.cancellation) && <button type="button" onClick={() => openServiceRequestDialog(order, orderServiceRequestType.cancellation)}>Solicitar cancelamento</button>}
+                      {canRequestOrderService(order, orderServiceRequestType.exchange) && order.items?.length > 0 && !hasOpenOrderServiceRequest(serviceRequests, orderServiceRequestType.exchange) && <button type="button" onClick={() => openServiceRequestDialog(order, orderServiceRequestType.exchange)}>Solicitar troca</button>}
+                    </div>
+                    {serviceRequests.map((request) => <span className="customer-service-summary" key={request.id}>
+                      <strong>{orderServiceRequestTypeLabels[request.type] || request.type} · {request.code}</strong>
+                      <span>{orderServiceRequestStatusLabels[request.status] || request.status}</span>
+                    </span>)}
                     {refundRequests.map((request) => <span className="customer-refund-summary" key={request.id}>
                       <strong>{request.code}</strong>
                       <span>{currencyFormatter.format(request.amount)} · {refundRequestStatusLabels[request.status] || request.status}</span>
@@ -344,41 +366,36 @@ export default function OrdersPage() {
         </div>}
       </dialog>
       <dialog
-        ref={refundDialogRef}
-        className="refund-request-dialog"
-        aria-labelledby="refund-request-title"
-        aria-describedby="refund-request-description"
-        onClose={() => setRefundOrder(null)}
-        onClick={(event) => { if (event.target === refundDialogRef.current) event.currentTarget.close(); }}
+        ref={serviceRequestDialogRef}
+        className="order-service-request-dialog"
+        aria-labelledby="service-request-title"
+        aria-describedby="service-request-description"
+        onClose={() => setServiceRequestOrder(null)}
+        onClick={(event) => { if (event.target === serviceRequestDialogRef.current) event.currentTarget.close(); }}
       >
-        {refundOrder && <form className="refund-request-form" onSubmit={submitRefundRequest}>
+        {serviceRequestOrder && <form className="order-service-request-form" onSubmit={submitServiceRequest}>
           <header>
             <span className="orders-kicker">Atendimento da compra</span>
-            <h2 id="refund-request-title">Solicitar estorno</h2>
-            <p id="refund-request-description">Pedido {refundOrder.id}</p>
+            <h2 id="service-request-title">{orderServiceRequestTypeLabels[serviceRequestType] || 'Solicitar atendimento'}</h2>
+            <p id="service-request-description">Pedido {serviceRequestOrder.id}</p>
           </header>
-          <div className="refund-request-warning" role="note">
-            O registro não devolve dinheiro. A solicitação será analisada pela loja e qualquer estorno financeiro dependerá da integração com a gateway.
+          <div className="order-service-request-warning" role="note">
+            A solicitação será analisada pela loja. O pedido só muda de status depois do atendimento no ERP.
           </div>
-          <p className="refund-request-limit">Saldo máximo ainda disponível para solicitar: <strong>{currencyFormatter.format(getRemainingRefundCents(refundOrder.total, refundOrder.refundRequests || []) / 100)}</strong></p>
-          <label htmlFor="refund-request-amount">Valor solicitado (R$)</label>
-          <input
-            id="refund-request-amount"
-            type="number"
-            min="0.01"
-            max={(getRemainingRefundCents(refundOrder.total, refundOrder.refundRequests || []) / 100).toFixed(2)}
-            step="0.01"
-            inputMode="decimal"
-            required
-            value={refundAmount}
-            onChange={(event) => setRefundAmount(event.target.value)}
-          />
-          <label htmlFor="refund-request-reason">Motivo</label>
-          <textarea id="refund-request-reason" minLength={8} maxLength={500} required value={refundReason} onChange={(event) => setRefundReason(event.target.value)} />
-          {refundError && <p className="refund-request-error" role="alert">{refundError}</p>}
+          {serviceRequestType === orderServiceRequestType.exchange && <>
+            <label htmlFor="service-request-item">Item do pedido</label>
+            <select id="service-request-item" required value={serviceRequestItemId} onChange={(event) => setServiceRequestItemId(event.target.value)}>
+              {(serviceRequestOrder.items || []).map((item) => <option value={item.id} key={item.id}>{item.name}</option>)}
+            </select>
+            <label htmlFor="service-request-replacement">Produto desejado</label>
+            <input id="service-request-replacement" minLength={2} maxLength={160} required value={replacementProduct} onChange={(event) => setReplacementProduct(event.target.value)} />
+          </>}
+          <label htmlFor="service-request-reason">{serviceRequestType === orderServiceRequestType.exchange ? 'Motivo e detalhes da troca' : 'Motivo do cancelamento'}</label>
+          <textarea id="service-request-reason" minLength={8} maxLength={500} required value={serviceRequestReason} onChange={(event) => setServiceRequestReason(event.target.value)} />
+          {serviceRequestError && <p className="refund-request-error" role="alert">{serviceRequestError}</p>}
           <div className="refund-request-actions">
-            <button type="button" className="secondary-cta" disabled={refundBusy} onClick={() => refundDialogRef.current?.close()}>Cancelar</button>
-            <button type="submit" className="primary-cta" disabled={refundBusy}>{refundBusy ? 'Registrando...' : 'Registrar solicitação'}</button>
+            <button type="button" className="secondary-cta" disabled={serviceRequestBusy} onClick={() => serviceRequestDialogRef.current?.close()}>Voltar</button>
+            <button type="submit" className="primary-cta" disabled={serviceRequestBusy}>{serviceRequestBusy ? 'Enviando...' : 'Enviar solicitação'}</button>
           </div>
         </form>}
       </dialog>

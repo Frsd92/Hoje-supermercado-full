@@ -14,6 +14,7 @@ export async function GET() {
       include: {
         items: true,
         refundRequests: { include: { events: { orderBy: { createdAt: 'asc' } } }, orderBy: { createdAt: 'desc' } },
+        serviceRequests: { orderBy: { createdAt: 'desc' } },
       },
       orderBy: { createdAt: 'desc' },
     });

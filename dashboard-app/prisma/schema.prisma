@@ -334,6 +334,7 @@ model Order {
   user                  User?                @relation(fields: [userId], references: [id], onDelete: SetNull)
   items                 OrderItem[]
   refundRequests        OrderRefundRequest[]
+  serviceRequests       OrderServiceRequest[]
   paymentEvents         PagarmeWebhookEvent[]
 
   @@index([createdAt])
@@ -366,6 +367,7 @@ model OrderItem {
   promotionDiscount Decimal  @default(0) @db.Decimal(12, 2)
   order             Order    @relation(fields: [orderId], references: [id], onDelete: Cascade)
   product           Product? @relation(fields: [productId], references: [id], onDelete: SetNull)
+  serviceRequests   OrderServiceRequest[]
 
   @@index([productId])
 }
@@ -400,6 +402,30 @@ model OrderRefundEvent {
   refundRequest   OrderRefundRequest @relation(fields: [refundRequestId], references: [id], onDelete: Cascade)
 
   @@index([refundRequestId, createdAt])
+}
+
+model OrderServiceRequest {
+  id                 String    @id
+  code               String    @unique
+  orderId            String
+  type               String
+  reason             String    @db.Text
+  orderItemId        String?
+  orderItemName      String?
+  replacementProduct String?
+  status             String    @default("requested")
+  requestedBy        String
+  reviewedBy         String?
+  reviewedAt         DateTime?
+  decisionNote       String?   @db.Text
+  createdAt          DateTime  @default(now())
+  updatedAt          DateTime  @updatedAt
+  order              Order     @relation(fields: [orderId], references: [id], onDelete: Restrict)
+  orderItem          OrderItem? @relation(fields: [orderItemId], references: [id], onDelete: SetNull)
+
+  @@index([orderId, createdAt])
+  @@index([status, createdAt])
+  @@index([orderItemId])
 }
 
 model Notification {
