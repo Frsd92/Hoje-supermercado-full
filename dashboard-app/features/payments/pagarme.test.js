@@ -3,6 +3,7 @@ import test from 'node:test';
 import {
   buildPagarmeOrderPayload,
   createPagarmeCustomerCard,
+  getPagarmeCustomerCards,
   getPagarmePaymentSnapshot,
   getPagarmePaymentStatus,
   getPagarmeRefundedCents,
@@ -128,6 +129,35 @@ test('builds a saved-card order using only the customer and card references', ()
   }), /Escolha entre o cartão salvo e um novo cartão/);
 });
 
+test('builds debit-card orders with the selected saved card', () => {
+  const payload = buildPagarmeOrderPayload({
+    orderId: 'PED-DEBIT',
+    items: [{ name: 'Leite', price: 'R$ 8,00', quantity: 1, productCode: 'LEITE' }],
+    total: 'R$ 8,00',
+    customer: {
+      name: 'Cliente Hoje',
+      email: 'cliente@example.com',
+      cpf: '52998224725',
+      phone: '11987654321',
+    },
+    paymentMethod: 'cartao_debito',
+    savedCard: { customerId: 'cus_customer123', cardId: 'card_saved123' },
+    address: {
+      street: 'Rua Um',
+      number: '10',
+      neighborhood: 'Centro',
+      city: 'São Paulo',
+      stateCode: 'SP',
+      cep: '01001-000',
+    },
+  });
+
+  assert.equal(payload.customer_id, 'cus_customer123');
+  assert.equal(payload.payments[0].payment_method, 'debit_card');
+  assert.equal(payload.payments[0].debit_card.card_id, 'card_saved123');
+  assert.equal(Object.hasOwn(payload.payments[0].debit_card, 'card_token'), false);
+});
+
 test('saves a customer card using only the Pagar.me token', async () => {
   let request;
   const card = await createPagarmeCustomerCard(
@@ -151,6 +181,21 @@ test('saves a customer card using only the Pagar.me token', async () => {
     () => createPagarmeCustomerCard('cus_customer123', '4111111111111111', 'request-123'),
     /tokenizado/,
   );
+});
+
+test('lists saved cards from the authenticated Pagar.me customer wallet', async () => {
+  let request;
+  const wallet = await getPagarmeCustomerCards('cus_customer123', {
+    secretKey: 'sk_test_example',
+    fetchImpl: async (url, options) => {
+      request = { url, options };
+      return { ok: true, json: async () => ({ data: [{ id: 'card_saved123' }] }) };
+    },
+  });
+
+  assert.equal(request.url, 'https://api.pagar.me/core/v5/customers/cus_customer123/cards');
+  assert.equal(request.options.method, 'GET');
+  assert.deepEqual(wallet.data, [{ id: 'card_saved123' }]);
 });
 
 test('maps provider payment and refund results', () => {

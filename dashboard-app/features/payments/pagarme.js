@@ -1,3 +1,5 @@
+import { isCardPaymentMethod } from './card-methods.js';
+
 const pagarmeApiUrl = 'https://api.pagar.me/core/v5';
 
 export class PagarmeApiError extends Error {
@@ -72,7 +74,7 @@ export function buildPagarmeOrderPayload({
   savedCard,
   address,
 }) {
-  if (!['pix', 'cartao'].includes(paymentMethod)) {
+  if (paymentMethod !== 'pix' && !isCardPaymentMethod(paymentMethod)) {
     throw new Error('Selecione uma forma de pagamento online disponível.');
   }
   if (!Array.isArray(items) || !items.length) throw new Error('O pedido não possui itens para pagamento.');
@@ -115,7 +117,8 @@ export function buildPagarmeOrderPayload({
     })
     .filter((item) => item.amount > 0);
 
-  const creditCard = paymentMethod === 'cartao';
+  const cardPayment = isCardPaymentMethod(paymentMethod);
+  const debitCard = paymentMethod === 'cartao_debito';
   const validCardToken = /^token_[A-Za-z0-9]+$/.test(String(cardToken || ''));
   const savedCustomerId = String(savedCard?.customerId || '');
   const savedCardId = String(savedCard?.cardId || '');
@@ -124,24 +127,35 @@ export function buildPagarmeOrderPayload({
   if (savedCard && !validSavedCard) {
     throw new Error('O cartão salvo não está disponível para pagamento.');
   }
-  if (creditCard && validSavedCard && cardToken) {
+  if (cardPayment && validSavedCard && cardToken) {
     throw new Error('Escolha entre o cartão salvo e um novo cartão para continuar.');
   }
-  if (creditCard && !validSavedCard && !validCardToken) {
+  if (cardPayment && !validSavedCard && !validCardToken) {
     throw new Error('O cartão precisa ser tokenizado novamente antes do pagamento.');
   }
 
-  const payment = creditCard
-    ? {
+  const cardReference = validSavedCard ? { card_id: savedCardId } : { card_token: cardToken };
+  const payment = cardPayment
+    ? debitCard
+      ? {
+        payment_method: 'debit_card',
+        debit_card: {
+          ...cardReference,
+          capture: true,
+          installments: 1,
+          statement_descriptor: 'HOJE SUPERM',
+        },
+      }
+      : {
       payment_method: 'credit_card',
       credit_card: {
-        ...(validSavedCard ? { card_id: savedCardId } : { card_token: cardToken }),
+        ...cardReference,
         installments: 1,
         operation_type: 'auth_and_capture',
         statement_descriptor: 'HOJE SUPERM',
         billing_address: addressForBilling(address),
       },
-    }
+      }
     : {
       payment_method: 'pix',
       pix: { expires_in: 3600 },
@@ -260,6 +274,15 @@ export function createPagarmeCustomer(payload) {
     method: 'POST',
     body: payload,
   });
+}
+
+export function getPagarmeCustomerCards(customerId, { fetchImpl, secretKey } = {}) {
+  if (!/^cus_[A-Za-z0-9]+$/.test(String(customerId || ''))) {
+    throw new Error('Não foi possível validar o cliente para consultar seus cartões.');
+  }
+  const requestOptions = { method: 'GET', secretKey };
+  if (fetchImpl) requestOptions.fetchImpl = fetchImpl;
+  return pagarmeRequest(`/customers/${encodeURIComponent(customerId)}/cards`, requestOptions);
 }
 
 export function createPagarmeCustomerCard(customerId, token, idempotencyKey, { fetchImpl, secretKey } = {}) {

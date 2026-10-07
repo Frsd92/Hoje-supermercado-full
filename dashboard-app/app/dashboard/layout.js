@@ -16,6 +16,7 @@ import {
   readPaymentMethod,
   savePaymentMethod,
 } from './payment-methods';
+import { isCardPaymentMethod } from '@/features/payments/card-methods';
 import {
   Bell,
   ChevronDown,
@@ -100,7 +101,8 @@ export default function DashboardLayout({ children }) {
   const [deliveryAddressOpen, setDeliveryAddressOpen] = useState(false);
   const [paymentMethod, setPaymentMethod] = useState(null);
   const [pagarmeConfig, setPagarmeConfig] = useState({ pixAvailable: false, cardAvailable: false, savedCardAvailable: false, publicKey: '' });
-  const [savedCard, setSavedCard] = useState(null);
+  const [savedCards, setSavedCards] = useState([]);
+  const [selectedSavedCardId, setSelectedSavedCardId] = useState('');
   const [savedCardLoading, setSavedCardLoading] = useState(true);
   const [savedCardError, setSavedCardError] = useState('');
   const [profileCpf, setProfileCpf] = useState('');
@@ -121,6 +123,12 @@ export default function DashboardLayout({ children }) {
     () => calculateOrderTotals(cartItems, activeCouponDiscountPercent),
     [cartItems, activeCouponDiscountPercent],
   );
+  const activeSavedCards = savedCards.filter((card) => card.status === 'active');
+  const requiredCardType = paymentMethod === 'cartao_debito' ? 'debit' : 'credit';
+  const compatibleSavedCards = activeSavedCards.filter((card) => !card.type || card.type === requiredCardType);
+  const selectedSavedCard = compatibleSavedCards.find((card) => card.id === selectedSavedCardId)
+    || compatibleSavedCards[0]
+    || null;
   const [checkoutStatus, setCheckoutStatus] = useState('');
   const [checkoutOrderId, setCheckoutOrderId] = useState('');
   const [checkoutLoading, setCheckoutLoading] = useState(false);
@@ -342,7 +350,8 @@ export default function DashboardLayout({ children }) {
   useEffect(() => {
     let active = true;
     if (sessionStatus !== 'authenticated' || !session?.user?.email) {
-      setSavedCard(null);
+      setSavedCards([]);
+      setSelectedSavedCardId('');
       setSavedCardLoading(false);
       setSavedCardError('');
       return () => {
@@ -361,13 +370,21 @@ export default function DashboardLayout({ children }) {
         const response = await fetch('/api/my/payment-methods', { cache: 'no-store' });
         const data = await response.json();
         if (!response.ok) throw new Error(data.error || 'Não foi possível verificar o cartão salvo.');
+        if (!Array.isArray(data.cards)) throw new Error('A lista de cartões salvos está inválida.');
+        const activeCards = data.cards.filter((card) => card.status === 'active');
         if (active) {
-          setSavedCard(data.card || null);
+          setSavedCards(data.cards);
+          setSelectedSavedCardId((current) => (
+            activeCards.some((card) => card.id === current)
+              ? current
+              : activeCards[0]?.id || ''
+          ));
           setSavedCardError('');
         }
       } catch (error) {
         if (active) {
-          setSavedCard(null);
+          setSavedCards([]);
+          setSelectedSavedCardId('');
           setSavedCardError(error.message || 'Não foi possível verificar o cartão salvo.');
         }
       } finally {
@@ -713,22 +730,24 @@ export default function DashboardLayout({ children }) {
     if (addressLoadError) return setCheckoutStatus(`Não foi possível confirmar seus endereços: ${addressLoadError}`);
     if (!selectedDeliveryAddress) return setCheckoutStatus('Cadastre um endereço no painel do cliente antes de concluir a compra.');
     if (!isPaymentMethod(paymentMethod)) return setCheckoutStatus('Selecione uma forma no campo Forma de pagamento; você também pode defini-la na aba Formas de pagamento.');
+    const cardPaymentSelected = isCardPaymentMethod(paymentMethod);
     if (paymentMethod === 'pix' && !pagarmeConfig.pixAvailable) {
       return setCheckoutStatus('O Pix está temporariamente indisponível. Escolha outra forma de pagamento ou tente mais tarde.');
     }
-    if (paymentMethod === 'cartao' && savedCardLoading) {
+    if (cardPaymentSelected && savedCardLoading) {
       return setCheckoutStatus('Estamos verificando seus cartões salvos. Aguarde um instante.');
     }
-    if (paymentMethod === 'cartao' && savedCardError) {
-      return setCheckoutStatus('Não foi possível verificar seu cartão salvo. Tente novamente antes de finalizar.');
+    if (cardPaymentSelected && savedCardError) {
+      return setCheckoutStatus('Não foi possível verificar seus cartões salvos. Tente novamente antes de finalizar.');
     }
-    if (paymentMethod === 'cartao' && !savedCard) {
-      return setCheckoutStatus('Cadastre um cartão em Formas de pagamento antes de finalizar pelo cartão.');
+    if (cardPaymentSelected && !selectedSavedCard) {
+      const typeLabel = paymentMethod === 'cartao_debito' ? 'débito' : 'crédito';
+      return setCheckoutStatus(`Não há cartão de ${typeLabel} ativo na sua carteira. Cadastre um cartão compatível em Formas de pagamento.`);
     }
-    if (paymentMethod === 'cartao' && !pagarmeConfig.savedCardAvailable) {
+    if (cardPaymentSelected && !pagarmeConfig.savedCardAvailable) {
       return setCheckoutStatus('O pagamento com cartão está temporariamente indisponível. Tente mais tarde.');
     }
-    if (['pix', 'cartao'].includes(paymentMethod)) {
+    if (paymentMethod === 'pix' || cardPaymentSelected) {
       const cpf = String(profileCpf).replace(/\D/g, '');
       const phone = String(profilePhone).replace(/\D/g, '').replace(/^55(?=\d{10,11}$)/, '');
       if (cpf.length !== 11 || ![10, 11].includes(phone.length)) {
@@ -756,7 +775,7 @@ export default function DashboardLayout({ children }) {
     setCheckoutStatus('');
     const total = cartTotals.total;
     try {
-      const chargeSavedCard = paymentMethod === 'cartao';
+      const chargeSavedCard = isCardPaymentMethod(paymentMethod);
       const checkoutRequestId = checkoutRequestIdRef.current || window.crypto.randomUUID();
       checkoutRequestIdRef.current = checkoutRequestId;
       const response = await fetch('/api/erp/orders', {
@@ -771,6 +790,7 @@ export default function DashboardLayout({ children }) {
           paymentMethod,
           checkoutRequestId,
           useSavedCard: chargeSavedCard,
+          savedCardId: chargeSavedCard ? selectedSavedCard?.id : undefined,
           includeCpfOnReceipt,
           couponCode: coupon.trim().toUpperCase(),
           total: `R$ ${total.toFixed(2).replace('.', ',')}`,
@@ -1239,22 +1259,39 @@ export default function DashboardLayout({ children }) {
             <small className="checkout-field-hint">
               <Link href="/dashboard/payment-methods">Editar preferência de pagamento</Link>
             </small>
-            {['pix', 'cartao'].includes(paymentMethod) && <div className="checkout-field-hint" role="status">
+            {(paymentMethod === 'pix' || isCardPaymentMethod(paymentMethod)) && <div className="checkout-field-hint" role="status">
               <p>Para concluir com Pix ou cartão, precisamos do seu CPF e celular com DDD no perfil. Esses dados são usados no processamento do pagamento; a inclusão do CPF no comprovante é uma escolha separada.</p>
               {profileCpf.replace(/\D/g, '').length !== 11 || ![10, 11].includes(profilePhone.replace(/\D/g, '').replace(/^55(?=\d{10,11}$)/, '').length)
                 ? <Link href="/dashboard/profile">Completar dados do perfil</Link>
                 : <span>Dados necessários já estão no perfil.</span>}
             </div>}
             {paymentMethod === 'pix' && !pagarmeConfig.pixAvailable && <p className="checkout-field-hint" role="alert">O Pix está temporariamente indisponível. Escolha outra forma ou tente mais tarde.</p>}
-            {paymentMethod === 'cartao' && savedCardLoading && <p className="checkout-field-hint" role="status">Verificando cartão salvo...</p>}
-            {paymentMethod === 'cartao' && savedCardError && <div className="checkout-saved-card-error" role="alert">
+            {isCardPaymentMethod(paymentMethod) && savedCardLoading && <p className="checkout-field-hint" role="status">Verificando cartões salvos...</p>}
+            {isCardPaymentMethod(paymentMethod) && savedCardError && <div className="checkout-saved-card-error" role="alert">
               <p>{savedCardError}</p>
               <div>
                 <button type="button" onClick={() => window.dispatchEvent(new Event(SAVED_CARD_UPDATED_EVENT))}>Tentar novamente</button>
                 <Link href="/dashboard/payment-methods">Gerenciar cartão</Link>
               </div>
             </div>}
-            {paymentMethod === 'cartao' && !savedCardLoading && savedCard && <section
+            {isCardPaymentMethod(paymentMethod) && !savedCardLoading && !savedCardError && !selectedSavedCard && <p className="checkout-field-hint" role="alert">
+              {activeSavedCards.length
+                ? `Sua carteira não tem um cartão de ${paymentMethod === 'cartao_debito' ? 'débito' : 'crédito'} ativo. `
+                : 'Salve um cartão para continuar. '}
+              <Link href="/dashboard/payment-methods">Gerenciar cartões</Link>
+            </p>}
+            {isCardPaymentMethod(paymentMethod) && !savedCardLoading && !savedCardError && selectedSavedCard && <>
+              <label className="delivery-address-field checkout-saved-card-select">
+                Cartão salvo
+                <select value={selectedSavedCard.id} onChange={(event) => setSelectedSavedCardId(event.target.value)}>
+                  {activeSavedCards.map((card) => (
+                    <option value={card.id} key={card.id}>
+                      {card.brand} •••• {card.lastFourDigits}
+                    </option>
+                  ))}
+                </select>
+              </label>
+              <section
               className="checkout-saved-card"
               aria-labelledby="checkout-saved-card-title"
               aria-describedby="checkout-saved-card-note"
@@ -1267,11 +1304,11 @@ export default function DashboardLayout({ children }) {
                     <span className="checkout-saved-card-status">Pronto para usar</span>
                   </div>
                   <p className="checkout-saved-card-number">
-                    <strong>{savedCard.brand || 'Cartão'}</strong>
-                    <span aria-label={`terminado em ${savedCard.lastFourDigits}`}>•••• {savedCard.lastFourDigits}</span>
+                    <strong>{selectedSavedCard.brand || 'Cartão'}</strong>
+                    <span aria-label={`terminado em ${selectedSavedCard.lastFourDigits}`}>•••• {selectedSavedCard.lastFourDigits}</span>
                   </p>
                   <p className="checkout-saved-card-expiry">
-                    Validade {String(savedCard.expMonth).padStart(2, '0')}/{savedCard.expYear}
+                    Validade {String(selectedSavedCard.expMonth).padStart(2, '0')}/{selectedSavedCard.expYear}
                   </p>
                 </div>
               </div>
@@ -1279,10 +1316,8 @@ export default function DashboardLayout({ children }) {
                 <p id="checkout-saved-card-note">Você confere o valor e confirma o pedido antes da cobrança.</p>
                 <Link href="/dashboard/payment-methods">Gerenciar cartão</Link>
               </div>
-            </section>}
-            {paymentMethod === 'cartao' && !savedCardLoading && !savedCard && !savedCardError && <p className="checkout-field-hint" role="alert">
-              Cadastre um cartão em <Link href="/dashboard/payment-methods">Formas de pagamento</Link> antes de finalizar pelo cartão.
-            </p>}
+              </section>
+            </>}
             <button
               className="btn-finalizar"
               type="submit"

@@ -12,10 +12,12 @@ import {
   readPaymentMethod,
   savePaymentMethod,
 } from '../payment-methods';
+import { MAX_SAVED_CARDS } from '@/features/payments/card-methods';
 
 const paymentMethodIcons = {
   pix: QrCode,
-  cartao: CreditCard,
+  cartao_credito: CreditCard,
+  cartao_debito: CreditCard,
 };
 
 export default function PaymentMethodsPage() {
@@ -23,7 +25,7 @@ export default function PaymentMethodsPage() {
   const [paymentMethod, setPaymentMethod] = useState(null);
   const [isReady, setIsReady] = useState(false);
   const [feedback, setFeedback] = useState(null);
-  const [savedCard, setSavedCard] = useState(null);
+  const [savedCards, setSavedCards] = useState([]);
   const [cardReady, setCardReady] = useState(false);
   const [cardLoadError, setCardLoadError] = useState('');
   const [cardAvailable, setCardAvailable] = useState(false);
@@ -32,7 +34,7 @@ export default function PaymentMethodsPage() {
   const [cardRetryCount, setCardRetryCount] = useState(0);
   const [cardFormOpen, setCardFormOpen] = useState(false);
   const [cardSaving, setCardSaving] = useState(false);
-  const [cardRemoving, setCardRemoving] = useState(false);
+  const [cardRemovingId, setCardRemovingId] = useState('');
   const [cardFeedback, setCardFeedback] = useState(null);
   const cardFieldsRef = useRef(null);
   const cardAddButtonRef = useRef(null);
@@ -73,7 +75,7 @@ export default function PaymentMethodsPage() {
       cardAddButtonRef.current?.focus();
       returnCardFocusRef.current = false;
     }
-  }, [cardFormOpen, savedCard, cardReady, cardConfigReady]);
+  }, [cardFormOpen, savedCards, cardReady, cardConfigReady]);
 
   useEffect(() => {
     if (status === 'loading') {
@@ -82,7 +84,7 @@ export default function PaymentMethodsPage() {
       return undefined;
     }
     if (status !== 'authenticated' || !session?.user?.email) {
-      setSavedCard(null);
+      setSavedCards([]);
       setCardReady(true);
       setCardLoadError('');
       setCardAvailable(false);
@@ -105,7 +107,8 @@ export default function PaymentMethodsPage() {
         const response = await fetch('/api/my/payment-methods', { cache: 'no-store' });
         const data = await response.json();
         if (!response.ok) throw new Error(data.error || 'Não foi possível carregar o cartão salvo.');
-        if (active) setSavedCard(data.card || null);
+        if (!Array.isArray(data.cards)) throw new Error('A resposta de cartões salva está inválida.');
+        if (active) setSavedCards(data.cards);
       } catch (error) {
         console.error('Não foi possível verificar o cartão salvo:', error);
         if (active) setCardLoadError('Não foi possível verificar se já existe um cartão salvo. Tente novamente.');
@@ -209,7 +212,7 @@ export default function PaymentMethodsPage() {
   };
 
   const saveCard = async () => {
-    if (cardSaving || savedCard) return;
+    if (cardSaving || savedCards.length >= MAX_SAVED_CARDS) return;
     setCardSaving(true);
     setCardFeedback(null);
     try {
@@ -222,7 +225,12 @@ export default function PaymentMethodsPage() {
       });
       const data = await response.json();
       if (!response.ok) throw new Error(data.error || 'Não foi possível salvar o cartão.');
-      setSavedCard(data.card);
+      if (!data.card?.id) throw new Error('Não foi possível confirmar o cartão salvo.');
+      setSavedCards((current) => (
+        current.some((card) => card.id === data.card.id)
+          ? current
+          : [...current, data.card]
+      ));
       setCardFormOpen(false);
       setCardFeedback({ type: 'success', message: 'Cartão salvo. Ele ficará disponível para suas próximas compras.' });
       window.dispatchEvent(new Event(SAVED_CARD_UPDATED_EVENT));
@@ -233,26 +241,29 @@ export default function PaymentMethodsPage() {
     }
   };
 
-  const removeCard = async () => {
-    if (cardRemoving || !savedCard) return;
-    if (!window.confirm('Remover este cartão salvo da sua conta?')) return;
-    setCardRemoving(true);
+  const removeCard = async (card) => {
+    if (cardRemovingId) return;
+    if (!window.confirm(`Remover o cartão ${card.brand} terminado em ${card.lastFourDigits}?`)) return;
+    setCardRemovingId(card.id);
     setCardFeedback(null);
     try {
       const response = await fetch('/api/my/payment-methods', {
         method: 'DELETE',
         credentials: 'include',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ cardId: card.id }),
       });
       const data = await response.json();
       if (!response.ok) throw new Error(data.error || 'Não foi possível remover o cartão.');
-      setSavedCard(data.card);
+      if (!Array.isArray(data.cards)) throw new Error('A resposta de cartões salva está inválida.');
+      setSavedCards(data.cards);
       setCardFeedback({ type: 'success', message: 'Cartão removido da sua conta.' });
       returnCardFocusRef.current = true;
       window.dispatchEvent(new Event(SAVED_CARD_UPDATED_EVENT));
     } catch (error) {
       setCardFeedback({ type: 'error', message: error.message });
     } finally {
-      setCardRemoving(false);
+      setCardRemovingId('');
     }
   };
 
@@ -333,7 +344,7 @@ export default function PaymentMethodsPage() {
         </p>
 
         {!cardReady ? (
-          <p className="saved-card-loading" role="status">Verificando se há um cartão salvo...</p>
+          <p className="saved-card-loading" role="status">Verificando cartões salvos...</p>
         ) : status !== 'authenticated' || !session?.user?.email ? (
           <div className="saved-card-state saved-card-state-error" role="alert">
             <p>Entre na sua conta para consultar ou gerenciar cartões.</p>
@@ -346,52 +357,54 @@ export default function PaymentMethodsPage() {
               Tentar novamente
             </button>
           </div>
-        ) : savedCard ? (
-          <div className="saved-card-summary" role="group" aria-label={`Cartão salvo ${savedCard.brand || ''}, terminado em ${savedCard.lastFourDigits}`}>
-            <div className="saved-card-summary-main">
-              <span className="saved-card-icon" aria-hidden="true"><CreditCard size={20} /></span>
-              <div className="saved-card-identity">
-                <span className="saved-card-label">Cartão salvo</span>
-                <strong>{savedCard.brand || 'Cartão'} <span aria-label={`terminado em ${savedCard.lastFourDigits}`}>•••• {savedCard.lastFourDigits}</span></strong>
-                <small>Validade {String(savedCard.expMonth).padStart(2, '0')}/{savedCard.expYear}</small>
-              </div>
-              <span className="saved-card-status">Pronto para usar</span>
-            </div>
-            <div className="saved-card-summary-footer">
-              <p>Você confirma o pedido antes de qualquer cobrança.</p>
-              <button
-                className="saved-card-remove"
-                type="button"
-                onClick={removeCard}
-                disabled={cardRemoving}
-                aria-label={`Remover cartão terminado em ${savedCard.lastFourDigits}`}
-              >
-                <Trash2 size={16} aria-hidden="true" />
-                {cardRemoving ? 'Removendo...' : 'Remover cartão'}
-              </button>
-            </div>
-          </div>
         ) : (
-          <>
-            {!cardConfigReady ? (
-              <p className="saved-card-loading" role="status">Verificando a disponibilidade do cadastro...</p>
-            ) : cardConfigError || !cardAvailable ? (
-              <div className="saved-card-state saved-card-state-error" role="alert">
-                <p>{cardConfigError || 'O cadastro de cartão está temporariamente indisponível.'}</p>
-                <button className="saved-card-secondary" type="button" onClick={() => setCardRetryCount((count) => count + 1)}>
-                  Verificar novamente
-                </button>
+          <div className="saved-card-wallet">
+            {savedCards.length ? (
+              <div className="saved-card-list" role="list" aria-label={`Cartões salvos: ${savedCards.length} de ${MAX_SAVED_CARDS}`}>
+                {savedCards.map((card) => (
+                  <article className="saved-card-summary" key={card.id} role="listitem" aria-label={`Cartão salvo ${card.brand}, terminado em ${card.lastFourDigits}`}>
+                    <div className="saved-card-summary-main">
+                      <span className="saved-card-icon" aria-hidden="true"><CreditCard size={20} /></span>
+                      <div className="saved-card-identity">
+                        <span className="saved-card-label">
+                          {card.type === 'debit' ? 'Cartão de débito' : card.type === 'credit' ? 'Cartão de crédito' : 'Cartão salvo'}
+                        </span>
+                        <strong>{card.brand} <span aria-label={`terminado em ${card.lastFourDigits}`}>•••• {card.lastFourDigits}</span></strong>
+                        <small>Validade {String(card.expMonth).padStart(2, '0')}/{card.expYear}</small>
+                      </div>
+                      <span className={`saved-card-status ${card.status === 'active' ? '' : 'inactive'}`}>
+                        {card.status === 'active' ? 'Ativo' : 'Indisponível'}
+                      </span>
+                    </div>
+                    <div className="saved-card-summary-footer">
+                      <button
+                        className="saved-card-remove"
+                        type="button"
+                        onClick={() => void removeCard(card)}
+                        disabled={Boolean(cardRemovingId)}
+                        aria-label={`Remover cartão terminado em ${card.lastFourDigits}`}
+                      >
+                        <Trash2 size={16} aria-hidden="true" />
+                        {cardRemovingId === card.id ? 'Removendo...' : 'Remover cartão'}
+                      </button>
+                    </div>
+                  </article>
+                ))}
               </div>
-            ) : !cardFormOpen ? (
-              <div className="saved-card-empty">
-                <div className="saved-card-empty-copy">
-                  <span className="saved-card-empty-icon" aria-hidden="true"><CreditCard size={19} /></span>
-                  <div>
-                    <strong>Nenhum cartão salvo</strong>
-                    <p>Cadastre um cartão para usá-lo no checkout. Mantenha nome, CPF e celular com DDD atualizados no perfil.</p>
-                    <Link className="saved-card-inline-link" href="/dashboard/profile">Revisar perfil</Link>
-                  </div>
+            ) : (
+              <div className="saved-card-empty-copy">
+                <span className="saved-card-empty-icon" aria-hidden="true"><CreditCard size={19} /></span>
+                <div>
+                  <strong>Nenhum cartão salvo</strong>
+                  <p>Adicione cartões para usá-los no checkout.</p>
+                  <Link className="saved-card-inline-link" href="/dashboard/profile">Revisar perfil</Link>
                 </div>
+              </div>
+            )}
+
+            <div className="saved-card-wallet-footer">
+              <span>{savedCards.length} de {MAX_SAVED_CARDS} cartões</span>
+              {!cardFormOpen && cardConfigReady && cardAvailable && savedCards.length < MAX_SAVED_CARDS && (
                 <button
                   ref={cardAddButtonRef}
                   className="saved-card-add"
@@ -401,8 +414,20 @@ export default function PaymentMethodsPage() {
                   <Plus size={17} aria-hidden="true" />
                   Adicionar cartão
                 </button>
+              )}
+            </div>
+
+            {savedCards.length >= MAX_SAVED_CARDS && <p className="saved-card-limit" role="status">Limite de {MAX_SAVED_CARDS} cartões atingido.</p>}
+            {!cardConfigReady && <p className="saved-card-loading" role="status">Verificando disponibilidade...</p>}
+            {cardConfigReady && (cardConfigError || !cardAvailable) && (
+              <div className="saved-card-state saved-card-state-error" role="alert">
+                <p>{cardConfigError || 'O cadastro de cartão está temporariamente indisponível.'}</p>
+                <button className="saved-card-secondary" type="button" onClick={() => setCardRetryCount((count) => count + 1)}>
+                  Verificar novamente
+                </button>
               </div>
-            ) : (
+            )}
+            {cardFormOpen && cardConfigReady && cardAvailable && savedCards.length < MAX_SAVED_CARDS && (
               <form
                 className="saved-card-entry"
                 aria-busy={cardSaving}
@@ -411,7 +436,7 @@ export default function PaymentMethodsPage() {
                 <fieldset className="checkout-card-fields" ref={cardFieldsRef} disabled={cardSaving} aria-describedby="saved-card-form-help">
                   <legend>Dados do cartão</legend>
                   <p className="saved-card-form-help" id="saved-card-form-help">
-                    O número e o código são enviados diretamente para validação. Não os armazenamos e o cadastro não cobra o cartão.
+                    O cartão é tokenizado com segurança; seus dados completos não são armazenados.
                   </p>
                   <label className="delivery-address-field">Número do cartão
                     <input name="cardNumber" type="text" inputMode="numeric" autoComplete="cc-number" maxLength={23} required />
@@ -439,7 +464,7 @@ export default function PaymentMethodsPage() {
                 </div>
               </form>
             )}
-          </>
+          </div>
         )}
 
         {cardFeedback && <p className={`payment-method-feedback ${cardFeedback.type}`} role={cardFeedback.type === 'error' ? 'alert' : 'status'} aria-live={cardFeedback.type === 'error' ? 'assertive' : 'polite'}>{cardFeedback.message}</p>}

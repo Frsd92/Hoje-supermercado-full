@@ -2265,6 +2265,9 @@ body {
 .checkout-payment-method-selection { display: grid; place-items: center; width: 23px; height: 23px; flex: 0 0 auto; border: 1px solid rgba(226,232,240,0.5); border-radius: 50%; color: #052e16; }
 .checkout-payment-method-radio:checked + .checkout-payment-method-card .checkout-payment-method-selection { border-color: #86efac; background: #86efac; }
 .checkout-payment-method-choice-pix .checkout-payment-method-radio:checked + .checkout-payment-method-card .checkout-payment-method-selection { border-color: #d9f99d; background: #d9f99d; color: #14532d; }
+.checkout-saved-card-select { margin-bottom: 10px; }
+.checkout-saved-card-select select { width: 100%; padding: 10px 12px; border: 1px solid rgba(148,163,184,0.24); border-radius: 10px; color: #101826; background: #fff; outline: none; }
+.checkout-saved-card-select select:focus-visible { border-color: #16803d; box-shadow: 0 0 0 3px rgba(22,128,61,0.14); }
 .delivery-address-field input { width: 100%; padding: 10px 12px; border: 1px solid rgba(148,163,184,0.24); border-radius: 10px; color: #101826; background: #fff; outline: none; }
 .delivery-address-field input:focus-visible { border-color: #16803d; box-shadow: 0 0 0 3px rgba(22,128,61,0.14); }
 .checkout-field-hint { display: block; margin: -8px 0 8px; color: #718177; font-size: 11px; font-weight: 500; line-height: 1.45; }
@@ -5817,12 +5820,36 @@ button.metric-mini:focus-visible {
 
 .saved-card-summary {
   display: grid;
-  gap: 12px;
+  gap: 0;
   overflow: hidden;
   border: 1px solid rgba(23, 63, 49, 0.16);
   border-radius: 16px;
   background: linear-gradient(145deg, #fff, #f1f8f3);
   box-shadow: 0 10px 24px rgba(20, 66, 42, 0.06);
+}
+
+.saved-card-wallet,
+.saved-card-list {
+  display: grid;
+  gap: 12px;
+  min-width: 0;
+}
+
+.saved-card-wallet-footer {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  flex-wrap: wrap;
+  gap: 12px;
+  color: var(--muted);
+  font-size: 0.74rem;
+  font-weight: 750;
+}
+
+.saved-card-limit {
+  margin: 0;
+  color: var(--muted);
+  font-size: 0.74rem;
 }
 
 .saved-card-summary-main {
@@ -5886,6 +5913,12 @@ button.metric-mini:focus-visible {
   background: #e8f7ec;
   font-size: 0.68rem;
   font-weight: 800;
+}
+
+.saved-card-status.inactive {
+  border-color: #e5c5c1;
+  color: #8f211b;
+  background: #fff3f1;
 }
 
 .saved-card-summary-footer {

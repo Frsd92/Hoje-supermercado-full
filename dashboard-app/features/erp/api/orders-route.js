@@ -19,11 +19,13 @@ import { serializeOrder, serializeOrders } from './order-serialization.js';
 import {
   buildPagarmeOrderPayload,
   createPagarmeOrder,
+  getPagarmeCustomerCards,
   getPagarmePaymentSnapshot,
   isValidCpf,
   PagarmeApiError,
   splitBrazilianMobilePhone,
 } from '@/features/payments/pagarme';
+import { isCardPaymentMethod } from '@/features/payments/card-methods';
 
 const productsFile = path.join(process.cwd(), 'data', 'products.json');
 const allowedOrigins = new Set(['http://localhost:8010', 'http://localhost:5500', 'http://127.0.0.1:5500', 'null']);
@@ -179,26 +181,36 @@ export async function POST(request) {
   if (!Array.isArray(body?.items) || !body.items.length || !String(body?.addressId || '').trim()) {
     return Response.json({ error: 'Itens e endereço de entrega são obrigatórios.' }, { status: 400, headers: corsHeaders(request) });
   }
-  if (!['pix', 'cartao'].includes(body.paymentMethod)) {
+  const cardPayment = isCardPaymentMethod(body.paymentMethod);
+  if (body.paymentMethod !== 'pix' && !cardPayment) {
     return Response.json({ error: 'Selecione uma forma de pagamento válida antes de finalizar.' }, { status: 400, headers: corsHeaders(request) });
   }
   if (body.useSavedCard !== undefined && typeof body.useSavedCard !== 'boolean') {
     return Response.json({ error: 'A seleção do cartão salvo é inválida.' }, { status: 400, headers: corsHeaders(request) });
   }
-  if (body.useSavedCard && body.paymentMethod !== 'cartao') {
+  if (body.useSavedCard && !cardPayment) {
     return Response.json({ error: 'O cartão salvo só pode ser usado em pagamentos com cartão.' }, { status: 400, headers: corsHeaders(request) });
   }
   if (body.useSavedCard && body.cardToken) {
     return Response.json({ error: 'Escolha entre o cartão salvo e um novo cartão para continuar.' }, { status: 400, headers: corsHeaders(request) });
   }
+  if (body.savedCardId !== undefined && !/^card_[A-Za-z0-9]+$/.test(String(body.savedCardId))) {
+    return Response.json({ error: 'O cartão selecionado é inválido.' }, { status: 400, headers: corsHeaders(request) });
+  }
+  if (body.savedCardId && (!cardPayment || !body.useSavedCard)) {
+    return Response.json({ error: 'Selecione uma forma de pagamento com cartão para usar este cartão salvo.' }, { status: 400, headers: corsHeaders(request) });
+  }
   if (body.cardToken && !/^token_[A-Za-z0-9]+$/.test(String(body.cardToken))) {
     return Response.json({ error: 'O cartão precisa ser validado antes do pagamento.' }, { status: 400, headers: corsHeaders(request) });
   }
-  const usesPagarme = body.paymentMethod === 'pix' || body.paymentMethod === 'cartao';
+  if (body.cardToken && !cardPayment) {
+    return Response.json({ error: 'O token do cartão só pode ser usado em pagamentos com cartão.' }, { status: 400, headers: corsHeaders(request) });
+  }
+  const usesPagarme = body.paymentMethod === 'pix' || cardPayment;
   if (usesPagarme && !process.env.PAGARME_SECRET_KEY) {
     return Response.json({ error: 'O pagamento online ainda não está configurado. Tente novamente mais tarde.' }, { status: 503, headers: corsHeaders(request) });
   }
-  if (body.paymentMethod === 'cartao' && !body.useSavedCard && !process.env.PAGARME_PUBLIC_KEY) {
+  if (cardPayment && !body.useSavedCard && !process.env.PAGARME_PUBLIC_KEY) {
     return Response.json({ error: 'A tokenização segura do cartão ainda não está configurada. Escolha Pix ou tente mais tarde.' }, { status: 503, headers: corsHeaders(request) });
   }
   if (typeof body.includeCpfOnReceipt !== 'boolean') {
@@ -261,8 +273,37 @@ export async function POST(request) {
     if (!splitBrazilianMobilePhone(customerProfile?.whatsapp)) {
       return Response.json({ error: 'Cadastre um celular com DDD no perfil para pagar com Pix ou cartão.' }, { status: 422, headers: corsHeaders(request) });
     }
-    if (body.useSavedCard && (!customerProfile?.pagarmeCustomerId || !customerProfile?.pagarmeCardId)) {
+    if (body.useSavedCard && !customerProfile?.pagarmeCustomerId) {
       return Response.json({ error: 'Não há cartão salvo disponível. Cadastre um cartão no Dashboard ou informe outro cartão.' }, { status: 422, headers: corsHeaders(request) });
+    }
+  }
+
+  let selectedSavedCardId = '';
+  if (cardPayment && body.useSavedCard) {
+    selectedSavedCardId = String(
+      body.savedCardId || (body.paymentMethod === 'cartao' ? customerProfile?.pagarmeCardId || '' : ''),
+    );
+    if (!/^card_[A-Za-z0-9]+$/.test(selectedSavedCardId)) {
+      return Response.json({ error: 'Selecione um cartão salvo antes de finalizar.' }, { status: 422, headers: corsHeaders(request) });
+    }
+
+    let cardWallet;
+    try {
+      cardWallet = await getPagarmeCustomerCards(customerProfile.pagarmeCustomerId);
+    } catch (error) {
+      if (error instanceof PagarmeApiError) {
+        return Response.json({ error: 'Não foi possível verificar o cartão selecionado.' }, { status: 502, headers: corsHeaders(request) });
+      }
+      console.error('Não foi possível validar o cartão escolhido no checkout:', error);
+      return Response.json({ error: 'Não foi possível verificar o cartão selecionado.' }, { status: 502, headers: corsHeaders(request) });
+    }
+    if (!Array.isArray(cardWallet?.data)) {
+      console.error('A Pagar.me retornou uma carteira de cartões inválida durante o checkout.');
+      return Response.json({ error: 'Não foi possível verificar os cartões salvos.' }, { status: 502, headers: corsHeaders(request) });
+    }
+    const selectedCard = cardWallet.data.find((card) => card.id === selectedSavedCardId);
+    if (String(selectedCard?.status || '').toLowerCase() !== 'active') {
+      return Response.json({ error: 'O cartão selecionado não está ativo. Escolha outro cartão.' }, { status: 422, headers: corsHeaders(request) });
     }
   }
 
@@ -408,7 +449,7 @@ export async function POST(request) {
         paymentMethod,
         cardToken: body.cardToken,
         savedCard: body.useSavedCard
-          ? { customerId: customerProfile.pagarmeCustomerId, cardId: customerProfile.pagarmeCardId }
+          ? { customerId: customerProfile.pagarmeCustomerId, cardId: selectedSavedCardId }
           : null,
         address: normalizedAddress,
       });
