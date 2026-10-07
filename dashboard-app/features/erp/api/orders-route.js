@@ -25,7 +25,11 @@ import {
   PagarmeApiError,
   splitBrazilianMobilePhone,
 } from '@/features/payments/pagarme';
-import { isCardPaymentMethod, isCardTypeCompatible } from '@/features/payments/card-methods';
+import {
+  getSavedCardType,
+  isCardPaymentMethod,
+  isCardTypeCompatible,
+} from '@/features/payments/card-methods';
 
 const productsFile = path.join(process.cwd(), 'data', 'products.json');
 const allowedOrigins = new Set(['http://localhost:8010', 'http://localhost:5500', 'http://127.0.0.1:5500', 'null']);
@@ -305,7 +309,7 @@ export async function POST(request) {
     if (String(selectedCard?.status || '').toLowerCase() !== 'active') {
       return Response.json({ error: 'O cartão selecionado não está ativo. Escolha outro cartão.' }, { status: 422, headers: corsHeaders(request) });
     }
-    if (!isCardTypeCompatible(String(selectedCard?.type || '').toLowerCase(), body.paymentMethod)) {
+    if (!isCardTypeCompatible(getSavedCardType(selectedCard), body.paymentMethod)) {
       return Response.json({ error: 'O tipo do cartão selecionado não corresponde à forma de pagamento. Escolha um cartão de crédito ou débito compatível.' }, { status: 422, headers: corsHeaders(request) });
     }
   }

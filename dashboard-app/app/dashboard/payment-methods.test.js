@@ -14,10 +14,13 @@ import {
 import {
   CARD_PAYMENT_METHODS,
   getExpectedCardType,
+  getSavedCardType,
+  getSavedCardTypeLabel,
   isCardTypeCompatible,
   isKnownCardType,
   MAX_SAVED_CARDS,
   normalizePaymentMethod,
+  SAVED_CARD_TYPES,
 } from '../../features/payments/card-methods.js';
 
 test('exposes only payment methods available to customers', () => {
@@ -31,6 +34,7 @@ test('exposes only payment methods available to customers', () => {
   assert.equal(SAVED_CARD_UPDATED_EVENT, 'dashboard-saved-card-updated');
   assert.equal(isPaymentMethod('cartao'), true);
   assert.deepEqual(CARD_PAYMENT_METHODS, ['cartao_credito', 'cartao_debito']);
+  assert.deepEqual(SAVED_CARD_TYPES, ['credit', 'debit']);
   assert.equal(MAX_SAVED_CARDS, 10);
   assert.equal(normalizePaymentMethod('cartao'), 'cartao_credito');
   assert.equal(getExpectedCardType('cartao_credito'), 'credit');
@@ -42,6 +46,10 @@ test('exposes only payment methods available to customers', () => {
   assert.equal(isCardTypeCompatible(null, 'cartao_credito'), false);
   assert.equal(isKnownCardType('debit'), true);
   assert.equal(isKnownCardType(null), false);
+  assert.equal(getSavedCardTypeLabel('debit'), 'Hoje Supermercado - Débito');
+  assert.equal(getSavedCardType({ type: 'credit', label: 'Hoje Supermercado - Débito' }), 'debit');
+  assert.equal(getSavedCardType({ type: 'debit' }), 'debit');
+  assert.equal(getSavedCardType({ type: 'unknown' }), null);
   assert.equal(isPaymentMethod('dinheiro'), false);
   assert.equal(isPaymentMethod('outro'), false);
   assert.equal(isPaymentMethod('transferencia'), false);

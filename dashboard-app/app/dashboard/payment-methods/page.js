@@ -12,7 +12,7 @@ import {
   readPaymentMethod,
   savePaymentMethod,
 } from '../payment-methods';
-import { isKnownCardType, MAX_SAVED_CARDS } from '@/features/payments/card-methods';
+import { isKnownCardType, MAX_SAVED_CARDS, SAVED_CARD_TYPES } from '@/features/payments/card-methods';
 
 const paymentMethodIcons = {
   pix: QrCode,
@@ -159,6 +159,10 @@ export default function PaymentMethodsPage() {
   const tokenizeCard = async () => {
     const fields = cardFieldsRef.current;
     try {
+      const cardType = fields?.closest('form')?.querySelector('input[name="cardType"]:checked')?.value;
+      if (!SAVED_CARD_TYPES.includes(cardType)) {
+        throw new Error('Selecione se o cartão é de crédito ou débito.');
+      }
       const readField = (name) => fields?.querySelector(`[name="${name}"]`)?.value || '';
       const number = readField('cardNumber').replace(/\D/g, '');
       const holderName = readField('cardHolder').trim();
@@ -205,7 +209,7 @@ export default function PaymentMethodsPage() {
       if (!/^token_[A-Za-z0-9]+$/.test(String(token?.id || ''))) {
         throw new Error('Não foi possível confirmar a validação do cartão. Confira os dados e tente novamente.');
       }
-      return token.id;
+      return { cardToken: token.id, cardType };
     } finally {
       fields?.querySelectorAll('input').forEach((input) => { input.value = ''; });
     }
@@ -216,12 +220,12 @@ export default function PaymentMethodsPage() {
     setCardSaving(true);
     setCardFeedback(null);
     try {
-      const cardToken = await tokenizeCard();
+      const { cardToken, cardType } = await tokenizeCard();
       const response = await fetch('/api/my/payment-methods', {
         method: 'POST',
         credentials: 'include',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ cardToken }),
+        body: JSON.stringify({ cardToken, cardType }),
       });
       const data = await response.json();
       if (!response.ok) throw new Error(data.error || 'Não foi possível salvar o cartão.');
@@ -454,10 +458,17 @@ export default function PaymentMethodsPage() {
                 aria-busy={cardSaving}
                 onSubmit={(event) => { event.preventDefault(); void saveCard(); }}
               >
+                <fieldset className="saved-card-type-choice" disabled={cardSaving}>
+                  <legend>Este cartão será salvo como</legend>
+                  <div className="saved-card-type-options">
+                    <label><input type="radio" name="cardType" value="credit" required /> Crédito</label>
+                    <label><input type="radio" name="cardType" value="debit" required /> Débito</label>
+                  </div>
+                </fieldset>
                 <fieldset className="checkout-card-fields" ref={cardFieldsRef} disabled={cardSaving} aria-describedby="saved-card-form-help">
                   <legend>Dados do cartão</legend>
                   <p className="saved-card-form-help" id="saved-card-form-help">
-                    O processador identifica se o cartão é de crédito ou débito. Os tipos ficam separados, e os dados completos não são armazenados.
+                    Escolha o tipo correto. A carteira manterá crédito e débito separados, e o checkout usará a forma correspondente. Seus dados completos não são armazenados.
                   </p>
                   <label className="delivery-address-field">Número do cartão
                     <input name="cardNumber" type="text" inputMode="numeric" autoComplete="cc-number" maxLength={23} required />

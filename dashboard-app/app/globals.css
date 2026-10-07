@@ -6251,6 +6251,64 @@ button.metric-mini:focus-visible {
   font-weight: 700;
 }
 
+.saved-card-type-choice {
+  display: grid;
+  gap: 9px;
+  margin: 0 0 12px;
+  padding: 12px 14px;
+  border: 1px solid rgba(23, 63, 49, 0.14);
+  border-radius: 12px;
+  background: rgba(255, 255, 255, 0.68);
+}
+
+.saved-card-type-choice legend {
+  padding: 0 4px;
+  color: var(--text);
+  font-size: 0.78rem;
+  font-weight: 700;
+}
+
+.saved-card-type-options {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 9px;
+}
+
+.saved-card-type-options label {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  min-height: 44px;
+  padding: 8px 10px;
+  border: 1px solid rgba(23, 63, 49, 0.16);
+  border-radius: 9px;
+  color: #33483c;
+  background: #fff;
+  font-size: 0.76rem;
+  font-weight: 750;
+  cursor: pointer;
+}
+
+.saved-card-type-options label:has(input:checked) {
+  border-color: #16803d;
+  color: #14532d;
+  background: #eff9f1;
+  box-shadow: 0 0 0 2px rgba(22, 128, 61, 0.08);
+}
+
+.saved-card-type-options label:focus-within {
+  outline: 3px solid rgba(22, 128, 61, 0.2);
+  outline-offset: 2px;
+}
+
+.saved-card-type-options input {
+  width: 18px;
+  height: 18px;
+  flex: 0 0 auto;
+  margin: 0;
+  accent-color: #16803d;
+}
+
 .saved-card-entry .checkout-card-fields {
   display: grid;
   gap: 2px;

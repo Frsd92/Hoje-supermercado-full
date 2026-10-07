@@ -1,4 +1,4 @@
-import { isCardPaymentMethod } from './card-methods.js';
+import { getSavedCardTypeLabel, isCardPaymentMethod } from './card-methods.js';
 
 const pagarmeApiUrl = 'https://api.pagar.me/core/v5';
 
@@ -285,16 +285,20 @@ export function getPagarmeCustomerCards(customerId, { fetchImpl, secretKey } = {
   return pagarmeRequest(`/customers/${encodeURIComponent(customerId)}/cards`, requestOptions);
 }
 
-export function createPagarmeCustomerCard(customerId, token, idempotencyKey, { fetchImpl, secretKey } = {}) {
+export function createPagarmeCustomerCard(customerId, token, idempotencyKey, { cardType, fetchImpl, secretKey } = {}) {
   if (!/^cus_[A-Za-z0-9]+$/.test(String(customerId || ''))) {
     throw new Error('Não foi possível validar os dados do cliente para o pagamento.');
   }
   if (!/^token_[A-Za-z0-9]+$/.test(String(token || ''))) {
     throw new Error('O cartão precisa ser tokenizado antes de ser salvo.');
   }
+  const cardLabel = cardType === undefined ? null : getSavedCardTypeLabel(cardType);
+  if (cardType !== undefined && !cardLabel) {
+    throw new Error('Selecione se o cartão é de crédito ou débito.');
+  }
   const requestOptions = {
     method: 'POST',
-    body: { token },
+    body: { token, ...(cardLabel ? { label: cardLabel } : {}) },
     idempotencyKey,
     secretKey,
   };

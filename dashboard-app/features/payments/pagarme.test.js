@@ -183,6 +183,32 @@ test('saves a customer card using only the Pagar.me token', async () => {
   );
 });
 
+test('labels a saved card with the customer-selected credit or debit type', async () => {
+  let request;
+  await createPagarmeCustomerCard(
+    'cus_customer123',
+    'token_abc123',
+    'request-debit',
+    {
+      cardType: 'debit',
+      secretKey: 'sk_test_example',
+      fetchImpl: async (url, options) => {
+        request = { url, options };
+        return { ok: true, json: async () => ({ id: 'card_saved123' }) };
+      },
+    },
+  );
+
+  assert.deepEqual(JSON.parse(request.options.body), {
+    token: 'token_abc123',
+    label: 'Hoje Supermercado - Débito',
+  });
+  assert.throws(
+    () => createPagarmeCustomerCard('cus_customer123', 'token_abc123', 'request-invalid', { cardType: 'voucher' }),
+    /crédito ou débito/,
+  );
+});
+
 test('lists saved cards from the authenticated Pagar.me customer wallet', async () => {
   let request;
   const wallet = await getPagarmeCustomerCards('cus_customer123', {

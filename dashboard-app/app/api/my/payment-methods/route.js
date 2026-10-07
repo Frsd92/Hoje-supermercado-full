@@ -11,7 +11,11 @@ import {
   PagarmeApiError,
   splitBrazilianMobilePhone,
 } from '@/features/payments/pagarme';
-import { MAX_SAVED_CARDS } from '@/features/payments/card-methods';
+import {
+  getSavedCardType,
+  MAX_SAVED_CARDS,
+  SAVED_CARD_TYPES,
+} from '@/features/payments/card-methods';
 
 const cardTokenPattern = /^token_[A-Za-z0-9]+$/;
 const customerIdPattern = /^cus_[A-Za-z0-9]+$/;
@@ -43,9 +47,7 @@ function serializeCard(card) {
     expMonth,
     expYear,
     status,
-    type: ['credit', 'debit'].includes(String(card.type || '').toLowerCase())
-      ? String(card.type).toLowerCase()
-      : null,
+    type: getSavedCardType(card),
   };
 }
 
@@ -125,8 +127,11 @@ export async function POST(request) {
   if (!body || typeof body !== 'object' || Array.isArray(body)) {
     return Response.json({ error: 'Os dados enviados são inválidos.' }, { status: 400 });
   }
-  if (Object.keys(body).some((field) => !['cardToken', 'requestId'].includes(field))) {
+  if (Object.keys(body).some((field) => !['cardToken', 'cardType', 'requestId'].includes(field))) {
     return Response.json({ error: 'Envie somente o código seguro do cartão; nunca os dados completos.' }, { status: 400 });
+  }
+  if (!SAVED_CARD_TYPES.includes(String(body.cardType || ''))) {
+    return Response.json({ error: 'Selecione se o cartão é de crédito ou débito.' }, { status: 400 });
   }
   if (!cardTokenPattern.test(String(body.cardToken || ''))) {
     return Response.json({ error: 'O cartão precisa ser validado antes de ser salvo.' }, { status: 400 });
@@ -186,11 +191,13 @@ export async function POST(request) {
       profile.pagarmeCustomerId,
       body.cardToken,
       body.requestId || randomUUID(),
+      { cardType: body.cardType },
       );
       card = serializeCard(card);
       if (card.status !== 'active') throw new Error('A Pagar.me não ativou o cartão salvo.');
     } catch (error) {
-      if (cardIdPattern.test(String(card?.id || ''))) {
+      const existingCard = wallet.cards.find((savedCard) => savedCard.id === String(card?.id || ''));
+      if (!existingCard && cardIdPattern.test(String(card?.id || ''))) {
         try {
           await deletePagarmeCustomerCard(profile.pagarmeCustomerId, card.id);
         } catch (cleanupError) {
@@ -201,6 +208,26 @@ export async function POST(request) {
     }
 
     const existingCard = wallet.cards.find((savedCard) => savedCard.id === card.id);
+    if (existingCard && existingCard.type !== body.cardType) {
+      const savedTypeLabel = existingCard.type === 'debit' ? 'débito' : 'crédito';
+      return Response.json({
+        error: `Este cartão já está salvo como ${savedTypeLabel}. Remova-o antes de cadastrá-lo com outro tipo.`,
+        cards: wallet.cards,
+        maxCards: MAX_SAVED_CARDS,
+      }, { status: 409 });
+    }
+    if (card.type !== body.cardType) {
+      if (!existingCard) {
+        try {
+          await deletePagarmeCustomerCard(profile.pagarmeCustomerId, card.id);
+        } catch (cleanupError) {
+          console.error('Não foi possível remover o cartão cujo tipo não foi confirmado:', cleanupError);
+        }
+      }
+      return Response.json({
+        error: 'O processador não confirmou o tipo escolhido para este cartão. Confira se você selecionou crédito ou débito corretamente.',
+      }, { status: 422 });
+    }
     const cards = existingCard ? wallet.cards : [...wallet.cards, card];
 
     return Response.json({
