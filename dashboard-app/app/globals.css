@@ -5659,6 +5659,13 @@ button.metric-mini:focus-visible {
   flex: 1;
 }
 
+.payment-method-title-row {
+  display: flex;
+  align-items: center;
+  flex-wrap: wrap;
+  gap: 7px;
+}
+
 .payment-method-copy strong,
 .payment-method-copy small {
   display: block;
@@ -5667,6 +5674,19 @@ button.metric-mini:focus-visible {
 .payment-method-copy strong {
   color: #183328;
   font-size: 0.84rem;
+}
+
+.payment-method-recommended {
+  display: inline-flex;
+  align-items: center;
+  padding: 3px 8px;
+  border-radius: 999px;
+  color: #166534;
+  background: #dcfce7;
+  font-size: 0.62rem;
+  font-weight: 800;
+  line-height: 1.2;
+  white-space: nowrap;
 }
 
 .payment-method-copy small {
@@ -6476,6 +6496,15 @@ button.metric-mini:focus-visible {
 .product-editor-tabs button.active { border-color: #16a34a; color: #166534; }
 .editor-inline { display: flex; align-items: center; gap: 8px; }
 .editor-inline input { flex: 1; }
+.editor-link:disabled { cursor: not-allowed; opacity: .55; }
+.product-barcode-lookup > .editor-hint { margin: 0 0 10px; line-height: 1.5; }
+.product-barcode-lookup-status { margin-top: 10px; padding: 10px 12px; border-radius: 8px; color: #334155; background: #f1f5f9; font-size: .76rem; line-height: 1.5; }
+.product-barcode-lookup-status:empty { display: none; }
+.product-barcode-lookup-status.loading { color: #1e40af; background: #eff6ff; }
+.product-barcode-lookup-status.found { color: #166534; background: #f0fdf4; }
+.product-barcode-lookup-status.not-found, .product-barcode-lookup-status.error { color: #92400e; background: #fffbeb; }
+.product-barcode-suggestion { margin-top: 8px; text-align: left; }
+.product-barcode-suggestion:focus-visible { outline: 3px solid #b18127; outline-offset: 3px; }
 .editor-chip-list { display: flex; flex-wrap: wrap; gap: 8px; margin-top: 12px; }
 .editor-chip-list span { display: inline-flex; align-items: center; gap: 7px; padding: 6px 9px; border-radius: 999px; background: #ecfdf5; color: #166534; font-size: .74rem; font-weight: 800; }
 .editor-chip-list button { display: grid; place-items: center; padding: 0; border: 0; color: #be123c; background: transparent; cursor: pointer; }
@@ -7405,6 +7434,8 @@ button.metric-mini:focus-visible {
   .product-editor-header { align-items: flex-start; flex-direction: column; }
   .product-editor-actions { width: 100%; justify-content: flex-end; }
   .editor-form-grid.two, .editor-form-grid.three { grid-template-columns: 1fr; }
+  .product-barcode-lookup .editor-inline { align-items: stretch; }
+  .product-barcode-lookup .editor-inline .editor-link { flex: 0 0 auto; min-height: 44px; }
   .editor-expiry-section { padding: 12px; }
   .editor-expiry-manage-card { align-items: stretch; flex-direction: column; }
   .editor-expiry-actions { align-items: stretch; flex-direction: column; }

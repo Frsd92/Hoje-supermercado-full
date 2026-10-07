@@ -16,7 +16,8 @@ test('exposes only payment methods available to customers', () => {
   assert.deepEqual(PAYMENT_METHODS.map(({ value }) => value), ['pix', 'cartao']);
   assert.doesNotMatch(PAYMENT_METHODS.map(({ label, description }) => `${label} ${description}`).join(' '), /pagar[.]me/i);
   assert.equal(PAYMENT_METHODS.find(({ value }) => value === 'cartao').label, 'Cartão de crédito');
-  assert.equal(DEFAULT_PAYMENT_METHOD, null);
+  assert.equal(PAYMENT_METHODS.find(({ value }) => value === 'pix').recommended, true);
+  assert.equal(DEFAULT_PAYMENT_METHOD, 'pix');
   assert.equal(SAVED_CARD_UPDATED_EVENT, 'dashboard-saved-card-updated');
   assert.equal(isPaymentMethod('cartao'), true);
   assert.equal(isPaymentMethod('dinheiro'), false);
@@ -59,7 +60,7 @@ test('saves the preference for the account and notifies the checkout', () => {
   }
 });
 
-test('requires an explicitly saved preference instead of silently defaulting to Pix', () => {
+test('defaults to Pix only when the account has no valid saved preference', () => {
   const originalLocalStorage = globalThis.localStorage;
   const storedValues = new Map();
   globalThis.localStorage = {
@@ -67,13 +68,15 @@ test('requires an explicitly saved preference instead of silently defaulting to 
   };
 
   try {
-    assert.equal(readPaymentMethod('cliente@example.com'), null);
+    assert.equal(readPaymentMethod('cliente@example.com'), 'pix');
     storedValues.set(getPaymentMethodStorageKey('cliente@example.com'), 'invalid');
-    assert.equal(readPaymentMethod('cliente@example.com'), null);
+    assert.equal(readPaymentMethod('cliente@example.com'), 'pix');
     storedValues.set(getPaymentMethodStorageKey('cliente@example.com'), 'outro');
-    assert.equal(readPaymentMethod('cliente@example.com'), null);
+    assert.equal(readPaymentMethod('cliente@example.com'), 'pix');
     storedValues.set(getPaymentMethodStorageKey('cliente@example.com'), 'pix');
     assert.equal(readPaymentMethod('cliente@example.com'), 'pix');
+    storedValues.set(getPaymentMethodStorageKey('cliente@example.com'), 'cartao');
+    assert.equal(readPaymentMethod('cliente@example.com'), 'cartao');
   } finally {
     if (originalLocalStorage === undefined) delete globalThis.localStorage;
     else globalThis.localStorage = originalLocalStorage;

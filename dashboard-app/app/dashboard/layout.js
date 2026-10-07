@@ -9,7 +9,6 @@ import { adjustCartQuantity, formatCartQuantity, getCartItemCount, normalizeCart
 import { calculateOrderTotals } from '@/features/orders/order-receipt-data';
 import contentModeration from '@/lib/content-moderation.js';
 import {
-  DEFAULT_PAYMENT_METHOD,
   PAYMENT_METHODS,
   PAYMENT_METHOD_UPDATED_EVENT,
   SAVED_CARD_UPDATED_EVENT,
@@ -98,7 +97,7 @@ export default function DashboardLayout({ children }) {
   const [addressLoadError, setAddressLoadError] = useState('');
   const [selectedAddressId, setSelectedAddressId] = useState('');
   const [deliveryAddressOpen, setDeliveryAddressOpen] = useState(false);
-  const [paymentMethod, setPaymentMethod] = useState(DEFAULT_PAYMENT_METHOD);
+  const [paymentMethod, setPaymentMethod] = useState(null);
   const [pagarmeConfig, setPagarmeConfig] = useState({ pixAvailable: false, cardAvailable: false, savedCardAvailable: false, publicKey: '' });
   const [savedCard, setSavedCard] = useState(null);
   const [savedCardLoading, setSavedCardLoading] = useState(true);
@@ -1212,10 +1211,10 @@ export default function DashboardLayout({ children }) {
                 }}
               >
                 <option value="" disabled>Selecione sua forma de pagamento</option>
-                {PAYMENT_METHODS.map(({ value, label }) => <option key={value} value={value}>{label}</option>)}
+                {PAYMENT_METHODS.map(({ value, label, recommended }) => <option key={value} value={value}>{recommended ? `${label} — recomendado` : label}</option>)}
               </select>
             </label>
-            <small className="checkout-field-hint">Obrigatória para concluir o pedido. <Link href="/dashboard/payment-methods">Gerenciar formas de pagamento</Link></small>
+            <small className="checkout-field-hint">{paymentMethod === 'pix' ? 'Pix recomendado; você pode trocar antes de concluir o pedido.' : 'Obrigatória para concluir o pedido.'} <Link href="/dashboard/payment-methods">Gerenciar formas de pagamento</Link></small>
             {['pix', 'cartao'].includes(paymentMethod) && <div className="checkout-field-hint" role="status">
               <p>Para concluir com Pix ou cartão, precisamos do seu CPF e celular com DDD no perfil. Esses dados são usados no processamento do pagamento; a inclusão do CPF no comprovante é uma escolha separada.</p>
               {profileCpf.replace(/\D/g, '').length !== 11 || ![10, 11].includes(profilePhone.replace(/\D/g, '').replace(/^55(?=\d{10,11}$)/, '').length)

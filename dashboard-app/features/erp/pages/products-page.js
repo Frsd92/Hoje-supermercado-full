@@ -2,8 +2,9 @@
 
 import Link from 'next/link';
 import { ArrowLeft, ArrowRight, CalendarClock, Check, ImagePlus, Plus, Save, Trash2 } from 'lucide-react';
-import { useEffect, useState } from 'react';
+import { useCallback, useEffect, useRef, useState } from 'react';
 import { formatAuditValue } from '../api/product-audit.js';
+import { normalizeProductBarcode } from '../api/product-barcode-lookup.js';
 import { getProductOrganizationError, normalizeProductOrganizationValue, usesHortifrutiOrganization } from '../product-organization.js';
 import { calculateProductPricing, formatBRL, parseBRL, parsePercent, priceFromMarkup, roundMoney } from './product-pricing.js';
 import { encodeProductImage } from './product-image.js';
@@ -23,12 +24,17 @@ export default function ERPProductsPage() {
   const [feedback, setFeedback] = useState('');
   const [activeTab, setActiveTab] = useState('Geral');
   const [newBarcode, setNewBarcode] = useState('');
+  const [barcodeLookupStatus, setBarcodeLookupStatus] = useState('idle');
+  const [barcodeLookupMessage, setBarcodeLookupMessage] = useState('');
+  const [barcodeSuggestion, setBarcodeSuggestion] = useState('');
   const [newTag, setNewTag] = useState('');
   const [saving, setSaving] = useState(false);
   const [auditEntries, setAuditEntries] = useState([]);
   const [auditLoading, setAuditLoading] = useState(false);
   const [auditError, setAuditError] = useState('');
   const [auditRefresh, setAuditRefresh] = useState(0);
+  const barcodeLookupController = useRef(null);
+  const lastBarcodeLookup = useRef('');
   const isEditing = Boolean(editId);
   const update = (key, value) => setProduct((current) => {
     const next = { ...current, [key]: value };
@@ -46,7 +52,66 @@ export default function ERPProductsPage() {
   const toggleCategory = (category) => update('categories', product.categories.includes(category) ? product.categories.filter((item) => item !== category) : [...product.categories, category]);
   const togglePriceType = (type) => update('featuredPriceTypes', product.featuredPriceTypes.includes(type) ? product.featuredPriceTypes.filter((item) => item !== type) : [...product.featuredPriceTypes, type]);
   const addListValue = (key, value, clear) => { const normalized = String(value || '').trim(); if (!normalized) return; update(key, [...new Set([...(product[key] || []), normalized])]); clear(''); };
-  const removeListValue = (key, value) => update(key, (product[key] || []).filter((item) => item !== value));
+  const removeListValue = (key, value) => setProduct((current) => {
+    const nextValues = (current[key] || []).filter((item) => item !== value);
+    return {
+      ...current,
+      [key]: nextValues,
+      ...(key === 'barcodes' && current.barcode === value ? { barcode: nextValues[0] || '' } : {}),
+    };
+  });
+  const lookupProductByBarcode = useCallback(async (value) => {
+    const barcode = normalizeProductBarcode(value);
+    if (!barcode || lastBarcodeLookup.current === barcode) return;
+
+    lastBarcodeLookup.current = barcode;
+    barcodeLookupController.current?.abort();
+    const controller = new AbortController();
+    barcodeLookupController.current = controller;
+    setBarcodeLookupStatus('loading');
+    setBarcodeLookupMessage('Consultando o catálogo de produtos...');
+    setBarcodeSuggestion('');
+
+    try {
+      const response = await fetch(`/api/products/lookup-barcode?barcode=${encodeURIComponent(barcode)}`, {
+        cache: 'no-store',
+        signal: controller.signal,
+      });
+      const data = await response.json();
+      if (controller.signal.aborted) return;
+      if (!response.ok) {
+        if (response.status === 404) {
+          setBarcodeLookupStatus('not-found');
+          setBarcodeLookupMessage(data.error || 'Código não encontrado. Informe o nome manualmente.');
+          return;
+        }
+        throw new Error(data.error || 'Não foi possível consultar o catálogo.');
+      }
+
+      const productName = String(data.productName || '').trim();
+      if (!productName) {
+        setBarcodeLookupStatus('not-found');
+        setBarcodeLookupMessage('O catálogo não retornou um nome. Informe o nome manualmente.');
+        return;
+      }
+
+      setBarcodeSuggestion(productName);
+      setBarcodeLookupStatus('found');
+      setBarcodeLookupMessage(`Sugestão do Open Food Facts: ${productName}. Confira antes de salvar.`);
+      setProduct((current) => ({
+        ...current,
+        barcode: current.barcode || barcode,
+        barcodes: [...new Set([...(current.barcodes || []), barcode])],
+        title: String(current.title || '').trim() ? current.title : productName,
+      }));
+    } catch (error) {
+      if (controller.signal.aborted) return;
+      lastBarcodeLookup.current = '';
+      console.error('Não foi possível buscar o produto pelo código de barras:', error);
+      setBarcodeLookupStatus('error');
+      setBarcodeLookupMessage(error.message || 'Não foi possível consultar o catálogo. Informe o nome manualmente.');
+    }
+  }, []);
   const updatePromotionalPrice = (value) => {
     update('promotionalPrice', value);
   };
@@ -93,6 +158,25 @@ export default function ERPProductsPage() {
     };
     reader.readAsDataURL(file);
   };
+  useEffect(() => {
+    const barcode = normalizeProductBarcode(newBarcode);
+    if (!barcode) {
+      barcodeLookupController.current?.abort();
+      lastBarcodeLookup.current = '';
+      setBarcodeLookupStatus('idle');
+      setBarcodeLookupMessage('');
+      setBarcodeSuggestion('');
+      return undefined;
+    }
+
+    const timeout = setTimeout(() => {
+      void lookupProductByBarcode(barcode);
+    }, 700);
+    return () => {
+      clearTimeout(timeout);
+      barcodeLookupController.current?.abort();
+    };
+  }, [newBarcode, lookupProductByBarcode]);
   useEffect(() => {
     const searchParams = new URLSearchParams(window.location.search);
     setEditId(searchParams.get('edit') || '');
@@ -173,7 +257,9 @@ export default function ERPProductsPage() {
     const effectivePrice = promotionalPrice > 0 ? promotionalPrice : discountedPrice;
     const profitMarginValue = roundMoney(effectivePrice - cost);
     try {
-      const response = await fetch('/api/products', { method: isEditing ? 'PUT' : 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ ...product, fractionalSale: product.saleUnit === 'Quilograma', price, cost, promotionalPrice, profitMarginPercent: effectivePrice > 0 ? Number(((profitMarginValue / effectivePrice) * 100).toFixed(2)) : 0, profitMarginValue, markupPercent, barcodes: [...new Set([...(product.barcodes || []), product.barcode].filter(Boolean))], barcode: product.barcodes?.[0] || product.barcode || '', discount, quantity: isEditing ? Number(product.quantity || 0) : 0 }) });
+      const scannedBarcode = normalizeProductBarcode(newBarcode);
+      const productBarcodes = [...new Set([...(product.barcodes || []), product.barcode, scannedBarcode].filter(Boolean))];
+      const response = await fetch('/api/products', { method: isEditing ? 'PUT' : 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ ...product, fractionalSale: product.saleUnit === 'Quilograma', price, cost, promotionalPrice, profitMarginPercent: effectivePrice > 0 ? Number(((profitMarginValue / effectivePrice) * 100).toFixed(2)) : 0, profitMarginValue, markupPercent, barcodes: productBarcodes, barcode: productBarcodes[0] || '', discount, quantity: isEditing ? Number(product.quantity || 0) : 0 }) });
       const data = await response.json();
       if (!response.ok) throw new Error(data.error || 'Não foi possível salvar o produto.');
       if (!isEditing) {
@@ -200,6 +286,10 @@ export default function ERPProductsPage() {
   const priceTypes = ['Promoção', 'Oferta', 'Clube Hoje', 'Super Hoje'];
   const calculatedFields = ['profitMarginPercent', 'profitMarginValue'];
   const requiresHortifrutiOrganization = usesHortifrutiOrganization(product);
+  const normalizedNewBarcode = normalizeProductBarcode(newBarcode);
+  const barcodeAlreadyAdded = Boolean(normalizedNewBarcode && (
+    product.barcode === normalizedNewBarcode || product.barcodes.includes(normalizedNewBarcode)
+  ));
   const field = (label, key, type = 'text', inputProps = {}) => <label>{label}<input {...inputProps} type={type === 'currency' ? 'text' : type} inputMode={type === 'currency' ? 'decimal' : undefined} value={product[key] ?? ''} readOnly={Boolean(inputProps.readOnly) || calculatedFields.includes(key)} onChange={(event) => {
     const value = event.target.value;
     if (key === 'promotionalPrice') updatePromotionalPrice(value);
@@ -210,7 +300,7 @@ export default function ERPProductsPage() {
     <header className="product-editor-header"><div className="product-editor-heading"><a href="/erp/products" className="back-link"><ArrowLeft size={17} /></a><div><span className="eyebrow">Cadastro de produto</span><h1>{isEditing ? 'Alterar cadastro' : 'Cadastrar produto'}</h1></div></div><button className="primary-cta" disabled={saving}><Save size={15} /> {saving ? 'Salvando...' : isEditing ? 'Salvar alterações' : 'Salvar produto'}</button></header>
     <div className="product-editor-tabs">{tabs.map((tab) => <button type="button" key={tab} className={activeTab === tab ? 'active' : ''} onClick={() => setActiveTab(tab)}>{tab}</button>)}</div>
     <div className="product-editor-layout"><main className="product-editor-main">
-      {activeTab === 'Geral' && <><section className="editor-card"><h2>Informações do produto</h2>{field('Nome do produto', 'title')}<label>Descrição<textarea value={product.description} onChange={(event) => update('description', event.target.value)} rows="4" /></label><div className="editor-form-grid three">{field('SKU', 'sku')}{field('Marca', 'brand')}{field('Fabricante', 'manufacturer')}</div></section><section className="editor-card"><h2>Códigos de barras</h2><div className="editor-inline"><input value={newBarcode} onChange={(event) => setNewBarcode(event.target.value)} placeholder="EAN, GTIN ou código interno" /><button type="button" className="editor-link" onClick={() => addListValue('barcodes', newBarcode, setNewBarcode)}><Plus size={15} /> Adicionar</button></div><div className="editor-chip-list">{product.barcodes.map((code) => <span key={code}>{code}<button type="button" onClick={() => removeListValue('barcodes', code)} aria-label={`Remover código ${code}`}><Trash2 size={13} /></button></span>)}</div></section><section className="editor-card"><h2>Organização</h2><div className="editor-form-grid three">{field('Departamento', 'department', 'text', { placeholder: 'Ex.: Hortifruti', required: requiresHortifrutiOrganization })}{field('Categoria (ex.: Fruta)', 'subcategory', 'text', { placeholder: 'Ex.: Fruta', required: requiresHortifrutiOrganization })}{field('Coleção', 'collection')}{field('Tipo de produto', 'productType')}{field('Fornecedor principal', 'supplier')}{field('Status', 'status')}</div>{requiresHortifrutiOrganization && <p className="product-organization-help"><strong>Organização de Hortifruti:</strong> selecione Hortifruti em Categorias, preencha Departamento como Hortifruti e informe uma categoria específica, como Fruta ou Verdura. Esse campo define o rótulo exibido no produto.</p>}<p className="editor-hint">Categorias principais</p><div className="category-checklist">{categories.map((category) => <label key={category}><input type="checkbox" checked={product.categories.includes(category)} onChange={() => toggleCategory(category)} /> {category}</label>)}</div></section></>}
+      {activeTab === 'Geral' && <><section className="editor-card product-barcode-lookup"><h2>Buscar nome pelo código de barras</h2><p className="editor-hint">Leia com um scanner ou digite o código. A busca é automática; o nome sugerido pode ser revisado antes de salvar.</p><label htmlFor="product-barcode-lookup-input">Código de barras</label><div className="editor-inline"><input id="product-barcode-lookup-input" value={newBarcode} onChange={(event) => { setNewBarcode(event.target.value); setBarcodeLookupStatus('idle'); setBarcodeLookupMessage(''); setBarcodeSuggestion(''); }} onKeyDown={(event) => { if (event.key === 'Enter') { event.preventDefault(); void lookupProductByBarcode(newBarcode); } }} autoComplete="off" inputMode="numeric" placeholder="Escaneie ou digite 8 a 14 dígitos" aria-describedby="product-barcode-lookup-help product-barcode-lookup-status" /><button type="button" className="editor-link" disabled={!newBarcode.trim() || barcodeAlreadyAdded} onClick={() => addListValue('barcodes', normalizedNewBarcode || newBarcode, setNewBarcode)}><Plus size={15} /> Adicionar</button></div><p id="product-barcode-lookup-help" className="editor-hint">A busca automática consulta um catálogo público. Códigos internos também podem ser adicionados manualmente; confira os dados antes de salvar.</p><div id="product-barcode-lookup-status" className={`product-barcode-lookup-status ${barcodeLookupStatus}`} role={barcodeLookupStatus === 'error' ? 'alert' : 'status'} aria-live="polite">{barcodeLookupMessage}</div>{barcodeLookupStatus === 'found' && barcodeSuggestion && String(product.title || '').trim() !== barcodeSuggestion && <button type="button" className="editor-link product-barcode-suggestion" onClick={() => setProduct((current) => ({ ...current, title: barcodeSuggestion }))}>Usar nome encontrado: {barcodeSuggestion}</button>}{barcodeLookupStatus === 'error' && <button type="button" className="editor-link product-barcode-suggestion" onClick={() => { lastBarcodeLookup.current = ''; void lookupProductByBarcode(newBarcode); }}>Tentar novamente</button>}</section><section className="editor-card"><h2>Informações do produto</h2>{field('Nome do produto', 'title')}<label>Descrição<textarea value={product.description} onChange={(event) => update('description', event.target.value)} rows="4" /></label><div className="editor-form-grid three">{field('SKU', 'sku')}{field('Marca', 'brand')}{field('Fabricante', 'manufacturer')}</div></section><section className="editor-card"><h2>Códigos de barras</h2><div className="editor-chip-list">{product.barcodes.map((code) => <span key={code}>{code}<button type="button" onClick={() => removeListValue('barcodes', code)} aria-label={`Remover código ${code}`}><Trash2 size={13} /></button></span>)}</div></section><section className="editor-card"><h2>Organização</h2><div className="editor-form-grid three">{field('Departamento', 'department', 'text', { placeholder: 'Ex.: Hortifruti', required: requiresHortifrutiOrganization })}{field('Categoria (ex.: Fruta)', 'subcategory', 'text', { placeholder: 'Ex.: Fruta', required: requiresHortifrutiOrganization })}{field('Coleção', 'collection')}{field('Tipo de produto', 'productType')}{field('Fornecedor principal', 'supplier')}{field('Status', 'status')}</div>{requiresHortifrutiOrganization && <p className="product-organization-help"><strong>Organização de Hortifruti:</strong> selecione Hortifruti em Categorias, preencha Departamento como Hortifruti e informe uma categoria específica, como Fruta ou Verdura. Esse campo define o rótulo exibido no produto.</p>}<p className="editor-hint">Categorias principais</p><div className="category-checklist">{categories.map((category) => <label key={category}><input type="checkbox" checked={product.categories.includes(category)} onChange={() => toggleCategory(category)} /> {category}</label>)}</div></section></>}
       {activeTab === 'Preço' && <><section className="editor-card"><h2>Preços e markup</h2><div className="editor-form-grid three">{field(product.saleUnit === 'Quilograma' ? 'Custo por kg' : 'Custo de compra', 'cost', 'currency')}{field(product.saleUnit === 'Quilograma' ? 'Preço de venda por kg' : 'Preço de venda', 'price', 'currency')}{field(product.saleUnit === 'Quilograma' ? 'Preço promocional por kg' : 'Preço promocional', 'promotionalPrice', 'currency')}{field('Desconto (%)', 'discount', 'number')}{field('Margem de lucro (%)', 'profitMarginPercent', 'number')}{field('Margem de lucro (R$)', 'profitMarginValue', 'currency')}{field('Markup (%)', 'markupPercent', 'number')}</div><div className="effective-price-note">Preço efetivo considerado: <strong>{product.effectivePrice || 'informe os preços'}</strong><small>Usa o preço promocional quando informado; caso contrário, usa o preço de venda.</small></div><p className="editor-hint">O markup calcula automaticamente: custo de compra × (1 + markup ÷ 100) = preço de venda. Promoção e desconto atualizam a margem com base no preço efetivo.</p><div className="markup-suggestion"><strong>Sugestão para {selectedSuggestionCategory || 'a categoria selecionada'}</strong><span>Markup sugerido: {product.suggestedMarkup || 'selecione uma categoria'}</span><small>{markupStrategy[selectedSuggestionCategory] || 'Escolha uma categoria para receber uma referência de precificação.'}</small></div><label>Tipo de preço<select value={product.priceType} onChange={(event) => update('priceType', event.target.value)}><option>Normal</option>{priceTypes.map((type) => <option key={type}>{type}</option>)}</select></label><div className="product-classification-guide"><p><strong>Tipo de preço:</strong> classifica a estratégia comercial. Ele, sozinho, não altera o valor nem cria um selo na loja.</p><p><strong>Tipos de vitrine:</strong> definem os selos que aparecem no card do produto.</p><ul><li><strong>Oferta:</strong> selo no card, carrossel “Ofertas em destaque” e página de ofertas.</li><li><strong>Promoção, Clube Hoje e Super Hoje:</strong> exibem os respectivos selos no card.</li></ul></div><p className="editor-hint">Tipos de vitrine — selecione todos os selos que devem aparecer no produto.</p><div className="price-type-bubbles">{priceTypes.map((type) => <button type="button" key={type} className={product.featuredPriceTypes.includes(type) ? 'active' : ''} onClick={() => togglePriceType(type)}>{type}</button>)}</div></section><section className="editor-card"><h2>Promoção</h2><div className="editor-form-grid three">{field('Data inicial', 'promotionStart', 'date')}{field('Data final', 'promotionEnd', 'date')}{field('Limite por cliente', 'promotionLimit', 'number')}{field('Estoque promocional', 'promotionStock', 'number')}{field('Tipo de promoção', 'promotionType')}</div></section></>}
       {activeTab === 'Estoque' && <><section className="editor-card">
         <h2>Estoque e rastreabilidade</h2>

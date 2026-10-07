@@ -1,9 +1,9 @@
 export const PAYMENT_METHODS = [
-  { value: 'pix', label: 'Pix', description: 'Pague com um código Pix e acompanhe a confirmação no pedido.' },
+  { value: 'pix', label: 'Pix', recommended: true, description: 'Recomendado: pague com Pix e acompanhe a confirmação do pedido.' },
   { value: 'cartao', label: 'Cartão de crédito', description: 'Use o cartão salvo nesta conta e confirme cada compra no checkout.' },
 ];
 
-export const DEFAULT_PAYMENT_METHOD = null;
+export const DEFAULT_PAYMENT_METHOD = 'pix';
 export const PAYMENT_METHOD_UPDATED_EVENT = 'dashboard-payment-method-updated';
 export const SAVED_CARD_UPDATED_EVENT = 'dashboard-saved-card-updated';
 
@@ -17,7 +17,7 @@ export function getPaymentMethodStorageKey(email) {
 
 export function readPaymentMethod(email) {
   const storedMethod = localStorage.getItem(getPaymentMethodStorageKey(email));
-  return isPaymentMethod(storedMethod) ? storedMethod : null;
+  return isPaymentMethod(storedMethod) ? storedMethod : DEFAULT_PAYMENT_METHOD;
 }
 
 export function savePaymentMethod(email, method) {

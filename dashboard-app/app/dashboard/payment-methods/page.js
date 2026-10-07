@@ -5,7 +5,6 @@ import { useSession } from 'next-auth/react';
 import { Check, CreditCard, Plus, QrCode, Trash2 } from 'lucide-react';
 import { useEffect, useRef, useState } from 'react';
 import {
-  DEFAULT_PAYMENT_METHOD,
   PAYMENT_METHODS,
   PAYMENT_METHOD_UPDATED_EVENT,
   SAVED_CARD_UPDATED_EVENT,
@@ -21,7 +20,7 @@ const paymentMethodIcons = {
 
 export default function PaymentMethodsPage() {
   const { data: session, status } = useSession();
-  const [paymentMethod, setPaymentMethod] = useState(DEFAULT_PAYMENT_METHOD);
+  const [paymentMethod, setPaymentMethod] = useState(null);
   const [isReady, setIsReady] = useState(false);
   const [feedback, setFeedback] = useState(null);
   const [savedCard, setSavedCard] = useState(null);
@@ -408,7 +407,7 @@ export default function PaymentMethodsPage() {
           <Check size={19} aria-hidden="true" />
           <div>
             <h2 id="payment-methods-heading">Preferência de pagamento</h2>
-            <p>Escolha uma opção; você pode alterá-la no checkout.</p>
+            <p>O Pix é recomendado e fica pré-selecionado se você ainda não salvou uma preferência. Você pode alterá-la no checkout.</p>
           </div>
         </div>
 
@@ -433,7 +432,10 @@ export default function PaymentMethodsPage() {
                 <span className="payment-method-card">
                   <span className="payment-method-icon" aria-hidden="true"><Icon size={19} /></span>
                   <span className="payment-method-copy">
-                    <strong>{method.label}</strong>
+                    <span className="payment-method-title-row">
+                      <strong>{method.label}</strong>
+                      {method.recommended && <span className="payment-method-recommended">Recomendado</span>}
+                    </span>
                     <small>{method.description}</small>
                   </span>
                   <span className="payment-method-selection" aria-hidden="true">{selected && <Check size={15} />}</span>
