@@ -5,6 +5,7 @@ import {
   DEFAULT_PAYMENT_METHOD,
   PAYMENT_METHOD_UPDATED_EVENT,
   PAYMENT_METHODS,
+  SAVED_CARD_UPDATED_EVENT,
   getPaymentMethodStorageKey,
   isPaymentMethod,
   readPaymentMethod,
@@ -14,6 +15,7 @@ import {
 test('exposes only payment methods available to customers', () => {
   assert.deepEqual(PAYMENT_METHODS.map(({ value }) => value), ['pix', 'cartao']);
   assert.equal(DEFAULT_PAYMENT_METHOD, null);
+  assert.equal(SAVED_CARD_UPDATED_EVENT, 'dashboard-saved-card-updated');
   assert.equal(isPaymentMethod('cartao'), true);
   assert.equal(isPaymentMethod('dinheiro'), false);
   assert.equal(isPaymentMethod('outro'), false);

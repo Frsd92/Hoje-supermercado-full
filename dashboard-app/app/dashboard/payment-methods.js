@@ -1,10 +1,11 @@
 export const PAYMENT_METHODS = [
   { value: 'pix', label: 'Pix · Pagar.me', description: 'Pagamento online com QR Code e confirmação automática.' },
-  { value: 'cartao', label: 'Cartão · Pagar.me', description: 'Cartão tokenizado no navegador e confirmação automática.' },
+  { value: 'cartao', label: 'Cartão · Pagar.me', description: 'Use o cartão salvo em Formas de pagamento no Dashboard.' },
 ];
 
 export const DEFAULT_PAYMENT_METHOD = null;
 export const PAYMENT_METHOD_UPDATED_EVENT = 'dashboard-payment-method-updated';
+export const SAVED_CARD_UPDATED_EVENT = 'dashboard-saved-card-updated';
 
 export function isPaymentMethod(value) {
   return PAYMENT_METHODS.some((method) => method.value === value);

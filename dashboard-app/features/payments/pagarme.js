@@ -69,6 +69,7 @@ export function buildPagarmeOrderPayload({
   customer,
   paymentMethod,
   cardToken,
+  savedCard,
   address,
 }) {
   if (!['pix', 'cartao'].includes(paymentMethod)) {
@@ -115,7 +116,18 @@ export function buildPagarmeOrderPayload({
     .filter((item) => item.amount > 0);
 
   const creditCard = paymentMethod === 'cartao';
-  if (creditCard && !/^token_[A-Za-z0-9]+$/.test(String(cardToken || ''))) {
+  const validCardToken = /^token_[A-Za-z0-9]+$/.test(String(cardToken || ''));
+  const savedCustomerId = String(savedCard?.customerId || '');
+  const savedCardId = String(savedCard?.cardId || '');
+  const validSavedCard = /^cus_[A-Za-z0-9]+$/.test(savedCustomerId)
+    && /^card_[A-Za-z0-9]+$/.test(savedCardId);
+  if (savedCard && !validSavedCard) {
+    throw new Error('O cartão salvo não está disponível para pagamento.');
+  }
+  if (creditCard && validSavedCard && cardToken) {
+    throw new Error('Escolha entre o cartão salvo e um novo cartão para continuar.');
+  }
+  if (creditCard && !validSavedCard && !validCardToken) {
     throw new Error('O cartão precisa ser tokenizado novamente antes do pagamento.');
   }
 
@@ -123,7 +135,7 @@ export function buildPagarmeOrderPayload({
     ? {
       payment_method: 'credit_card',
       credit_card: {
-        card_token: cardToken,
+        ...(validSavedCard ? { card_id: savedCardId } : { card_token: cardToken }),
         installments: 1,
         operation_type: 'auth_and_capture',
         statement_descriptor: 'HOJE SUPERM',
@@ -138,13 +150,17 @@ export function buildPagarmeOrderPayload({
   return {
     code: String(orderId).slice(0, 52),
     items: pagarmeItems,
-    customer: {
-      name: String(customer.name).trim().slice(0, 64),
-      email: String(customer.email).trim().toLowerCase().slice(0, 64),
-      type: 'individual',
-      document,
-      phones: { mobile_phone: phone },
-    },
+    ...(validSavedCard
+      ? { customer_id: savedCustomerId }
+      : {
+        customer: {
+          name: String(customer.name).trim().slice(0, 64),
+          email: String(customer.email).trim().toLowerCase().slice(0, 64),
+          type: 'individual',
+          document,
+          phones: { mobile_phone: phone },
+        },
+      }),
     payments: [payment],
     metadata: { internal_order_id: String(orderId) },
   };
@@ -236,6 +252,43 @@ export function createPagarmeOrder(payload, orderId) {
     method: 'POST',
     body: payload,
     idempotencyKey: orderId,
+  });
+}
+
+export function createPagarmeCustomer(payload) {
+  return pagarmeRequest('/customers', {
+    method: 'POST',
+    body: payload,
+  });
+}
+
+export function createPagarmeCustomerCard(customerId, token, idempotencyKey, { fetchImpl, secretKey } = {}) {
+  if (!/^cus_[A-Za-z0-9]+$/.test(String(customerId || ''))) {
+    throw new Error('O cliente da Pagar.me não é válido.');
+  }
+  if (!/^token_[A-Za-z0-9]+$/.test(String(token || ''))) {
+    throw new Error('O cartão precisa ser tokenizado antes de ser salvo.');
+  }
+  const requestOptions = {
+    method: 'POST',
+    body: { token },
+    idempotencyKey,
+    secretKey,
+  };
+  if (fetchImpl) requestOptions.fetchImpl = fetchImpl;
+  return pagarmeRequest(`/customers/${encodeURIComponent(customerId)}/cards`, {
+    ...requestOptions,
+  });
+}
+
+export function deletePagarmeCustomerCard(customerId, cardId, fetchImpl) {
+  if (!/^cus_[A-Za-z0-9]+$/.test(String(customerId || '')) || !/^card_[A-Za-z0-9]+$/.test(String(cardId || ''))) {
+    throw new Error('O cartão salvo não é válido.');
+  }
+  const requestOptions = { method: 'DELETE' };
+  if (fetchImpl) requestOptions.fetchImpl = fetchImpl;
+  return pagarmeRequest(`/customers/${encodeURIComponent(customerId)}/cards/${encodeURIComponent(cardId)}`, {
+    ...requestOptions,
   });
 }
 

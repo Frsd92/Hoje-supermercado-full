@@ -157,17 +157,48 @@ export async function POST(request) {
   } catch {
     return Response.json({ error: 'Os dados enviados são inválidos.' }, { status: 400, headers: corsHeaders(request) });
   }
+  if (!body || typeof body !== 'object' || Array.isArray(body)) {
+    return Response.json({ error: 'Os dados enviados são inválidos.' }, { status: 400, headers: corsHeaders(request) });
+  }
+  if ([
+    'number',
+    'cvv',
+    'cardNumber',
+    'cardCvv',
+    'card_number',
+    'card_cvv',
+    'holder_name',
+    'holderName',
+    'exp_month',
+    'expMonth',
+    'exp_year',
+    'expYear',
+  ].some((field) => Object.hasOwn(body, field))) {
+    return Response.json({ error: 'Envie somente o token seguro do cartão ou selecione um cartão salvo.' }, { status: 400, headers: corsHeaders(request) });
+  }
   if (!Array.isArray(body?.items) || !body.items.length || !String(body?.addressId || '').trim()) {
     return Response.json({ error: 'Itens e endereço de entrega são obrigatórios.' }, { status: 400, headers: corsHeaders(request) });
   }
   if (!['pix', 'cartao'].includes(body.paymentMethod)) {
     return Response.json({ error: 'Selecione uma forma de pagamento válida antes de finalizar.' }, { status: 400, headers: corsHeaders(request) });
   }
+  if (body.useSavedCard !== undefined && typeof body.useSavedCard !== 'boolean') {
+    return Response.json({ error: 'A seleção do cartão salvo é inválida.' }, { status: 400, headers: corsHeaders(request) });
+  }
+  if (body.useSavedCard && body.paymentMethod !== 'cartao') {
+    return Response.json({ error: 'O cartão salvo só pode ser usado em pagamentos com cartão.' }, { status: 400, headers: corsHeaders(request) });
+  }
+  if (body.useSavedCard && body.cardToken) {
+    return Response.json({ error: 'Escolha entre o cartão salvo e um novo cartão para continuar.' }, { status: 400, headers: corsHeaders(request) });
+  }
+  if (body.cardToken && !/^token_[A-Za-z0-9]+$/.test(String(body.cardToken))) {
+    return Response.json({ error: 'O cartão precisa ser tokenizado pela Pagar.me antes do pagamento.' }, { status: 400, headers: corsHeaders(request) });
+  }
   const usesPagarme = body.paymentMethod === 'pix' || body.paymentMethod === 'cartao';
   if (usesPagarme && !process.env.PAGARME_SECRET_KEY) {
     return Response.json({ error: 'O pagamento online ainda não está configurado. Tente novamente mais tarde.' }, { status: 503, headers: corsHeaders(request) });
   }
-  if (body.paymentMethod === 'cartao' && !process.env.PAGARME_PUBLIC_KEY) {
+  if (body.paymentMethod === 'cartao' && !body.useSavedCard && !process.env.PAGARME_PUBLIC_KEY) {
     return Response.json({ error: 'A tokenização segura do cartão ainda não está configurada. Escolha Pix ou tente mais tarde.' }, { status: 503, headers: corsHeaders(request) });
   }
   if (typeof body.includeCpfOnReceipt !== 'boolean') {
@@ -210,7 +241,13 @@ export async function POST(request) {
     try {
       customerProfile = await prisma.customerProfile.findUnique({
         where: { email },
-        select: { cpf: true, whatsapp: true, fullName: true },
+        select: {
+          cpf: true,
+          whatsapp: true,
+          fullName: true,
+          pagarmeCustomerId: true,
+          pagarmeCardId: true,
+        },
       });
     } catch (error) {
       console.error('Não foi possível consultar os dados de pagamento do perfil:', error);
@@ -223,6 +260,9 @@ export async function POST(request) {
     }
     if (!splitBrazilianMobilePhone(customerProfile?.whatsapp)) {
       return Response.json({ error: 'Cadastre um celular com DDD no perfil para pagar com Pix ou cartão.' }, { status: 422, headers: corsHeaders(request) });
+    }
+    if (body.useSavedCard && (!customerProfile?.pagarmeCustomerId || !customerProfile?.pagarmeCardId)) {
+      return Response.json({ error: 'Não há cartão salvo disponível. Cadastre um cartão no Dashboard ou informe outro cartão.' }, { status: 422, headers: corsHeaders(request) });
     }
   }
 
@@ -367,6 +407,9 @@ export async function POST(request) {
         },
         paymentMethod,
         cardToken: body.cardToken,
+        savedCard: body.useSavedCard
+          ? { customerId: customerProfile.pagarmeCustomerId, cardId: customerProfile.pagarmeCardId }
+          : null,
         address: normalizedAddress,
       });
     } catch (error) {

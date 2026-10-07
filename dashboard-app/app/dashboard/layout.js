@@ -12,6 +12,7 @@ import {
   DEFAULT_PAYMENT_METHOD,
   PAYMENT_METHODS,
   PAYMENT_METHOD_UPDATED_EVENT,
+  SAVED_CARD_UPDATED_EVENT,
   isPaymentMethod,
   readPaymentMethod,
   savePaymentMethod,
@@ -98,7 +99,10 @@ export default function DashboardLayout({ children }) {
   const [selectedAddressId, setSelectedAddressId] = useState('');
   const [deliveryAddressOpen, setDeliveryAddressOpen] = useState(false);
   const [paymentMethod, setPaymentMethod] = useState(DEFAULT_PAYMENT_METHOD);
-  const [pagarmeConfig, setPagarmeConfig] = useState({ pixAvailable: false, cardAvailable: false, publicKey: '' });
+  const [pagarmeConfig, setPagarmeConfig] = useState({ pixAvailable: false, cardAvailable: false, savedCardAvailable: false, publicKey: '' });
+  const [savedCard, setSavedCard] = useState(null);
+  const [savedCardLoading, setSavedCardLoading] = useState(true);
+  const [savedCardError, setSavedCardError] = useState('');
   const [profileCpf, setProfileCpf] = useState('');
   const [profilePhone, setProfilePhone] = useState('');
   const [cpfNoteDialogOpen, setCpfNoteDialogOpen] = useState(false);
@@ -134,7 +138,6 @@ export default function DashboardLayout({ children }) {
   const cpfNoteNoButtonRef = useRef(null);
   const cartPanelRef = useRef(null);
   const cartOpenerRef = useRef(null);
-  const cardFieldsRef = useRef(null);
   const checkoutRequestIdRef = useRef(null);
   const cartItemsRef = useRef([]);
   const cartWriteQueueRef = useRef(Promise.resolve());
@@ -194,9 +197,6 @@ export default function DashboardLayout({ children }) {
       if (event.detail?.email !== accountEmail || !isPaymentMethod(event.detail?.method)) return;
       checkoutRequestIdRef.current = null;
       setCheckoutOrderId('');
-      if (event.detail.method !== 'cartao') {
-        cardFieldsRef.current?.querySelectorAll('input').forEach((input) => { input.value = ''; });
-      }
       setPaymentMethod(event.detail.method);
     };
 
@@ -332,12 +332,56 @@ export default function DashboardLayout({ children }) {
       })
       .catch((error) => {
         console.error('Não foi possível verificar a configuração do Pagar.me:', error);
-        if (active) setPagarmeConfig({ pixAvailable: false, cardAvailable: false, publicKey: '' });
+        if (active) setPagarmeConfig({ pixAvailable: false, cardAvailable: false, savedCardAvailable: false, publicKey: '' });
       });
     return () => {
       active = false;
     };
   }, []);
+
+  useEffect(() => {
+    let active = true;
+    if (sessionStatus !== 'authenticated' || !session?.user?.email) {
+      setSavedCard(null);
+      setSavedCardLoading(false);
+      setSavedCardError('');
+      return () => {
+        active = false;
+      };
+    }
+
+    setSavedCardLoading(true);
+    setSavedCardError('');
+    const loadSavedCard = async () => {
+      try {
+        const response = await fetch('/api/my/payment-methods', { cache: 'no-store' });
+        const data = await response.json();
+        if (!response.ok) throw new Error(data.error || 'Não foi possível verificar o cartão salvo.');
+        if (active) {
+          setSavedCard(data.card || null);
+          setSavedCardError('');
+        }
+      } catch (error) {
+        if (active) {
+          setSavedCard(null);
+          setSavedCardError(error.message || 'Não foi possível verificar o cartão salvo.');
+        }
+      } finally {
+        if (active) setSavedCardLoading(false);
+      }
+    };
+    const handleSavedCardUpdate = () => {
+      checkoutRequestIdRef.current = null;
+      void loadSavedCard();
+    };
+
+    void loadSavedCard();
+    window.addEventListener(SAVED_CARD_UPDATED_EVENT, handleSavedCardUpdate);
+    return () => {
+      active = false;
+      window.removeEventListener(SAVED_CARD_UPDATED_EVENT, handleSavedCardUpdate);
+    };
+  }, [sessionStatus, session?.user?.email]);
 
   useEffect(() => {
     const addressStorageKey = deliveryAddressStorageKey(session?.user?.email);
@@ -668,8 +712,14 @@ export default function DashboardLayout({ children }) {
     if (paymentMethod === 'pix' && !pagarmeConfig.pixAvailable) {
       return setCheckoutStatus('O Pix pela Pagar.me ainda não está configurado. Escolha outro método ou tente mais tarde.');
     }
-    if (paymentMethod === 'cartao' && !pagarmeConfig.cardAvailable) {
-      return setCheckoutStatus('O cartão pela Pagar.me ainda não está configurado. Escolha outro método ou tente mais tarde.');
+    if (paymentMethod === 'cartao' && savedCardLoading) {
+      return setCheckoutStatus('Estamos verificando seus cartões salvos. Aguarde um instante.');
+    }
+    if (paymentMethod === 'cartao' && !savedCard) {
+      return setCheckoutStatus('Cadastre um cartão em Dashboard > Formas de pagamento antes de finalizar pelo cartão.');
+    }
+    if (paymentMethod === 'cartao' && !pagarmeConfig.savedCardAvailable) {
+      return setCheckoutStatus('O pagamento com cartão pela Pagar.me está indisponível no momento. Tente mais tarde.');
     }
     if (['pix', 'cartao'].includes(paymentMethod)) {
       const cpf = String(profileCpf).replace(/\D/g, '');
@@ -682,53 +732,6 @@ export default function DashboardLayout({ children }) {
     setCheckoutStatus('');
     setCheckoutOrderId('');
     setCpfNoteDialogOpen(true);
-  };
-
-  const tokenizeCard = async () => {
-    const fields = cardFieldsRef.current;
-    const readField = (name) => fields?.querySelector(`[name="${name}"]`)?.value || '';
-    const number = readField('cardNumber').replace(/\D/g, '');
-    const holderName = readField('cardHolder').trim();
-    const expiration = readField('cardExpiration');
-    const cvv = readField('cardCvv').replace(/\D/g, '');
-    const expirationMatch = /^(\d{4})-(0[1-9]|1[0-2])$/.exec(expiration);
-    const expirationDate = expirationMatch
-      ? new Date(Number(expirationMatch[1]), Number(expirationMatch[2]), 0, 23, 59, 59)
-      : null;
-    if (number.length < 13 || number.length > 19 || holderName.length < 2 || !expirationDate || expirationDate < new Date() || ![3, 4].includes(cvv.length)) {
-      throw new Error('Confira o número, nome, validade e código de segurança do cartão.');
-    }
-    if (!pagarmeConfig.publicKey) throw new Error('A tokenização segura do cartão não está configurada.');
-
-    try {
-      const response = await fetch(`https://api.pagar.me/core/v5/tokens?appId=${encodeURIComponent(pagarmeConfig.publicKey)}`, {
-        method: 'POST',
-        headers: { Accept: 'application/json', 'Content-Type': 'application/json' },
-        body: JSON.stringify({
-          type: 'card',
-          card: {
-            number,
-            holder_name: holderName,
-            exp_month: Number(expirationMatch[2]),
-            exp_year: Number(expirationMatch[1]),
-            cvv,
-          },
-        }),
-      });
-      if (!response.ok) throw new Error('Não foi possível proteger o cartão com a Pagar.me. Confira os dados e tente novamente.');
-      const token = await response.json();
-      if (!/^token_[A-Za-z0-9]+$/.test(String(token?.id || ''))) {
-        throw new Error('A Pagar.me não retornou um token válido para o cartão.');
-      }
-      return token.id;
-    } catch (error) {
-      if (error instanceof TypeError) {
-        throw new Error('Não foi possível conectar à tokenização da Pagar.me. Tente novamente.');
-      }
-      throw error;
-    } finally {
-      fields?.querySelectorAll('input').forEach((input) => { input.value = ''; });
-    }
   };
 
   const submitPurchase = async (includeCpfOnReceipt) => {
@@ -746,7 +749,7 @@ export default function DashboardLayout({ children }) {
     setCheckoutStatus('');
     const total = cartTotals.total;
     try {
-      const cardToken = paymentMethod === 'cartao' ? await tokenizeCard() : null;
+      const chargeSavedCard = paymentMethod === 'cartao';
       const checkoutRequestId = checkoutRequestIdRef.current || window.crypto.randomUUID();
       checkoutRequestIdRef.current = checkoutRequestId;
       const response = await fetch('/api/erp/orders', {
@@ -760,7 +763,7 @@ export default function DashboardLayout({ children }) {
           addressDetails: selectedDeliveryAddress,
           paymentMethod,
           checkoutRequestId,
-          ...(cardToken ? { cardToken } : {}),
+          useSavedCard: chargeSavedCard,
           includeCpfOnReceipt,
           couponCode: coupon.trim().toUpperCase(),
           total: `R$ ${total.toFixed(2).replace('.', ',')}`,
@@ -1193,9 +1196,6 @@ export default function DashboardLayout({ children }) {
                 onChange={(event) => {
                   checkoutRequestIdRef.current = null;
                   setCheckoutOrderId('');
-                  if (event.target.value !== 'cartao') {
-                    cardFieldsRef.current?.querySelectorAll('input').forEach((input) => { input.value = ''; });
-                  }
                   try {
                     savePaymentMethod(session?.user?.email, event.target.value);
                     setCheckoutStatus('');
@@ -1216,22 +1216,16 @@ export default function DashboardLayout({ children }) {
                 : <span>CPF e celular cadastrados no perfil.</span>}
             </div>}
             {paymentMethod === 'pix' && !pagarmeConfig.pixAvailable && <p className="checkout-field-hint" role="alert">Pix Pagar.me indisponível até a configuração das chaves no servidor.</p>}
-            {paymentMethod === 'cartao' && !pagarmeConfig.cardAvailable && <p className="checkout-field-hint" role="alert">Cartão Pagar.me indisponível até a configuração das chaves no servidor.</p>}
-            {paymentMethod === 'cartao' && pagarmeConfig.cardAvailable && <div className="checkout-card-fields" ref={cardFieldsRef}>
-              <p className="checkout-field-hint">Os dados do cartão são tokenizados diretamente pela Pagar.me; não são enviados nem salvos pela loja.</p>
-              <label className="delivery-address-field">Número do cartão
-                <input name="cardNumber" type="text" inputMode="numeric" autoComplete="cc-number" maxLength={23} required />
-              </label>
-              <label className="delivery-address-field">Nome impresso no cartão
-                <input name="cardHolder" type="text" autoComplete="cc-name" maxLength={100} required />
-              </label>
-              <label className="delivery-address-field">Validade
-                <input name="cardExpiration" type="month" autoComplete="cc-exp" required />
-              </label>
-              <label className="delivery-address-field">Código de segurança
-                <input name="cardCvv" type="password" inputMode="numeric" autoComplete="cc-csc" maxLength={4} required />
-              </label>
+            {paymentMethod === 'cartao' && savedCardLoading && <p className="checkout-field-hint" role="status">Verificando cartão salvo...</p>}
+            {paymentMethod === 'cartao' && savedCardError && <p className="checkout-field-hint" role="alert">{savedCardError}</p>}
+            {paymentMethod === 'cartao' && !savedCardLoading && savedCard && <div className="checkout-card-fields">
+              <strong>{savedCard.brand} terminado em {savedCard.lastFourDigits}</strong>
+              <span>Validade {String(savedCard.expMonth).padStart(2, '0')}/{savedCard.expYear}</span>
+              <small className="checkout-field-hint">Este cartão só será cobrado quando você confirmar o pedido. <Link href="/dashboard/payment-methods">Gerenciar cartão salvo</Link></small>
             </div>}
+            {paymentMethod === 'cartao' && !savedCardLoading && !savedCard && <p className="checkout-field-hint" role="alert">
+              Cadastre um cartão no <Link href="/dashboard/payment-methods">Dashboard → Formas de pagamento</Link> antes de finalizar pelo cartão.
+            </p>}
             <button
               className="btn-finalizar"
               type="submit"

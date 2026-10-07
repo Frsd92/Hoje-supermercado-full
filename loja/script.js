@@ -15,7 +15,11 @@ const ADDRESSES_API = '/api/addresses';
 const PAYMENT_METHODS = ['pix', 'cartao'];
 let sessaoLoja = { authenticated: false, user: null };
 let checkoutLojaEmAndamento = false;
-let pagarmeConfigLojaPromise = null;
+let cartaoSalvoLoja = null;
+let cartaoSalvoLojaEmail = '';
+let estadoCartaoSalvoLoja = 'idle';
+let erroCartaoSalvoLoja = '';
+let promessaCartaoSalvoLoja = null;
 let carrinhoHidratado = false;
 let carrinhoAtualizando = false;
 let carrinhoRevision = 0;
@@ -99,134 +103,91 @@ function garantirSeletorPagamento(finalizeButton) {
     return select;
 }
 
-function garantirCamposCartao(paymentSelect) {
+function garantirAvisoCartaoSalvoLoja(paymentSelect) {
   if (!paymentSelect) return null;
-  const existingFields = document.getElementById('card-payment-fields');
-  if (existingFields) return existingFields;
+  const existingHint = document.getElementById('saved-card-payment-hint');
+  if (existingHint) return existingHint;
 
   const paymentLabel = paymentSelect.closest('label');
   if (!paymentLabel) return null;
-
-  const fields = document.createElement('fieldset');
-  fields.id = 'card-payment-fields';
-  fields.className = 'checkout-card-fields';
-  fields.hidden = true;
-  fields.innerHTML = `
-    <legend>Dados do cartão</legend>
-    <small class="checkout-field-hint">Os dados são enviados diretamente à Pagar.me para gerar um token seguro.</small>
-    <label class="delivery-address-field" for="card-number">
-      Número do cartão
-      <input id="card-number" name="cardNumber" type="text" inputmode="numeric" autocomplete="cc-number" maxlength="23">
-    </label>
-    <label class="delivery-address-field" for="card-holder">
-      Nome impresso no cartão
-      <input id="card-holder" name="cardHolder" type="text" autocomplete="cc-name" maxlength="100">
-    </label>
-    <label class="delivery-address-field" for="card-expiration">
-      Validade
-      <input id="card-expiration" name="cardExpiration" type="month" autocomplete="cc-exp">
-    </label>
-    <label class="delivery-address-field" for="card-cvv">
-      Código de segurança
-      <input id="card-cvv" name="cardCvv" type="password" inputmode="numeric" autocomplete="cc-csc" maxlength="4">
-    </label>
-  `;
+  const hint = document.createElement('small');
+  hint.id = 'saved-card-payment-hint';
+  hint.className = 'checkout-field-hint store-saved-card-hint';
+  hint.setAttribute('role', 'status');
+  hint.setAttribute('tabindex', '-1');
+  hint.hidden = true;
 
   const paymentHint = paymentLabel.nextElementSibling;
   const insertionPoint = paymentHint?.classList.contains('checkout-field-hint') ? paymentHint : paymentLabel;
-  insertionPoint.insertAdjacentElement('afterend', fields);
-  return fields;
+  insertionPoint.insertAdjacentElement('afterend', hint);
+  return hint;
 }
 
-function limparCamposCartaoLoja(fields = document.getElementById('card-payment-fields')) {
-  fields?.querySelectorAll('input').forEach((input) => {
-    input.value = '';
+function atualizarAvisoCartaoSalvoLoja() {
+  const hint = document.getElementById('saved-card-payment-hint');
+  const paymentSelect = document.getElementById('payment-method');
+  if (!hint) return;
+  if (paymentSelect?.value !== 'cartao' || !sessaoLoja.authenticated) {
+    hint.hidden = true;
+    return;
+  }
+
+  hint.hidden = false;
+  if (estadoCartaoSalvoLoja === 'loading' || estadoCartaoSalvoLoja === 'idle') {
+    hint.textContent = 'Verificando o cartão salvo no Dashboard...';
+    return;
+  }
+  if (estadoCartaoSalvoLoja === 'error') {
+    hint.textContent = erroCartaoSalvoLoja || 'Não foi possível verificar o cartão salvo. Tente novamente.';
+    return;
+  }
+  if (cartaoSalvoLoja) {
+    hint.textContent = `Cartão salvo: ${cartaoSalvoLoja.brand} terminado em ${cartaoSalvoLoja.lastFourDigits}, validade ${String(cartaoSalvoLoja.expMonth).padStart(2, '0')}/${cartaoSalvoLoja.expYear}.`;
+    return;
+  }
+
+  hint.replaceChildren(document.createTextNode('Para pagar com cartão, cadastre primeiro um cartão no '));
+  const link = document.createElement('a');
+  link.href = '/dashboard/payment-methods';
+  link.textContent = 'Dashboard → Formas de pagamento';
+  hint.append(link, '.');
+}
+
+async function carregarCartaoSalvoLoja(force = false) {
+  const email = sessaoLoja.user?.email || '';
+  if (!sessaoLoja.authenticated || !email) return null;
+  if (cartaoSalvoLojaEmail !== email) {
+    cartaoSalvoLojaEmail = email;
+    cartaoSalvoLoja = null;
+    estadoCartaoSalvoLoja = 'idle';
+    erroCartaoSalvoLoja = '';
+    promessaCartaoSalvoLoja = null;
+  }
+  if (promessaCartaoSalvoLoja) return promessaCartaoSalvoLoja;
+  if (!force && ['loaded', 'error'].includes(estadoCartaoSalvoLoja)) return cartaoSalvoLoja;
+
+  estadoCartaoSalvoLoja = 'loading';
+  atualizarAvisoCartaoSalvoLoja();
+  promessaCartaoSalvoLoja = fetch('/api/my/payment-methods', {
+    cache: 'no-store',
+    credentials: 'include',
+  }).then(async (response) => {
+    const data = await response.json();
+    if (!response.ok) throw new Error(data.error || 'Não foi possível verificar o cartão salvo.');
+    cartaoSalvoLoja = data.card || null;
+    estadoCartaoSalvoLoja = 'loaded';
+    erroCartaoSalvoLoja = '';
+    return cartaoSalvoLoja;
+  }).catch((error) => {
+    cartaoSalvoLoja = null;
+    estadoCartaoSalvoLoja = 'error';
+    erroCartaoSalvoLoja = error.message || 'Não foi possível verificar o cartão salvo.';
+    return null;
+  }).finally(() => {
+    promessaCartaoSalvoLoja = null;
+    atualizarAvisoCartaoSalvoLoja();
   });
-}
-
-function atualizarCamposCartaoLoja(paymentSelect, fields = document.getElementById('card-payment-fields')) {
-  if (!fields) return;
-  const cardSelected = paymentSelect?.value === 'cartao';
-  fields.hidden = !cardSelected;
-  if (!cardSelected) limparCamposCartaoLoja(fields);
-}
-
-async function obterConfigPagarmeLoja() {
-  if (!pagarmeConfigLojaPromise) {
-    pagarmeConfigLojaPromise = (async () => {
-      let response;
-      try {
-        response = await fetch('/api/pagarme/config', { cache: 'no-store' });
-      } catch (error) {
-        if (error instanceof TypeError) {
-          throw new Error('Não foi possível verificar a configuração do cartão. Tente novamente.');
-        }
-        throw error;
-      }
-
-      let config;
-      try {
-        config = await response.json();
-      } catch {
-        throw new Error('Não foi possível verificar a configuração do cartão. Tente novamente.');
-      }
-      if (!response.ok) throw new Error(config?.error || 'Não foi possível verificar a configuração do cartão.');
-      if (!config?.cardAvailable || !config?.publicKey) {
-        throw new Error('O pagamento com cartão está indisponível no momento. Escolha Pix ou tente mais tarde.');
-      }
-      return config;
-    })().catch((error) => {
-      pagarmeConfigLojaPromise = null;
-      throw error;
-    });
-  }
-  return pagarmeConfigLojaPromise;
-}
-
-async function tokenizarCartaoLoja(fields) {
-  const readField = (name) => fields?.querySelector(`[name="${name}"]`)?.value || '';
-  const number = readField('cardNumber').replace(/\D/g, '');
-  const holderName = readField('cardHolder').trim();
-  const expiration = readField('cardExpiration');
-  const cvv = readField('cardCvv').replace(/\D/g, '');
-  const expirationMatch = /^(\d{4})-(0[1-9]|1[0-2])$/.exec(expiration);
-  const expirationDate = expirationMatch
-    ? new Date(Number(expirationMatch[1]), Number(expirationMatch[2]), 0, 23, 59, 59)
-    : null;
-  if (number.length < 13 || number.length > 19 || holderName.length < 2 || !expirationDate || expirationDate < new Date() || ![3, 4].includes(cvv.length)) {
-    throw new Error('Confira o número, nome, validade e código de segurança do cartão.');
-  }
-
-  const config = await obterConfigPagarmeLoja();
-  try {
-    const response = await fetch(`https://api.pagar.me/core/v5/tokens?appId=${encodeURIComponent(config.publicKey)}`, {
-      method: 'POST',
-      headers: { Accept: 'application/json', 'Content-Type': 'application/json' },
-      body: JSON.stringify({
-        type: 'card',
-        card: {
-          number,
-          holder_name: holderName,
-          exp_month: Number(expirationMatch[2]),
-          exp_year: Number(expirationMatch[1]),
-          cvv,
-        },
-      }),
-    });
-    if (!response.ok) throw new Error('Não foi possível proteger o cartão com a Pagar.me. Confira os dados e tente novamente.');
-    const token = await response.json();
-    if (!/^token_[A-Za-z0-9]+$/.test(String(token?.id || ''))) {
-      throw new Error('A Pagar.me não retornou um token válido para o cartão.');
-    }
-    return token.id;
-  } catch (error) {
-    if (error instanceof TypeError) {
-      throw new Error('Não foi possível conectar à tokenização da Pagar.me. Tente novamente.');
-    }
-    throw error;
-  } finally {
-    limparCamposCartaoLoja(fields);
-  }
+  return promessaCartaoSalvoLoja;
 }
 
 function atualizarPreferenciaPagamentoLoja() {
@@ -235,7 +196,7 @@ function atualizarPreferenciaPagamentoLoja() {
   select.disabled = !sessaoLoja.authenticated;
   if (!sessaoLoja.authenticated) {
     select.value = '';
-    atualizarCamposCartaoLoja(select);
+    atualizarAvisoCartaoSalvoLoja();
     atualizarOrientacaoCheckout();
     return;
   }
@@ -253,7 +214,8 @@ function atualizarPreferenciaPagamentoLoja() {
       feedback.className = 'coupon-feedback error';
     }
   }
-  atualizarCamposCartaoLoja(select);
+  void carregarCartaoSalvoLoja();
+  atualizarAvisoCartaoSalvoLoja();
   atualizarOrientacaoCheckout();
 }
 
@@ -1414,14 +1376,15 @@ function inicializarCarrinho() {
   const storeAddressSelect = document.getElementById('store-address-select');
   const finalizeButton = document.getElementById('finalizar-compra');
   const paymentSelect = garantirSeletorPagamento(finalizeButton);
-  const cardFields = garantirCamposCartao(paymentSelect);
+  garantirAvisoCartaoSalvoLoja(paymentSelect);
   const checkoutRetryButton = document.getElementById('checkout-retry');
 
   if (paymentSelect) {
-    atualizarCamposCartaoLoja(paymentSelect, cardFields);
+    atualizarAvisoCartaoSalvoLoja();
     paymentSelect.addEventListener('change', () => {
-      atualizarCamposCartaoLoja(paymentSelect, cardFields);
+      atualizarAvisoCartaoSalvoLoja();
       if (!sessaoLoja.authenticated || !PAYMENT_METHODS.includes(paymentSelect.value)) return;
+      if (paymentSelect.value === 'cartao') void carregarCartaoSalvoLoja();
       const email = sessaoLoja.user?.email || 'guest';
       try {
         localStorage.setItem(`hoje-dashboard-payment-method-${email}`, paymentSelect.value);
@@ -1438,6 +1401,7 @@ function inicializarCarrinho() {
       atualizarOrientacaoCheckout();
     });
     window.addEventListener('storage', atualizarPreferenciaPagamentoLoja);
+    window.addEventListener('dashboard-saved-card-updated', () => { void carregarCartaoSalvoLoja(true); });
     atualizarPreferenciaPagamentoLoja();
   }
 
@@ -1520,6 +1484,21 @@ function inicializarCarrinho() {
         paymentSelect?.focus();
         return;
       }
+      if (paymentSelect.value === 'cartao') {
+        await carregarCartaoSalvoLoja(true);
+        if (checkoutLojaEmAndamento) return;
+        if (!cartaoSalvoLoja) {
+          atualizarAvisoCartaoSalvoLoja();
+          document.getElementById('saved-card-payment-hint')?.focus();
+          if (feedback) {
+            feedback.textContent = estadoCartaoSalvoLoja === 'error'
+              ? erroCartaoSalvoLoja
+              : 'Cadastre um cartão em Dashboard > Formas de pagamento antes de finalizar pelo cartão.';
+            feedback.className = 'coupon-feedback error';
+          }
+          return;
+        }
+      }
 
       const items = carrinhoItens.map((item) => ({
         productId: item.id,
@@ -1593,11 +1572,10 @@ function inicializarCarrinho() {
 
         if (feedback) {
           feedback.textContent = paymentMethod === 'cartao'
-            ? 'Protegendo os dados do cartão com a Pagar.me...'
+            ? 'Enviando o pedido com seu cartão salvo...'
             : 'Enviando seu pedido...';
           feedback.className = 'coupon-feedback';
         }
-        const cardToken = paymentMethod === 'cartao' ? await tokenizarCartaoLoja(cardFields) : null;
         const response = await fetch('/api/erp/orders', {
           method: 'POST',
           credentials: 'include',
@@ -1605,7 +1583,7 @@ function inicializarCarrinho() {
           body: JSON.stringify({
             ...requestData,
             checkoutRequestId: tentativaCheckoutId,
-            ...(cardToken ? { cardToken } : {}),
+            ...(paymentMethod === 'cartao' ? { useSavedCard: true } : {}),
           }),
         });
         const data = await response.json();

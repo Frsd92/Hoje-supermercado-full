@@ -1289,50 +1289,8 @@ body {
   line-height: 1.45;
 }
 
-.checkout-card-fields {
-  display: grid;
-  gap: 4px;
-  min-width: 0;
-  margin: 10px 0 14px;
-  padding: 14px;
-  border: 1px solid rgba(148, 163, 184, 0.24);
-  border-radius: 12px;
-  background: rgba(248, 250, 252, 0.82);
-}
-
-.checkout-card-fields[hidden] {
+.store-saved-card-hint[hidden] {
   display: none;
-}
-
-.checkout-card-fields legend {
-  padding: 0 5px;
-  color: var(--text);
-  font-size: 12px;
-  font-weight: 700;
-}
-
-.checkout-card-fields .checkout-field-hint {
-  margin: 0 0 4px;
-}
-
-.checkout-card-fields .delivery-address-field {
-  margin: 8px 0;
-}
-
-.checkout-card-fields input {
-  width: 100%;
-  border: 1px solid rgba(148, 163, 184, 0.35);
-  border-radius: 10px;
-  padding: 10px 12px;
-  background: #fff;
-  color: var(--text);
-  font: inherit;
-  outline: none;
-}
-
-.checkout-card-fields input:focus {
-  border-color: rgba(26, 122, 60, 0.55);
-  box-shadow: 0 0 0 3px rgba(34, 197, 94, 0.1);
 }
 
 .store-section-shortcuts {

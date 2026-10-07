@@ -27,6 +27,12 @@ model CustomerProfile {
   birthDate     DateTime? @db.Date
   photo         String?   @db.Text
   monthlyBudget Decimal   @default(0) @db.Decimal(12, 2)
+  pagarmeCustomerId String? @unique
+  pagarmeCardId String? @unique
+  pagarmeCardBrand String?
+  pagarmeCardLastFourDigits String?
+  pagarmeCardExpMonth Int?
+  pagarmeCardExpYear Int?
   memberSince   DateTime  @default(now())
   updatedAt     DateTime  @updatedAt
 }
