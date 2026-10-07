@@ -38,6 +38,7 @@ import {
   LogOut,
   X,
   Menu,
+  QrCode,
   TicketPercent,
 } from 'lucide-react';
 
@@ -1194,27 +1195,50 @@ export default function DashboardLayout({ children }) {
                   : <>Nenhum endereço cadastrado. <Link href="/dashboard/addresses">Adicionar endereço</Link></>}
               </small>
             ) : null}
-            <label className="delivery-address-field">
-              Forma de pagamento
-              <select
-                required
-                value={paymentMethod || ''}
-                onChange={(event) => {
-                  checkoutRequestIdRef.current = null;
-                  setCheckoutOrderId('');
-                  try {
-                    savePaymentMethod(session?.user?.email, event.target.value);
-                    setCheckoutStatus('');
-                  } catch (error) {
-                    setCheckoutStatus(`Não foi possível salvar a preferência de pagamento: ${error.message}`);
-                  }
-                }}
-              >
-                <option value="" disabled>Selecione sua forma de pagamento</option>
-                {PAYMENT_METHODS.map(({ value, label, recommended }) => <option key={value} value={value}>{recommended ? `${label} — recomendado` : label}</option>)}
-              </select>
-            </label>
-            <small className="checkout-field-hint">{paymentMethod === 'pix' ? 'Pix recomendado; você pode trocar antes de concluir o pedido.' : 'Obrigatória para concluir o pedido.'} <Link href="/dashboard/payment-methods">Gerenciar formas de pagamento</Link></small>
+            <fieldset className="checkout-payment-method-list">
+              <legend>Forma de pagamento</legend>
+              {PAYMENT_METHODS.map(({ value, label, recommended, description }) => {
+                const PaymentIcon = value === 'pix' ? QrCode : CreditCard;
+                const selected = paymentMethod === value;
+
+                return (
+                  <label className={`checkout-payment-method-choice checkout-payment-method-choice-${value}`} key={value}>
+                    <input
+                      className="checkout-payment-method-radio"
+                      type="radio"
+                      name="checkout-payment-method"
+                      value={value}
+                      required
+                      checked={selected}
+                      onChange={(event) => {
+                        checkoutRequestIdRef.current = null;
+                        setCheckoutOrderId('');
+                        try {
+                          savePaymentMethod(session?.user?.email, event.target.value);
+                          setCheckoutStatus('');
+                        } catch (error) {
+                          setCheckoutStatus(`Não foi possível salvar a preferência de pagamento: ${error.message}`);
+                        }
+                      }}
+                    />
+                    <span className="checkout-payment-method-card">
+                      <span className="checkout-payment-method-icon" aria-hidden="true"><PaymentIcon size={20} /></span>
+                      <span className="checkout-payment-method-copy">
+                        <span className="checkout-payment-method-title">
+                          <strong>{label}</strong>
+                          {recommended && <span className="checkout-payment-method-recommended">Recomendado</span>}
+                        </span>
+                        <small>{description}</small>
+                      </span>
+                      <span className="checkout-payment-method-selection" aria-hidden="true">{selected && <Check size={15} />}</span>
+                    </span>
+                  </label>
+                );
+              })}
+            </fieldset>
+            <small className="checkout-field-hint">
+              <Link href="/dashboard/payment-methods">Editar preferência de pagamento</Link>
+            </small>
             {['pix', 'cartao'].includes(paymentMethod) && <div className="checkout-field-hint" role="status">
               <p>Para concluir com Pix ou cartão, precisamos do seu CPF e celular com DDD no perfil. Esses dados são usados no processamento do pagamento; a inclusão do CPF no comprovante é uma escolha separada.</p>
               {profileCpf.replace(/\D/g, '').length !== 11 || ![10, 11].includes(profilePhone.replace(/\D/g, '').replace(/^55(?=\d{10,11}$)/, '').length)

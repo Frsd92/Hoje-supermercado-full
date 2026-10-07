@@ -17,6 +17,7 @@ test('exposes only payment methods available to customers', () => {
   assert.doesNotMatch(PAYMENT_METHODS.map(({ label, description }) => `${label} ${description}`).join(' '), /pagar[.]me/i);
   assert.equal(PAYMENT_METHODS.find(({ value }) => value === 'cartao').label, 'Cartão de crédito');
   assert.equal(PAYMENT_METHODS.find(({ value }) => value === 'pix').recommended, true);
+  assert.match(PAYMENT_METHODS.find(({ value }) => value === 'pix').description, /QR Code.*Pix copia e cola/);
   assert.equal(DEFAULT_PAYMENT_METHOD, 'pix');
   assert.equal(SAVED_CARD_UPDATED_EVENT, 'dashboard-saved-card-updated');
   assert.equal(isPaymentMethod('cartao'), true);

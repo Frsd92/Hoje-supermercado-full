@@ -1,6 +1,6 @@
 export const PAYMENT_METHODS = [
-  { value: 'pix', label: 'Pix', recommended: true, description: 'Recomendado: pague com Pix e acompanhe a confirmação do pedido.' },
-  { value: 'cartao', label: 'Cartão de crédito', description: 'Use o cartão salvo nesta conta e confirme cada compra no checkout.' },
+  { value: 'pix', label: 'Pix', recommended: true, description: 'QR Code · Pix copia e cola' },
+  { value: 'cartao', label: 'Cartão de crédito', description: 'Cartão salvo' },
 ];
 
 export const DEFAULT_PAYMENT_METHOD = 'pix';

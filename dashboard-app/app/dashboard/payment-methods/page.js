@@ -268,8 +268,51 @@ export default function PaymentMethodsPage() {
       <header className="page-header-block settings-page-header">
         <span className="settings-kicker">Conta e pagamentos</span>
         <h1>Formas de pagamento</h1>
-        <p>Gerencie seu cartão salvo e escolha como prefere pagar. Você confirma cada compra no checkout.</p>
       </header>
+
+      <section className="settings-panel payment-methods-panel" aria-labelledby="payment-methods-heading">
+        <div className="settings-panel-heading">
+          <QrCode size={21} aria-hidden="true" />
+          <div>
+            <h2 id="payment-methods-heading">Como prefere pagar?</h2>
+          </div>
+        </div>
+
+        <fieldset className="payment-method-list" disabled={!isReady}>
+          <legend>Selecione uma opção</legend>
+          {PAYMENT_METHODS.map((method) => {
+            const Icon = paymentMethodIcons[method.value];
+            const selected = paymentMethod === method.value;
+
+            return (
+              <label className={`payment-method-choice payment-method-choice-${method.value}`} key={method.value}>
+                <input
+                  className="payment-method-radio"
+                  type="radio"
+                  name="preferred-payment-method"
+                  value={method.value}
+                  checked={selected}
+                  onChange={() => choosePaymentMethod(method.value)}
+                />
+                <span className="payment-method-card">
+                  <span className="payment-method-icon" aria-hidden="true"><Icon size={19} /></span>
+                  <span className="payment-method-copy">
+                    <span className="payment-method-title-row">
+                      <strong>{method.label}</strong>
+                      {method.recommended && <span className="payment-method-recommended">Recomendado</span>}
+                    </span>
+                    <small>{method.description}</small>
+                  </span>
+                  <span className="payment-method-selection" aria-hidden="true">{selected && <Check size={15} />}</span>
+                </span>
+              </label>
+            );
+          })}
+        </fieldset>
+
+        {isReady && !paymentMethod && <p className="payment-method-feedback error" role="status">Escolha sua forma de pagamento antes de finalizar a compra.</p>}
+        {feedback && <p className={`payment-method-feedback ${feedback.type}`} role={feedback.type === 'error' ? 'alert' : 'status'} aria-live={feedback.type === 'error' ? 'assertive' : 'polite'}>{feedback.message}</p>}
+      </section>
 
       <section
         className="settings-panel saved-card-panel"
@@ -400,53 +443,6 @@ export default function PaymentMethodsPage() {
         )}
 
         {cardFeedback && <p className={`payment-method-feedback ${cardFeedback.type}`} role={cardFeedback.type === 'error' ? 'alert' : 'status'} aria-live={cardFeedback.type === 'error' ? 'assertive' : 'polite'}>{cardFeedback.message}</p>}
-      </section>
-
-      <section className="settings-panel payment-methods-panel" aria-labelledby="payment-methods-heading">
-        <div className="settings-panel-heading">
-          <Check size={19} aria-hidden="true" />
-          <div>
-            <h2 id="payment-methods-heading">Preferência de pagamento</h2>
-            <p>O Pix é recomendado e fica pré-selecionado se você ainda não salvou uma preferência. Você pode alterá-la no checkout.</p>
-          </div>
-        </div>
-
-        <p className="payment-methods-note" id="payment-methods-note">A preferência fica salva neste navegador para esta conta. Ela não armazena dados do cartão.</p>
-
-        <fieldset className="payment-method-list" disabled={!isReady} aria-describedby="payment-methods-note">
-          <legend>Forma de pagamento preferida</legend>
-          {PAYMENT_METHODS.map((method) => {
-            const Icon = paymentMethodIcons[method.value];
-            const selected = paymentMethod === method.value;
-
-            return (
-              <label className="payment-method-choice" key={method.value}>
-                <input
-                  className="payment-method-radio"
-                  type="radio"
-                  name="preferred-payment-method"
-                  value={method.value}
-                  checked={selected}
-                  onChange={() => choosePaymentMethod(method.value)}
-                />
-                <span className="payment-method-card">
-                  <span className="payment-method-icon" aria-hidden="true"><Icon size={19} /></span>
-                  <span className="payment-method-copy">
-                    <span className="payment-method-title-row">
-                      <strong>{method.label}</strong>
-                      {method.recommended && <span className="payment-method-recommended">Recomendado</span>}
-                    </span>
-                    <small>{method.description}</small>
-                  </span>
-                  <span className="payment-method-selection" aria-hidden="true">{selected && <Check size={15} />}</span>
-                </span>
-              </label>
-            );
-          })}
-        </fieldset>
-
-        {isReady && !paymentMethod && <p className="payment-method-feedback error" role="status">Escolha sua forma de pagamento antes de finalizar a compra.</p>}
-        {feedback && <p className={`payment-method-feedback ${feedback.type}`} role={feedback.type === 'error' ? 'alert' : 'status'} aria-live={feedback.type === 'error' ? 'assertive' : 'polite'}>{feedback.message}</p>}
       </section>
     </div>
   );
