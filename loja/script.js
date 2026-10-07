@@ -23,6 +23,8 @@ let carrinhoItens = [];
 let flashOfferCountdownTimer = null;
 let flashOfferRefreshTimer = null;
 let cupomAplicado = { codigo: '', percentual: 0 };
+let tentativaCheckoutId = '';
+let assinaturaTentativaCheckout = '';
 let erroSessaoDaLoja = '';
 let erroCarrinhoDaApi = '';
 let erroEnderecosDaApi = '';
@@ -173,6 +175,159 @@ function perguntarCpfNaNota() {
     dialog.showModal();
     noButton.focus();
   });
+}
+
+function confirmarPedidoLoja(resumoPedido) {
+  let dialog = document.getElementById('order-confirm-dialog');
+  if (!dialog) {
+    dialog = document.createElement('dialog');
+    dialog.id = 'order-confirm-dialog';
+    dialog.className = 'cpf-note-dialog checkout-order-dialog';
+    dialog.setAttribute('aria-labelledby', 'order-confirm-title');
+    dialog.setAttribute('aria-describedby', 'order-confirm-summary');
+    dialog.innerHTML = `
+      <div class="cpf-note-dialog-content">
+        <span class="settings-kicker">Confirmação do pedido</span>
+        <h2 id="order-confirm-title">Confira seu pedido</h2>
+        <p id="order-confirm-summary" class="checkout-confirm-summary"></p>
+        <div class="cpf-note-dialog-actions">
+          <button type="button" class="cpf-note-choice checkout-dialog-primary order-confirm-submit">Confirmar pedido</button>
+          <button type="button" class="cpf-note-cancel order-confirm-cancel">Voltar ao carrinho</button>
+        </div>
+      </div>`;
+    document.body.append(dialog);
+  }
+
+  dialog.querySelector('.checkout-confirm-summary').textContent = resumoPedido;
+  const confirmButton = dialog.querySelector('.order-confirm-submit');
+  const cancelButton = dialog.querySelector('.order-confirm-cancel');
+
+  return new Promise((resolve) => {
+    const finish = (confirmed) => {
+      dialog.removeEventListener('cancel', handleCancel);
+      confirmButton.removeEventListener('click', handleConfirm);
+      cancelButton.removeEventListener('click', handleCancelButton);
+      if (dialog.open) dialog.close();
+      resolve(confirmed);
+    };
+    const handleCancel = (event) => {
+      event.preventDefault();
+      finish(false);
+    };
+    const handleConfirm = () => finish(true);
+    const handleCancelButton = () => finish(false);
+
+    dialog.addEventListener('cancel', handleCancel);
+    confirmButton.addEventListener('click', handleConfirm);
+    cancelButton.addEventListener('click', handleCancelButton);
+    dialog.showModal();
+    cancelButton.focus();
+  });
+}
+
+function abrirDialogoPagamentoPix(order, message) {
+  let dialog = document.getElementById('pix-payment-dialog');
+  if (!dialog) {
+    dialog = document.createElement('dialog');
+    dialog.id = 'pix-payment-dialog';
+    dialog.className = 'cpf-note-dialog checkout-pix-dialog';
+    dialog.setAttribute('aria-labelledby', 'pix-payment-title');
+    dialog.setAttribute('aria-describedby', 'pix-payment-description');
+    dialog.innerHTML = `
+      <div class="cpf-note-dialog-content">
+        <span class="settings-kicker">Pagamento Pix</span>
+        <h2 id="pix-payment-title">Conclua seu pagamento</h2>
+        <p id="pix-payment-description"></p>
+        <strong class="checkout-pix-order-id"></strong>
+        <img class="checkout-pix-qr" alt="QR Code Pix" hidden>
+        <small class="checkout-pix-qr-status" role="status"></small>
+        <label class="checkout-pix-code-label" for="pix-payment-code">Código Pix copia e cola</label>
+        <textarea id="pix-payment-code" class="checkout-pix-code" readonly rows="4" aria-label="Código Pix copia e cola"></textarea>
+        <small class="checkout-pix-expires" hidden></small>
+        <p class="checkout-pix-fallback" hidden>Se os dados do Pix não aparecerem, consulte <a href="/dashboard/orders">Meus pedidos</a> antes de tentar novamente.</p>
+        <small class="checkout-pix-copy-status" role="status" aria-live="polite"></small>
+        <div class="cpf-note-dialog-actions">
+          <button type="button" class="cpf-note-choice checkout-dialog-primary pix-copy-button">Copiar código Pix</button>
+          <button type="button" class="cpf-note-cancel pix-dialog-close">Fechar</button>
+        </div>
+      </div>`;
+    document.body.append(dialog);
+
+    const codeField = dialog.querySelector('#pix-payment-code');
+    const copyButton = dialog.querySelector('.pix-copy-button');
+    const copyStatus = dialog.querySelector('.checkout-pix-copy-status');
+    const qrImage = dialog.querySelector('.checkout-pix-qr');
+    copyButton.addEventListener('click', async () => {
+      try {
+        if (!navigator.clipboard?.writeText) throw new Error('A cópia automática não está disponível neste navegador.');
+        await navigator.clipboard.writeText(codeField.value);
+        copyStatus.textContent = 'Código Pix copiado. Abra o aplicativo do seu banco para concluir o pagamento.';
+      } catch (error) {
+        console.error('Não foi possível copiar automaticamente o código Pix:', error);
+        codeField.focus();
+        codeField.select();
+        copyStatus.textContent = 'Não foi possível copiar automaticamente. O código está selecionado; copie-o manualmente.';
+      }
+    });
+    qrImage.addEventListener('error', () => {
+      qrImage.hidden = true;
+      dialog.querySelector('.checkout-pix-qr-status').textContent = 'QR Code indisponível. Use o código copia e cola.';
+    });
+    dialog.querySelector('.pix-dialog-close').addEventListener('click', () => dialog.close());
+  }
+
+  const paymentDetails = order?.paymentDetails || {};
+  const pixCode = String(paymentDetails.pixQrCode || '').trim();
+  const codeField = dialog.querySelector('#pix-payment-code');
+  const codeLabel = dialog.querySelector('.checkout-pix-code-label');
+  const copyButton = dialog.querySelector('.pix-copy-button');
+  const qrImage = dialog.querySelector('.checkout-pix-qr');
+  const qrStatus = dialog.querySelector('.checkout-pix-qr-status');
+  const expiresLabel = dialog.querySelector('.checkout-pix-expires');
+  const fallback = dialog.querySelector('.checkout-pix-fallback');
+  const copyStatus = dialog.querySelector('.checkout-pix-copy-status');
+
+  dialog.querySelector('#pix-payment-description').textContent = message
+    || 'Seu pedido está aguardando o pagamento Pix. Use o QR Code ou o código copia e cola abaixo.';
+  dialog.querySelector('.checkout-pix-order-id').textContent = order?.id ? `Pedido ${order.id}` : '';
+  codeField.value = pixCode;
+  codeLabel.hidden = !pixCode;
+  copyButton.hidden = !pixCode;
+  codeField.hidden = !pixCode;
+  fallback.hidden = Boolean(pixCode);
+  copyStatus.textContent = '';
+  qrStatus.textContent = '';
+  qrImage.hidden = true;
+  qrImage.removeAttribute('src');
+
+  if (pixCode && paymentDetails.pixQrCodeUrl) {
+    try {
+      const qrUrl = new URL(paymentDetails.pixQrCodeUrl);
+      if (qrUrl.protocol === 'https:' && qrUrl.hostname === 'api.pagar.me') {
+        qrImage.src = qrUrl.href;
+        qrImage.hidden = false;
+      } else {
+        qrStatus.textContent = 'QR Code indisponível. Use o código copia e cola.';
+      }
+    } catch (error) {
+      console.error('A URL do QR Code Pix retornada pelo provedor é inválida:', error);
+      qrStatus.textContent = 'QR Code indisponível. Use o código copia e cola.';
+    }
+  } else if (pixCode) {
+    qrStatus.textContent = 'Use o código copia e cola para concluir o pagamento.';
+  }
+
+  const expiryDate = paymentDetails.pixExpiresAt ? new Date(paymentDetails.pixExpiresAt) : null;
+  if (expiryDate && !Number.isNaN(expiryDate.getTime())) {
+    expiresLabel.textContent = `Válido até ${expiryDate.toLocaleString('pt-BR')}`;
+    expiresLabel.hidden = false;
+  } else {
+    expiresLabel.textContent = '';
+    expiresLabel.hidden = true;
+  }
+
+  if (!dialog.open) dialog.showModal();
+  (pixCode ? copyButton : dialog.querySelector('.pix-dialog-close')).focus();
 }
 
 function opcoesCarrinho(options = {}) {
@@ -489,16 +644,23 @@ document.addEventListener('keydown', (event) => {
 function atualizarBotaoFinalizarCompra() {
   const button = document.getElementById('finalizar-compra');
   if (!button) return;
-  button.disabled = Boolean(erroSessaoDaLoja);
+  const selectedAddress = obterEnderecoEntregaSelecionado();
+  const addressUnavailable = sessaoLoja.authenticated && (Boolean(erroEnderecosDaApi) || !selectedAddress);
+  button.disabled = Boolean(erroSessaoDaLoja) || addressUnavailable;
   button.textContent = erroSessaoDaLoja
     ? 'Verifique sua conexão'
     : sessaoLoja.authenticated
-    ? 'Finalizar Pedido'
+    ? erroEnderecosDaApi
+      ? 'Verifique seus endereços'
+      : selectedAddress
+        ? 'Finalizar Pedido'
+        : 'Cadastre um endereço'
     : 'Fazer login';
   button.dataset.loginRequired = String(!sessaoLoja.authenticated);
 }
 
 function atualizarOrientacaoCheckout() {
+  atualizarBotaoFinalizarCompra();
   const guide = document.getElementById('checkout-guide');
   if (!guide) return;
 
@@ -1270,14 +1432,59 @@ function inicializarCarrinho() {
         '',
         'Ao continuar, você confirma os itens e as condições exibidas. Deseja enviar o pedido?',
       ].join('\n');
-      if (!window.confirm(resumoPedido)) return;
+      if (!await confirmarPedidoLoja(resumoPedido)) return;
 
       try {
-        const response = await fetch('/api/erp/orders', { method: 'POST', credentials: 'include', headers: { 'Content-Type': 'text/plain' }, body: JSON.stringify({ items, address: selectedAddressText, addressId: selectedAddressId, paymentMethod: paymentSelect.value, includeCpfOnReceipt, couponCode }) });
+        const requestData = {
+          items,
+          address: selectedAddressText,
+          addressId: selectedAddressId,
+          paymentMethod: paymentSelect.value,
+          includeCpfOnReceipt,
+          couponCode,
+        };
+        const requestSignature = JSON.stringify(requestData);
+        if (!tentativaCheckoutId || assinaturaTentativaCheckout !== requestSignature) {
+          if (typeof window.crypto?.randomUUID !== 'function') {
+            throw new Error('Seu navegador não oferece suporte seguro para iniciar o pagamento. Atualize-o e tente novamente.');
+          }
+          tentativaCheckoutId = window.crypto.randomUUID();
+          assinaturaTentativaCheckout = requestSignature;
+        }
+
+        const response = await fetch('/api/erp/orders', {
+          method: 'POST',
+          credentials: 'include',
+          headers: { 'Content-Type': 'text/plain' },
+          body: JSON.stringify({ ...requestData, checkoutRequestId: tentativaCheckoutId }),
+        });
         const data = await response.json();
-        if (!response.ok) throw new Error(data.error || 'Não foi possível registrar o pedido.');
+        if (!response.ok) {
+          if (response.status < 500) {
+            tentativaCheckoutId = '';
+            assinaturaTentativaCheckout = '';
+          }
+          throw new Error(data.error || 'Não foi possível registrar o pedido.');
+        }
+        tentativaCheckoutId = '';
+        assinaturaTentativaCheckout = '';
         limparCarrinho();
-        if (feedback) { feedback.textContent = 'Pedido registrado com sucesso.'; feedback.className = 'coupon-feedback success'; }
+        const paymentPending = data.order?.paymentStatus === 'pending';
+        const pendingPix = paymentPending && data.order?.paymentMethod === 'pix';
+        if (feedback) {
+          feedback.textContent = data.message || 'Pedido registrado com sucesso.';
+          feedback.className = paymentPending ? 'coupon-feedback' : 'coupon-feedback success';
+          if (paymentPending) {
+            feedback.append(' Acesse ');
+            const ordersLink = document.createElement('a');
+            ordersLink.href = '/dashboard/orders';
+            ordersLink.textContent = 'Meus pedidos';
+            feedback.append(ordersLink, pendingPix
+              ? ' para copiar o código Pix e concluir o pagamento.'
+              : ' para consultar o pagamento.');
+          }
+        }
+        if (pendingPix) abrirDialogoPagamentoPix(data.order, data.message);
       } catch (error) {
         if (feedback) { feedback.textContent = error.message; feedback.className = 'coupon-feedback error'; }
       }

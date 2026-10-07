@@ -1232,7 +1232,13 @@ export default function DashboardLayout({ children }) {
                 <input name="cardCvv" type="password" inputMode="numeric" autoComplete="cc-csc" maxLength={4} required />
               </label>
             </div>}
-            <button className="btn-finalizar" type="submit" disabled={checkoutLoading || !cartItems.length}>
+            <button
+              className="btn-finalizar"
+              type="submit"
+              disabled={checkoutLoading
+                || !cartItems.length
+                || Boolean(session?.user?.email && (addressesLoading || addressLoadError || !selectedDeliveryAddress))}
+            >
               {checkoutLoading ? 'Finalizando...' : 'Finalizar Pedido'}
             </button>
             <button type="button" className="btn-limpar" onClick={() => saveCart([])}>Limpar Carrinho</button>

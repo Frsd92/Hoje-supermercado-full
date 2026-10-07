@@ -792,6 +792,80 @@
   background: transparent;
 }
 
+.checkout-confirm-summary {
+  max-height: min(38vh, 260px);
+  overflow-y: auto;
+  padding: 12px;
+  border: 1px solid #e2e8f0;
+  border-radius: 10px;
+  color: #334155;
+  background: #f8fafc;
+  font-size: 0.84rem;
+  white-space: pre-wrap;
+}
+
+.checkout-dialog-primary {
+  border: 1px solid #15803d;
+  color: #fff;
+  background: #15803d;
+  box-shadow: 0 5px 14px rgba(21, 128, 61, 0.22);
+}
+
+.checkout-dialog-primary:focus-visible,
+.cpf-note-cancel:focus-visible {
+  outline: 3px solid #f4cf48;
+  outline-offset: 2px;
+}
+
+.checkout-pix-dialog {
+  width: min(460px, calc(100vw - 32px));
+}
+
+.checkout-pix-dialog .cpf-note-dialog-content {
+  max-height: min(90vh, 760px);
+  overflow-y: auto;
+}
+
+.checkout-pix-order-id {
+  color: #475569;
+  font-size: 0.82rem;
+  overflow-wrap: anywhere;
+}
+
+.checkout-pix-qr {
+  justify-self: center;
+  width: min(100%, 220px);
+  height: auto;
+  border: 1px solid #e2e8f0;
+  border-radius: 10px;
+  background: #fff;
+}
+
+.checkout-pix-code {
+  width: 100%;
+  min-height: 92px;
+  padding: 10px;
+  border: 1px solid #cbd5e1;
+  border-radius: 9px;
+  color: #1f2937;
+  background: #fff;
+  font: 0.76rem/1.4 monospace;
+  resize: vertical;
+}
+
+.checkout-pix-qr-status,
+.checkout-pix-expires,
+.checkout-pix-copy-status {
+  color: #475569;
+  font-size: 0.78rem;
+  line-height: 1.45;
+}
+
+.checkout-pix-fallback a {
+  color: #166534;
+  font-weight: 800;
+}
+
 /* ===================================================== */
 /* CABEÇALHO PRINCIPAL: logo + barra de busca + endereço */
 /* ===================================================== */

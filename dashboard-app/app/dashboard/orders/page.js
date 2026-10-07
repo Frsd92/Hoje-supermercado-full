@@ -45,6 +45,8 @@ export default function OrdersPage() {
   const [refundNotice, setRefundNotice] = useState('');
   const [copiedPixOrderId, setCopiedPixOrderId] = useState('');
   const [pixCopyError, setPixCopyError] = useState('');
+  const [checkingPaymentOrderId, setCheckingPaymentOrderId] = useState('');
+  const [paymentCheckFeedback, setPaymentCheckFeedback] = useState({});
 
   useEffect(() => {
     let active = true;
@@ -111,6 +113,28 @@ export default function OrdersPage() {
       console.error('Não foi possível copiar o código Pix:', error);
       setCopiedPixOrderId('');
       setPixCopyError('Não foi possível copiar automaticamente. Selecione e copie o código Pix abaixo.');
+    }
+  };
+
+  const verifyPayment = async (order) => {
+    setCheckingPaymentOrderId(order.id);
+    setPaymentCheckFeedback((current) => ({ ...current, [order.id]: null }));
+    try {
+      const response = await fetch(`/api/my/orders/${encodeURIComponent(order.id)}/payment-status`, { method: 'POST' });
+      const data = await response.json();
+      if (!response.ok) throw new Error(data.error || 'Não foi possível consultar o pagamento agora.');
+      setPaymentCheckFeedback((current) => ({
+        ...current,
+        [order.id]: { message: data.message || 'Status do pagamento atualizado.', error: false },
+      }));
+      setRetryCount((count) => count + 1);
+    } catch (error) {
+      setPaymentCheckFeedback((current) => ({
+        ...current,
+        [order.id]: { message: error.message || 'Não foi possível consultar o pagamento agora.', error: true },
+      }));
+    } finally {
+      setCheckingPaymentOrderId('');
     }
   };
 
@@ -259,8 +283,19 @@ export default function OrdersPage() {
                       <button type="button" onClick={() => copyPixCode(order)}>{copiedPixOrderId === order.id ? 'Código Pix copiado' : 'Copiar código Pix'}</button>
                       {order.paymentDetails.pixExpiresAt && <small>Válido até {new Date(order.paymentDetails.pixExpiresAt).toLocaleString('pt-BR')}</small>}
                       {pixCopyError && <small role="alert">{pixCopyError}</small>}
+                      <button type="button" disabled={Boolean(checkingPaymentOrderId)} onClick={() => verifyPayment(order)}>
+                        {checkingPaymentOrderId === order.id ? 'Consultando pagamento...' : 'Verificar pagamento'}
+                      </button>
+                      {paymentCheckFeedback[order.id] && <small role={paymentCheckFeedback[order.id].error ? 'alert' : 'status'}>{paymentCheckFeedback[order.id].message}</small>}
                     </span>}
-                    {order.paymentStatus === 'pending' && !order.paymentDetails?.pixQrCode && <span className="customer-pix-payment" role="status">Pagamento aguardando confirmação. Confira novamente antes de tentar pagar outra vez.</span>}
+                    {order.paymentStatus === 'pending' && ['pix', 'cartao'].includes(order.paymentMethod) && !order.paymentDetails?.pixQrCode && <span className="customer-pix-payment" role="status">
+                      <strong>Pagamento aguardando confirmação</strong>
+                      <small>Confira o status antes de tentar pagar novamente.</small>
+                      <button type="button" disabled={Boolean(checkingPaymentOrderId)} onClick={() => verifyPayment(order)}>
+                        {checkingPaymentOrderId === order.id ? 'Consultando pagamento...' : 'Verificar pagamento'}
+                      </button>
+                      {paymentCheckFeedback[order.id] && <small role={paymentCheckFeedback[order.id].error ? 'alert' : 'status'}>{paymentCheckFeedback[order.id].message}</small>}
+                    </span>}
                   </span>
                   <span className="order-status-cell" role="cell">
                     <span className={`status-badge ${info.tone}`}><span className="order-status-light" aria-hidden="true" />{info.label}</span>
