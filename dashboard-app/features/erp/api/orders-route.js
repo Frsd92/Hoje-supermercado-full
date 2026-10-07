@@ -192,7 +192,7 @@ export async function POST(request) {
     return Response.json({ error: 'Escolha entre o cartão salvo e um novo cartão para continuar.' }, { status: 400, headers: corsHeaders(request) });
   }
   if (body.cardToken && !/^token_[A-Za-z0-9]+$/.test(String(body.cardToken))) {
-    return Response.json({ error: 'O cartão precisa ser tokenizado pela Pagar.me antes do pagamento.' }, { status: 400, headers: corsHeaders(request) });
+    return Response.json({ error: 'O cartão precisa ser validado antes do pagamento.' }, { status: 400, headers: corsHeaders(request) });
   }
   const usesPagarme = body.paymentMethod === 'pix' || body.paymentMethod === 'cartao';
   if (usesPagarme && !process.env.PAGARME_SECRET_KEY) {
@@ -481,7 +481,7 @@ export async function POST(request) {
       });
       if (['failed', 'canceled'].includes(paymentSnapshot.paymentStatus)) {
         return Response.json({
-          error: 'A Pagar.me não aprovou o pagamento. Confira os dados e tente outra forma de pagamento.',
+          error: 'O pagamento não foi aprovado. Confira os dados e tente outra forma de pagamento.',
           order: serializeOrder(updatedOrder),
         }, { status: 402, headers: corsHeaders(request) });
       }
@@ -510,7 +510,7 @@ export async function POST(request) {
         if (definitivelyRejected) {
           console.warn('A Pagar.me recusou o pedido de pagamento:', error.status);
           return Response.json({
-            error: 'A Pagar.me não aprovou o pagamento. Confira os dados e tente outra forma de pagamento.',
+            error: 'O pagamento não foi aprovado. Confira os dados e tente outra forma de pagamento.',
             order: serializeOrder(updatedOrder),
           }, { status: 402, headers: corsHeaders(request) });
         }

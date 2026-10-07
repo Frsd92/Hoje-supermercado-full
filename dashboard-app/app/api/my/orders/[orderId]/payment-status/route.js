@@ -11,12 +11,12 @@ import {
 import { prisma } from '@/lib/prisma';
 
 const statusMessages = {
-  paid: 'Pagamento confirmado pela Pagar.me.',
-  pending: 'A Pagar.me ainda mostra o pagamento como pendente. Aguarde e consulte novamente; não pague outra vez agora.',
-  failed: 'A Pagar.me informa que o pagamento não foi aprovado.',
-  canceled: 'A Pagar.me informa que o pagamento foi cancelado.',
-  refunded: 'A Pagar.me confirma o estorno.',
-  partially_refunded: 'A Pagar.me confirma um estorno parcial.',
+  paid: 'Pagamento confirmado.',
+  pending: 'Pagamento aguardando confirmação. Aguarde e consulte novamente; não pague outra vez agora.',
+  failed: 'Pagamento não aprovado.',
+  canceled: 'Pagamento cancelado.',
+  refunded: 'Estorno confirmado.',
+  partially_refunded: 'Estorno parcial confirmado.',
 };
 
 export async function POST(_request, { params }) {
@@ -46,7 +46,7 @@ export async function POST(_request, { params }) {
     });
     if (!order) return Response.json({ error: 'Pedido não encontrado na sua conta.' }, { status: 404 });
     if (!['pix', 'cartao'].includes(order.paymentMethod) || !order.pagarmeOrderId) {
-      return Response.json({ error: 'Este pedido não possui uma cobrança Pagar.me para consultar.' }, { status: 409 });
+      return Response.json({ error: 'Este pedido não possui uma cobrança online para consultar.' }, { status: 409 });
     }
     if (order.paymentStatus !== 'pending') {
       return Response.json({
@@ -61,10 +61,10 @@ export async function POST(_request, { params }) {
       providerOrder = await getPagarmeOrder(order.pagarmeOrderId);
     } catch (error) {
       if (error instanceof PagarmeApiError && error.status === 404) {
-        return Response.json({ error: 'A Pagar.me ainda não localizou esta cobrança.' }, { status: 409 });
+        return Response.json({ error: 'Ainda não localizamos a cobrança deste pedido.' }, { status: 409 });
       }
       console.error('Não foi possível consultar o pagamento na Pagar.me:', error);
-      return Response.json({ error: 'Não foi possível consultar a Pagar.me agora.' }, { status: 503 });
+      return Response.json({ error: 'Não foi possível consultar o pagamento agora.' }, { status: 503 });
     }
 
     const providerId = String(providerOrder.id || '');
@@ -132,7 +132,7 @@ export async function POST(_request, { params }) {
     return Response.json({
       paymentStatus: result.paymentStatus,
       updated: result.updated,
-      message: statusMessages[result.paymentStatus] || 'Status consultado na Pagar.me.',
+      message: statusMessages[result.paymentStatus] || 'Status do pagamento atualizado.',
     });
   } catch (error) {
     if (error?.code === 'P2034') {

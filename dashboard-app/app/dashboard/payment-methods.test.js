@@ -14,6 +14,8 @@ import {
 
 test('exposes only payment methods available to customers', () => {
   assert.deepEqual(PAYMENT_METHODS.map(({ value }) => value), ['pix', 'cartao']);
+  assert.doesNotMatch(PAYMENT_METHODS.map(({ label, description }) => `${label} ${description}`).join(' '), /pagar[.]me/i);
+  assert.equal(PAYMENT_METHODS.find(({ value }) => value === 'cartao').label, 'Cartão de crédito');
   assert.equal(DEFAULT_PAYMENT_METHOD, null);
   assert.equal(SAVED_CARD_UPDATED_EVENT, 'dashboard-saved-card-updated');
   assert.equal(isPaymentMethod('cartao'), true);

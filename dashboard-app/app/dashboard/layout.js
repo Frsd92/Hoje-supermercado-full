@@ -331,7 +331,7 @@ export default function DashboardLayout({ children }) {
         if (active) setPagarmeConfig(config);
       })
       .catch((error) => {
-        console.error('Não foi possível verificar a configuração do Pagar.me:', error);
+        console.error('Não foi possível verificar a configuração do pagamento online:', error);
         if (active) setPagarmeConfig({ pixAvailable: false, cardAvailable: false, savedCardAvailable: false, publicKey: '' });
       });
     return () => {
@@ -353,6 +353,10 @@ export default function DashboardLayout({ children }) {
     setSavedCardLoading(true);
     setSavedCardError('');
     const loadSavedCard = async () => {
+      if (active) {
+        setSavedCardLoading(true);
+        setSavedCardError('');
+      }
       try {
         const response = await fetch('/api/my/payment-methods', { cache: 'no-store' });
         const data = await response.json();
@@ -710,16 +714,19 @@ export default function DashboardLayout({ children }) {
     if (!selectedDeliveryAddress) return setCheckoutStatus('Cadastre um endereço no painel do cliente antes de concluir a compra.');
     if (!isPaymentMethod(paymentMethod)) return setCheckoutStatus('Selecione uma forma no campo Forma de pagamento; você também pode defini-la na aba Formas de pagamento.');
     if (paymentMethod === 'pix' && !pagarmeConfig.pixAvailable) {
-      return setCheckoutStatus('O Pix pela Pagar.me ainda não está configurado. Escolha outro método ou tente mais tarde.');
+      return setCheckoutStatus('O Pix está temporariamente indisponível. Escolha outra forma de pagamento ou tente mais tarde.');
     }
     if (paymentMethod === 'cartao' && savedCardLoading) {
       return setCheckoutStatus('Estamos verificando seus cartões salvos. Aguarde um instante.');
     }
+    if (paymentMethod === 'cartao' && savedCardError) {
+      return setCheckoutStatus('Não foi possível verificar seu cartão salvo. Tente novamente antes de finalizar.');
+    }
     if (paymentMethod === 'cartao' && !savedCard) {
-      return setCheckoutStatus('Cadastre um cartão em Dashboard > Formas de pagamento antes de finalizar pelo cartão.');
+      return setCheckoutStatus('Cadastre um cartão em Formas de pagamento antes de finalizar pelo cartão.');
     }
     if (paymentMethod === 'cartao' && !pagarmeConfig.savedCardAvailable) {
-      return setCheckoutStatus('O pagamento com cartão pela Pagar.me está indisponível no momento. Tente mais tarde.');
+      return setCheckoutStatus('O pagamento com cartão está temporariamente indisponível. Tente mais tarde.');
     }
     if (['pix', 'cartao'].includes(paymentMethod)) {
       const cpf = String(profileCpf).replace(/\D/g, '');
@@ -1210,21 +1217,48 @@ export default function DashboardLayout({ children }) {
             </label>
             <small className="checkout-field-hint">Obrigatória para concluir o pedido. <Link href="/dashboard/payment-methods">Gerenciar formas de pagamento</Link></small>
             {['pix', 'cartao'].includes(paymentMethod) && <div className="checkout-field-hint" role="status">
-              <p>O processamento pela Pagar.me exige CPF e celular com DDD cadastrados no perfil. Esses dados são enviados à processadora para o pagamento e não determinam se o CPF será impresso no comprovante.</p>
+              <p>Para concluir com Pix ou cartão, precisamos do seu CPF e celular com DDD no perfil. Esses dados são usados no processamento do pagamento; a inclusão do CPF no comprovante é uma escolha separada.</p>
               {profileCpf.replace(/\D/g, '').length !== 11 || ![10, 11].includes(profilePhone.replace(/\D/g, '').replace(/^55(?=\d{10,11}$)/, '').length)
-                ? <Link href="/dashboard/profile">Completar CPF e celular no perfil</Link>
-                : <span>CPF e celular cadastrados no perfil.</span>}
+                ? <Link href="/dashboard/profile">Completar dados do perfil</Link>
+                : <span>Dados necessários já estão no perfil.</span>}
             </div>}
-            {paymentMethod === 'pix' && !pagarmeConfig.pixAvailable && <p className="checkout-field-hint" role="alert">Pix Pagar.me indisponível até a configuração das chaves no servidor.</p>}
+            {paymentMethod === 'pix' && !pagarmeConfig.pixAvailable && <p className="checkout-field-hint" role="alert">O Pix está temporariamente indisponível. Escolha outra forma ou tente mais tarde.</p>}
             {paymentMethod === 'cartao' && savedCardLoading && <p className="checkout-field-hint" role="status">Verificando cartão salvo...</p>}
-            {paymentMethod === 'cartao' && savedCardError && <p className="checkout-field-hint" role="alert">{savedCardError}</p>}
-            {paymentMethod === 'cartao' && !savedCardLoading && savedCard && <div className="checkout-card-fields">
-              <strong>{savedCard.brand} terminado em {savedCard.lastFourDigits}</strong>
-              <span>Validade {String(savedCard.expMonth).padStart(2, '0')}/{savedCard.expYear}</span>
-              <small className="checkout-field-hint">Este cartão só será cobrado quando você confirmar o pedido. <Link href="/dashboard/payment-methods">Gerenciar cartão salvo</Link></small>
+            {paymentMethod === 'cartao' && savedCardError && <div className="checkout-saved-card-error" role="alert">
+              <p>{savedCardError}</p>
+              <div>
+                <button type="button" onClick={() => window.dispatchEvent(new Event(SAVED_CARD_UPDATED_EVENT))}>Tentar novamente</button>
+                <Link href="/dashboard/payment-methods">Gerenciar cartão</Link>
+              </div>
             </div>}
-            {paymentMethod === 'cartao' && !savedCardLoading && !savedCard && <p className="checkout-field-hint" role="alert">
-              Cadastre um cartão no <Link href="/dashboard/payment-methods">Dashboard → Formas de pagamento</Link> antes de finalizar pelo cartão.
+            {paymentMethod === 'cartao' && !savedCardLoading && savedCard && <section
+              className="checkout-saved-card"
+              aria-labelledby="checkout-saved-card-title"
+              aria-describedby="checkout-saved-card-note"
+            >
+              <div className="checkout-saved-card-overview">
+                <span className="checkout-saved-card-icon" aria-hidden="true"><CreditCard size={20} /></span>
+                <div className="checkout-saved-card-details">
+                  <div className="checkout-saved-card-heading">
+                    <h3 id="checkout-saved-card-title">Cartão selecionado</h3>
+                    <span className="checkout-saved-card-status">Pronto para usar</span>
+                  </div>
+                  <p className="checkout-saved-card-number">
+                    <strong>{savedCard.brand || 'Cartão'}</strong>
+                    <span aria-label={`terminado em ${savedCard.lastFourDigits}`}>•••• {savedCard.lastFourDigits}</span>
+                  </p>
+                  <p className="checkout-saved-card-expiry">
+                    Validade {String(savedCard.expMonth).padStart(2, '0')}/{savedCard.expYear}
+                  </p>
+                </div>
+              </div>
+              <div className="checkout-saved-card-footer">
+                <p id="checkout-saved-card-note">Você confere o valor e confirma o pedido antes da cobrança.</p>
+                <Link href="/dashboard/payment-methods">Gerenciar cartão</Link>
+              </div>
+            </section>}
+            {paymentMethod === 'cartao' && !savedCardLoading && !savedCard && !savedCardError && <p className="checkout-field-hint" role="alert">
+              Cadastre um cartão em <Link href="/dashboard/payment-methods">Formas de pagamento</Link> antes de finalizar pelo cartão.
             </p>}
             <button
               className="btn-finalizar"

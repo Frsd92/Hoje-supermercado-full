@@ -191,7 +191,7 @@
           <li>Dados informados no pedido, como produtos, quantidades, valores, endereço selecionado, forma de pagamento, data do pedido e a escolha sobre CPF na nota; quando você solicita a inclusão, o CPF cadastrado no perfil é associado ao pedido</li>
         </ul>
 
-        <p><strong>Pagamento:</strong> Pix e cartões são processados pela Pagar.me. Para processar e identificar o pagamento, compartilhamos com a processadora os dados necessários do cliente e do pedido. Ao cadastrar um cartão em Formas de pagamento no Dashboard, o número e o código de segurança são enviados diretamente à Pagar.me para tokenização; a Plataforma não os recebe nem armazena. Guardamos apenas os identificadores seguros e dados mascarados necessários para reconhecer o cartão (bandeira, quatro últimos dígitos e validade), e você pode removê-lo a qualquer momento no Dashboard.</p>
+        <p><strong>Pagamento:</strong> Pix e cartões são processados pela Pagar.me, que recebe os dados necessários do cliente, do pedido e do pagamento. Ao cadastrar um cartão em Formas de pagamento, o número completo e o código de segurança são enviados diretamente do navegador à processadora para validação e tokenização; a Plataforma não os recebe nem armazena. Mantemos somente as referências seguras retornadas pelo serviço e dados mascarados do cartão (bandeira, quatro últimos dígitos e validade). Você pode remover o cartão no Dashboard. Salvar o cartão não gera cobrança; ela só ocorre quando você confirma um pedido no checkout.</p>
  
         <h3>3.2 Dados coletados automaticamente</h3>
         <ul>
@@ -255,11 +255,12 @@
         <ul>
           <li>Google, quando você escolhe o login Google</li>
           <li>Provedores de hospedagem e infraestrutura da aplicação e do banco de dados, atualmente Vercel e Supabase, para disponibilizar e operar o site e seus dados</li>
+          <li>Pagar.me, para tokenizar cartões e processar pagamentos, conforme os dados necessários à transação</li>
           <li>Hotjar, como prestador de analytics, somente quando você autorizar essa finalidade</li>
           <li>Prestadores técnicos que sejam necessários à operação da Plataforma</li>
           <li>Autoridades públicas, judiciais ou reguladoras, quando houver obrigação ou requisição válida</li>
         </ul>
-        <p>O processamento de pagamentos por Pix e cartão é feito pela Pagar.me. Ao cadastrar um cartão em Formas de pagamento no Dashboard, o número e o CVV são enviados diretamente à Pagar.me para tokenização; a Plataforma não os recebe nem armazena. Para cartões salvos, mantemos apenas a referência segura da Pagar.me e dados mascarados (bandeira, quatro últimos dígitos e validade), que podem ser removidos por você. A Plataforma também não possui integração de despacho com transportadoras identificada no fluxo atual do pedido.</p>
+        <p>Ao cadastrar um cartão, o número e o CVV são enviados diretamente do navegador à Pagar.me para validação e tokenização; a Plataforma não os recebe nem armazena. Para reutilizar o cartão, mantemos somente as referências seguras do serviço e os dados mascarados (bandeira, quatro últimos dígitos e validade), que podem ser removidos por você no Dashboard. O cadastro não realiza uma cobrança: o pagamento só é iniciado quando você confirma o pedido no checkout. A Plataforma também não possui integração de despacho com transportadoras identificada no fluxo atual do pedido.</p>
         <p>Não vendemos dados pessoais. O compartilhamento limita-se ao necessário para operar a Plataforma, cumprir a lei ou atender uma solicitação válida do titular.</p>
  
         <h3>6.1 Transferência internacional de dados</h3>
@@ -269,7 +270,7 @@
       <section id="privacy-s7">
         <h2>7. Armazenamento, retenção e segurança dos dados</h2>
         <h3>7.1 Segurança</h3>
-        <p>Adotamos controles técnicos e organizacionais compatíveis com a operação da Plataforma, incluindo autenticação, restrição de acesso a recursos da conta e transmissão do site por conexão HTTPS. Nenhuma medida elimina todos os riscos; não afirmamos certificação PCI-DSS. O número completo e o CVV são enviados diretamente à Pagar.me durante o cadastro do cartão e não são recebidos ou armazenados pela Plataforma. Para reutilização mediante sua confirmação, mantemos apenas os identificadores da Pagar.me e informações mascaradas do cartão.</p>
+        <p>Adotamos controles técnicos e organizacionais compatíveis com a operação da Plataforma, incluindo autenticação, restrição de acesso a recursos da conta e transmissão do site por conexão HTTPS. Nenhuma medida elimina todos os riscos; não afirmamos certificação PCI-DSS. O número completo e o CVV são enviados diretamente à Pagar.me durante o cadastro do cartão e não são recebidos ou armazenados pela Plataforma. Para reutilização mediante sua confirmação, mantemos apenas as referências seguras do serviço e informações mascaradas do cartão.</p>
  
         <h3>7.2 Retenção</h3>
         <p>Não há um prazo único de retenção configurado para todas as categorias de dados. Mantemos os dados enquanto forem necessários às finalidades descritas, à operação da conta e dos pedidos, ao exercício de direitos ou ao cumprimento de obrigações legais. Dados mantidos no navegador permanecem até serem apagados pelo usuário ou pelo próprio navegador; registros mantidos em sistemas de operação seguem as regras desses sistemas e poderão ser conservados pelo período legal aplicável.</p>

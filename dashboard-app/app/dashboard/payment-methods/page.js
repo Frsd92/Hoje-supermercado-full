@@ -1,5 +1,6 @@
 'use client';
 
+import Link from 'next/link';
 import { useSession } from 'next-auth/react';
 import { Check, CreditCard, Plus, QrCode, Trash2 } from 'lucide-react';
 import { useEffect, useRef, useState } from 'react';
@@ -25,13 +26,18 @@ export default function PaymentMethodsPage() {
   const [feedback, setFeedback] = useState(null);
   const [savedCard, setSavedCard] = useState(null);
   const [cardReady, setCardReady] = useState(false);
+  const [cardLoadError, setCardLoadError] = useState('');
   const [cardAvailable, setCardAvailable] = useState(false);
+  const [cardConfigReady, setCardConfigReady] = useState(false);
   const [cardConfigError, setCardConfigError] = useState('');
+  const [cardRetryCount, setCardRetryCount] = useState(0);
   const [cardFormOpen, setCardFormOpen] = useState(false);
   const [cardSaving, setCardSaving] = useState(false);
   const [cardRemoving, setCardRemoving] = useState(false);
   const [cardFeedback, setCardFeedback] = useState(null);
   const cardFieldsRef = useRef(null);
+  const cardAddButtonRef = useRef(null);
+  const returnCardFocusRef = useRef(false);
 
   useEffect(() => {
     if (status === 'loading') {
@@ -60,28 +66,50 @@ export default function PaymentMethodsPage() {
   }, [session?.user?.email]);
 
   useEffect(() => {
+    if (cardFormOpen) {
+      cardFieldsRef.current?.querySelector('input')?.focus();
+      return;
+    }
+    if (returnCardFocusRef.current && cardReady && cardConfigReady) {
+      cardAddButtonRef.current?.focus();
+      returnCardFocusRef.current = false;
+    }
+  }, [cardFormOpen, savedCard, cardReady, cardConfigReady]);
+
+  useEffect(() => {
     if (status === 'loading') {
       setCardReady(false);
+      setCardConfigReady(false);
       return undefined;
     }
     if (status !== 'authenticated' || !session?.user?.email) {
       setSavedCard(null);
       setCardReady(true);
+      setCardLoadError('');
       setCardAvailable(false);
+      setCardConfigReady(true);
       return undefined;
     }
 
     let active = true;
     setCardReady(false);
+    setCardLoadError('');
+    setCardConfigReady(false);
+    setCardConfigError('');
     setCardFeedback(null);
     const loadCard = async () => {
+      if (active) {
+        setCardReady(false);
+        setCardLoadError('');
+      }
       try {
         const response = await fetch('/api/my/payment-methods', { cache: 'no-store' });
         const data = await response.json();
         if (!response.ok) throw new Error(data.error || 'Não foi possível carregar o cartão salvo.');
         if (active) setSavedCard(data.card || null);
       } catch (error) {
-        if (active) setCardFeedback({ type: 'error', message: error.message });
+        console.error('Não foi possível verificar o cartão salvo:', error);
+        if (active) setCardLoadError('Não foi possível verificar se já existe um cartão salvo. Tente novamente.');
       } finally {
         if (active) setCardReady(true);
       }
@@ -90,7 +118,7 @@ export default function PaymentMethodsPage() {
       try {
         const response = await fetch('/api/pagarme/config', { cache: 'no-store' });
         const data = await response.json();
-        if (!response.ok) throw new Error(data.error || 'Não foi possível verificar a configuração da Pagar.me.');
+        if (!response.ok) throw new Error(data.error || 'Não foi possível verificar a disponibilidade do cadastro.');
         if (active) {
           setCardAvailable(Boolean(data.cardAvailable && data.publicKey));
           setCardConfigError('');
@@ -98,8 +126,11 @@ export default function PaymentMethodsPage() {
       } catch (error) {
         if (active) {
           setCardAvailable(false);
-          setCardConfigError(error.message);
+          setCardConfigError('Não foi possível verificar a disponibilidade do cadastro de cartão.');
+          console.error('Não foi possível verificar a disponibilidade do cadastro de cartão:', error);
         }
+      } finally {
+        if (active) setCardConfigReady(true);
       }
     };
     const handleCardUpdate = () => { void loadCard(); };
@@ -111,7 +142,7 @@ export default function PaymentMethodsPage() {
       active = false;
       window.removeEventListener(SAVED_CARD_UPDATED_EVENT, handleCardUpdate);
     };
-  }, [status, session?.user?.email]);
+  }, [status, session?.user?.email, cardRetryCount]);
 
   const choosePaymentMethod = (method) => {
     try {
@@ -163,14 +194,14 @@ export default function PaymentMethodsPage() {
         });
       } catch (error) {
         if (error instanceof TypeError) {
-          throw new Error('Não foi possível conectar à tokenização da Pagar.me. Tente novamente.');
+          throw new Error('Não foi possível conectar à validação segura do cartão. Tente novamente.');
         }
         throw error;
       }
-      if (!response.ok) throw new Error('Não foi possível proteger o cartão com a Pagar.me. Confira os dados e tente novamente.');
+      if (!response.ok) throw new Error('Não foi possível validar o cartão. Confira os dados e tente novamente.');
       const token = await response.json();
       if (!/^token_[A-Za-z0-9]+$/.test(String(token?.id || ''))) {
-        throw new Error('A Pagar.me não retornou um token válido para o cartão.');
+        throw new Error('Não foi possível confirmar a validação do cartão. Confira os dados e tente novamente.');
       }
       return token.id;
     } finally {
@@ -194,7 +225,7 @@ export default function PaymentMethodsPage() {
       if (!response.ok) throw new Error(data.error || 'Não foi possível salvar o cartão.');
       setSavedCard(data.card);
       setCardFormOpen(false);
-      setCardFeedback({ type: 'success', message: 'Cartão salvo com segurança na Pagar.me para suas próximas compras.' });
+      setCardFeedback({ type: 'success', message: 'Cartão salvo. Ele ficará disponível para suas próximas compras.' });
       window.dispatchEvent(new Event(SAVED_CARD_UPDATED_EVENT));
     } catch (error) {
       setCardFeedback({ type: 'error', message: error.message });
@@ -217,6 +248,7 @@ export default function PaymentMethodsPage() {
       if (!response.ok) throw new Error(data.error || 'Não foi possível remover o cartão.');
       setSavedCard(data.card);
       setCardFeedback({ type: 'success', message: 'Cartão removido da sua conta.' });
+      returnCardFocusRef.current = true;
       window.dispatchEvent(new Event(SAVED_CARD_UPDATED_EVENT));
     } catch (error) {
       setCardFeedback({ type: 'error', message: error.message });
@@ -227,6 +259,7 @@ export default function PaymentMethodsPage() {
 
   const cancelCardEntry = () => {
     cardFieldsRef.current?.querySelectorAll('input').forEach((input) => { input.value = ''; });
+    returnCardFocusRef.current = true;
     setCardFormOpen(false);
     setCardFeedback(null);
   };
@@ -234,24 +267,155 @@ export default function PaymentMethodsPage() {
   return (
     <div className="section-shell settings-page payment-methods-page">
       <header className="page-header-block settings-page-header">
-        <span className="settings-kicker">Preferências de compra</span>
+        <span className="settings-kicker">Conta e pagamentos</span>
         <h1>Formas de pagamento</h1>
-        <p>Escolha uma forma de pagamento preferida. É obrigatório selecionar uma opção antes de finalizar qualquer pedido; você pode alterá-la no carrinho.</p>
+        <p>Gerencie seu cartão salvo e escolha como prefere pagar. Você confirma cada compra no checkout.</p>
       </header>
 
-      <section className="settings-panel payment-methods-panel" aria-labelledby="payment-methods-heading">
+      <section
+        className="settings-panel saved-card-panel"
+        aria-labelledby="saved-card-heading"
+        aria-describedby="saved-card-intro"
+        aria-busy={!cardReady || !cardConfigReady}
+      >
         <div className="settings-panel-heading">
-          <CreditCard size={18} />
+          <CreditCard size={20} aria-hidden="true" />
           <div>
-            <h3 id="payment-methods-heading">Sua preferência</h3>
-            <p>A escolha é salva neste dispositivo para esta conta.</p>
+            <h2 id="saved-card-heading">Cartão para próximas compras</h2>
+            <p>Opcional: salve um cartão e use-o sem preencher os dados novamente.</p>
           </div>
         </div>
 
-        <p className="payment-methods-note">Esta configuração define sua forma de pagamento preferida; nenhum dado de cartão é armazenado.</p>
+        <p className="saved-card-note" id="saved-card-intro">
+          O número e o código de segurança são enviados diretamente ao processador de pagamentos; o Dashboard não os recebe nem armazena. Guardamos apenas uma referência segura e os dados mascarados do cartão. Salvar o cartão não gera cobrança.
+        </p>
 
-        <fieldset className="payment-method-list" disabled={!isReady}>
-          <legend>Selecione uma forma de pagamento</legend>
+        {!cardReady ? (
+          <p className="saved-card-loading" role="status">Verificando se há um cartão salvo...</p>
+        ) : status !== 'authenticated' || !session?.user?.email ? (
+          <div className="saved-card-state saved-card-state-error" role="alert">
+            <p>Entre na sua conta para consultar ou gerenciar cartões.</p>
+            <Link className="saved-card-secondary" href="/login?callbackUrl=%2Fdashboard%2Fpayment-methods">Entrar na conta</Link>
+          </div>
+        ) : cardLoadError ? (
+          <div className="saved-card-state saved-card-state-error" role="alert">
+            <p>{cardLoadError}</p>
+            <button className="saved-card-secondary" type="button" onClick={() => setCardRetryCount((count) => count + 1)}>
+              Tentar novamente
+            </button>
+          </div>
+        ) : savedCard ? (
+          <div className="saved-card-summary" role="group" aria-label={`Cartão salvo ${savedCard.brand || ''}, terminado em ${savedCard.lastFourDigits}`}>
+            <div className="saved-card-summary-main">
+              <span className="saved-card-icon" aria-hidden="true"><CreditCard size={20} /></span>
+              <div className="saved-card-identity">
+                <span className="saved-card-label">Cartão salvo</span>
+                <strong>{savedCard.brand || 'Cartão'} <span aria-label={`terminado em ${savedCard.lastFourDigits}`}>•••• {savedCard.lastFourDigits}</span></strong>
+                <small>Validade {String(savedCard.expMonth).padStart(2, '0')}/{savedCard.expYear}</small>
+              </div>
+              <span className="saved-card-status">Pronto para usar</span>
+            </div>
+            <div className="saved-card-summary-footer">
+              <p>Você confirma o pedido antes de qualquer cobrança.</p>
+              <button
+                className="saved-card-remove"
+                type="button"
+                onClick={removeCard}
+                disabled={cardRemoving}
+                aria-label={`Remover cartão terminado em ${savedCard.lastFourDigits}`}
+              >
+                <Trash2 size={16} aria-hidden="true" />
+                {cardRemoving ? 'Removendo...' : 'Remover cartão'}
+              </button>
+            </div>
+          </div>
+        ) : (
+          <>
+            {!cardConfigReady ? (
+              <p className="saved-card-loading" role="status">Verificando a disponibilidade do cadastro...</p>
+            ) : cardConfigError || !cardAvailable ? (
+              <div className="saved-card-state saved-card-state-error" role="alert">
+                <p>{cardConfigError || 'O cadastro de cartão está temporariamente indisponível.'}</p>
+                <button className="saved-card-secondary" type="button" onClick={() => setCardRetryCount((count) => count + 1)}>
+                  Verificar novamente
+                </button>
+              </div>
+            ) : !cardFormOpen ? (
+              <div className="saved-card-empty">
+                <div className="saved-card-empty-copy">
+                  <span className="saved-card-empty-icon" aria-hidden="true"><CreditCard size={19} /></span>
+                  <div>
+                    <strong>Nenhum cartão salvo</strong>
+                    <p>Cadastre um cartão para usá-lo no checkout. Mantenha nome, CPF e celular com DDD atualizados no perfil.</p>
+                    <Link className="saved-card-inline-link" href="/dashboard/profile">Revisar perfil</Link>
+                  </div>
+                </div>
+                <button
+                  ref={cardAddButtonRef}
+                  className="saved-card-add"
+                  type="button"
+                  onClick={() => { setCardFeedback(null); setCardFormOpen(true); }}
+                >
+                  <Plus size={17} aria-hidden="true" />
+                  Adicionar cartão
+                </button>
+              </div>
+            ) : (
+              <form
+                className="saved-card-entry"
+                aria-busy={cardSaving}
+                onSubmit={(event) => { event.preventDefault(); void saveCard(); }}
+              >
+                <fieldset className="checkout-card-fields" ref={cardFieldsRef} disabled={cardSaving} aria-describedby="saved-card-form-help">
+                  <legend>Dados do cartão</legend>
+                  <p className="saved-card-form-help" id="saved-card-form-help">
+                    O número e o código são enviados diretamente para validação. Não os armazenamos e o cadastro não cobra o cartão.
+                  </p>
+                  <label className="delivery-address-field">Número do cartão
+                    <input name="cardNumber" type="text" inputMode="numeric" autoComplete="cc-number" maxLength={23} required />
+                  </label>
+                  <label className="delivery-address-field">Nome impresso no cartão
+                    <input name="cardHolder" type="text" autoComplete="cc-name" maxLength={100} required />
+                  </label>
+                  <div className="saved-card-field-row">
+                    <label className="delivery-address-field">Validade
+                      <input name="cardExpiration" type="month" autoComplete="cc-exp" required />
+                    </label>
+                    <label className="delivery-address-field">Código de segurança
+                      <input name="cardCvv" type="password" inputMode="numeric" autoComplete="cc-csc" maxLength={4} required />
+                    </label>
+                  </div>
+                </fieldset>
+                <div className="saved-card-actions">
+                  <button className="saved-card-add" type="submit" disabled={cardSaving}>
+                    <CreditCard size={17} aria-hidden="true" />
+                    {cardSaving ? 'Validando e salvando...' : 'Salvar cartão'}
+                  </button>
+                  <button className="saved-card-secondary" type="button" onClick={cancelCardEntry} disabled={cardSaving}>
+                    Cancelar
+                  </button>
+                </div>
+              </form>
+            )}
+          </>
+        )}
+
+        {cardFeedback && <p className={`payment-method-feedback ${cardFeedback.type}`} role={cardFeedback.type === 'error' ? 'alert' : 'status'} aria-live={cardFeedback.type === 'error' ? 'assertive' : 'polite'}>{cardFeedback.message}</p>}
+      </section>
+
+      <section className="settings-panel payment-methods-panel" aria-labelledby="payment-methods-heading">
+        <div className="settings-panel-heading">
+          <Check size={19} aria-hidden="true" />
+          <div>
+            <h2 id="payment-methods-heading">Preferência de pagamento</h2>
+            <p>Escolha uma opção; você pode alterá-la no checkout.</p>
+          </div>
+        </div>
+
+        <p className="payment-methods-note" id="payment-methods-note">A preferência fica salva neste navegador para esta conta. Ela não armazena dados do cartão.</p>
+
+        <fieldset className="payment-method-list" disabled={!isReady} aria-describedby="payment-methods-note">
+          <legend>Forma de pagamento preferida</legend>
           {PAYMENT_METHODS.map((method) => {
             const Icon = paymentMethodIcons[method.value];
             const selected = paymentMethod === method.value;
@@ -267,7 +431,7 @@ export default function PaymentMethodsPage() {
                   onChange={() => choosePaymentMethod(method.value)}
                 />
                 <span className="payment-method-card">
-                  <span className="payment-method-icon"><Icon size={19} /></span>
+                  <span className="payment-method-icon" aria-hidden="true"><Icon size={19} /></span>
                   <span className="payment-method-copy">
                     <strong>{method.label}</strong>
                     <small>{method.description}</small>
@@ -279,91 +443,8 @@ export default function PaymentMethodsPage() {
           })}
         </fieldset>
 
-        {isReady && !paymentMethod && <p className="payment-method-feedback error" role="status">Selecione uma forma de pagamento antes de finalizar seu primeiro pedido.</p>}
-        {feedback && <p className={`payment-method-feedback ${feedback.type}`} role="status" aria-live="polite">{feedback.message}</p>}
-      </section>
-
-      <section className="settings-panel saved-card-panel" aria-labelledby="saved-card-heading">
-        <div className="settings-panel-heading">
-          <CreditCard size={18} />
-          <div>
-            <h3 id="saved-card-heading">Cartão para compras futuras</h3>
-            <p>Cadastre ou remova o cartão que poderá selecionar no checkout do Dashboard.</p>
-          </div>
-        </div>
-
-        <p className="saved-card-note">
-          O número e o código de segurança são enviados diretamente à Pagar.me. A Plataforma guarda apenas a referência segura do cartão, a bandeira, os quatro últimos dígitos e a validade. O cartão só será cobrado quando você confirmar uma compra.
-        </p>
-
-        {!cardReady ? (
-          <p className="payment-method-feedback" role="status">Verificando o cartão salvo...</p>
-        ) : savedCard ? (
-          <div className="saved-card-summary">
-            <div className="saved-card-identity">
-              <span className="saved-card-icon"><CreditCard size={20} /></span>
-              <span>
-                <strong>{savedCard.brand} ···· {savedCard.lastFourDigits}</strong>
-                <small>Validade {String(savedCard.expMonth).padStart(2, '0')}/{savedCard.expYear}</small>
-              </span>
-            </div>
-            <button
-              className="saved-card-remove"
-              type="button"
-              onClick={removeCard}
-              disabled={cardRemoving}
-            >
-              <Trash2 size={15} />
-              {cardRemoving ? 'Removendo...' : 'Remover cartão'}
-            </button>
-          </div>
-        ) : (
-          <>
-            {cardConfigError && <p className="payment-method-feedback error" role="alert">{cardConfigError}</p>}
-            {!cardConfigError && !cardAvailable && <p className="payment-method-feedback error" role="alert">O cadastro de cartão está indisponível no momento.</p>}
-            {!cardFormOpen ? (
-              <button
-                className="saved-card-add"
-                type="button"
-                onClick={() => { setCardFeedback(null); setCardFormOpen(true); }}
-                disabled={!cardAvailable}
-              >
-                <Plus size={16} />
-                Cadastrar cartão
-              </button>
-            ) : (
-              <div className="saved-card-entry">
-                <fieldset className="checkout-card-fields" ref={cardFieldsRef} disabled={cardSaving}>
-                  <legend>Dados do cartão</legend>
-                  <p className="checkout-field-hint">Os dados são tokenizados pela Pagar.me; não são armazenados pela Plataforma.</p>
-                  <label className="delivery-address-field">Número do cartão
-                    <input name="cardNumber" type="text" inputMode="numeric" autoComplete="cc-number" maxLength={23} required />
-                  </label>
-                  <label className="delivery-address-field">Nome impresso no cartão
-                    <input name="cardHolder" type="text" autoComplete="cc-name" maxLength={100} required />
-                  </label>
-                  <label className="delivery-address-field">Validade
-                    <input name="cardExpiration" type="month" autoComplete="cc-exp" required />
-                  </label>
-                  <label className="delivery-address-field">Código de segurança
-                    <input name="cardCvv" type="password" inputMode="numeric" autoComplete="cc-csc" maxLength={4} required />
-                  </label>
-                </fieldset>
-                <div className="saved-card-actions">
-                  <button className="saved-card-add" type="button" onClick={saveCard} disabled={cardSaving}>
-                    <CreditCard size={16} />
-                    {cardSaving ? 'Tokenizando e salvando...' : 'Salvar cartão com segurança'}
-                  </button>
-                  <button className="saved-card-cancel" type="button" onClick={cancelCardEntry} disabled={cardSaving}>
-                    Cancelar
-                  </button>
-                </div>
-              </div>
-            )}
-          </>
-        )}
-
-        {cardFeedback && <p className={`payment-method-feedback ${cardFeedback.type}`} role="status" aria-live="polite">{cardFeedback.message}</p>}
+        {isReady && !paymentMethod && <p className="payment-method-feedback error" role="status">Escolha sua forma de pagamento antes de finalizar a compra.</p>}
+        {feedback && <p className={`payment-method-feedback ${feedback.type}`} role={feedback.type === 'error' ? 'alert' : 'status'} aria-live={feedback.type === 'error' ? 'assertive' : 'polite'}>{feedback.message}</p>}
       </section>
     </div>
   );

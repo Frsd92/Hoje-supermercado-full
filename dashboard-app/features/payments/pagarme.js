@@ -73,16 +73,16 @@ export function buildPagarmeOrderPayload({
   address,
 }) {
   if (!['pix', 'cartao'].includes(paymentMethod)) {
-    throw new Error('A forma de pagamento não é processada pela Pagar.me.');
+    throw new Error('Selecione uma forma de pagamento online disponível.');
   }
   if (!Array.isArray(items) || !items.length) throw new Error('O pedido não possui itens para pagamento.');
 
   const phone = splitBrazilianMobilePhone(customer.phone);
   const document = String(customer.cpf || '').replace(/\D/g, '');
-  if (!isValidCpf(document)) throw new Error('Cadastre um CPF válido no perfil para pagar pela Pagar.me.');
-  if (!phone) throw new Error('Cadastre um celular com DDD no perfil para pagar pela Pagar.me.');
+  if (!isValidCpf(document)) throw new Error('Cadastre um CPF válido no perfil para continuar com o pagamento.');
+  if (!phone) throw new Error('Cadastre um celular com DDD no perfil para continuar com o pagamento.');
   if (!String(customer.email || '').trim() || !String(customer.name || '').trim()) {
-    throw new Error('Complete seu nome e e-mail no perfil antes de pagar pela Pagar.me.');
+    throw new Error('Complete seu nome e e-mail no perfil antes de continuar com o pagamento.');
   }
 
   const rawItems = items.map((item, index) => {
@@ -238,11 +238,11 @@ export async function pagarmeRequest(path, {
   try {
     data = await response.json();
   } catch {
-    if (response.ok) throw new Error('A Pagar.me retornou uma resposta inválida.');
+    if (response.ok) throw new Error('O processador de pagamentos retornou uma resposta inválida.');
   }
   if (!response.ok) throw new PagarmeApiError(response.status);
   if (!data || typeof data !== 'object' || Array.isArray(data)) {
-    throw new Error('A Pagar.me retornou uma resposta inválida.');
+    throw new Error('O processador de pagamentos retornou uma resposta inválida.');
   }
   return data;
 }
@@ -264,7 +264,7 @@ export function createPagarmeCustomer(payload) {
 
 export function createPagarmeCustomerCard(customerId, token, idempotencyKey, { fetchImpl, secretKey } = {}) {
   if (!/^cus_[A-Za-z0-9]+$/.test(String(customerId || ''))) {
-    throw new Error('O cliente da Pagar.me não é válido.');
+    throw new Error('Não foi possível validar os dados do cliente para o pagamento.');
   }
   if (!/^token_[A-Za-z0-9]+$/.test(String(token || ''))) {
     throw new Error('O cartão precisa ser tokenizado antes de ser salvo.');

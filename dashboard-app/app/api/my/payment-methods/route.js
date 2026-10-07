@@ -33,7 +33,7 @@ function getCustomerEmail(session) {
 function mapPagarmeError(error) {
   if (!(error instanceof PagarmeApiError)) return null;
   if ([400, 412, 422].includes(error.status)) {
-    return { status: 422, message: 'A Pagar.me não aceitou o cartão. Confira os dados e tente novamente.' };
+    return { status: 422, message: 'Não foi possível validar o cartão. Confira os dados e tente novamente.' };
   }
   if (error.status === 409) {
     return { status: 409, message: 'O cartão já foi alterado. Atualize a página e tente novamente.' };
@@ -41,7 +41,7 @@ function mapPagarmeError(error) {
   if ([401, 403].includes(error.status)) {
     return { status: 503, message: 'O serviço de cartões está indisponível. Tente novamente mais tarde.' };
   }
-  return { status: 502, message: 'Não foi possível concluir a operação com a Pagar.me.' };
+  return { status: 502, message: 'Não foi possível concluir a operação com o cartão. Tente novamente.' };
 }
 
 function readProfileCardFields(profile) {
@@ -98,10 +98,10 @@ export async function POST(request) {
     return Response.json({ error: 'Os dados enviados são inválidos.' }, { status: 400 });
   }
   if (Object.keys(body).some((field) => !['cardToken', 'requestId'].includes(field))) {
-    return Response.json({ error: 'Envie somente o token seguro gerado pela Pagar.me, nunca os dados abertos do cartão.' }, { status: 400 });
+    return Response.json({ error: 'Envie somente o código seguro do cartão; nunca os dados completos.' }, { status: 400 });
   }
   if (!cardTokenPattern.test(String(body.cardToken || ''))) {
-    return Response.json({ error: 'O cartão precisa ser tokenizado pela Pagar.me antes de ser salvo.' }, { status: 400 });
+    return Response.json({ error: 'O cartão precisa ser validado antes de ser salvo.' }, { status: 400 });
   }
   if (body.requestId !== undefined && !requestIdPattern.test(String(body.requestId))) {
     return Response.json({ error: 'Não foi possível identificar esta tentativa. Atualize a página e tente novamente.' }, { status: 400 });
