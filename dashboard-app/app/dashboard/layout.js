@@ -16,7 +16,11 @@ import {
   readPaymentMethod,
   savePaymentMethod,
 } from './payment-methods';
-import { isCardPaymentMethod } from '@/features/payments/card-methods';
+import {
+  isCardPaymentMethod,
+  isCardTypeCompatible,
+  isKnownCardType,
+} from '@/features/payments/card-methods';
 import {
   Bell,
   ChevronDown,
@@ -124,11 +128,11 @@ export default function DashboardLayout({ children }) {
     [cartItems, activeCouponDiscountPercent],
   );
   const activeSavedCards = savedCards.filter((card) => card.status === 'active');
-  const requiredCardType = paymentMethod === 'cartao_debito' ? 'debit' : 'credit';
-  const compatibleSavedCards = activeSavedCards.filter((card) => !card.type || card.type === requiredCardType);
+  const compatibleSavedCards = activeSavedCards.filter((card) => isCardTypeCompatible(card.type, paymentMethod));
   const selectedSavedCard = compatibleSavedCards.find((card) => card.id === selectedSavedCardId)
     || compatibleSavedCards[0]
     || null;
+  const hasUnclassifiedActiveSavedCards = activeSavedCards.some((card) => !isKnownCardType(card.type));
   const [checkoutStatus, setCheckoutStatus] = useState('');
   const [checkoutOrderId, setCheckoutOrderId] = useState('');
   const [checkoutLoading, setCheckoutLoading] = useState(false);
@@ -742,7 +746,9 @@ export default function DashboardLayout({ children }) {
     }
     if (cardPaymentSelected && !selectedSavedCard) {
       const typeLabel = paymentMethod === 'cartao_debito' ? 'débito' : 'crédito';
-      return setCheckoutStatus(`Não há cartão de ${typeLabel} ativo na sua carteira. Cadastre um cartão compatível em Formas de pagamento.`);
+      return setCheckoutStatus(activeSavedCards.length
+        ? `Não há cartão de ${typeLabel} compatível na sua carteira. Cadastre um cartão desse tipo em Formas de pagamento.`
+        : 'Salve um cartão em Formas de pagamento antes de finalizar.');
     }
     if (cardPaymentSelected && !pagarmeConfig.savedCardAvailable) {
       return setCheckoutStatus('O pagamento com cartão está temporariamente indisponível. Tente mais tarde.');
@@ -1275,16 +1281,18 @@ export default function DashboardLayout({ children }) {
               </div>
             </div>}
             {isCardPaymentMethod(paymentMethod) && !savedCardLoading && !savedCardError && !selectedSavedCard && <p className="checkout-field-hint" role="alert">
-              {activeSavedCards.length
-                ? `Sua carteira não tem um cartão de ${paymentMethod === 'cartao_debito' ? 'débito' : 'crédito'} ativo. `
-                : 'Salve um cartão para continuar. '}
+              {activeSavedCards.length && hasUnclassifiedActiveSavedCards
+                ? 'O tipo de um cartão salvo não foi identificado; ele não pode ser usado para evitar misturar crédito e débito. '
+                : activeSavedCards.length
+                  ? `Sua carteira não tem um cartão de ${paymentMethod === 'cartao_debito' ? 'débito' : 'crédito'} ativo. `
+                  : 'Salve um cartão para continuar. '}
               <Link href="/dashboard/payment-methods">Gerenciar cartões</Link>
             </p>}
             {isCardPaymentMethod(paymentMethod) && !savedCardLoading && !savedCardError && selectedSavedCard && <>
               <label className="delivery-address-field checkout-saved-card-select">
-                Cartão salvo
+                {paymentMethod === 'cartao_debito' ? 'Cartão de débito salvo' : 'Cartão de crédito salvo'}
                 <select value={selectedSavedCard.id} onChange={(event) => setSelectedSavedCardId(event.target.value)}>
-                  {activeSavedCards.map((card) => (
+                  {compatibleSavedCards.map((card) => (
                     <option value={card.id} key={card.id}>
                       {card.brand} •••• {card.lastFourDigits}
                     </option>
@@ -1300,7 +1308,9 @@ export default function DashboardLayout({ children }) {
                 <span className="checkout-saved-card-icon" aria-hidden="true"><CreditCard size={20} /></span>
                 <div className="checkout-saved-card-details">
                   <div className="checkout-saved-card-heading">
-                    <h3 id="checkout-saved-card-title">Cartão selecionado</h3>
+                    <h3 id="checkout-saved-card-title">
+                      {paymentMethod === 'cartao_debito' ? 'Cartão de débito selecionado' : 'Cartão de crédito selecionado'}
+                    </h3>
                     <span className="checkout-saved-card-status">Pronto para usar</span>
                   </div>
                   <p className="checkout-saved-card-number">

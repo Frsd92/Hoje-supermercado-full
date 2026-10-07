@@ -77,6 +77,16 @@
   box-shadow: inset 0 1px 0 rgba(255,255,255,0.04);
 }
 
+.topbar .store-favorites-link {
+  color: inherit;
+  text-decoration: none;
+}
+
+.topbar .store-favorites-link:focus-visible {
+  outline: 3px solid #f5c518;
+  outline-offset: 3px;
+}
+
 .topbar button.topbar-item {
   color: inherit;
   font: inherit;

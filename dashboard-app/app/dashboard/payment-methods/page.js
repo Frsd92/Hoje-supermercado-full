@@ -12,7 +12,7 @@ import {
   readPaymentMethod,
   savePaymentMethod,
 } from '../payment-methods';
-import { MAX_SAVED_CARDS } from '@/features/payments/card-methods';
+import { isKnownCardType, MAX_SAVED_CARDS } from '@/features/payments/card-methods';
 
 const paymentMethodIcons = {
   pix: QrCode,
@@ -360,35 +360,56 @@ export default function PaymentMethodsPage() {
         ) : (
           <div className="saved-card-wallet">
             {savedCards.length ? (
-              <div className="saved-card-list" role="list" aria-label={`Cartões salvos: ${savedCards.length} de ${MAX_SAVED_CARDS}`}>
-                {savedCards.map((card) => (
-                  <article className="saved-card-summary" key={card.id} role="listitem" aria-label={`Cartão salvo ${card.brand}, terminado em ${card.lastFourDigits}`}>
-                    <div className="saved-card-summary-main">
-                      <span className="saved-card-icon" aria-hidden="true"><CreditCard size={20} /></span>
-                      <div className="saved-card-identity">
-                        <span className="saved-card-label">
-                          {card.type === 'debit' ? 'Cartão de débito' : card.type === 'credit' ? 'Cartão de crédito' : 'Cartão salvo'}
-                        </span>
-                        <strong>{card.brand} <span aria-label={`terminado em ${card.lastFourDigits}`}>•••• {card.lastFourDigits}</span></strong>
-                        <small>Validade {String(card.expMonth).padStart(2, '0')}/{card.expYear}</small>
-                      </div>
-                      <span className={`saved-card-status ${card.status === 'active' ? '' : 'inactive'}`}>
-                        {card.status === 'active' ? 'Ativo' : 'Indisponível'}
-                      </span>
+              <div className="saved-card-groups">
+                {[
+                  { type: 'credit', label: 'Cartões de crédito', cards: savedCards.filter((card) => card.type === 'credit') },
+                  { type: 'debit', label: 'Cartões de débito', cards: savedCards.filter((card) => card.type === 'debit') },
+                  { type: 'unknown', label: 'Tipo não identificado', cards: savedCards.filter((card) => !isKnownCardType(card.type)) },
+                ].filter(({ cards }) => cards.length > 0).map((group) => (
+                  <section className={`saved-card-group saved-card-group-${group.type}`} key={group.type} aria-labelledby={`saved-card-group-${group.type}`}>
+                    <h3 className="saved-card-group-title" id={`saved-card-group-${group.type}`}>{group.label}</h3>
+                    {group.type === 'unknown' && <p className="saved-card-type-note">
+                      Esses cartões não podem ser usados até o processador identificar se são de crédito ou débito.
+                    </p>}
+                    <div className="saved-card-list" role="list" aria-label={group.label}>
+                      {group.cards.map((card) => (
+                        <article
+                          className={`saved-card-summary ${group.type}${card.status === 'active' ? '' : ' inactive'}`}
+                          key={card.id}
+                          role="listitem"
+                          aria-label={`${group.type === 'unknown' ? 'Cartão sem tipo identificado' : group.label}, ${card.brand}, terminado em ${card.lastFourDigits}`}
+                        >
+                          <div className="saved-card-card-top">
+                            <div className="saved-card-card-heading">
+                              <span className="saved-card-label">{group.type === 'unknown' ? 'Cartão salvo' : group.type === 'debit' ? 'Débito' : 'Crédito'}</span>
+                              <strong className="saved-card-brand">{card.brand}</strong>
+                            </div>
+                            <span className="saved-card-icon" aria-hidden="true"><CreditCard size={21} /></span>
+                          </div>
+                          <p className="saved-card-number">
+                            <span aria-hidden="true">•••• •••• ••••</span>
+                            <strong aria-label={`terminado em ${card.lastFourDigits}`}>{card.lastFourDigits}</strong>
+                          </p>
+                          <div className="saved-card-summary-details">
+                            <span>Validade <strong>{String(card.expMonth).padStart(2, '0')}/{card.expYear}</strong></span>
+                            <span className={`saved-card-status ${card.status === 'active' ? '' : 'inactive'}`}>
+                              {card.status === 'active' ? 'Ativo' : 'Indisponível'}
+                            </span>
+                          </div>
+                          <button
+                            className="saved-card-remove"
+                            type="button"
+                            onClick={() => void removeCard(card)}
+                            disabled={Boolean(cardRemovingId)}
+                            aria-label={`Remover cartão terminado em ${card.lastFourDigits}`}
+                          >
+                            <Trash2 size={15} aria-hidden="true" />
+                            {cardRemovingId === card.id ? 'Removendo...' : 'Remover cartão'}
+                          </button>
+                        </article>
+                      ))}
                     </div>
-                    <div className="saved-card-summary-footer">
-                      <button
-                        className="saved-card-remove"
-                        type="button"
-                        onClick={() => void removeCard(card)}
-                        disabled={Boolean(cardRemovingId)}
-                        aria-label={`Remover cartão terminado em ${card.lastFourDigits}`}
-                      >
-                        <Trash2 size={16} aria-hidden="true" />
-                        {cardRemovingId === card.id ? 'Removendo...' : 'Remover cartão'}
-                      </button>
-                    </div>
-                  </article>
+                  </section>
                 ))}
               </div>
             ) : (
@@ -396,7 +417,7 @@ export default function PaymentMethodsPage() {
                 <span className="saved-card-empty-icon" aria-hidden="true"><CreditCard size={19} /></span>
                 <div>
                   <strong>Nenhum cartão salvo</strong>
-                  <p>Adicione cartões para usá-los no checkout.</p>
+                  <p>Adicione cartões de crédito e débito para usá-los no checkout.</p>
                   <Link className="saved-card-inline-link" href="/dashboard/profile">Revisar perfil</Link>
                 </div>
               </div>
@@ -436,7 +457,7 @@ export default function PaymentMethodsPage() {
                 <fieldset className="checkout-card-fields" ref={cardFieldsRef} disabled={cardSaving} aria-describedby="saved-card-form-help">
                   <legend>Dados do cartão</legend>
                   <p className="saved-card-form-help" id="saved-card-form-help">
-                    O cartão é tokenizado com segurança; seus dados completos não são armazenados.
+                    O processador identifica se o cartão é de crédito ou débito. Os tipos ficam separados, e os dados completos não são armazenados.
                   </p>
                   <label className="delivery-address-field">Número do cartão
                     <input name="cardNumber" type="text" inputMode="numeric" autoComplete="cc-number" maxLength={23} required />

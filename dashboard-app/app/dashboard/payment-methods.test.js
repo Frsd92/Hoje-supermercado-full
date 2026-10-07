@@ -11,7 +11,14 @@ import {
   readPaymentMethod,
   savePaymentMethod,
 } from './payment-methods.js';
-import { CARD_PAYMENT_METHODS, MAX_SAVED_CARDS, normalizePaymentMethod } from '../../features/payments/card-methods.js';
+import {
+  CARD_PAYMENT_METHODS,
+  getExpectedCardType,
+  isCardTypeCompatible,
+  isKnownCardType,
+  MAX_SAVED_CARDS,
+  normalizePaymentMethod,
+} from '../../features/payments/card-methods.js';
 
 test('exposes only payment methods available to customers', () => {
   assert.deepEqual(PAYMENT_METHODS.map(({ value }) => value), ['pix', 'cartao_credito', 'cartao_debito']);
@@ -26,6 +33,15 @@ test('exposes only payment methods available to customers', () => {
   assert.deepEqual(CARD_PAYMENT_METHODS, ['cartao_credito', 'cartao_debito']);
   assert.equal(MAX_SAVED_CARDS, 10);
   assert.equal(normalizePaymentMethod('cartao'), 'cartao_credito');
+  assert.equal(getExpectedCardType('cartao_credito'), 'credit');
+  assert.equal(getExpectedCardType('cartao_debito'), 'debit');
+  assert.equal(getExpectedCardType('cartao'), 'credit');
+  assert.equal(getExpectedCardType('pix'), null);
+  assert.equal(isCardTypeCompatible('credit', 'cartao_credito'), true);
+  assert.equal(isCardTypeCompatible('credit', 'cartao_debito'), false);
+  assert.equal(isCardTypeCompatible(null, 'cartao_credito'), false);
+  assert.equal(isKnownCardType('debit'), true);
+  assert.equal(isKnownCardType(null), false);
   assert.equal(isPaymentMethod('dinheiro'), false);
   assert.equal(isPaymentMethod('outro'), false);
   assert.equal(isPaymentMethod('transferencia'), false);

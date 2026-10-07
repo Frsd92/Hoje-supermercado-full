@@ -2,8 +2,8 @@ import { normalizePaymentMethod } from '../../features/payments/card-methods.js'
 
 export const PAYMENT_METHODS = [
   { value: 'pix', label: 'Pix', recommended: true, description: 'QR Code · Pix copia e cola' },
-  { value: 'cartao_credito', label: 'Cartão de crédito', description: 'Cartão salvo' },
-  { value: 'cartao_debito', label: 'Cartão de débito', description: 'Cartão salvo' },
+  { value: 'cartao_credito', label: 'Cartão de crédito', description: 'Cartões de crédito salvos' },
+  { value: 'cartao_debito', label: 'Cartão de débito', description: 'Cartões de débito salvos' },
 ];
 
 export const DEFAULT_PAYMENT_METHOD = 'pix';
