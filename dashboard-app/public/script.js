@@ -12,7 +12,7 @@ const FAVORITES_API = '/api/favorites';
 const CART_API = '/api/cart';
 const SESSION_API = '/api/store-session';
 const ADDRESSES_API = '/api/addresses';
-const PAYMENT_METHODS = ['pix', 'cartao', 'dinheiro', 'outro'];
+const PAYMENT_METHODS = ['pix', 'cartao'];
 let sessaoLoja = { authenticated: false, user: null };
 let carrinhoHidratado = false;
 let carrinhoAtualizando = false;
@@ -80,8 +80,6 @@ function garantirSeletorPagamento(finalizeButton) {
     ['', 'Selecione sua forma de pagamento'],
     ['pix', 'Pix'],
     ['cartao', 'Cartão'],
-    ['dinheiro', 'Dinheiro'],
-    ['outro', 'Outro / combinar'],
   ].forEach(([value, labelText]) => {
     const option = document.createElement('option');
     option.value = value;
@@ -1410,8 +1408,6 @@ function inicializarCarrinho() {
       const paymentMethodLabels = {
         pix: 'Pix',
         cartao: 'Cartão',
-        dinheiro: 'Dinheiro',
-        outro: 'Outro',
       };
       const itensResumo = carrinhoItens.map((item) => {
         const unidade = item.saleUnit === 'Quilograma' ? 'kg' : 'un.';

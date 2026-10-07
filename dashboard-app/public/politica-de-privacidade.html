@@ -109,8 +109,6 @@
           <option value="" selected disabled>Selecione sua forma de pagamento</option>
           <option value="pix">Pix</option>
           <option value="cartao">Cartão</option>
-          <option value="dinheiro">Dinheiro</option>
-          <option value="outro">Outro / combinar</option>
         </select>
       </label>
       <small class="checkout-field-hint">Obrigatória para concluir o pedido.</small>
@@ -193,7 +191,7 @@
           <li>Dados informados no pedido, como produtos, quantidades, valores, endereço selecionado, forma de pagamento, data do pedido e a escolha sobre CPF na nota; quando você solicita a inclusão, o CPF cadastrado no perfil é associado ao pedido</li>
         </ul>
 
-        <p><strong>Pagamento:</strong> no fluxo atual, o site registra a forma de pagamento selecionada no pedido. O formulário da loja não solicita número de cartão, CVV, chave Pix ou credenciais bancárias, e não foi identificado um gateway de pagamento integrado ao checkout.</p>
+        <p><strong>Pagamento:</strong> o checkout oferece Pix e cartão processados pela Pagar.me. Para processar e identificar o pagamento, compartilhamos com a processadora os dados necessários do cliente e do pedido. No pagamento com cartão, os dados são tokenizados diretamente pela Pagar.me; a Plataforma não armazena o número completo do cartão nem o CVV.</p>
  
         <h3>3.2 Dados coletados automaticamente</h3>
         <ul>
@@ -261,7 +259,7 @@
           <li>Prestadores técnicos que sejam necessários à operação da Plataforma</li>
           <li>Autoridades públicas, judiciais ou reguladoras, quando houver obrigação ou requisição válida</li>
         </ul>
-        <p>O checkout atualmente registra a forma de pagamento selecionada, mas não integra um gateway de pagamento. Não afirmamos que dados de cartão ou credenciais de pagamento sejam enviados a um processador. A Plataforma também não possui integração de despacho com transportadoras identificada no fluxo atual do pedido.</p>
+        <p>O processamento de pagamentos por Pix e cartão é feito pela Pagar.me. Os dados necessários do cliente e do pedido são compartilhados com a processadora; os dados do cartão são tokenizados diretamente pela Pagar.me, e o número completo e o CVV não são armazenados pela Plataforma. A Plataforma também não possui integração de despacho com transportadoras identificada no fluxo atual do pedido.</p>
         <p>Não vendemos dados pessoais. O compartilhamento limita-se ao necessário para operar a Plataforma, cumprir a lei ou atender uma solicitação válida do titular.</p>
  
         <h3>6.1 Transferência internacional de dados</h3>
@@ -271,7 +269,7 @@
       <section id="privacy-s7">
         <h2>7. Armazenamento, retenção e segurança dos dados</h2>
         <h3>7.1 Segurança</h3>
-        <p>Adotamos controles técnicos e organizacionais compatíveis com a operação da Plataforma, incluindo autenticação, restrição de acesso a recursos da conta e transmissão do site por conexão HTTPS. Nenhuma medida elimina todos os riscos; não afirmamos certificação PCI-DSS nem armazenamento de dados de cartão, pois o checkout atual não coleta esses dados.</p>
+        <p>Adotamos controles técnicos e organizacionais compatíveis com a operação da Plataforma, incluindo autenticação, restrição de acesso a recursos da conta e transmissão do site por conexão HTTPS. Nenhuma medida elimina todos os riscos; não afirmamos certificação PCI-DSS. Os dados completos do cartão são tokenizados diretamente pela Pagar.me e não são armazenados pela Plataforma.</p>
  
         <h3>7.2 Retenção</h3>
         <p>Não há um prazo único de retenção configurado para todas as categorias de dados. Mantemos os dados enquanto forem necessários às finalidades descritas, à operação da conta e dos pedidos, ao exercício de direitos ou ao cumprimento de obrigações legais. Dados mantidos no navegador permanecem até serem apagados pelo usuário ou pelo próprio navegador; registros mantidos em sistemas de operação seguem as regras desses sistemas e poderão ser conservados pelo período legal aplicável.</p>

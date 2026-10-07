@@ -12,9 +12,10 @@ import {
 } from './payment-methods.js';
 
 test('exposes only payment methods available to customers', () => {
-  assert.deepEqual(PAYMENT_METHODS.map(({ value }) => value), ['pix', 'cartao', 'dinheiro']);
+  assert.deepEqual(PAYMENT_METHODS.map(({ value }) => value), ['pix', 'cartao']);
   assert.equal(DEFAULT_PAYMENT_METHOD, null);
   assert.equal(isPaymentMethod('cartao'), true);
+  assert.equal(isPaymentMethod('dinheiro'), false);
   assert.equal(isPaymentMethod('outro'), false);
   assert.equal(isPaymentMethod('transferencia'), false);
 });

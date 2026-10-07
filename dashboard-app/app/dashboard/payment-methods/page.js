@@ -1,7 +1,7 @@
 'use client';
 
 import { useSession } from 'next-auth/react';
-import { Banknote, Check, CreditCard, QrCode } from 'lucide-react';
+import { Check, CreditCard, QrCode } from 'lucide-react';
 import { useEffect, useState } from 'react';
 import {
   DEFAULT_PAYMENT_METHOD,
@@ -15,7 +15,6 @@ import {
 const paymentMethodIcons = {
   pix: QrCode,
   cartao: CreditCard,
-  dinheiro: Banknote,
 };
 
 export default function PaymentMethodsPage() {

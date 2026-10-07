@@ -160,15 +160,15 @@ export async function POST(request) {
   if (!Array.isArray(body?.items) || !body.items.length || !String(body?.addressId || '').trim()) {
     return Response.json({ error: 'Itens e endereço de entrega são obrigatórios.' }, { status: 400, headers: corsHeaders(request) });
   }
-  if (!['pix', 'cartao', 'dinheiro'].includes(body.paymentMethod)) {
+  if (!['pix', 'cartao'].includes(body.paymentMethod)) {
     return Response.json({ error: 'Selecione uma forma de pagamento válida antes de finalizar.' }, { status: 400, headers: corsHeaders(request) });
   }
   const usesPagarme = body.paymentMethod === 'pix' || body.paymentMethod === 'cartao';
   if (usesPagarme && !process.env.PAGARME_SECRET_KEY) {
-    return Response.json({ error: 'O pagamento online ainda não está configurado. Escolha outro método ou tente mais tarde.' }, { status: 503, headers: corsHeaders(request) });
+    return Response.json({ error: 'O pagamento online ainda não está configurado. Tente novamente mais tarde.' }, { status: 503, headers: corsHeaders(request) });
   }
   if (body.paymentMethod === 'cartao' && !process.env.PAGARME_PUBLIC_KEY) {
-    return Response.json({ error: 'A tokenização segura do cartão ainda não está configurada. Escolha outro método ou tente mais tarde.' }, { status: 503, headers: corsHeaders(request) });
+    return Response.json({ error: 'A tokenização segura do cartão ainda não está configurada. Escolha Pix ou tente mais tarde.' }, { status: 503, headers: corsHeaders(request) });
   }
   if (typeof body.includeCpfOnReceipt !== 'boolean') {
     return Response.json({ error: 'Informe se deseja CPF na nota para continuar.' }, { status: 400, headers: corsHeaders(request) });
