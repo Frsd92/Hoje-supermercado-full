@@ -124,6 +124,7 @@ export function summarizeCouponCampaign(campaign, sourceOrders = [], now = new D
     id: campaign.id,
     code,
     discountPercent: Number(campaign.discountPercent),
+    minimumOrderAmount: roundMoney(Math.max(0, parseMoney(campaign.minimumOrderAmount))),
     message: campaign.message,
     createdAt: campaign.createdAt,
     expiresAt,

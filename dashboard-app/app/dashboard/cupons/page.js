@@ -27,6 +27,10 @@ function formatDate(value) {
     : new Intl.DateTimeFormat('pt-BR', { dateStyle: 'medium', timeZone: 'America/Sao_Paulo' }).format(date);
 }
 
+function formatMoney(value) {
+  return new Intl.NumberFormat('pt-BR', { style: 'currency', currency: 'BRL' }).format(Number(value) || 0);
+}
+
 export default function CustomerCouponsPage() {
   const [coupons, setCoupons] = useState([]);
   const [activeFilter, setActiveFilter] = useState('available');
@@ -169,6 +173,7 @@ export default function CustomerCouponsPage() {
             </div>
             <dl className="customer-coupon-dates">
               <div><dt>Válido até</dt><dd>{formatDate(coupon.expiresAt)}</dd></div>
+              {Number(coupon.minimumOrderAmount) > 0 && <div><dt>Pedido mínimo</dt><dd>{formatMoney(coupon.minimumOrderAmount)}</dd></div>}
               {coupon.status === 'redeemed' && coupon.redeemedAt && <div><dt>Resgatado em</dt><dd>{formatDate(coupon.redeemedAt)}</dd></div>}
               {coupon.status === 'processing' && coupon.redeemedAt && <div><dt>Pedido iniciado em</dt><dd>{formatDate(coupon.redeemedAt)}</dd></div>}
               {coupon.status === 'expired' && <div><dt>Situação</dt><dd>Prazo encerrado</dd></div>}

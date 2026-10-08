@@ -354,6 +354,8 @@ model Order {
   refundRequests        OrderRefundRequest[]
   serviceRequests       OrderServiceRequest[]
   paymentEvents         PagarmeWebhookEvent[]
+  loyaltyMissionContributions LoyaltyMissionContribution[]
+  loyaltyPointEntries   LoyaltyPointEntry[]  @relation("LoyaltyPointsSourceOrder")
 
   @@index([createdAt])
   @@index([customerEmail])
@@ -489,12 +491,14 @@ model CouponCampaign {
   id              String             @id
   code            String             @unique
   discountPercent Int
+  minimumOrderAmount Decimal          @default(0) @db.Decimal(12, 2)
   message         String             @default("")
   expiresAt       DateTime
   createdBy       String
   createdAt       DateTime           @default(now())
   recipients      CouponRecipient[]
   redemptions     CouponRedemption[]
+  loyaltyRedemption LoyaltyRewardRedemption?
 }
 
 model CouponRecipient {
@@ -517,4 +521,139 @@ model CouponRedemption {
 
   @@unique([campaignId, email])
   @@index([email])
+}
+
+model LoyaltyMission {
+  id                 String                     @id @default(cuid())
+  name               String
+  description        String                     @default("")
+  ruleType           String
+  targetAmount       Decimal                    @default(0) @db.Decimal(12, 2)
+  targetCount        Int                        @default(1)
+  category           String?
+  pointsReward       Int
+  rewardLimit        Int?
+  claimedRewards     Int                        @default(0)
+  recurrence         String                     @default("none")
+  startsAt           DateTime
+  endsAt             DateTime?
+  pointsExpiryPolicy String                     @default("CYCLE_END")
+  pointsExpiryDays   Int?
+  pointsExpireAt     DateTime?
+  status             String                     @default("draft")
+  createdBy          String
+  createdAt          DateTime                   @default(now())
+  updatedAt          DateTime                   @updatedAt
+  progress           LoyaltyMissionProgress[]
+  contributions      LoyaltyMissionContribution[]
+  pointEntries       LoyaltyPointEntry[]
+
+  @@index([status, startsAt])
+  @@index([endsAt])
+}
+
+model LoyaltyMissionProgress {
+  id            String                       @id @default(cuid())
+  missionId     String
+  customerEmail String
+  cycleStartAt  DateTime
+  cycleEndAt    DateTime
+  progressCount Int                          @default(0)
+  progressAmount Decimal                     @default(0) @db.Decimal(12, 2)
+  completedAt   DateTime?
+  pointsAwarded Int                          @default(0)
+  createdAt     DateTime                     @default(now())
+  updatedAt     DateTime                     @updatedAt
+  mission       LoyaltyMission               @relation(fields: [missionId], references: [id], onDelete: Cascade)
+  contributions LoyaltyMissionContribution[]
+  pointEntries  LoyaltyPointEntry[]
+
+  @@unique([missionId, customerEmail, cycleStartAt])
+  @@index([customerEmail, updatedAt])
+  @@index([missionId, completedAt])
+}
+
+model LoyaltyMissionContribution {
+  id                String                 @id @default(cuid())
+  missionId         String
+  progressId        String
+  orderId           String
+  contributionAmount Decimal               @default(0) @db.Decimal(12, 2)
+  contributionCount Int                    @default(1)
+  contributedAt     DateTime               @default(now())
+  mission           LoyaltyMission         @relation(fields: [missionId], references: [id], onDelete: Restrict)
+  progress          LoyaltyMissionProgress @relation(fields: [progressId], references: [id], onDelete: Cascade)
+  order             Order                  @relation(fields: [orderId], references: [id], onDelete: Restrict)
+
+  @@unique([progressId, orderId])
+  @@index([missionId, contributedAt])
+  @@index([orderId])
+}
+
+model LoyaltyReward {
+  id                 String                     @id @default(cuid())
+  name               String
+  description        String                     @default("")
+  pointsCost         Int
+  discountPercent    Int
+  minimumOrderAmount Decimal                    @default(0) @db.Decimal(12, 2)
+  validityDays       Int
+  active             Boolean                    @default(true)
+  createdBy          String
+  createdAt          DateTime                   @default(now())
+  updatedAt          DateTime                   @updatedAt
+  redemptions        LoyaltyRewardRedemption[]
+}
+
+model LoyaltyRewardRedemption {
+  id               String             @id @default(cuid())
+  requestId        String             @unique
+  customerEmail    String
+  rewardId         String
+  couponCampaignId String             @unique
+  pointsCost       Int
+  createdAt        DateTime           @default(now())
+  reward           LoyaltyReward      @relation(fields: [rewardId], references: [id], onDelete: Restrict)
+  couponCampaign   CouponCampaign     @relation(fields: [couponCampaignId], references: [id], onDelete: Restrict)
+  pointEntry       LoyaltyPointEntry?
+
+  @@index([customerEmail, createdAt])
+  @@index([rewardId, createdAt])
+}
+
+model LoyaltyPointEntry {
+  id                String                  @id @default(cuid())
+  customerEmail     String
+  type              String
+  points            Int
+  description       String
+  missionId         String?
+  progressId        String?
+  sourceOrderId     String?
+  rewardRedemptionId String?                @unique
+  expiresAt         DateTime?
+  createdAt         DateTime                @default(now())
+  mission           LoyaltyMission?         @relation(fields: [missionId], references: [id], onDelete: SetNull)
+  progress          LoyaltyMissionProgress? @relation(fields: [progressId], references: [id], onDelete: SetNull)
+  sourceOrder       Order?                  @relation("LoyaltyPointsSourceOrder", fields: [sourceOrderId], references: [id], onDelete: SetNull)
+  rewardRedemption  LoyaltyRewardRedemption? @relation(fields: [rewardRedemptionId], references: [id], onDelete: SetNull)
+  awardsAllocations LoyaltyPointAllocation[] @relation("LoyaltyAwardAllocation")
+  spendsAllocations LoyaltyPointAllocation[] @relation("LoyaltySpendAllocation")
+
+  @@index([customerEmail, createdAt])
+  @@index([customerEmail, expiresAt])
+  @@index([sourceOrderId])
+}
+
+model LoyaltyPointAllocation {
+  id                String           @id @default(cuid())
+  redemptionEntryId String
+  awardEntryId      String
+  points            Int
+  createdAt         DateTime         @default(now())
+  redemptionEntry   LoyaltyPointEntry @relation("LoyaltySpendAllocation", fields: [redemptionEntryId], references: [id], onDelete: Cascade)
+  awardEntry        LoyaltyPointEntry @relation("LoyaltyAwardAllocation", fields: [awardEntryId], references: [id], onDelete: Restrict)
+
+  @@unique([redemptionEntryId, awardEntryId])
+  @@index([awardEntryId])
 }

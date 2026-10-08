@@ -18,6 +18,7 @@ export async function GET(request) {
       select: {
         code: true,
         discountPercent: true,
+        minimumOrderAmount: true,
         expiresAt: true,
         createdAt: true,
         message: true,
@@ -58,6 +59,7 @@ export async function GET(request) {
       return {
         code: campaign.code,
         discountPercent: campaign.discountPercent,
+        minimumOrderAmount: Number(campaign.minimumOrderAmount),
         expiresAt: campaign.expiresAt,
         createdAt: campaign.createdAt,
         message: campaign.message,

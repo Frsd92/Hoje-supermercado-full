@@ -8,6 +8,7 @@ import { normalizeDeliveryLocation } from '@/lib/delivery-location';
 import { allocateOrderInventory } from '@/features/erp/api/order-inventory-fulfillment';
 import { getOrderPromotionSnapshot } from '@/features/erp/api/product-pricing';
 import { calculateOrderTotals } from '@/features/orders/order-receipt-data';
+import { awardCompletedOrderMissions } from '@/features/loyalty/service';
 import {
   getServiceRegionError,
   getServiceRegionMatch,
@@ -438,6 +439,12 @@ export async function POST(request) {
     });
   }
   const { subtotal, couponDiscountAmount, total } = calculateOrderTotals(orderItems, appliedDiscountPercent);
+  if (campaignCoupon && subtotal < Number(campaignCoupon.minimumOrderAmount)) {
+    const minimumOrderAmount = Number(campaignCoupon.minimumOrderAmount);
+    return Response.json({
+      error: `Este cupom exige compras a partir de R$ ${minimumOrderAmount.toFixed(2).replace('.', ',')}.`,
+    }, { status: 400, headers: corsHeaders(request) });
+  }
   const paymentMethod = body.paymentMethod;
   const orderId = `PED-${randomUUID()}`;
   let pagarmePayload = null;
@@ -652,6 +659,40 @@ export async function PATCH(request) {
       }
       console.error('Não foi possível baixar o estoque por lote ao iniciar a separação:', error);
       return Response.json({ error: 'Não foi possível reservar o estoque válido deste pedido. Nenhuma alteração de status foi salva.' }, { status: 500, headers: corsHeaders(request) });
+    }
+  }
+
+  if (validTransitions[status] === 'Concluido') {
+    try {
+      const updatedOrder = await prisma.$transaction(async (transaction) => {
+        const result = await transaction.order.updateMany({
+          where: { id, status },
+          data: { status: 'Concluido', updatedBy: actor, updatedAt: new Date() },
+        });
+        if (result.count !== 1) return null;
+
+        await awardCompletedOrderMissions(transaction, id);
+        return transaction.order.findUnique({
+          where: { id },
+          include: {
+            items: true,
+            refundRequests: { include: { events: { orderBy: { createdAt: 'asc' } } } },
+          },
+        });
+      }, { isolationLevel: 'Serializable' });
+
+      if (!updatedOrder) {
+        return Response.json({ error: 'O pedido já foi atualizado por outra operação. Atualize a fila.' }, { status: 409, headers: corsHeaders(request) });
+      }
+      return Response.json({ order: serializeOrder(updatedOrder) }, { headers: corsHeaders(request) });
+    } catch (error) {
+      if (error?.code === 'P2034' || error?.code === 'P2002') {
+        return Response.json({ error: 'A conclusão deste pedido concorreu com outra operação. Atualize a fila e tente novamente.' }, { status: 409, headers: corsHeaders(request) });
+      }
+      console.error('Não foi possível concluir o pedido e avaliar as missões de fidelidade:', error);
+      return Response.json({
+        error: 'Não foi possível concluir o pedido e registrar os pontos. Nenhuma alteração foi salva.',
+      }, { status: 500, headers: corsHeaders(request) });
     }
   }
 

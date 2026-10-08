@@ -15,6 +15,7 @@ export async function GET() {
         id: true,
         code: true,
         discountPercent: true,
+        minimumOrderAmount: true,
         expiresAt: true,
         createdAt: true,
         createdBy: true,

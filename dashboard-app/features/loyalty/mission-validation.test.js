@@ -1,0 +1,73 @@
+import test from 'node:test';
+import assert from 'node:assert/strict';
+import {
+  validateLoyaltyMissionPayload,
+  validateLoyaltyRewardPayload,
+} from './mission-validation.js';
+
+const baseMission = {
+  name: 'Compras da semana',
+  description: 'Acumule compras e ganhe pontos.',
+  ruleType: 'MINIMUM_SPEND',
+  targetAmount: '150.00',
+  targetCount: 1,
+  pointsReward: 100,
+  rewardLimit: '',
+  recurrence: 'weekly',
+  startsAt: '2026-10-07T12:00:00.000Z',
+  endsAt: null,
+  pointsExpiryPolicy: 'CYCLE_END',
+  status: 'draft',
+};
+
+test('validates recurring weekly spend missions and normalizes irrelevant fields', () => {
+  const mission = validateLoyaltyMissionPayload(baseMission);
+
+  assert.equal(mission.targetAmount, 150);
+  assert.equal(mission.category, null);
+  assert.equal(mission.rewardLimit, null);
+  assert.equal(mission.pointsExpiryDays, null);
+  assert.equal(mission.pointsExpireAt, null);
+});
+
+test('prevents first-purchase missions from repeating and requires expiry settings', () => {
+  assert.throws(() => validateLoyaltyMissionPayload({
+    ...baseMission,
+    ruleType: 'FIRST_PURCHASE',
+    recurrence: 'weekly',
+  }), /não pode se repetir/);
+
+  assert.throws(() => validateLoyaltyMissionPayload({
+    ...baseMission,
+    pointsExpiryPolicy: 'DAYS_AFTER_AWARD',
+    pointsExpiryDays: '',
+  }), /validade em dias/);
+
+  assert.throws(() => validateLoyaltyMissionPayload({
+    ...baseMission,
+    pointsExpiryPolicy: 'FIXED_DATE',
+    pointsExpireAt: '2026-12-01T00:00:00.000Z',
+  }), /encerramento da missão/);
+});
+
+test('validates reward discounts, point costs, and minimum-order amounts', () => {
+  const reward = validateLoyaltyRewardPayload({
+    name: 'Desconto especial',
+    pointsCost: '250',
+    discountPercent: '15',
+    minimumOrderAmount: '80.50',
+    validityDays: '14',
+    active: true,
+  });
+
+  assert.equal(reward.minimumOrderAmount, 80.5);
+  assert.equal(reward.pointsCost, 250);
+  assert.equal(reward.validityDays, 14);
+  assert.throws(() => validateLoyaltyRewardPayload({
+    name: 'Desconto inválido',
+    pointsCost: 100,
+    discountPercent: 100,
+    minimumOrderAmount: 0,
+    validityDays: 30,
+  }), /desconto percentual/);
+});

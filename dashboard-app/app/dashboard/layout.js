@@ -23,6 +23,7 @@ import {
 } from '@/features/payments/card-methods';
 import {
   Bell,
+  Award,
   ChevronDown,
   CircleDollarSign,
   CreditCard,
@@ -57,6 +58,7 @@ const navigationGroups = [
     items: [
       { label: 'Meus Pedidos', href: '/dashboard/orders', icon: ShoppingBag },
       { label: 'Meus cupons', href: '/dashboard/cupons', icon: TicketPercent },
+      { label: 'Missões e pontos', href: '/dashboard/fidelidade', icon: Award },
       { label: 'Favoritos', href: '/dashboard/favorites', icon: Star },
       { label: 'Orçamento', href: '/dashboard/budget', icon: CircleDollarSign },
     ],
@@ -114,13 +116,19 @@ export default function DashboardLayout({ children }) {
   const [cpfNoteDialogOpen, setCpfNoteDialogOpen] = useState(false);
   const [coupon, setCoupon] = useState('');
   const [couponDiscountPercent, setCouponDiscountPercent] = useState(0);
+  const [couponMinimumOrderAmount, setCouponMinimumOrderAmount] = useState(0);
   const [appliedCouponCode, setAppliedCouponCode] = useState('');
   const [couponStatus, setCouponStatus] = useState('');
   const normalizedCoupon = coupon.trim().toUpperCase();
+  const cartSubtotal = useMemo(() => calculateOrderTotals(cartItems).subtotal, [cartItems]);
   const validCoupons = appliedCouponCode === normalizedCoupon && normalizedCoupon
     ? { [normalizedCoupon]: couponDiscountPercent / 100 }
     : {};
+  const couponMinimumNotMet = appliedCouponCode === normalizedCoupon
+    && normalizedCoupon
+    && cartSubtotal < couponMinimumOrderAmount;
   const activeCouponDiscountPercent = appliedCouponCode === normalizedCoupon && normalizedCoupon
+    && !couponMinimumNotMet
     ? couponDiscountPercent
     : 0;
   const cartTotals = useMemo(
@@ -175,6 +183,7 @@ export default function DashboardLayout({ children }) {
       }
       setCoupon(code);
       setCouponDiscountPercent(0);
+      setCouponMinimumOrderAmount(0);
       setAppliedCouponCode('');
       setCouponStatus('');
       setCheckoutStatus('');
@@ -702,6 +711,7 @@ export default function DashboardLayout({ children }) {
     const code = coupon.trim().toUpperCase();
     if (validCoupons[code]) {
       setCouponDiscountPercent(validCoupons[code] * 100);
+      setCouponMinimumOrderAmount(0);
       setAppliedCouponCode(code);
       setCouponStatus(`Cupom ${code} aplicado com sucesso!`);
       return;
@@ -713,15 +723,21 @@ export default function DashboardLayout({ children }) {
       const assignedCoupon = (data.coupons || []).find((item) => item.code === code);
       if (!assignedCoupon) {
         setCouponDiscountPercent(0);
+        setCouponMinimumOrderAmount(0);
         setAppliedCouponCode('');
         setCouponStatus('Cupom inválido, expirado ou não disponível para sua conta.');
         return;
       }
       setCouponDiscountPercent(assignedCoupon.discountPercent);
+      const minimumOrderAmount = Number(assignedCoupon.minimumOrderAmount) || 0;
+      setCouponMinimumOrderAmount(minimumOrderAmount);
       setAppliedCouponCode(code);
-      setCouponStatus(`Cupom ${code} aplicado: ${assignedCoupon.discountPercent}% de desconto.`);
+      setCouponStatus(cartSubtotal < minimumOrderAmount
+        ? `O cupom ${code} exige um pedido mínimo de R$ ${minimumOrderAmount.toFixed(2).replace('.', ',')}.`
+        : `Cupom ${code} aplicado: ${assignedCoupon.discountPercent}% de desconto.`);
     } catch (error) {
       setCouponDiscountPercent(0);
+      setCouponMinimumOrderAmount(0);
       setAppliedCouponCode('');
       setCouponStatus(error.message);
     }
@@ -730,6 +746,9 @@ export default function DashboardLayout({ children }) {
     event.preventDefault();
     if (!cartItems.length) return setCheckoutStatus('Adicione produtos antes de finalizar.');
     if (!session?.user?.email) return setCheckoutStatus('É necessário estar autenticado para finalizar a compra.');
+    if (appliedCouponCode === normalizedCoupon && normalizedCoupon && couponMinimumNotMet) {
+      return setCheckoutStatus(`Este cupom exige compras a partir de R$ ${couponMinimumOrderAmount.toFixed(2).replace('.', ',')}.`);
+    }
     if (addressesLoading) return setCheckoutStatus('Estamos verificando seus endereços. Aguarde um instante.');
     if (addressLoadError) return setCheckoutStatus(`Não foi possível confirmar seus endereços: ${addressLoadError}`);
     if (!selectedDeliveryAddress) return setCheckoutStatus('Cadastre um endereço no painel do cliente antes de concluir a compra.');
@@ -810,6 +829,7 @@ export default function DashboardLayout({ children }) {
       await saveCart([]);
       setCoupon('');
       setCouponDiscountPercent(0);
+      setCouponMinimumOrderAmount(0);
       setAppliedCouponCode('');
       setCouponStatus('');
       setCheckoutOrderId(data.order.id);
@@ -1202,14 +1222,18 @@ export default function DashboardLayout({ children }) {
               <input
                 id="cart-coupon-code"
                 value={coupon}
-                onChange={(event) => { setCoupon(event.target.value); setCouponDiscountPercent(0); setAppliedCouponCode(''); setCouponStatus(''); }}
+                onChange={(event) => { setCoupon(event.target.value); setCouponDiscountPercent(0); setCouponMinimumOrderAmount(0); setAppliedCouponCode(''); setCouponStatus(''); }}
                 placeholder="Insira seu Cupom"
                 maxLength={24}
                 aria-label="Código do cupom"
               />
               <button className="btn-coupon" type="button" onClick={applyCoupon}>Aplicar</button>
             </div>
-            <p className={`coupon-feedback ${couponStatus.includes('sucesso') ? 'success' : couponStatus ? 'error' : ''}`} role="status" aria-live="polite">{couponStatus}</p>
+            <p className={`coupon-feedback ${couponMinimumNotMet || (!couponStatus.includes('sucesso') && couponStatus) ? 'error' : couponStatus ? 'success' : ''}`} role="status" aria-live="polite">
+              {couponMinimumNotMet
+                ? `Este cupom exige compras a partir de R$ ${couponMinimumOrderAmount.toFixed(2).replace('.', ',')}.`
+                : couponStatus}
+            </p>
             {addressLoadError ? (
               <small className="checkout-field-hint" role="alert">Não foi possível confirmar seus endereços: {addressLoadError}</small>
             ) : addressesLoading ? (

@@ -288,7 +288,7 @@ export default function PromotionsPage() {
               <span className={`coupon-campaign-status status-${campaign.status}`}>{campaignStatusLabels[campaign.status] || 'Situação não identificada'}</span>
             </div>
             <p>{campaign.message || 'Cupom direcionado aos clientes selecionados.'}</p>
-            <small>{campaign.recipientsCount} destinatário(s) · Criado em {formatDate(campaign.createdAt)} · Válido até {formatDate(campaign.expiresAt)}</small>
+            <small>{campaign.recipientsCount} destinatário(s) · Criado em {formatDate(campaign.createdAt)} · Válido até {formatDate(campaign.expiresAt)}{campaign.minimumOrderAmount > 0 ? ` · Pedido mínimo ${money(campaign.minimumOrderAmount)}` : ''}</small>
             <div className="coupon-campaign-stats" aria-label={`Desempenho do cupom ${campaign.code}`}>
               <div><strong>{campaign.redeemedCount}/{campaign.recipientsCount}</strong><span>resgates · {campaign.redemptionRate.toLocaleString('pt-BR')}%</span></div>
               <div><strong>{campaign.availableCount}</strong><span>disponível(is)</span></div>
