@@ -1,7 +1,7 @@
 'use client';
 
 import Link from 'next/link';
-import { Activity, BarChart3, CircleDollarSign, Clock3, FileText, MapPin, MessageSquareText, PackageCheck, RefreshCw, ShoppingBag, Tag, TicketPercent, Trash2, Users, Zap } from 'lucide-react';
+import { Activity, BarChart3, CircleDollarSign, Clock3, FileText, Globe, MapPin, MessageSquareText, MonitorSmartphone, PackageCheck, RefreshCw, ShoppingBag, Tag, TicketPercent, Trash2, Users, Zap } from 'lucide-react';
 import { useEffect, useRef, useState } from 'react';
 import { formatCartQuantity } from '@/app/dashboard/cart-utils';
 import { storeErpRecipientHandoff } from '@/features/erp/customer-recipient-handoff';
@@ -9,6 +9,14 @@ import { storeTrafficPeriodOptions } from '@/features/store-presence/periods';
 
 const money = (value) => `R$ ${Number(value || 0).toFixed(2).replace('.', ',')}`;
 const percent = (value) => `${Number(value || 0).toFixed(1).replace('.', ',')}%`;
+const isTrafficBreakdownItems = (items) => Array.isArray(items)
+  && items.every((item) => typeof item.key === 'string'
+    && typeof item.label === 'string'
+    && Number.isInteger(item.count)
+    && item.count >= 0);
+const isTrafficBreakdown = (breakdown) => Boolean(breakdown)
+  && isTrafficBreakdownItems(breakdown.devices)
+  && isTrafficBreakdownItems(breakdown.browsers);
 
 function Bars({ items }) {
   const max = Math.max(...items.map((item) => Number(item.value) || 0), 1);
@@ -336,6 +344,34 @@ function StoreTrafficChart({ history, periodLabel }) {
   </figure>;
 }
 
+function StoreTrafficBreakdown({ title, description, icon: Icon, currentItems, peakItems }) {
+  const peaksByKey = new Map((peakItems || []).map((item) => [item.key, item.count]));
+  const items = currentItems
+    .map((item) => ({
+      ...item,
+      peak: peaksByKey.has(item.key) ? peaksByKey.get(item.key) : null,
+    }))
+    .filter((item) => item.count > 0 || item.peak > 0)
+    .sort((first, second) => (second.peak ?? second.count) - (first.peak ?? first.count));
+  const max = Math.max(...items.map((item) => item.peak ?? item.count), 1);
+
+  return <section className="analytics-panel">
+    <div className="erp-panel-title"><Icon size={17} /><div><h3>{title}</h3><p>{description}</p></div></div>
+    {items.length
+      ? <div className="analytics-category-list">{items.map((item) => {
+        const value = item.peak ?? item.count;
+        return <div key={item.key}>
+          <div>
+            <strong>{item.label}</strong>
+            <span>{item.count} online agora{item.peak === null ? '' : ` · pico ${item.peak}`}</span>
+          </div>
+          <div className="analytics-progress"><i style={{ width: `${Math.max((value / max) * 100, 4)}%` }} /></div>
+        </div>;
+      })}</div>
+      : <div className="erp-empty-data">Ainda não há sessões classificadas.</div>}
+  </section>;
+}
+
 function StoreTrafficInsights() {
   const [period, setPeriod] = useState('24h');
   const [data, setData] = useState(null);
@@ -355,7 +391,11 @@ function StoreTrafficInsights() {
         const response = await fetch(`/api/erp/store-traffic?period=${encodeURIComponent(period)}`, { cache: 'no-store' });
         const nextData = await response.json();
         if (!response.ok) throw new Error(nextData.error || 'Não foi possível carregar o histórico de presença.');
-        if (!Number.isInteger(nextData?.onlineVisitors) || nextData.onlineVisitors < 0 || !Array.isArray(nextData?.history) || !nextData.history.every((point) => typeof point.label === 'string' && Number.isInteger(point.onlineVisitors) && point.onlineVisitors >= 0)) {
+        if (!Number.isInteger(nextData?.onlineVisitors) || nextData.onlineVisitors < 0
+          || !isTrafficBreakdown(nextData?.currentBreakdown)
+          || (nextData?.peakBreakdown !== null && !isTrafficBreakdown(nextData?.peakBreakdown))
+          || !Array.isArray(nextData?.history)
+          || !nextData.history.every((point) => typeof point.label === 'string' && Number.isInteger(point.onlineVisitors) && point.onlineVisitors >= 0)) {
           throw new Error('A resposta do histórico de presença está incompleta.');
         }
         if (active) {
@@ -377,11 +417,16 @@ function StoreTrafficInsights() {
         const response = await fetch('/api/erp/store-traffic?currentOnly=1', { cache: 'no-store' });
         const current = await response.json();
         if (!response.ok) throw new Error(current.error || 'Não foi possível atualizar a contagem atual.');
-        if (!Number.isInteger(current?.onlineVisitors) || current.onlineVisitors < 0) {
+        if (!Number.isInteger(current?.onlineVisitors) || current.onlineVisitors < 0 || !isTrafficBreakdown(current?.currentBreakdown)) {
           throw new Error('A resposta da contagem atual está incompleta.');
         }
         if (active) {
-          setData((previous) => previous ? { ...previous, onlineVisitors: current.onlineVisitors, updatedAt: current.updatedAt } : previous);
+          setData((previous) => previous ? {
+            ...previous,
+            onlineVisitors: current.onlineVisitors,
+            currentBreakdown: current.currentBreakdown,
+            updatedAt: current.updatedAt,
+          } : previous);
           setError('');
         }
       } catch (loadError) {
@@ -451,12 +496,28 @@ function StoreTrafficInsights() {
               <small>{selectedPeriod?.label || 'Período selecionado'}</small>
             </div>
           </div>
+          <div className="analytics-grid store-traffic-breakdown-grid">
+            <StoreTrafficBreakdown
+              title="Dispositivos"
+              description={`Sessões atuais e maior pico simultâneo em ${selectedPeriod?.label?.toLowerCase() || 'período selecionado'}.`}
+              icon={MonitorSmartphone}
+              currentItems={data.currentBreakdown.devices}
+              peakItems={data.peakBreakdown?.devices}
+            />
+            <StoreTrafficBreakdown
+              title="Navegadores no site"
+              description={`Famílias de navegador usadas na Loja em ${selectedPeriod?.label?.toLowerCase() || 'período selecionado'}.`}
+              icon={Globe}
+              currentItems={data.currentBreakdown.browsers}
+              peakItems={data.peakBreakdown?.browsers}
+            />
+          </div>
           <section className="analytics-panel store-traffic-history-panel">
             <div className="erp-panel-title"><Activity size={17} /><div><h3>Histórico de sessões simultâneas</h3><p>Pico por hora ou por dia no período selecionado.</p></div></div>
             <StoreTrafficChart history={data.history} periodLabel={selectedPeriod?.label || 'período selecionado'} />
           </section>
           <p className="analytics-source-note">
-            Uma sessão anônima por navegador; a mesma pessoa em dispositivos diferentes pode contar mais de uma vez. A medição começa com a ativação e o histórico é retido por até {data.retentionDays} dias
+            Uma sessão anônima por navegador; a mesma pessoa em dispositivos diferentes pode contar mais de uma vez. A classificação indica apenas o tipo geral do dispositivo e a família do navegador, sem armazenar o User-Agent completo ou o modelo exato. A medição cobre as páginas da Loja web; o app nativo não é medido separadamente, embora uma WebView que abra essas páginas possa aparecer como navegador interno. O histórico é retido por até {data.retentionDays} dias
             {trackingStart ? ` (primeira amostra em ${trackingStart})` : ''}. Não são exibidos nomes, contas nem páginas visitadas.
           </p>
         </>}

@@ -7428,6 +7428,7 @@ button.metric-mini:focus-visible {
 .store-traffic-bar-track { display: flex; align-items: flex-end; width: 100%; height: 160px; overflow: hidden; border-radius: 7px 7px 3px 3px; background: #edf4ef; }
 .store-traffic-bar-track i { display: block; width: 100%; border-radius: 7px 7px 3px 3px; background: linear-gradient(180deg, #49a477, #236443); }
 .store-traffic-chart-column small { color: #74817f; font-size: .62rem; white-space: nowrap; }
+.store-traffic-breakdown-grid { grid-template-columns: repeat(2, minmax(0, 1fr)); }
 .analytics-category-list { display: grid; gap: 17px; }
 .analytics-category-list > div > div:first-child { display: flex; justify-content: space-between; gap: 12px; margin-bottom: 7px; font-size: .82rem; }
 .analytics-category-list strong { color: #26343d; }
@@ -7539,6 +7540,7 @@ button.metric-mini:focus-visible {
 
 @media (max-width: 900px) {
   .analytics-grid { grid-template-columns: 1fr; }
+  .store-traffic-breakdown-grid { grid-template-columns: 1fr; }
   .analytics-refresh-warning { align-items: flex-start; flex-wrap: wrap; }
   .analytics-refresh-warning button { margin-left: auto; }
   .analytics-geography-grid { grid-template-columns: 1fr; }

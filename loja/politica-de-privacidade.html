@@ -129,7 +129,7 @@
     <div class="policy-container">
  
       <h1 id="policy-title">Política de Privacidade</h1>
-      <p id="policy-meta" class="policy-meta"><strong>Última atualização:</strong> 3 de outubro de 2026 &nbsp;|&nbsp; <strong>Versão:</strong> 2.1</p>
+      <p id="policy-meta" class="policy-meta"><strong>Última atualização:</strong> 8 de outubro de 2026 &nbsp;|&nbsp; <strong>Versão:</strong> 2.2</p>
 
       <details class="policy-toc">
         <summary>Navegar pelas seções</summary>
@@ -197,11 +197,11 @@
         <ul>
           <li>Dados técnicos necessários para a conexão, como endereço IP, navegador, dispositivo, data e hora, que podem ser tratados pelos serviços de hospedagem e segurança</li>
           <li>Interações necessárias para operar recursos usados por você, como carrinho, favoritos e navegação entre páginas</li>
-          <li>Um identificador aleatório temporário e horários de atividade para estimar sessões ativas na Loja e registrar picos agregados; essa medição não é vinculada à conta, a páginas individuais ou a dados de contato</li>
+          <li>Um identificador aleatório temporário, horários de atividade, tipo geral do dispositivo e família do navegador para estimar sessões ativas na Loja e registrar picos agregados; a classificação do navegador é derivada do User-Agent, cujo texto completo não é armazenado, e não é vinculada à conta, a páginas individuais ou a dados de contato</li>
           <li>Se você aceitar analytics, páginas acessadas e interações de navegação, como cliques e rolagem, coletadas pelo Hotjar para produzir mapas de calor e gravações de navegação</li>
         </ul>
         <p>O Hotjar só é carregado após sua autorização opcional na Loja ou no painel do cliente. O conteúdo textual do painel do cliente e áreas da Loja que podem exibir dados da conta, endereço ou carrinho são suprimidos nas gravações. Esses dados não são usados para publicidade.</p>
-        <p>A medição de sessões ativas é independente do Hotjar e não registra o caminho visitado, endereço IP ou dados de conta no histórico de tráfego. O identificador temporário expira após 30 minutos sem atividade; os picos agregados são mantidos por até 30 dias. Um navegador em mais de um dispositivo pode representar mais de uma sessão, por isso a contagem é uma estimativa e não identifica pessoas individualmente.</p>
+        <p>A medição de sessões ativas é independente do Hotjar e não registra o caminho visitado, endereço IP ou dados de conta no histórico de tráfego. Usamos somente categorias amplas, como celular, tablet, computador e família do navegador; não armazenamos o User-Agent completo nem o modelo exato do aparelho. O identificador temporário expira após 30 minutos sem atividade, e o registro técnico da sessão pode permanecer por até 24 horas; os picos agregados são mantidos por até 30 dias. A medição é feita nas páginas da Loja web e não acompanha o app nativo separadamente. Um navegador em mais de um dispositivo pode representar mais de uma sessão, por isso a contagem é uma estimativa e não identifica pessoas individualmente.</p>
  
         <h3>3.3 Dados de terceiros (login social)</h3>
         <p>Atualmente, o único login social implementado para clientes é o <strong>Google</strong>. Se você escolher essa opção, o Google fornece os dados básicos da conta necessários para autenticação, como nome, e-mail e foto de perfil, conforme as permissões do serviço. Apple e Facebook não são apresentados como meios de login disponíveis neste momento.</p>
@@ -214,7 +214,7 @@
           <tbody>
             <tr><td>Autenticação</td><td>Manter a sessão iniciada com segurança</td><td>Cookies de sessão</td></tr>
             <tr><td>Carrinho de visitante</td><td>Reconhecer o carrinho do navegador</td><td>Cookie e armazenamento local do navegador</td></tr>
-            <tr><td>Presença agregada na Loja</td><td>Estimar sessões ativas e picos de acesso sem identificar a conta</td><td>Cookie temporário de primeira parte e contagens agregadas no PostgreSQL, por até 30 dias</td></tr>
+            <tr><td>Presença agregada na Loja</td><td>Estimar sessões ativas e picos por tipo geral de dispositivo e família do navegador, sem identificar a conta</td><td>Cookie temporário de primeira parte; categorias da sessão por até 24 horas e contagens agregadas no PostgreSQL por até 30 dias</td></tr>
             <tr><td>Preferências funcionais</td><td>Lembrar o identificador do endereço selecionado e, no painel, o orçamento mensal informado</td><td>Armazenamento local do navegador</td></tr>
             <tr><td>Analytics opcional (Hotjar)</td><td>Entender a navegação e melhorar a usabilidade, somente após autorização</td><td>Preferência de consentimento no armazenamento local; cookies e tecnologias do Hotjar após autorização</td></tr>
           </tbody>
@@ -231,7 +231,7 @@
           <li>Registrar e permitir a consulta de pedidos e seus dados operacionais</li>
           <li>Usar os dados de endereço para preencher e associar o endereço escolhido ao pedido</li>
           <li>Exibir recursos de perfil, orçamento mensal e painel conforme as informações fornecidas</li>
-          <li>Acompanhar de forma agregada as sessões ativas e os picos de acesso à Loja para apoiar a operação</li>
+          <li>Acompanhar de forma agregada as sessões ativas e os picos de acesso à Loja, por tipo geral de dispositivo e família do navegador, para apoiar a operação</li>
           <li>Proteger a Plataforma, autenticar sessões, diagnosticar falhas operacionais e atender obrigações legais quando aplicáveis</li>
         </ol>
       </section>

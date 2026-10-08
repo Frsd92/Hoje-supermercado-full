@@ -3,6 +3,11 @@ import { NextResponse } from 'next/server';
 import { authOptions } from '@/auth';
 import { hasErpAccess } from '@/features/erp/access';
 import { prisma } from '@/lib/prisma';
+import {
+  buildStoreTrafficClientCounts,
+  buildStoreTrafficClientItems,
+  buildStoreTrafficClientPeaks,
+} from '@/features/store-presence/client-profile';
 import { pruneStorePresenceData } from '@/features/store-presence/prune';
 import {
   buildStoreTrafficHistory,
@@ -34,12 +39,25 @@ export async function GET(request) {
 
   try {
     await pruneStorePresenceData(now);
-    const onlineVisitors = await prisma.storePresenceSession.count({
-      where: { lastSeenAt: { gte: new Date(now.getTime() - storePresenceActiveWindowMs) } },
-    });
+    const activeSince = new Date(now.getTime() - storePresenceActiveWindowMs);
+    const [onlineVisitors, activeSessions] = await Promise.all([
+      prisma.storePresenceSession.count({
+        where: { lastSeenAt: { gte: activeSince } },
+      }),
+      prisma.storePresenceSession.groupBy({
+        by: ['deviceType', 'browser'],
+        where: { lastSeenAt: { gte: activeSince } },
+        _count: { _all: true },
+      }),
+    ]);
+    const currentBreakdown = buildStoreTrafficClientItems(buildStoreTrafficClientCounts(activeSessions.map((session) => ({
+      deviceType: session.deviceType,
+      browser: session.browser,
+      count: session._count._all,
+    }))));
 
     if (currentOnly) {
-      return NextResponse.json({ onlineVisitors, updatedAt: now.toISOString() }, {
+      return NextResponse.json({ onlineVisitors, currentBreakdown, updatedAt: now.toISOString() }, {
         headers: { 'Cache-Control': 'no-store' },
       });
     }
@@ -58,12 +76,19 @@ export async function GET(request) {
       prisma.storeTrafficSnapshot.findMany({
         where: { minute: { gte: historyStart, lt: now } },
         orderBy: { minute: 'asc' },
-        select: { minute: true, onlineVisitors: true },
+        select: { minute: true, onlineVisitors: true, deviceCounts: true, browserCounts: true },
       }),
     ]);
+    const peakBreakdown = buildStoreTrafficClientPeaks({
+      snapshots,
+      now,
+      periodStart: getStoreTrafficPeriodStart(period, now),
+    });
 
     return NextResponse.json({
       onlineVisitors,
+      currentBreakdown,
+      peakBreakdown,
       updatedAt: now.toISOString(),
       period,
       trackingStartedAt: firstSample?.minute.toISOString() || null,

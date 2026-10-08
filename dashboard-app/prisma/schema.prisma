@@ -69,6 +69,8 @@ model StorePresenceSession {
   id         String   @id
   firstSeenAt DateTime @default(now())
   lastSeenAt  DateTime @default(now())
+  deviceType String   @default("unknown")
+  browser    String   @default("unknown")
 
   @@index([lastSeenAt])
 }
@@ -76,6 +78,8 @@ model StorePresenceSession {
 model StoreTrafficSnapshot {
   minute         DateTime @id
   onlineVisitors Int
+  deviceCounts   Json?
+  browserCounts  Json?
   sampledAt      DateTime @default(now()) @updatedAt
 }
 
