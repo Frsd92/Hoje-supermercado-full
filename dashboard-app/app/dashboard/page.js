@@ -4,8 +4,7 @@ import Link from 'next/link';
 import { useSession } from 'next-auth/react';
 import { useRouter } from 'next/navigation';
 import { useEffect, useState } from 'react';
-import { Award, ArrowRight, CircleDollarSign, CreditCard, Gift, Heart, MapPin, Package, ShoppingCart, UserRound } from 'lucide-react';
-import CustomerMissionCard from '@/features/loyalty/customer-mission-card';
+import { ArrowRight, CircleDollarSign, CreditCard, Heart, MapPin, Package, ShoppingCart, UserRound } from 'lucide-react';
 import { formatCurrency, getBudgetProgress, getCurrentMonthSpend } from './budget';
 import { readLocalBudget } from './budget-storage';
 import { getCartItemCount } from './cart-utils';
@@ -24,12 +23,6 @@ export default function DashboardHomePage() {
   const [dashboardLoading, setDashboardLoading] = useState(true);
   const [dashboardError, setDashboardError] = useState(false);
   const [dashboardRetry, setDashboardRetry] = useState(0);
-  const [loyaltyMissions, setLoyaltyMissions] = useState([]);
-  const [loyaltyRewards, setLoyaltyRewards] = useState([]);
-  const [loyaltyBalance, setLoyaltyBalance] = useState(0);
-  const [loyaltyLoading, setLoyaltyLoading] = useState(true);
-  const [loyaltyError, setLoyaltyError] = useState(false);
-  const [loyaltyRetry, setLoyaltyRetry] = useState(0);
   const [deliveryAddressLoading, setDeliveryAddressLoading] = useState(true);
   const [deliveryAddressError, setDeliveryAddressError] = useState(false);
   const [addressRetry, setAddressRetry] = useState(0);
@@ -89,39 +82,6 @@ export default function DashboardHomePage() {
       active = false;
     };
   }, [status, session?.user?.email, dashboardRetry]);
-
-  useEffect(() => {
-    if (status !== 'authenticated') return;
-    let active = true;
-    const loadMissions = async () => {
-      setLoyaltyLoading(true);
-      setLoyaltyError(false);
-      try {
-        const response = await fetch('/api/loyalty', { cache: 'no-store' });
-        const data = await response.json();
-        if (!response.ok) throw new Error(data.error || 'Não foi possível carregar suas missões.');
-        if (!Array.isArray(data.missions) || !Array.isArray(data.rewards)) {
-          throw new Error('Resposta inválida das missões e recompensas.');
-        }
-        if (active) {
-          setLoyaltyMissions(data.missions);
-          setLoyaltyRewards(data.rewards);
-          const balance = Number(data.balance);
-          setLoyaltyBalance(Number.isFinite(balance) ? balance : 0);
-        }
-      } catch (error) {
-        if (!active) return;
-        console.error('Não foi possível carregar missões e recompensas no resumo do painel:', error);
-        setLoyaltyError(true);
-      } finally {
-        if (active) setLoyaltyLoading(false);
-      }
-    };
-    void loadMissions();
-    return () => {
-      active = false;
-    };
-  }, [status, session?.user?.email, loyaltyRetry]);
 
   useEffect(() => {
     if (status !== 'authenticated') return;
@@ -231,9 +191,6 @@ export default function DashboardHomePage() {
   const monthSpend = getCurrentMonthSpend(orders);
   const budgetProgress = getBudgetProgress(monthSpend, profile.monthlyBudget);
   const cartCount = getCartItemCount(cart);
-  const availableMissions = loyaltyMissions.filter((mission) => !mission.completedAt && !mission.soldOut);
-  const visibleMissions = (availableMissions.length ? availableMissions : loyaltyMissions).slice(0, 3);
-  const visibleRewards = loyaltyRewards.slice(0, 2);
   const metricData = [
     { label: 'Pedidos realizados', value: dashboardLoading ? '—' : orders.length, detail: dashboardLoading ? 'Atualizando pedidos' : 'pedidos registrados', Icon: Package },
     { label: 'Orçamento do mês', value: dashboardLoading ? '—' : profile.monthlyBudget ? formatCurrency(profile.monthlyBudget) : 'Não definido', detail: dashboardLoading ? 'Atualizando orçamento' : `${formatCurrency(monthSpend)} gastos neste mês`, Icon: CircleDollarSign, budget: true },
@@ -310,61 +267,6 @@ export default function DashboardHomePage() {
             : '/dashboard/favorites';
         return <Link key={label} href={href} className={cardClassName}>{cardContent}</Link>;
       })}</div>
-
-      <section className="panel-box customer-coupons-showcase dashboard-home-loyalty" aria-labelledby="dashboard-loyalty-heading">
-        <div className="panel-header compact">
-          <div className="dashboard-home-loyalty-heading">
-            <Award size={19} aria-hidden="true" />
-            <div><h3 id="dashboard-loyalty-heading">Missões e pontos</h3><p>Complete desafios, ganhe pontos e troque por recompensas.</p></div>
-          </div>
-          <Link href="/dashboard/fidelidade" className="dashboard-panel-link">Ver todas <ArrowRight size={14} aria-hidden="true" /></Link>
-        </div>
-        {loyaltyLoading
-          ? <div className="dashboard-home-empty" role="status">Carregando missões e recompensas...</div>
-          : loyaltyError
-            ? <div className="dashboard-home-empty" role="alert">
-              <span>Não foi possível carregar suas missões e recompensas.</span>
-              <button className="dashboard-mission-retry" type="button" onClick={() => setLoyaltyRetry((attempt) => attempt + 1)}>Tentar novamente</button>
-            </div>
-            : <div className="dashboard-home-loyalty-content">
-              {visibleMissions.length
-                ? <div className="loyalty-card-grid loyalty-mission-grid dashboard-home-mission-grid">
-                  {visibleMissions.map((mission) => <CustomerMissionCard key={mission.id} mission={mission} compact />)}
-                </div>
-                : <div className="dashboard-home-empty" role="status">Nenhuma missão ativa no momento. Novos desafios aparecerão aqui.</div>}
-              <div className="dashboard-home-reward-section">
-                <div className="dashboard-home-loyalty-subheading">
-                  <h4>Recompensas disponíveis</h4>
-                  <span>{loyaltyRewards.length}</span>
-                </div>
-                {visibleRewards.length
-                  ? <div className="loyalty-card-grid dashboard-home-reward-grid">
-                    {visibleRewards.map((reward) => {
-                      const pointsCost = Number(reward.pointsCost) || 0;
-                      const pointsNeeded = Math.max(0, pointsCost - loyaltyBalance);
-                      return <article className="customer-coupon-card loyalty-reward-card" key={reward.id}>
-                        <div className="customer-coupon-card-heading">
-                          <span><Gift size={15} aria-hidden="true" />Recompensa</span>
-                          <strong>{reward.discountPercent}% OFF</strong>
-                        </div>
-                        <h5>{reward.name}</h5>
-                        <p className="dashboard-home-reward-cost">
-                          Custa <strong>{pointsCost.toLocaleString('pt-BR')} pontos</strong>
-                          {pointsNeeded > 0 ? ` · faltam ${pointsNeeded.toLocaleString('pt-BR')} pontos` : ' · disponível para resgatar'}
-                        </p>
-                        <dl className="customer-coupon-dates">
-                          <div><dt>Pedido mínimo</dt><dd>{formatCurrency(Number(reward.minimumOrderAmount) || 0)}</dd></div>
-                        </dl>
-                        <Link className="dashboard-home-reward-link" href="/dashboard/fidelidade#loyalty-rewards">
-                          Ver recompensa <ArrowRight size={14} aria-hidden="true" />
-                        </Link>
-                      </article>;
-                    })}
-                  </div>
-                  : <div className="dashboard-home-empty" role="status">Nenhuma recompensa disponível no momento.</div>}
-              </div>
-            </div>}
-      </section>
 
       <div className="home-grid">
         <div className="panel-box profile-panel">

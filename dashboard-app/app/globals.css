@@ -3751,29 +3751,6 @@ button.metric-mini:focus-visible {
   text-underline-offset: 3px;
 }
 
-.dashboard-home-loyalty .panel-header.compact { margin-bottom: 14px; }
-.dashboard-home-loyalty .panel-header.compact h3 { margin: 0; }
-.dashboard-home-loyalty .panel-header.compact > .dashboard-panel-link { display: inline-flex; align-items: center; gap: 5px; }
-.dashboard-home-loyalty-heading { display: flex; align-items: center; gap: 10px; min-width: 0; }
-.dashboard-home-loyalty-heading > svg { flex: 0 0 auto; color: var(--customer-coupon-accent); }
-.dashboard-home-loyalty-heading p { margin: 3px 0 0; color: var(--customer-coupon-muted); font-size: .78rem; }
-.dashboard-home-loyalty-content { display: grid; gap: 14px; }
-.dashboard-home-loyalty-subheading { display: flex; align-items: center; justify-content: space-between; gap: 10px; color: var(--customer-coupon-text); }
-.dashboard-home-loyalty-subheading h4 { margin: 0; font-size: .84rem; font-weight: 800; }
-.dashboard-home-loyalty-subheading span { color: var(--customer-coupon-muted); font-size: .72rem; font-weight: 700; }
-.dashboard-home-reward-section { display: grid; gap: 9px; }
-.dashboard-home-reward-grid { grid-template-columns: repeat(auto-fit, minmax(min(100%, 220px), 1fr)); gap: 10px; }
-.dashboard-home-reward-grid .customer-coupon-card { gap: 9px; padding: 13px; border-style: solid; }
-.dashboard-home-reward-grid .customer-coupon-card-heading { font-size: .78rem; }
-.dashboard-home-reward-grid h5 { margin: 0; color: var(--customer-coupon-text); font-size: .9rem; }
-.dashboard-home-reward-cost { margin: 0; color: var(--customer-coupon-muted); font-size: .74rem; line-height: 1.45; }
-.dashboard-home-reward-cost strong { color: var(--customer-coupon-text); }
-.dashboard-home-reward-link { display: inline-flex; align-items: center; justify-content: center; justify-self: start; gap: 6px; min-height: 36px; padding: 7px 10px; border: 1px solid var(--customer-coupon-border); border-radius: 9px; color: var(--customer-coupon-accent); background: var(--customer-coupon-subtle); font-size: .74rem; font-weight: 800; text-decoration: none; }
-.dashboard-home-reward-link:hover { border-color: var(--customer-coupon-accent); }
-.dashboard-home-reward-link:focus-visible { outline: 3px solid #d1a74f; outline-offset: 3px; }
-.dashboard-home-loyalty .dashboard-mission-retry { border: 0; padding: 0; color: var(--customer-coupon-accent); background: transparent; font: inherit; font-size: .78rem; font-weight: 750; text-align: left; cursor: pointer; }
-.dashboard-home-loyalty .dashboard-mission-retry:focus-visible { outline: 3px solid #d1a74f; outline-offset: 3px; }
-
 .dashboard-home-empty {
   display: grid;
   justify-items: start;
