@@ -3504,6 +3504,33 @@ body {
 .erp-order-fiscal-control p { margin: 0; font-size: .72rem; line-height: 1.45; }
 .erp-order-fiscal-state { justify-self: start; padding: 4px 8px; border-radius: 99px; color: #744719; background: #f7e8cd; font-size: .67rem; font-weight: 850; }
 .erp-order-receipt-button { display: inline-flex; align-items: center; justify-content: center; gap: 7px; }
+.erp-order-document-actions { display: grid; gap: 8px; }
+.erp-order-document-actions button { width: 100%; }
+.order-picking-sheet { box-sizing: border-box; width: min(100%, 760px); padding: 28px; border: 1px solid #dce4dd; border-radius: 12px; color: #19231c; background: #fff; box-shadow: 0 15px 38px rgba(0, 0, 0, .14); font-size: .88rem; line-height: 1.45; }
+.order-picking-header { display: grid; gap: 7px; padding-bottom: 16px; border-bottom: 2px solid #183d29; }
+.order-picking-brand { margin: 0; color: #24613b; font-size: .72rem; font-weight: 900; letter-spacing: .12em; }
+.order-picking-header h2 { margin: 0; color: #183d29; font-size: 1.45rem; }
+.order-picking-header > p:last-child { margin: 0; color: #526158; font-size: .78rem; }
+.order-picking-order-id { color: #19231c; font-size: 1.12rem; overflow-wrap: anywhere; }
+.order-picking-metadata { display: grid; grid-template-columns: minmax(0, 1fr) minmax(0, 1fr); gap: 12px; margin: 18px 0; }
+.order-picking-metadata > div { display: grid; gap: 4px; min-width: 0; }
+.order-picking-metadata dt { color: #657168; font-size: .68rem; font-weight: 800; text-transform: uppercase; }
+.order-picking-metadata dd { margin: 0; color: #19231c; font-weight: 750; overflow-wrap: anywhere; }
+.order-picking-items-heading { display: flex; align-items: baseline; justify-content: space-between; gap: 12px; margin-bottom: 8px; }
+.order-picking-items-heading h3 { margin: 0; color: #19231c; font-size: 1rem; }
+.order-picking-items-heading span { color: #657168; font-size: .72rem; font-weight: 750; }
+.order-picking-items { margin: 0; padding: 0; border-top: 1px solid #dce4dd; list-style: none; }
+.order-picking-items li { display: grid; grid-template-columns: 22px minmax(0, 1fr) auto; align-items: center; gap: 12px; padding: 13px 0; border-bottom: 1px solid #e5e9e5; break-inside: avoid; }
+.order-picking-checkbox { width: 18px; height: 18px; border: 2px solid #26362b; border-radius: 3px; }
+.order-picking-product { display: grid; gap: 3px; min-width: 0; }
+.order-picking-product strong { color: #19231c; overflow-wrap: anywhere; }
+.order-picking-product small { color: #657168; font-size: .7rem; }
+.order-picking-quantity { color: #183d29; font-size: .95rem; white-space: nowrap; }
+.order-picking-empty { display: block !important; color: #657168; font-style: italic; }
+.order-picking-signoff { display: grid; grid-template-columns: 1fr 1fr; gap: 24px; margin-top: 28px; }
+.order-picking-signoff > div { display: grid; gap: 22px; }
+.order-picking-signoff span { color: #526158; font-size: .72rem; font-weight: 750; }
+.order-picking-signoff i { display: block; border-bottom: 1px solid #778078; }
 .erp-refund-count { display: inline-flex; padding: 4px 7px; border-radius: 99px; color: #744719; background: #fff3d9; font-size: .66rem; font-weight: 800; white-space: nowrap; }
 .erp-refund-list { display: grid; gap: 9px; margin-top: 16px; padding-top: 12px; border-top: 1px solid #e2e8f0; }
 .erp-refund-list-heading { display: flex; align-items: center; justify-content: space-between; gap: 8px; }
@@ -3552,6 +3579,9 @@ body {
   .order-receipt-dialog { width: 100vw; max-height: 100dvh; margin: 0; border-radius: 0; }
   .order-receipt-dialog-inner { min-height: 100%; padding: 10px; }
   .order-receipt { padding: 17px; }
+  .order-picking-sheet { padding: 18px; }
+  .order-picking-metadata { grid-template-columns: 1fr; }
+  .order-picking-items li { gap: 8px; }
   .order-receipt-metadata > div { align-items: flex-start; }
   .order-receipt-metadata dd { max-width: 58%; }
   .refund-request-dialog { width: 100vw; max-height: 100dvh; margin: 0; border-radius: 0; }
@@ -3567,7 +3597,8 @@ body {
 }
 @media print {
   @page { size: 80mm auto; margin: 0; }
-  html, body { width: 80mm !important; min-width: 0 !important; margin: 0 !important; overflow: visible !important; background: #fff !important; }
+  @page order-picking-list { size: A4 portrait; margin: 12mm; }
+  html, body { width: auto !important; min-width: 0 !important; margin: 0 !important; overflow: visible !important; background: #fff !important; }
   body * { visibility: hidden !important; }
   .order-receipt-dialog[open], .order-receipt-dialog[open] * { visibility: visible !important; }
   .order-receipt-dialog[open] { position: fixed !important; inset: 0 auto auto 0 !important; display: block !important; width: 80mm !important; max-width: 80mm !important; max-height: none !important; margin: 0 !important; padding: 0 !important; overflow: visible !important; border: 0 !important; border-radius: 0 !important; background: #fff !important; box-shadow: none !important; }
@@ -3575,6 +3606,10 @@ body {
   .order-receipt-dialog-inner { display: block !important; width: 80mm !important; min-height: 0 !important; padding: 0 !important; }
   .order-receipt-actions { display: none !important; }
   .order-receipt { width: 80mm !important; max-width: 80mm !important; margin: 0 !important; padding: 4mm !important; border: 0 !important; border-radius: 0 !important; box-shadow: none !important; font-size: 9pt !important; }
+  .order-picking-dialog[open] { page: order-picking-list; position: static !important; inset: auto !important; display: block !important; width: auto !important; max-width: none !important; max-height: none !important; margin: 0 !important; padding: 0 !important; overflow: visible !important; border: 0 !important; border-radius: 0 !important; background: #fff !important; box-shadow: none !important; }
+  .order-picking-dialog[open]::backdrop { display: none !important; }
+  .order-picking-dialog[open] .order-receipt-dialog-inner { display: block !important; width: auto !important; min-height: 0 !important; padding: 0 !important; }
+  .order-picking-dialog[open] .order-picking-sheet { width: 100% !important; max-width: none !important; margin: 0 !important; padding: 0 !important; border: 0 !important; border-radius: 0 !important; box-shadow: none !important; font-size: 10pt !important; }
 }
 
 .page-section {

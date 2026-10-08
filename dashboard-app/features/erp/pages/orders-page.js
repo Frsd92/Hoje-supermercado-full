@@ -5,6 +5,7 @@ import { useEffect, useMemo, useRef, useState } from 'react';
 import { sortOrdersNewestFirst } from '@/lib/order-sort';
 import { formatCartQuantity } from '@/app/dashboard/cart-utils';
 import OrderReceipt from '@/features/orders/order-receipt';
+import OrderPickingList from '@/features/orders/order-picking-list';
 import { getRemainingRefundCents, refundRequestStatus, refundRequestStatusLabels } from '@/features/orders/order-refund-utils';
 
 const statuses = ['Todos', 'Recebido', 'Separacao', 'Expedicao', 'Em transito', 'Concluido', 'Cancelado'];
@@ -45,8 +46,8 @@ export default function ERPOrdersPage() {
   const [reloadToken, setReloadToken] = useState(0);
   const [acknowledged, setAcknowledged] = useState([]);
   const [selected, setSelected] = useState(null);
-  const [receiptOrder, setReceiptOrder] = useState(null);
-  const receiptDialogRef = useRef(null);
+  const [printDocument, setPrintDocument] = useState(null);
+  const printDialogRef = useRef(null);
   const [busy, setBusy] = useState(false);
   const [actionError, setActionError] = useState('');
   const [refundBusyId, setRefundBusyId] = useState('');
@@ -79,9 +80,9 @@ export default function ERPOrdersPage() {
   }, [reloadToken]);
 
   useEffect(() => {
-    const dialog = receiptDialogRef.current;
-    if (receiptOrder && dialog && !dialog.open) dialog.showModal();
-  }, [receiptOrder]);
+    const dialog = printDialogRef.current;
+    if (printDocument && dialog && !dialog.open) dialog.showModal();
+  }, [printDocument]);
 
   useEffect(() => {
     setInternalRefundAmount('');
@@ -89,6 +90,7 @@ export default function ERPOrdersPage() {
   }, [selected?.id]);
 
   const newOrders = orders.filter((order) => order.status === 'Recebido' && !acknowledged.includes(order.id));
+  const isPickingList = printDocument?.type === 'picking-list';
   const acknowledge = (id) => {
     const next = [...acknowledged, id];
     setAcknowledged(next);
@@ -221,7 +223,7 @@ export default function ERPOrdersPage() {
         <div>
           <span className="eyebrow">Operacao logistica</span>
           <h1>Pedidos</h1>
-          <p>Pedidos, comprovantes internos e acompanhamento de solicitações de estorno.</p>
+          <p>Pedidos, comprovantes internos, listas de separação e acompanhamento de solicitações de estorno.</p>
         </div>
       </div>
       <div className="erp-receipt-integration-note" role="note">
@@ -305,9 +307,14 @@ export default function ERPOrdersPage() {
             <strong>Documento fiscal oficial (NFC-e/NF-e)</strong>
             <p>Número, série, chave de 44 dígitos, protocolo, QR Code, tributos aproximados e XML só poderão ser exibidos após uma emissão fiscal autorizada e integrada.</p>
           </div>
-          <button type="button" className="secondary-cta erp-order-receipt-button" aria-haspopup="dialog" onClick={() => setReceiptOrder(selected)}>
-            <FileText size={16} aria-hidden="true" />Abrir comprovante informativo
-          </button>
+          <div className="erp-order-document-actions" aria-label="Impressões do pedido">
+            <button type="button" className="secondary-cta erp-order-receipt-button" aria-haspopup="dialog" onClick={() => setPrintDocument({ type: 'receipt', order: selected })}>
+              <FileText size={16} aria-hidden="true" />Comprovante do pedido (não fiscal)
+            </button>
+            <button type="button" className="secondary-cta erp-order-picking-button" aria-haspopup="dialog" onClick={() => setPrintDocument({ type: 'picking-list', order: selected })}>
+              <ClipboardList size={16} aria-hidden="true" />Imprimir lista de separação
+            </button>
+          </div>
           <section className="erp-refund-list" aria-labelledby="erp-refund-list-title">
             <div className="erp-refund-list-heading"><h4 id="erp-refund-list-title">Rastreio de estornos</h4><span>{selected.refundRequests?.length || 0}</span></div>
             <p>Solicitações parciais e totais ficam vinculadas ao código PED. Pedidos pagos pela Pagar.me podem ser estornados por aqui; outros métodos permanecem para tratamento manual.</p>
@@ -389,19 +396,21 @@ export default function ERPOrdersPage() {
         </aside>}
       </div>
       <dialog
-        ref={receiptDialogRef}
-        className="order-receipt-dialog"
-        aria-labelledby="order-receipt-title"
-        aria-describedby="order-receipt-disclaimer"
-        onClose={() => setReceiptOrder(null)}
-        onClick={(event) => { if (event.target === receiptDialogRef.current) event.currentTarget.close(); }}
+        ref={printDialogRef}
+        className={`order-receipt-dialog${isPickingList ? ' order-picking-dialog' : ''}`}
+        aria-labelledby={isPickingList ? 'order-picking-list-title' : 'order-receipt-title'}
+        aria-describedby={isPickingList ? 'order-picking-list-description' : 'order-receipt-disclaimer'}
+        onClose={() => setPrintDocument(null)}
+        onClick={(event) => { if (event.target === printDialogRef.current) event.currentTarget.close(); }}
       >
-        {receiptOrder && <div className="order-receipt-dialog-inner">
+        {printDocument && <div className="order-receipt-dialog-inner">
           <div className="order-receipt-actions">
-            <button type="button" className="order-receipt-print" onClick={() => window.print()}><Printer size={16} aria-hidden="true" />Imprimir ou salvar em PDF</button>
-            <button type="button" className="order-receipt-close" autoFocus onClick={() => receiptDialogRef.current?.close()}><X size={16} aria-hidden="true" />Fechar</button>
+            <button type="button" className="order-receipt-print" onClick={() => window.print()}><Printer size={16} aria-hidden="true" />{isPickingList ? 'Imprimir lista' : 'Imprimir ou salvar em PDF'}</button>
+            <button type="button" className="order-receipt-close" autoFocus onClick={() => printDialogRef.current?.close()}><X size={16} aria-hidden="true" />Fechar</button>
           </div>
-          <OrderReceipt order={receiptOrder} />
+          {isPickingList
+            ? <OrderPickingList order={printDocument.order} />
+            : <OrderReceipt order={printDocument.order} />}
         </div>}
       </dialog>
     </div>
