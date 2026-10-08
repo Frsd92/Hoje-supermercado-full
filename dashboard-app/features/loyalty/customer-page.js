@@ -1,7 +1,7 @@
 'use client';
 
 import Link from 'next/link';
-import { Award, BookOpen, Check, Clock3, Copy, Gift, RefreshCw, Sparkles, TicketPercent } from 'lucide-react';
+import { Award, BookOpen, Check, Clock3, Copy, Gift, RefreshCw, Sparkles, Target, TicketPercent } from 'lucide-react';
 import { useCallback, useEffect, useState } from 'react';
 
 const currencyFormatter = new Intl.NumberFormat('pt-BR', { style: 'currency', currency: 'BRL' });
@@ -195,30 +195,49 @@ export default function CustomerLoyaltyPage() {
         </button>
       </div>
       {loading ? <div className="favorites-loading" role="status"><span className="favorites-loading-indicator" />Carregando suas missões...</div>
-        : missions.length ? <div className="loyalty-card-grid">
+        : missions.length ? <div className="loyalty-card-grid loyalty-mission-grid">
           {missions.map((mission) => {
             const progress = missionProgress(mission);
             const complete = Boolean(mission.completedAt);
-            return <article className="customer-coupon-card loyalty-mission-card" key={mission.id}>
-              <div className="customer-coupon-card-heading">
+            const rewardUnavailable = mission.soldOut && !complete;
+            const progressPercent = complete ? 100 : progress.percent;
+            return <article className={`customer-coupon-card loyalty-mission-card${complete ? ' is-complete' : ''}`} key={mission.id}>
+              <div className="loyalty-mission-card-heading">
+                <div className="loyalty-mission-identity">
+                  <div className="loyalty-mission-thumb">
+                    {mission.imageUrl
+                      ? <img src={mission.imageUrl} alt={`Figurinha da missão ${mission.name}`} loading="lazy" />
+                      : <Target size={20} aria-hidden="true" />}
+                  </div>
+                  <div className="loyalty-mission-info">
+                    <small className="loyalty-mission-kind">{missionRuleLabels[mission.ruleType] || 'Missão'}</small>
+                    <h3>{mission.name}</h3>
+                  </div>
+                </div>
                 <span className={`customer-coupon-status${complete ? '' : mission.soldOut ? ' status-expired' : ''}`}>
                   {complete ? 'Concluída' : mission.soldOut ? 'Limite atingido' : mission.recurrence === 'weekly' ? 'Missão semanal' : 'Em andamento'}
                 </span>
-                <strong>{mission.pointsReward.toLocaleString('pt-BR')} pontos</strong>
               </div>
-              <h3>{mission.name}</h3>
               <p className="customer-coupon-card-message">{mission.description || describeMission(mission)}</p>
-              <small className="loyalty-mission-kind">{missionRuleLabels[mission.ruleType] || 'Missão'}</small>
-              <div className="loyalty-progress-label"><span>Progresso</span><strong>{progress.current} / {progress.target}</strong></div>
-              <div className="loyalty-progress-track" role="progressbar" aria-label={`Progresso da missão ${mission.name}`} aria-valuemin="0" aria-valuemax="100" aria-valuenow={Math.round(progress.percent)}>
-                <span style={{ width: `${progress.percent}%` }} />
+              <div className={`loyalty-mission-reward${complete ? ' is-complete' : rewardUnavailable ? ' is-unavailable' : ''}`}>
+                <Gift size={17} aria-hidden="true" />
+                <span>
+                  <small>{complete ? 'Recompensa recebida' : rewardUnavailable ? 'Recompensas esgotadas' : 'Recompensa ao concluir'}</small>
+                  <strong>{rewardUnavailable ? 'Indisponível' : `+${mission.pointsReward.toLocaleString('pt-BR')} pontos`}</strong>
+                </span>
+              </div>
+              <div className="loyalty-progress-label"><span>Conclusão</span><strong>{progress.current} / {progress.target} · {Math.round(progressPercent)}%</strong></div>
+              <div className="loyalty-progress-track" role="progressbar" aria-label={`Conclusão da missão ${mission.name}`} aria-valuemin="0" aria-valuemax="100" aria-valuenow={Math.round(progressPercent)} aria-valuetext={`${Math.round(progressPercent)}% concluído`}>
+                <span style={{ width: `${progressPercent}%` }} />
               </div>
               <p className="loyalty-mission-footer">
                 {complete
                   ? `Concluída em ${formatDate(mission.completedAt)}.`
-                  : mission.soldOut
+                  : rewardUnavailable
                     ? 'As recompensas desta missão foram esgotadas.'
-                    : describeMission(mission)}
+                    : mission.recurrence === 'weekly'
+                      ? 'Conclua pedidos elegíveis para avançar. O progresso reinicia a cada semana.'
+                      : 'Conclua pedidos elegíveis para avançar até a meta.'}
               </p>
               {mission.remainingRewards !== null && !mission.soldOut && <small className="loyalty-expiry-note">
                 Restam {mission.remainingRewards.toLocaleString('pt-BR')} recompensa(s) nesta missão.

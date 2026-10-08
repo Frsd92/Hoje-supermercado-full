@@ -1,3 +1,5 @@
+import { validateImageDataUrl } from '../../lib/image-data.js';
+
 const allowedRuleTypes = new Set([
   'FIRST_PURCHASE',
   'MINIMUM_SPEND',
@@ -7,6 +9,7 @@ const allowedRuleTypes = new Set([
 const allowedRecurrences = new Set(['none', 'weekly']);
 const allowedExpiryPolicies = new Set(['CYCLE_END', 'DAYS_AFTER_AWARD', 'FIXED_DATE', 'NEVER']);
 const allowedMissionStatuses = new Set(['draft', 'active', 'paused', 'archived']);
+const maximumMissionImageBytes = 450_000;
 
 function readDate(value, label, optional = false) {
   if (optional && (value === null || value === undefined || value === '')) return null;
@@ -38,6 +41,17 @@ function parseAmount(value, label, allowZero = false) {
     throw new RangeError(`${label} está inválido.`);
   }
   return Math.round(amount * 100) / 100;
+}
+
+function missionImageFields(body) {
+  if (!Object.prototype.hasOwnProperty.call(body, 'imageData')) return {};
+  if (body.imageData === null || body.imageData === '') {
+    return { imageData: null, imageContentType: null };
+  }
+
+  const image = validateImageDataUrl(body.imageData, { maxBytes: maximumMissionImageBytes });
+  if (!image) throw new RangeError('A miniatura deve ser PNG, JPEG ou WebP válida de até 450 KB após a compressão.');
+  return { imageData: image.imageData, imageContentType: image.contentType };
 }
 
 export function validateLoyaltyMissionPayload(body, { now = new Date(), statusRequired = true } = {}) {
@@ -103,6 +117,7 @@ export function validateLoyaltyMissionPayload(body, { now = new Date(), statusRe
     pointsExpiryDays,
     pointsExpireAt: pointsExpiryPolicy === 'FIXED_DATE' ? pointsExpireAt : null,
     status,
+    ...missionImageFields(body),
   };
 }
 

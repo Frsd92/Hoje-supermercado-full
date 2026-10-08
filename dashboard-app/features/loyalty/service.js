@@ -72,6 +72,23 @@ export async function awardCompletedOrderMissions(transaction, orderId) {
       OR: [{ endsAt: null }, { endsAt: { gt: completedAt } }],
     },
     orderBy: { createdAt: 'asc' },
+    select: {
+      id: true,
+      name: true,
+      ruleType: true,
+      targetAmount: true,
+      targetCount: true,
+      category: true,
+      pointsReward: true,
+      rewardLimit: true,
+      claimedRewards: true,
+      recurrence: true,
+      startsAt: true,
+      endsAt: true,
+      pointsExpiryPolicy: true,
+      pointsExpiryDays: true,
+      pointsExpireAt: true,
+    },
   });
   if (!missions.length) return [];
 
@@ -230,6 +247,24 @@ export async function getCustomerLoyaltySnapshot(transaction, customerEmail, now
       OR: [{ endsAt: null }, { endsAt: { gt: now } }],
     },
     orderBy: [{ recurrence: 'desc' }, { startsAt: 'asc' }],
+    select: {
+      id: true,
+      name: true,
+      description: true,
+      ruleType: true,
+      targetAmount: true,
+      targetCount: true,
+      category: true,
+      pointsReward: true,
+      recurrence: true,
+      startsAt: true,
+      endsAt: true,
+      pointsExpiryPolicy: true,
+      rewardLimit: true,
+      claimedRewards: true,
+      imageContentType: true,
+      updatedAt: true,
+    },
   });
   const missionWindows = missions
     .map((mission) => ({ mission, cycle: getLoyaltyMissionCycle(mission, now) }))
@@ -265,6 +300,9 @@ export async function getCustomerLoyaltySnapshot(transaction, customerEmail, now
         id: mission.id,
         name: mission.name,
         description: mission.description,
+        imageUrl: mission.imageContentType
+          ? `/api/loyalty/missions/${encodeURIComponent(mission.id)}/image?v=${mission.updatedAt.getTime()}`
+          : '',
         ruleType: mission.ruleType,
         targetAmount: Number(mission.targetAmount),
         targetCount: mission.targetCount,
@@ -317,6 +355,29 @@ export async function getLoyaltyAdminSnapshot(transaction) {
   const [missions, rewards, progress] = await Promise.all([
     transaction.loyaltyMission.findMany({
       orderBy: [{ status: 'asc' }, { createdAt: 'desc' }],
+      select: {
+        id: true,
+        name: true,
+        description: true,
+        ruleType: true,
+        targetAmount: true,
+        targetCount: true,
+        category: true,
+        pointsReward: true,
+        rewardLimit: true,
+        claimedRewards: true,
+        recurrence: true,
+        startsAt: true,
+        endsAt: true,
+        pointsExpiryPolicy: true,
+        pointsExpiryDays: true,
+        pointsExpireAt: true,
+        status: true,
+        createdBy: true,
+        createdAt: true,
+        updatedAt: true,
+        imageContentType: true,
+      },
     }),
     transaction.loyaltyReward.findMany({
       include: { _count: { select: { redemptions: true } } },
@@ -340,9 +401,13 @@ export async function getLoyaltyAdminSnapshot(transaction) {
   return {
     missions: missions.map((mission) => {
       const stats = missionStats.get(mission.id) || { participants: new Set(), completions: 0, pointsAwarded: 0 };
+      const { imageContentType, ...missionFields } = mission;
       return {
-        ...mission,
+        ...missionFields,
         targetAmount: Number(mission.targetAmount),
+        imageUrl: imageContentType
+          ? `/api/loyalty/missions/${encodeURIComponent(mission.id)}/image?v=${mission.updatedAt.getTime()}`
+          : '',
         participants: stats.participants.size,
         completions: stats.completions,
         pointsAwarded: stats.pointsAwarded,

@@ -30,6 +30,25 @@ test('validates recurring weekly spend missions and normalizes irrelevant fields
   assert.equal(mission.pointsExpireAt, null);
 });
 
+test('accepts, clears, and preserves optional mission thumbnails', () => {
+  const imageData = 'data:image/png;base64,iVBORw0KGgo=';
+  const missionWithImage = validateLoyaltyMissionPayload({ ...baseMission, imageData });
+  assert.equal(missionWithImage.imageData, 'iVBORw0KGgo=');
+  assert.equal(missionWithImage.imageContentType, 'image/png');
+
+  const missionWithoutImage = validateLoyaltyMissionPayload(baseMission);
+  assert.equal(Object.hasOwn(missionWithoutImage, 'imageData'), false);
+
+  const missionWithImageRemoved = validateLoyaltyMissionPayload({ ...baseMission, imageData: null });
+  assert.equal(missionWithImageRemoved.imageData, null);
+  assert.equal(missionWithImageRemoved.imageContentType, null);
+
+  assert.throws(
+    () => validateLoyaltyMissionPayload({ ...baseMission, imageData: 'data:image/svg+xml;base64,PHN2Zz4=' }),
+    /miniatura deve ser PNG, JPEG ou WebP/,
+  );
+});
+
 test('prevents first-purchase missions from repeating and requires expiry settings', () => {
   assert.throws(() => validateLoyaltyMissionPayload({
     ...baseMission,

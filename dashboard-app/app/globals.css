@@ -2549,11 +2549,29 @@ body {
 .loyalty-section-heading h2, .loyalty-admin-section-heading h2 { margin: 5px 0 0; color: var(--customer-coupon-text, #20372a); font-size: 1.25rem; }
 .loyalty-section-heading .customer-coupon-refresh { display: inline-flex; align-items: center; gap: 7px; min-height: 38px; padding: 7px 11px; border: 1px solid var(--customer-coupon-border, #dce7df); border-radius: 9px; color: var(--customer-coupon-text, #20372a); background: var(--customer-coupon-surface, #fff); font: inherit; font-size: .76rem; font-weight: 750; cursor: pointer; }
 .loyalty-card-grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(min(100%, 290px), 1fr)); gap: 14px; }
+.loyalty-mission-grid { grid-template-columns: repeat(auto-fit, minmax(min(100%, 250px), 1fr)); gap: 11px; }
+.customer-coupon-card.loyalty-mission-card { gap: 10px; padding: 13px; border-style: solid; }
+.loyalty-mission-card h3 { overflow-wrap: anywhere; font-size: .94rem; line-height: 1.3; }
+.loyalty-mission-card-heading { display: grid; gap: 8px; }
+.loyalty-mission-identity { display: grid; grid-template-columns: 48px minmax(0, 1fr); align-items: center; gap: 9px; min-width: 0; }
+.loyalty-mission-thumb { display: grid; place-items: center; width: 48px; height: 48px; overflow: hidden; border: 1px solid var(--customer-coupon-border); border-radius: 11px; color: var(--customer-coupon-accent); background: var(--customer-coupon-subtle); }
+.loyalty-mission-thumb img { display: block; width: 100%; height: 100%; object-fit: contain; }
+.loyalty-mission-info { display: grid; gap: 3px; min-width: 0; }
+.loyalty-mission-kind { display: block; overflow-wrap: anywhere; }
+.loyalty-mission-card-heading > .customer-coupon-status { justify-self: start; min-height: 23px; padding: 3px 8px; font-size: .67rem; }
+.loyalty-mission-reward { display: flex; align-items: center; gap: 9px; padding: 9px 10px; border: 1px solid var(--customer-coupon-border); border-radius: 10px; color: var(--customer-coupon-accent); background: var(--customer-coupon-subtle); }
+.loyalty-mission-reward > svg { flex: 0 0 auto; }
+.loyalty-mission-reward > span { display: grid; gap: 2px; min-width: 0; }
+.loyalty-mission-reward small { color: var(--customer-coupon-muted); font-size: .66rem; }
+.loyalty-mission-reward strong { color: var(--customer-coupon-text); font-size: .82rem; }
+.loyalty-mission-reward.is-complete { border-color: #8ac49a; background: #edf8ef; }
+.loyalty-mission-reward.is-unavailable { color: var(--customer-coupon-muted); }
 .loyalty-mission-card h3, .loyalty-reward-card h3 { margin: 0; color: var(--customer-coupon-text); font-size: 1rem; }
+.loyalty-mission-info h3 { font-size: .94rem; line-height: 1.3; }
 .loyalty-mission-kind, .loyalty-expiry-note { color: var(--customer-coupon-muted); font-size: .72rem; }
-.loyalty-progress-label { display: flex; justify-content: space-between; gap: 10px; color: var(--customer-coupon-muted); font-size: .75rem; }
+.loyalty-progress-label { display: flex; justify-content: space-between; gap: 10px; color: var(--customer-coupon-muted); font-size: .7rem; }
 .loyalty-progress-label strong { color: var(--customer-coupon-text); }
-.loyalty-progress-track { height: 9px; overflow: hidden; border-radius: 99px; background: var(--customer-coupon-subtle); }
+.loyalty-progress-track { height: 11px; overflow: hidden; border-radius: 99px; background: var(--customer-coupon-subtle); }
 .loyalty-progress-track span { display: block; height: 100%; border-radius: inherit; background: linear-gradient(90deg, #267044, #64b57a); transition: width .2s ease; }
 .loyalty-mission-footer { margin: 0; color: var(--customer-coupon-muted); font-size: .76rem; line-height: 1.45; }
 .loyalty-reward-card .customer-coupon-card-heading span { display: inline-flex; align-items: center; gap: 6px; }
@@ -2570,6 +2588,7 @@ body {
 .loyalty-history-item > span { color: #267044; font-size: .82rem; font-weight: 850; white-space: nowrap; }
 .loyalty-history-item > span.negative { color: #b42318; }
 .dashboard-shell[data-dashboard-theme="dark"] .loyalty-progress-track span { background: linear-gradient(90deg, #58a873, #a4d7ad); }
+.dashboard-shell[data-dashboard-theme="dark"] .loyalty-mission-reward.is-complete { border-color: #315e3c; background: #1e3826; }
 .dashboard-shell[data-dashboard-theme="dark"] .loyalty-redeem-button { border-color: #3a8956; color: #102318; background: #8bd4a0; }
 .dashboard-shell[data-dashboard-theme="dark"] .loyalty-redeem-button:disabled { border-color: #46574a; color: #9eafa2; background: #2a382e; }
 .dashboard-shell[data-dashboard-theme="dark"] .loyalty-history-item > span { color: #8bd4a0; }
@@ -2578,15 +2597,45 @@ body {
 .loyalty-admin-metrics { grid-template-columns: repeat(3, minmax(0, 1fr)); margin: 0; }
 .loyalty-admin-grid { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 16px; align-items: start; }
 .loyalty-admin-form { min-width: 0; }
+.loyalty-mission-image-field { display: grid; grid-template-columns: 64px minmax(0, 1fr); align-items: center; gap: 12px; padding: 10px; border: 1px solid #dbe5df; border-radius: 12px; background: #fbfdfb; }
+.loyalty-mission-image-preview { display: grid; place-items: center; width: 64px; height: 64px; overflow: hidden; border: 1px dashed #b8cabe; border-radius: 10px; color: #65806e; background: #fff; }
+.loyalty-mission-image-preview img { display: block; width: 100%; height: 100%; object-fit: contain; }
+.loyalty-mission-image-controls { display: grid; gap: 5px; min-width: 0; }
+.loyalty-mission-image-controls small { color: #64748b; font-size: .67rem; font-weight: 500; line-height: 1.4; }
+.notification-composer .loyalty-mission-image-controls input[type="file"] { padding: 8px; font-size: .72rem; }
+.loyalty-mission-image-controls button { justify-self: start; }
 .loyalty-form-grid { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 10px; }
+.loyalty-form-section-heading { grid-column: 1 / -1; display: grid; gap: 3px; margin-top: 2px; padding-top: 11px; border-top: 1px solid #e5ece7; }
+.loyalty-form-section-heading strong { color: #263b2e; font-size: .75rem; font-weight: 850; }
+.loyalty-form-section-heading span { color: #64748b; font-size: .68rem; font-weight: 500; line-height: 1.4; }
+.loyalty-form-grid > .loyalty-form-section-heading:first-child { margin-top: 0; padding-top: 0; border-top: 0; }
+.loyalty-currency-input { display: flex; align-items: center; gap: 8px; width: 100%; min-width: 0; padding-left: 12px; border: 1px solid #dbe5df; border-radius: 9px; color: #475569; background: #fbfdfb; }
+.loyalty-currency-input > span { flex: 0 0 auto; color: #64748b; font-size: .76rem; font-weight: 800; }
+.notification-composer .loyalty-currency-input input[type="number"] { min-width: 0; padding: 11px 12px 11px 0; border: 0; border-radius: inherit; background: transparent; -webkit-appearance: textfield; -moz-appearance: textfield; appearance: textfield; }
+.notification-composer .loyalty-currency-input input[type="number"]::-webkit-inner-spin-button,
+.notification-composer .loyalty-currency-input input[type="number"]::-webkit-outer-spin-button { margin: 0; -webkit-appearance: none; }
+.notification-composer .loyalty-currency-input:focus-within { border-color: #a2762b; box-shadow: 0 0 0 3px rgba(162, 118, 43, 0.12); }
+.notification-composer .loyalty-currency-input input[type="number"]:focus { border-color: transparent; box-shadow: none; }
 .loyalty-form-actions { display: flex; flex-wrap: wrap; align-items: center; gap: 8px; }
 .loyalty-admin-results { display: grid; gap: 12px; }
 .loyalty-admin-section-heading { align-items: center; margin: 0; }
 .loyalty-admin-section-heading h2 { color: #17251e; }
 .loyalty-admin-list { display: grid; grid-template-columns: repeat(auto-fit, minmax(min(100%, 360px), 1fr)); gap: 12px; }
+.loyalty-admin-mission-list { grid-template-columns: repeat(auto-fit, minmax(min(100%, 270px), 1fr)); gap: 10px; }
 .loyalty-admin-card { display: grid; gap: 12px; min-width: 0; padding: 15px; border: 1px solid #dce7df; border-radius: 12px; background: #fff; box-shadow: 0 8px 20px rgba(15, 23, 42, .035); }
+.loyalty-admin-mission-card { gap: 9px; padding: 12px; }
 .loyalty-admin-card-main { display: flex; align-items: flex-start; justify-content: space-between; gap: 12px; }
 .loyalty-admin-card-main > div { min-width: 0; }
+.loyalty-admin-mission-identity { display: grid; grid-template-columns: 48px minmax(0, 1fr); align-items: start; gap: 9px; min-width: 0; }
+.loyalty-admin-mission-thumb { display: grid; place-items: center; width: 48px; height: 48px; overflow: hidden; border: 1px solid #dce7df; border-radius: 10px; color: #2f7656; background: #f1f8f3; }
+.loyalty-admin-mission-thumb img { display: block; width: 100%; height: 100%; object-fit: contain; }
+.loyalty-admin-mission-copy { min-width: 0; }
+.loyalty-admin-mission-copy h3 { overflow-wrap: anywhere; }
+.loyalty-admin-mission-reward { display: flex; align-items: center; gap: 8px; padding: 8px 10px; border: 1px solid #d7e7dc; border-radius: 9px; color: #2f7656; background: #f1f8f3; }
+.loyalty-admin-mission-reward > svg { flex: 0 0 auto; }
+.loyalty-admin-mission-reward > span { display: grid; gap: 2px; }
+.loyalty-admin-mission-reward small { color: #647b6a; font-size: .64rem; }
+.loyalty-admin-mission-reward strong { color: #1e5e3a; font-size: .78rem; }
 .loyalty-admin-card h3 { margin: 7px 0 3px; color: #17251e; font-size: .95rem; }
 .loyalty-admin-card p { margin: 0; color: #64748b; font-size: .74rem; line-height: 1.4; }
 .loyalty-admin-card > small { color: #64748b; font-size: .68rem; }
@@ -2599,6 +2648,9 @@ body {
 .loyalty-status-archived { color: #64748b; background: #e2e8f0; }
 .dashboard-shell[data-dashboard-theme="dark"] .loyalty-section-heading h2 { color: var(--customer-coupon-text); }
 .dashboard-shell[data-dashboard-theme="dark"] .loyalty-admin-card { border-color: #35483b; background: #17251e; }
+.dashboard-shell[data-dashboard-theme="dark"] .loyalty-admin-mission-reward { border-color: #315e3c; color: #a9dfb5; background: #1e3826; }
+.dashboard-shell[data-dashboard-theme="dark"] .loyalty-admin-mission-reward small { color: #b3c2b7; }
+.dashboard-shell[data-dashboard-theme="dark"] .loyalty-admin-mission-reward strong { color: #d6f4dc; }
 .dashboard-shell[data-dashboard-theme="dark"] .loyalty-admin-card h3, .dashboard-shell[data-dashboard-theme="dark"] .loyalty-admin-section-heading h2 { color: #edf5ef; }
 .dashboard-shell[data-dashboard-theme="dark"] .loyalty-admin-card-stats span { color: #b3c2b7; background: #1c2d23; }
 .dashboard-shell[data-dashboard-theme="dark"] .loyalty-admin-card-stats strong { color: #edf5ef; }

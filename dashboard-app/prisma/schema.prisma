@@ -527,6 +527,8 @@ model LoyaltyMission {
   id                 String                     @id @default(cuid())
   name               String
   description        String                     @default("")
+  imageData          String?                    @db.Text
+  imageContentType   String?
   ruleType           String
   targetAmount       Decimal                    @default(0) @db.Decimal(12, 2)
   targetCount        Int                        @default(1)

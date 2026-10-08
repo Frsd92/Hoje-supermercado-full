@@ -34,6 +34,18 @@ function validationError(error) {
   return error instanceof TypeError || error instanceof RangeError;
 }
 
+function missionResponse(mission) {
+  const response = {
+    ...mission,
+    imageUrl: mission.imageContentType
+      ? `/api/loyalty/missions/${encodeURIComponent(mission.id)}/image?v=${mission.updatedAt.getTime()}`
+      : '',
+  };
+  delete response.imageData;
+  delete response.imageContentType;
+  return response;
+}
+
 async function readBody(request) {
   try {
     const body = await request.json();
@@ -78,7 +90,7 @@ export async function POST(request) {
       const created = await prisma.loyaltyMission.create({
         data: { ...mission, createdBy: erpActorLabel(session.user) },
       });
-      return Response.json({ mission: created }, { status: 201 });
+      return Response.json({ mission: missionResponse(created) }, { status: 201 });
     }
 
     const reward = validateLoyaltyRewardPayload(body);
@@ -107,7 +119,22 @@ export async function PATCH(request) {
       const result = await prisma.$transaction(async (transaction) => {
         const existing = await transaction.loyaltyMission.findUnique({
           where: { id: String(body.id).trim() },
-          include: { _count: { select: { progress: true } } },
+          select: {
+            id: true,
+            claimedRewards: true,
+            ruleType: true,
+            targetAmount: true,
+            targetCount: true,
+            category: true,
+            pointsReward: true,
+            recurrence: true,
+            startsAt: true,
+            endsAt: true,
+            pointsExpiryPolicy: true,
+            pointsExpiryDays: true,
+            pointsExpireAt: true,
+            _count: { select: { progress: true } },
+          },
         });
         if (!existing) return { error: 'A missão não foi encontrada.', status: 404 };
         if (mission.rewardLimit !== null && mission.rewardLimit < existing.claimedRewards) {
@@ -127,7 +154,7 @@ export async function PATCH(request) {
         return { mission: updated };
       }, { isolationLevel: 'Serializable' });
       if (result.error) return Response.json({ error: result.error }, { status: result.status });
-      return Response.json({ mission: result.mission });
+      return Response.json({ mission: missionResponse(result.mission) });
     }
 
     const reward = validateLoyaltyRewardPayload(body);
