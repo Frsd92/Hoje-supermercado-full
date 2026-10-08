@@ -7412,6 +7412,22 @@ button.metric-mini:focus-visible {
 .analytics-bar-track { width: 100%; max-width: 36px; height: 170px; display: flex; align-items: end; background: #edf4ef; border-radius: 8px 8px 3px 3px; overflow: hidden; }
 .analytics-bar-track i { width: 100%; display: block; background: linear-gradient(180deg, #d4a94f, #987126); border-radius: 8px 8px 3px 3px; }
 .analytics-bar-column small { color: #74817f; font-size: .68rem; white-space: nowrap; }
+.store-traffic-tools { display: flex; align-items: end; justify-content: flex-end; flex-wrap: wrap; gap: 10px; }
+.store-traffic-tools > span { color: #687877; font-size: .72rem; font-weight: 700; }
+.store-traffic-period select { min-height: 34px; padding: 6px 8px; border: 1px solid #dce5e1; border-radius: 8px; background: #fff; color: #26343d; font: inherit; }
+.store-traffic-period select:focus-visible, .store-traffic-refresh:focus-visible { outline: 3px solid rgba(47,118,86,.3); outline-offset: 2px; }
+.store-traffic-refresh { display: inline-flex; align-items: center; justify-content: center; gap: 6px; }
+.store-traffic-live-metric { position: relative; }
+.store-traffic-live-dot { position: absolute; top: 14px; right: 14px; width: 9px; height: 9px; border-radius: 50%; background: #22c55e; box-shadow: 0 0 0 4px rgba(34,197,94,.12); }
+.store-traffic-history-panel { margin-top: 16px; }
+.store-traffic-chart-figure { min-width: 0; margin: 0; }
+.store-traffic-chart-scroll { overflow-x: auto; padding-bottom: 6px; }
+.store-traffic-chart { display: flex; align-items: flex-end; gap: 8px; min-width: max-content; height: 230px; padding: 14px 4px 0; border-top: 1px solid #edf1f3; }
+.store-traffic-chart-column { display: flex; flex: 0 0 24px; flex-direction: column; align-items: center; justify-content: flex-end; gap: 5px; height: 100%; }
+.store-traffic-chart-column > span { min-height: 14px; color: #61706f; font-size: .63rem; font-variant-numeric: tabular-nums; }
+.store-traffic-bar-track { display: flex; align-items: flex-end; width: 100%; height: 160px; overflow: hidden; border-radius: 7px 7px 3px 3px; background: #edf4ef; }
+.store-traffic-bar-track i { display: block; width: 100%; border-radius: 7px 7px 3px 3px; background: linear-gradient(180deg, #49a477, #236443); }
+.store-traffic-chart-column small { color: #74817f; font-size: .62rem; white-space: nowrap; }
 .analytics-category-list { display: grid; gap: 17px; }
 .analytics-category-list > div > div:first-child { display: flex; justify-content: space-between; gap: 12px; margin-bottom: 7px; font-size: .82rem; }
 .analytics-category-list strong { color: #26343d; }

@@ -1,10 +1,11 @@
 'use client';
 
 import Link from 'next/link';
-import { Activity, BarChart3, CircleDollarSign, Clock3, FileText, MapPin, MessageSquareText, PackageCheck, ShoppingBag, Tag, TicketPercent, Trash2, Users, Zap } from 'lucide-react';
+import { Activity, BarChart3, CircleDollarSign, Clock3, FileText, MapPin, MessageSquareText, PackageCheck, RefreshCw, ShoppingBag, Tag, TicketPercent, Trash2, Users, Zap } from 'lucide-react';
 import { useEffect, useRef, useState } from 'react';
 import { formatCartQuantity } from '@/app/dashboard/cart-utils';
 import { storeErpRecipientHandoff } from '@/features/erp/customer-recipient-handoff';
+import { storeTrafficPeriodOptions } from '@/features/store-presence/periods';
 
 const money = (value) => `R$ ${Number(value || 0).toFixed(2).replace('.', ',')}`;
 const percent = (value) => `${Number(value || 0).toFixed(1).replace('.', ',')}%`;
@@ -303,6 +304,165 @@ function PromotionInsights({ promotions }) {
   </section>;
 }
 
+function StoreTrafficChart({ history, periodLabel }) {
+  if (!history.length) {
+    return <div className="erp-empty-data" role="status">Ainda não há amostras para este período. O histórico começa após a primeira visita registrada.</div>;
+  }
+
+  const max = Math.max(...history.map((point) => point.onlineVisitors), 1);
+  const summary = history.map((point) => `${point.label}: ${point.onlineVisitors}`).join('; ');
+
+  return <figure className="store-traffic-chart-figure">
+    <div className="store-traffic-chart-scroll">
+      <div
+        className="store-traffic-chart"
+        role="img"
+        aria-label={`Pico de sessões de navegador ativas por intervalo em ${periodLabel}: ${summary}`}
+      >
+        {history.map((point) => <div
+          className="store-traffic-chart-column"
+          key={point.startAt}
+          title={`${point.label}: ${point.onlineVisitors} sessão(ões)`}
+        >
+          <span>{point.onlineVisitors || ''}</span>
+          <div className="store-traffic-bar-track">
+            <i style={{ height: `${point.onlineVisitors ? Math.max((point.onlineVisitors / max) * 100, 4) : 0}%` }} />
+          </div>
+          <small>{point.label}</small>
+        </div>)}
+      </div>
+    </div>
+    <figcaption className="analytics-source-note">Cada barra mostra o maior número de sessões simultâneas observado no intervalo.</figcaption>
+  </figure>;
+}
+
+function StoreTrafficInsights() {
+  const [period, setPeriod] = useState('24h');
+  const [data, setData] = useState(null);
+  const [loading, setLoading] = useState(true);
+  const [error, setError] = useState('');
+  const [reloadToken, setReloadToken] = useState(0);
+
+  useEffect(() => {
+    let active = true;
+    let historyRequestInFlight = false;
+    let currentRequestInFlight = false;
+
+    const loadHistory = async () => {
+      if (historyRequestInFlight) return;
+      historyRequestInFlight = true;
+      try {
+        const response = await fetch(`/api/erp/store-traffic?period=${encodeURIComponent(period)}`, { cache: 'no-store' });
+        const nextData = await response.json();
+        if (!response.ok) throw new Error(nextData.error || 'Não foi possível carregar o histórico de presença.');
+        if (!Number.isInteger(nextData?.onlineVisitors) || nextData.onlineVisitors < 0 || !Array.isArray(nextData?.history) || !nextData.history.every((point) => typeof point.label === 'string' && Number.isInteger(point.onlineVisitors) && point.onlineVisitors >= 0)) {
+          throw new Error('A resposta do histórico de presença está incompleta.');
+        }
+        if (active) {
+          setData(nextData);
+          setError('');
+        }
+      } catch (loadError) {
+        if (active) setError(loadError.message || 'Não foi possível atualizar o histórico de presença.');
+      } finally {
+        historyRequestInFlight = false;
+        if (active) setLoading(false);
+      }
+    };
+
+    const loadCurrentCount = async () => {
+      if (currentRequestInFlight) return;
+      currentRequestInFlight = true;
+      try {
+        const response = await fetch('/api/erp/store-traffic?currentOnly=1', { cache: 'no-store' });
+        const current = await response.json();
+        if (!response.ok) throw new Error(current.error || 'Não foi possível atualizar a contagem atual.');
+        if (!Number.isInteger(current?.onlineVisitors) || current.onlineVisitors < 0) {
+          throw new Error('A resposta da contagem atual está incompleta.');
+        }
+        if (active) {
+          setData((previous) => previous ? { ...previous, onlineVisitors: current.onlineVisitors, updatedAt: current.updatedAt } : previous);
+          setError('');
+        }
+      } catch (loadError) {
+        if (active) setError(loadError.message || 'Não foi possível atualizar a contagem atual.');
+      } finally {
+        currentRequestInFlight = false;
+      }
+    };
+
+    loadHistory();
+    const currentTimer = window.setInterval(loadCurrentCount, 15_000);
+    const historyTimer = window.setInterval(loadHistory, 5 * 60_000);
+    return () => {
+      active = false;
+      window.clearInterval(currentTimer);
+      window.clearInterval(historyTimer);
+    };
+  }, [period, reloadToken]);
+
+  const selectedPeriod = storeTrafficPeriodOptions.find((option) => option.value === period);
+  const peak = data?.history.length ? Math.max(...data.history.map((point) => point.onlineVisitors)) : null;
+  const updatedTime = data?.updatedAt
+    ? new Date(data.updatedAt).toLocaleTimeString('pt-BR', { hour: '2-digit', minute: '2-digit', second: '2-digit' })
+    : '';
+  const trackingStart = data?.trackingStartedAt
+    ? new Date(data.trackingStartedAt).toLocaleDateString('pt-BR', { timeZone: 'America/Sao_Paulo' })
+    : null;
+
+  return <section className="analytics-section store-traffic-section">
+    <div className="analytics-section-heading">
+      <div><span className="eyebrow">Loja em tempo real</span><h2>Visitantes online</h2></div>
+      <div className="store-traffic-tools">
+        <label className="analytics-date-filter" htmlFor="store-traffic-period">Histórico
+          <select id="store-traffic-period" value={period} onChange={(event) => setPeriod(event.target.value)}>
+            {storeTrafficPeriodOptions.map((option) => <option value={option.value} key={option.value}>{option.label}</option>)}
+          </select>
+        </label>
+        <button type="button" className="analytics-clear-filter store-traffic-refresh" onClick={() => setReloadToken((current) => current + 1)}>
+          <RefreshCw size={14} /> Atualizar
+        </button>
+        {updatedTime && <span>Atualizado às {updatedTime}</span>}
+      </div>
+    </div>
+    {error && data && <div className="erp-budget-warning analytics-refresh-warning" role="status">
+      Não foi possível atualizar a presença: {error}
+      <button type="button" onClick={() => setReloadToken((current) => current + 1)}>Tentar novamente</button>
+    </div>}
+    {!data && loading
+      ? <div className="erp-empty-data" role="status">Carregando presença da Loja...</div>
+      : !data
+        ? <div className="erp-budget-warning" role="alert">
+          {error || 'Não foi possível carregar a presença da Loja.'}
+          <button type="button" onClick={() => setReloadToken((current) => current + 1)}>Tentar novamente</button>
+        </div>
+        : <>
+          <div className="erp-customer-metrics">
+            <div className="erp-customer-metric store-traffic-live-metric">
+              <span className="store-traffic-live-dot" aria-hidden="true" />
+              <strong>{data.onlineVisitors.toLocaleString('pt-BR')}</strong>
+              <span>Sessões ativas agora</span>
+              <small>Atividade detectada nos últimos 90 segundos</small>
+            </div>
+            <div className="erp-customer-metric">
+              <Activity size={17} />
+              <strong>{peak === null ? '—' : peak.toLocaleString('pt-BR')}</strong>
+              <span>Pico simultâneo</span>
+              <small>{selectedPeriod?.label || 'Período selecionado'}</small>
+            </div>
+          </div>
+          <section className="analytics-panel store-traffic-history-panel">
+            <div className="erp-panel-title"><Activity size={17} /><div><h3>Histórico de sessões simultâneas</h3><p>Pico por hora ou por dia no período selecionado.</p></div></div>
+            <StoreTrafficChart history={data.history} periodLabel={selectedPeriod?.label || 'período selecionado'} />
+          </section>
+          <p className="analytics-source-note">
+            Uma sessão anônima por navegador; a mesma pessoa em dispositivos diferentes pode contar mais de uma vez. A medição começa com a ativação e o histórico é retido por até {data.retentionDays} dias
+            {trackingStart ? ` (primeira amostra em ${trackingStart})` : ''}. Não são exibidos nomes, contas nem páginas visitadas.
+          </p>
+        </>}
+  </section>;
+}
+
 export default function AnalyticsPage() {
   const [data, setData] = useState(null);
   const [tab, setTab] = useState('overview');
@@ -352,7 +512,7 @@ export default function AnalyticsPage() {
   const abandonedCarts = data?.abandonedCarts || { available: true, idleThresholdHours: 24, total: 0, customers: [], carts: [], guestCarts: 0, cartsWithoutActivityDate: 0, topProducts: [] };
   const geography = data?.geography || { totalOrders: 0, unlocatedOrders: 0, states: [], municipalities: [], neighborhoods: [] };
   const periods = sales.periods || { today: { revenue: 0, orders: 0, averageTicket: 0 }, week: { revenue: 0, orders: 0, averageTicket: 0 }, month: { revenue: 0, orders: 0, averageTicket: 0 }, previousWeek: { revenue: 0 }, previousMonth: { revenue: 0 } };
-  const tabs = [['overview', 'Visão geral'], ['sales', 'Vendas'], ['profitability', 'Lucratividade'], ['inventory', 'Estoque'], ['customers', 'Clientes'], ['demographics', 'Sexo e idade'], ['invoiceCpf', 'CPF solicitado'], ['promotions', 'Promoções']];
+  const tabs = [['overview', 'Visão geral'], ['sales', 'Vendas'], ['profitability', 'Lucratividade'], ['inventory', 'Estoque'], ['customers', 'Clientes'], ['demographics', 'Sexo e idade'], ['invoiceCpf', 'CPF solicitado'], ['promotions', 'Promoções'], ['storeTraffic', 'Loja ao vivo']];
   const metrics = [
     ['Receita', money(sales.revenue), `${sales.orders || 0} pedidos`, CircleDollarSign],
     ['Lucro bruto', profitability.available ? money(profitability.grossProfit) : 'Sem dados', profitability.available ? `CMV ${money(profitability.cmv)}` : 'Custo por item incompleto', Activity],
@@ -448,6 +608,7 @@ export default function AnalyticsPage() {
   {(tab === 'overview' || tab === 'customers') && <section className="analytics-section"><div className="analytics-section-heading"><div><span className="eyebrow">Distribuição geográfica</span><h2>Pedidos por região</h2></div><span>{geography.totalOrders - geography.unlocatedOrders} de {geography.totalOrders} pedidos com localização identificada</span></div><div className="analytics-geography-grid"><GeographyRanking title="Estados" items={geography.states} /><GeographyRanking title="Cidades / municípios" items={geography.municipalities} /><GeographyRanking title="Bairros" items={geography.neighborhoods} /></div>{geography.unlocatedOrders > 0 && <p className="analytics-source-note">{geography.unlocatedOrders} pedido(s) sem dados de localização completos não entram nesses rankings.</p>}</section>}
   {(tab === 'overview' || tab === 'customers') && <AddressInsights insights={data.addressInsights} />}
   {tab === 'promotions' && <PromotionInsights promotions={data.promotions} />}
+  {tab === 'storeTraffic' && <StoreTrafficInsights />}
     {data && <div className="analytics-source-note">Fonte: pedidos, catálogo, lotes, perfis, endereços e campanhas persistidos no PostgreSQL. Atualização automática a cada 10 segundos.</div>}
     </div>}
   </div>;

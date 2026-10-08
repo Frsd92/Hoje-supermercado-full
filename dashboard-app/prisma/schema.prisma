@@ -65,6 +65,20 @@ model ServiceRegionMunicipality {
   @@index([stateUf, enabled])
 }
 
+model StorePresenceSession {
+  id         String   @id
+  firstSeenAt DateTime @default(now())
+  lastSeenAt  DateTime @default(now())
+
+  @@index([lastSeenAt])
+}
+
+model StoreTrafficSnapshot {
+  minute         DateTime @id
+  onlineVisitors Int
+  sampledAt      DateTime @default(now()) @updatedAt
+}
+
 model CustomerCart {
   email     String   @id
   items     Json     @default("[]")

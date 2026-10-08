@@ -197,9 +197,11 @@
         <ul>
           <li>Dados técnicos necessários para a conexão, como endereço IP, navegador, dispositivo, data e hora, que podem ser tratados pelos serviços de hospedagem e segurança</li>
           <li>Interações necessárias para operar recursos usados por você, como carrinho, favoritos e navegação entre páginas</li>
+          <li>Um identificador aleatório temporário e horários de atividade para estimar sessões ativas na Loja e registrar picos agregados; essa medição não é vinculada à conta, a páginas individuais ou a dados de contato</li>
           <li>Se você aceitar analytics, páginas acessadas e interações de navegação, como cliques e rolagem, coletadas pelo Hotjar para produzir mapas de calor e gravações de navegação</li>
         </ul>
         <p>O Hotjar só é carregado após sua autorização opcional na Loja ou no painel do cliente. O conteúdo textual do painel do cliente e áreas da Loja que podem exibir dados da conta, endereço ou carrinho são suprimidos nas gravações. Esses dados não são usados para publicidade.</p>
+        <p>A medição de sessões ativas é independente do Hotjar e não registra o caminho visitado, endereço IP ou dados de conta no histórico de tráfego. O identificador temporário expira após 30 minutos sem atividade; os picos agregados são mantidos por até 30 dias. Um navegador em mais de um dispositivo pode representar mais de uma sessão, por isso a contagem é uma estimativa e não identifica pessoas individualmente.</p>
  
         <h3>3.3 Dados de terceiros (login social)</h3>
         <p>Atualmente, o único login social implementado para clientes é o <strong>Google</strong>. Se você escolher essa opção, o Google fornece os dados básicos da conta necessários para autenticação, como nome, e-mail e foto de perfil, conforme as permissões do serviço. Apple e Facebook não são apresentados como meios de login disponíveis neste momento.</p>
@@ -212,6 +214,7 @@
           <tbody>
             <tr><td>Autenticação</td><td>Manter a sessão iniciada com segurança</td><td>Cookies de sessão</td></tr>
             <tr><td>Carrinho de visitante</td><td>Reconhecer o carrinho do navegador</td><td>Cookie e armazenamento local do navegador</td></tr>
+            <tr><td>Presença agregada na Loja</td><td>Estimar sessões ativas e picos de acesso sem identificar a conta</td><td>Cookie temporário de primeira parte e contagens agregadas no PostgreSQL, por até 30 dias</td></tr>
             <tr><td>Preferências funcionais</td><td>Lembrar o identificador do endereço selecionado e, no painel, o orçamento mensal informado</td><td>Armazenamento local do navegador</td></tr>
             <tr><td>Analytics opcional (Hotjar)</td><td>Entender a navegação e melhorar a usabilidade, somente após autorização</td><td>Preferência de consentimento no armazenamento local; cookies e tecnologias do Hotjar após autorização</td></tr>
           </tbody>
@@ -228,6 +231,7 @@
           <li>Registrar e permitir a consulta de pedidos e seus dados operacionais</li>
           <li>Usar os dados de endereço para preencher e associar o endereço escolhido ao pedido</li>
           <li>Exibir recursos de perfil, orçamento mensal e painel conforme as informações fornecidas</li>
+          <li>Acompanhar de forma agregada as sessões ativas e os picos de acesso à Loja para apoiar a operação</li>
           <li>Proteger a Plataforma, autenticar sessões, diagnosticar falhas operacionais e atender obrigações legais quando aplicáveis</li>
         </ol>
       </section>
@@ -241,6 +245,7 @@
           <tbody>
             <tr><td>Conta, perfil, carrinho, favoritos, cupons e pedidos solicitados pelo cliente</td><td>Execução de contrato ou procedimentos preliminares solicitados pelo titular</td></tr>
             <tr><td>Avisos promocionais e cupons apresentados na conta</td><td>Legítimo interesse ou consentimento, conforme a finalidade e a campanha</td></tr>
+            <tr><td>Medição agregada de sessões ativas na Loja, sem associação à conta</td><td>Legítimo interesse operacional, respeitados os direitos do titular</td></tr>
             <tr><td>Medição opcional de usabilidade por meio do Hotjar</td><td>Consentimento, que pode ser recusado ou revogado</td></tr>
             <tr><td>Segurança e prevenção de uso indevido</td><td>Legítimo interesse, observados os direitos do titular, ou outra base legal aplicável</td></tr>
             <tr><td>Atender obrigação legal ou requisição válida de autoridade</td><td>Cumprimento de obrigação legal ou regulatória</td></tr>
