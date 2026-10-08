@@ -36,6 +36,30 @@ export function missionProgress(mission) {
   };
 }
 
+export function getPointsProgressToNextReward(balanceValue, rewards) {
+  const parsedBalance = Number(balanceValue);
+  const balance = Number.isFinite(parsedBalance) ? parsedBalance : 0;
+  const activeRewards = (Array.isArray(rewards) ? rewards : [])
+    .filter((reward) => reward && typeof reward === 'object')
+    .map((reward) => ({ ...reward, pointsCost: Number(reward.pointsCost) }))
+    .filter((reward) => Number.isFinite(reward.pointsCost) && reward.pointsCost > 0)
+    .sort((first, second) => first.pointsCost - second.pointsCost);
+
+  if (!activeRewards.length) return null;
+
+  const nextReward = activeRewards.find((reward) => reward.pointsCost > balance);
+  const reward = nextReward || activeRewards[activeRewards.length - 1];
+  const pointsNeeded = Math.max(0, reward.pointsCost - balance);
+
+  return {
+    reward,
+    targetPoints: reward.pointsCost,
+    pointsNeeded,
+    percent: Math.max(0, Math.min(100, balance / reward.pointsCost * 100)),
+    complete: pointsNeeded === 0,
+  };
+}
+
 export function describeMission(mission) {
   if (mission.ruleType === 'FIRST_PURCHASE') return 'Faça sua primeira compra e conclua o pedido.';
   if (mission.ruleType === 'PURCHASE_FREQUENCY') {

@@ -1,10 +1,10 @@
 'use client';
 
 import Link from 'next/link';
-import { Award, BookOpen, Check, Clock3, Copy, Gift, RefreshCw, Sparkles, TicketPercent } from 'lucide-react';
+import { ArrowRight, BookOpen, Check, Clock3, Copy, Gift, RefreshCw, Sparkles, Star, TicketPercent } from 'lucide-react';
 import { useCallback, useEffect, useState } from 'react';
 import CustomerMissionCard from './customer-mission-card';
-import { currencyFormatter, formatDate } from './customer-mission-display';
+import { currencyFormatter, formatDate, getPointsProgressToNextReward } from './customer-mission-display';
 
 function historyDescription(entry) {
   const date = formatDate(entry.createdAt);
@@ -93,6 +93,7 @@ export default function CustomerLoyaltyPage() {
   const balance = Number(snapshot?.balance) || 0;
   const missions = snapshot?.missions || [];
   const rewards = snapshot?.rewards || [];
+  const pointsProgress = getPointsProgressToNextReward(balance, rewards);
   const history = snapshot?.history || [];
   const availableMissions = missions.filter((mission) => !mission.completedAt && !mission.soldOut);
   const completedMissions = missions.filter((mission) => Boolean(mission.completedAt));
@@ -116,15 +117,43 @@ export default function CustomerLoyaltyPage() {
       </div>
       <div className="loyalty-page-header-actions">
         <Link className="loyalty-rules-back" href="/fidelidade/regras"><BookOpen size={16} aria-hidden="true" />Todas as regras</Link>
-        <div className="orders-header-mark" aria-live="polite">
-          <span className="orders-header-dot" />
-          {loading ? 'Atualizando pontos' : `${balance.toLocaleString('pt-BR')} pontos`}
-        </div>
       </div>
     </header>
 
+    <section className="loyalty-club-card" aria-labelledby="loyalty-club-card-heading">
+      <span className="loyalty-club-icon" aria-hidden="true"><Star size={22} fill="currentColor" /></span>
+      <div className="loyalty-club-content">
+        <h2 id="loyalty-club-card-heading">Clube Hoje</h2>
+        <p className="loyalty-club-balance" aria-live="polite">
+          {loading ? 'Carregando seu saldo...' : error ? 'Seu saldo não pôde ser carregado.' : <>Você tem <strong>{balance.toLocaleString('pt-BR')} pontos</strong></>}
+        </p>
+        {!loading && !error && pointsProgress
+          ? <>
+            <div
+              className="loyalty-club-progress-track"
+              role="progressbar"
+              aria-label="Progresso de pontos para o próximo benefício"
+              aria-valuemin="0"
+              aria-valuemax="100"
+              aria-valuenow={Math.round(pointsProgress.percent)}
+              aria-valuetext={pointsProgress.complete
+                ? `${balance.toLocaleString('pt-BR')} pontos; benefícios disponíveis para resgate`
+                : `${balance.toLocaleString('pt-BR')} de ${pointsProgress.targetPoints.toLocaleString('pt-BR')} pontos; faltam ${pointsProgress.pointsNeeded.toLocaleString('pt-BR')} até ${pointsProgress.reward.name}`}
+            >
+              <span style={{ width: `${pointsProgress.percent}%` }} />
+            </div>
+            <small className="loyalty-club-progress-copy">
+              {pointsProgress.complete
+                ? 'Você já pode resgatar benefícios.'
+                : `Faltam ${pointsProgress.pointsNeeded.toLocaleString('pt-BR')} pontos para ${pointsProgress.reward.name}.`}
+            </small>
+          </>
+          : !loading && !error && <small className="loyalty-club-progress-copy">Novos benefícios em breve.</small>}
+        <a className="loyalty-club-link" href="#loyalty-rewards">Ver benefícios <ArrowRight size={14} aria-hidden="true" /></a>
+      </div>
+    </section>
+
     <section className="customer-coupon-summary loyalty-balance-summary" aria-label="Resumo de fidelidade">
-      <div><Award size={18} aria-hidden="true" /><span>Saldo atual</span><strong>{balance.toLocaleString('pt-BR')}</strong></div>
       <div><Sparkles size={18} aria-hidden="true" /><span>Em andamento</span><strong>{availableMissions.length}</strong></div>
       <div><Gift size={18} aria-hidden="true" /><span>Recompensas</span><strong>{rewards.length}</strong></div>
       <div><Clock3 size={18} aria-hidden="true" /><span>Movimentações</span><strong>{history.length}</strong></div>
