@@ -1,4 +1,5 @@
 import { validateImageDataUrl } from '../../lib/image-data.js';
+import { normalizeLoyaltyMissionDestinationPath } from './mission-destinations.js';
 
 const allowedRuleTypes = new Set([
   'FIRST_PURCHASE',
@@ -63,6 +64,7 @@ export function validateLoyaltyMissionPayload(body, { now = new Date(), statusRe
   const pointsExpiryPolicy = String(body.pointsExpiryPolicy || '').trim();
   const status = String(body.status || (statusRequired ? '' : 'draft')).trim();
   const category = String(body.category || '').trim();
+  const destinationPath = normalizeLoyaltyMissionDestinationPath(body.destinationPath);
   const startsAt = readDate(body.startsAt, 'A data de início');
   const endsAt = readDate(body.endsAt, 'A data final', true);
   const pointsExpireAt = readDate(body.pointsExpireAt, 'A data de validade', true);
@@ -108,6 +110,7 @@ export function validateLoyaltyMissionPayload(body, { now = new Date(), statusRe
     targetAmount,
     targetCount,
     category: ruleType === 'CATEGORY_SPEND' ? category : null,
+    destinationPath,
     pointsReward,
     rewardLimit,
     recurrence,

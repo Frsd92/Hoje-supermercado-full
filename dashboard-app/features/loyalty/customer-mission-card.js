@@ -1,6 +1,6 @@
-import Link from 'next/link';
 import { ArrowRight, Gift, Target } from 'lucide-react';
 import { describeMission, formatDate, missionProgress, missionRuleLabels } from './customer-mission-display';
+import { getLoyaltyMissionDestinationHref } from './mission-destinations';
 
 export default function CustomerMissionCard({ mission, compact = false }) {
   const progress = missionProgress(mission);
@@ -9,6 +9,7 @@ export default function CustomerMissionCard({ mission, compact = false }) {
   const progressPercent = complete ? 100 : Math.max(0, Math.min(100, progress.percent));
   const currentProgress = complete ? progress.target : progress.current;
   const hasAction = !compact && !complete && !mission.soldOut;
+  const destinationHref = getLoyaltyMissionDestinationHref(mission.destinationPath);
 
   return <article className={`customer-coupon-card loyalty-mission-card${complete ? ' is-complete' : ''}`}>
     <div className={`loyalty-mission-card-layout${compact ? ' is-compact' : ''}${hasAction ? ' has-action' : ''}`}>
@@ -62,19 +63,19 @@ export default function CustomerMissionCard({ mission, compact = false }) {
                   ? 'Conclua pedidos elegíveis para avançar. O progresso reinicia a cada semana.'
                   : 'Conclua pedidos elegíveis para avançar até a meta.'}
           </p>
-          {mission.remainingRewards !== null && !mission.soldOut && <small className="loyalty-expiry-note">
+          {mission.remainingRewards !== null && !mission.soldOut && <small className="loyalty-expiry-note loyalty-rewards-remaining-note">
             Restam {mission.remainingRewards.toLocaleString('pt-BR')} recompensa(s) nesta missão.
           </small>}
-          {mission.pointsExpiryPolicy !== 'NEVER' && <small className="loyalty-expiry-note">
+          {mission.pointsExpiryPolicy !== 'NEVER' && <small className="loyalty-expiry-note loyalty-points-expiry-note">
             {mission.pointsExpiryPolicy === 'CYCLE_END'
               ? `Os pontos expiram em ${formatDate(mission.cycleEndAt)}.`
               : 'Os pontos seguem o prazo de validade configurado nesta missão.'}
           </small>}
         </>}
       </div>
-      {hasAction && <Link className="loyalty-mission-action" href="/" aria-label={`Aproveitar a missão ${mission.name}`}>
+      {hasAction && <a className="loyalty-mission-action" href={destinationHref} aria-label={`Aproveitar a missão ${mission.name}`}>
         Aproveitar <ArrowRight size={15} aria-hidden="true" />
-      </Link>}
+      </a>}
     </div>
   </article>;
 }

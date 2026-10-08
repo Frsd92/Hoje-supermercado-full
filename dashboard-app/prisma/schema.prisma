@@ -533,6 +533,7 @@ model LoyaltyMission {
   targetAmount       Decimal                    @default(0) @db.Decimal(12, 2)
   targetCount        Int                        @default(1)
   category           String?
+  destinationPath    String?
   pointsReward       Int
   rewardLimit        Int?
   claimedRewards     Int                        @default(0)

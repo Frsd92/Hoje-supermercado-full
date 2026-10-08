@@ -4,6 +4,7 @@ import {
   validateLoyaltyMissionPayload,
   validateLoyaltyRewardPayload,
 } from './mission-validation.js';
+import { getLoyaltyMissionDestinationHref } from './mission-destinations.js';
 
 const baseMission = {
   name: 'Compras da semana',
@@ -25,9 +26,23 @@ test('validates recurring weekly spend missions and normalizes irrelevant fields
 
   assert.equal(mission.targetAmount, 150);
   assert.equal(mission.category, null);
+  assert.equal(mission.destinationPath, null);
   assert.equal(mission.rewardLimit, null);
   assert.equal(mission.pointsExpiryDays, null);
   assert.equal(mission.pointsExpireAt, null);
+});
+
+test('validates optional store destinations and defaults the customer action to the store', () => {
+  const wineDestination = '/categoria.html?categoria=vinhos';
+  const mission = validateLoyaltyMissionPayload({ ...baseMission, destinationPath: wineDestination });
+
+  assert.equal(mission.destinationPath, wineDestination);
+  assert.equal(getLoyaltyMissionDestinationHref(mission.destinationPath), wineDestination);
+  assert.equal(getLoyaltyMissionDestinationHref(null), '/index.html');
+  assert.throws(
+    () => validateLoyaltyMissionPayload({ ...baseMission, destinationPath: 'https://example.com' }),
+    /página de destino válida/,
+  );
 });
 
 test('accepts, clears, and preserves optional mission thumbnails', () => {

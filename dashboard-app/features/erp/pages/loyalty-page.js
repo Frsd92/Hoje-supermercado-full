@@ -8,6 +8,7 @@ import {
   loyaltyMissionRuleOptions,
   loyaltyPointExpiryOptions,
 } from '@/features/loyalty/mission-rules.js';
+import { loyaltyMissionDestinationOptions } from '@/features/loyalty/mission-destinations.js';
 
 const currencyFormatter = new Intl.NumberFormat('pt-BR', { style: 'currency', currency: 'BRL' });
 const MAX_MISSION_IMAGE_ENCODED_LENGTH = 600_000;
@@ -27,6 +28,7 @@ function initialMissionForm() {
     targetAmount: '100',
     targetCount: '1',
     category: '',
+    destinationPath: '',
     pointsReward: '100',
     rewardLimit: '',
     recurrence: 'weekly',
@@ -136,6 +138,7 @@ export default function LoyaltyPage() {
       targetAmount: String(Number(mission.targetAmount) || 0),
       targetCount: String(mission.targetCount),
       category: mission.category || '',
+      destinationPath: mission.destinationPath || '',
       pointsReward: String(mission.pointsReward),
       rewardLimit: mission.rewardLimit === null ? '' : String(mission.rewardLimit),
       recurrence: mission.recurrence,
@@ -320,6 +323,8 @@ export default function LoyaltyPage() {
             </div>
           </div>
           <div className="loyalty-form-grid">
+            <div className="loyalty-form-section-heading"><strong>Destino do botão</strong><span>Escolha a página que o cliente verá ao tocar em “Aproveitar”.</span></div>
+            <label className="loyalty-destination-control">Página de destino<select value={missionForm.destinationPath} onChange={(event) => updateMissionField('destinationPath', event.target.value)}>{loyaltyMissionDestinationOptions.map((option) => <option key={option.value || 'store-home'} value={option.value}>{option.label}</option>)}</select><small>Se deixar a página inicial selecionada, o botão abrirá a loja.</small></label>
             <div className="loyalty-form-section-heading"><strong>Condição para concluir</strong><span>Nas missões por valor, a meta em R$ é dinheiro; os pontos são definidos na seção de recompensa.</span></div>
             <label>Tipo de missão<select value={missionForm.ruleType} onChange={(event) => updateMissionField('ruleType', event.target.value)}>{loyaltyMissionRuleOptions.map((option) => <option key={option.value} value={option.value}>{option.label}</option>)}</select></label>
             {missionForm.ruleType === 'CATEGORY_SPEND' && <label>Categoria<input list="loyalty-category-options" value={missionForm.category} onChange={(event) => updateMissionField('category', event.target.value)} maxLength="80" required /><datalist id="loyalty-category-options">{snapshot.categories.map((category) => <option key={category} value={category} />)}</datalist></label>}
