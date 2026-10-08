@@ -4,7 +4,8 @@ import Link from 'next/link';
 import { useSession } from 'next-auth/react';
 import { useRouter } from 'next/navigation';
 import { useEffect, useState } from 'react';
-import { ArrowRight, CircleDollarSign, CreditCard, Heart, MapPin, Package, ShoppingCart, UserRound } from 'lucide-react';
+import { Award, ArrowRight, CircleDollarSign, CreditCard, Heart, MapPin, Package, ShoppingCart, UserRound } from 'lucide-react';
+import CustomerMissionCard from '@/features/loyalty/customer-mission-card';
 import { formatCurrency, getBudgetProgress, getCurrentMonthSpend } from './budget';
 import { readLocalBudget } from './budget-storage';
 import { getCartItemCount } from './cart-utils';
@@ -23,6 +24,10 @@ export default function DashboardHomePage() {
   const [dashboardLoading, setDashboardLoading] = useState(true);
   const [dashboardError, setDashboardError] = useState(false);
   const [dashboardRetry, setDashboardRetry] = useState(0);
+  const [loyaltyMissions, setLoyaltyMissions] = useState([]);
+  const [loyaltyLoading, setLoyaltyLoading] = useState(true);
+  const [loyaltyError, setLoyaltyError] = useState(false);
+  const [loyaltyRetry, setLoyaltyRetry] = useState(0);
   const [deliveryAddressLoading, setDeliveryAddressLoading] = useState(true);
   const [deliveryAddressError, setDeliveryAddressError] = useState(false);
   const [addressRetry, setAddressRetry] = useState(0);
@@ -82,6 +87,32 @@ export default function DashboardHomePage() {
       active = false;
     };
   }, [status, session?.user?.email, dashboardRetry]);
+
+  useEffect(() => {
+    if (status !== 'authenticated') return;
+    let active = true;
+    const loadMissions = async () => {
+      setLoyaltyLoading(true);
+      setLoyaltyError(false);
+      try {
+        const response = await fetch('/api/loyalty', { cache: 'no-store' });
+        const data = await response.json();
+        if (!response.ok) throw new Error(data.error || 'Não foi possível carregar suas missões.');
+        if (!Array.isArray(data.missions)) throw new Error('Resposta inválida das missões.');
+        if (active) setLoyaltyMissions(data.missions);
+      } catch (error) {
+        if (!active) return;
+        console.error('Não foi possível carregar as missões no resumo do painel:', error);
+        setLoyaltyError(true);
+      } finally {
+        if (active) setLoyaltyLoading(false);
+      }
+    };
+    void loadMissions();
+    return () => {
+      active = false;
+    };
+  }, [status, session?.user?.email, loyaltyRetry]);
 
   useEffect(() => {
     if (status !== 'authenticated') return;
@@ -191,6 +222,8 @@ export default function DashboardHomePage() {
   const monthSpend = getCurrentMonthSpend(orders);
   const budgetProgress = getBudgetProgress(monthSpend, profile.monthlyBudget);
   const cartCount = getCartItemCount(cart);
+  const availableMissions = loyaltyMissions.filter((mission) => !mission.completedAt && !mission.soldOut);
+  const visibleMissions = (availableMissions.length ? availableMissions : loyaltyMissions).slice(0, 3);
   const metricData = [
     { label: 'Pedidos realizados', value: dashboardLoading ? '—' : orders.length, detail: dashboardLoading ? 'Atualizando pedidos' : 'pedidos registrados', Icon: Package },
     { label: 'Orçamento do mês', value: dashboardLoading ? '—' : profile.monthlyBudget ? formatCurrency(profile.monthlyBudget) : 'Não definido', detail: dashboardLoading ? 'Atualizando orçamento' : `${formatCurrency(monthSpend)} gastos neste mês`, Icon: CircleDollarSign, budget: true },
@@ -267,6 +300,28 @@ export default function DashboardHomePage() {
             : '/dashboard/favorites';
         return <Link key={label} href={href} className={cardClassName}>{cardContent}</Link>;
       })}</div>
+
+      <section className="panel-box customer-coupons-showcase dashboard-home-loyalty" aria-labelledby="dashboard-loyalty-heading">
+        <div className="panel-header compact">
+          <div className="dashboard-home-loyalty-heading">
+            <Award size={19} aria-hidden="true" />
+            <div><h3 id="dashboard-loyalty-heading">Missões e pontos</h3><p>Complete desafios e acompanhe seu progresso.</p></div>
+          </div>
+          <Link href="/dashboard/fidelidade" className="dashboard-panel-link">Ver todas <ArrowRight size={14} aria-hidden="true" /></Link>
+        </div>
+        {loyaltyLoading
+          ? <div className="dashboard-home-empty" role="status">Carregando missões...</div>
+          : loyaltyError
+            ? <div className="dashboard-home-empty" role="alert">
+              <span>Não foi possível carregar suas missões.</span>
+              <button className="dashboard-mission-retry" type="button" onClick={() => setLoyaltyRetry((attempt) => attempt + 1)}>Tentar novamente</button>
+            </div>
+            : visibleMissions.length
+              ? <div className="loyalty-card-grid loyalty-mission-grid dashboard-home-mission-grid">
+                {visibleMissions.map((mission) => <CustomerMissionCard key={mission.id} mission={mission} compact />)}
+              </div>
+              : <div className="dashboard-home-empty" role="status">Nenhuma missão ativa no momento. Novos desafios aparecerão aqui.</div>}
+      </section>
 
       <div className="home-grid">
         <div className="panel-box profile-panel">

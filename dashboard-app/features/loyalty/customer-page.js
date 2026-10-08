@@ -1,57 +1,10 @@
 'use client';
 
 import Link from 'next/link';
-import { Award, BookOpen, Check, Clock3, Copy, Gift, RefreshCw, Sparkles, Target, TicketPercent } from 'lucide-react';
+import { Award, BookOpen, Check, Clock3, Copy, Gift, RefreshCw, Sparkles, TicketPercent } from 'lucide-react';
 import { useCallback, useEffect, useState } from 'react';
-
-const currencyFormatter = new Intl.NumberFormat('pt-BR', { style: 'currency', currency: 'BRL' });
-const dateFormatter = new Intl.DateTimeFormat('pt-BR', {
-  dateStyle: 'medium',
-  timeZone: 'America/Sao_Paulo',
-});
-
-const missionRuleLabels = {
-  FIRST_PURCHASE: 'Primeira compra concluída',
-  MINIMUM_SPEND: 'Valor acumulado em compras',
-  PURCHASE_FREQUENCY: 'Frequência de compras',
-  CATEGORY_SPEND: 'Compras em uma categoria',
-};
-
-function formatDate(value) {
-  if (!value) return '—';
-  const date = new Date(value);
-  return Number.isNaN(date.getTime()) ? '—' : dateFormatter.format(date);
-}
-
-function missionProgress(mission) {
-  if (['MINIMUM_SPEND', 'CATEGORY_SPEND'].includes(mission.ruleType)) {
-    const current = Number(mission.progressAmount) || 0;
-    const target = Number(mission.targetAmount) || 0;
-    return {
-      current: currencyFormatter.format(current),
-      target: currencyFormatter.format(target),
-      percent: target > 0 ? Math.min(100, current / target * 100) : 0,
-    };
-  }
-  const current = Number(mission.progressCount) || 0;
-  const target = Number(mission.targetCount) || 1;
-  return {
-    current: String(current),
-    target: String(target),
-    percent: Math.min(100, current / target * 100),
-  };
-}
-
-function describeMission(mission) {
-  if (mission.ruleType === 'FIRST_PURCHASE') return 'Faça sua primeira compra e conclua o pedido.';
-  if (mission.ruleType === 'PURCHASE_FREQUENCY') {
-    return `Conclua ${mission.targetCount} pedido(s)${mission.recurrence === 'weekly' ? ' nesta semana' : ''}.`;
-  }
-  if (mission.ruleType === 'CATEGORY_SPEND') {
-    return `Acumule ${currencyFormatter.format(Number(mission.targetAmount))} em ${mission.category}.`;
-  }
-  return `Acumule ${currencyFormatter.format(Number(mission.targetAmount))} em compras.`;
-}
+import CustomerMissionCard from './customer-mission-card';
+import { currencyFormatter, formatDate } from './customer-mission-display';
 
 function historyDescription(entry) {
   const date = formatDate(entry.createdAt);
@@ -66,6 +19,7 @@ export default function CustomerLoyaltyPage() {
   const [error, setError] = useState('');
   const [feedback, setFeedback] = useState(null);
   const [refreshToken, setRefreshToken] = useState(0);
+  const [missionFilter, setMissionFilter] = useState('all');
 
   const loadSnapshot = useCallback(async (showLoading = true) => {
     if (showLoading) setLoading(true);
@@ -140,13 +94,25 @@ export default function CustomerLoyaltyPage() {
   const missions = snapshot?.missions || [];
   const rewards = snapshot?.rewards || [];
   const history = snapshot?.history || [];
+  const availableMissions = missions.filter((mission) => !mission.completedAt && !mission.soldOut);
+  const completedMissions = missions.filter((mission) => Boolean(mission.completedAt));
+  const missionFilterOptions = [
+    { value: 'all', label: 'Todas', count: missions.length },
+    { value: 'available', label: 'Em andamento', count: availableMissions.length },
+    { value: 'completed', label: 'Concluídas', count: completedMissions.length },
+  ];
+  const filteredMissions = missionFilter === 'available'
+    ? availableMissions
+    : missionFilter === 'completed'
+      ? completedMissions
+      : missions;
 
   return <div className="section-shell orders-showcase customer-coupons-showcase customer-loyalty-showcase">
     <header className="section-header orders-header">
       <div>
         <span className="orders-kicker">Vantagens da sua conta</span>
         <h1>Missões e pontos</h1>
-        <p>Complete desafios de compras no Hoje e troque seus pontos por cupons.</p>
+        <p>Acompanhe seus desafios, ganhe pontos ao concluir pedidos e troque-os por cupons.</p>
       </div>
       <div className="loyalty-page-header-actions">
         <Link className="loyalty-rules-back" href="/fidelidade/regras"><BookOpen size={16} aria-hidden="true" />Todas as regras</Link>
@@ -159,20 +125,16 @@ export default function CustomerLoyaltyPage() {
 
     <section className="customer-coupon-summary loyalty-balance-summary" aria-label="Resumo de fidelidade">
       <div><Award size={18} aria-hidden="true" /><span>Saldo atual</span><strong>{balance.toLocaleString('pt-BR')}</strong></div>
-      <div><Sparkles size={18} aria-hidden="true" /><span>Missões disponíveis</span><strong>{missions.length}</strong></div>
+      <div><Sparkles size={18} aria-hidden="true" /><span>Em andamento</span><strong>{availableMissions.length}</strong></div>
       <div><Gift size={18} aria-hidden="true" /><span>Recompensas</span><strong>{rewards.length}</strong></div>
       <div><Clock3 size={18} aria-hidden="true" /><span>Movimentações</span><strong>{history.length}</strong></div>
     </section>
 
-    <div className="customer-coupon-rules">
-      <strong>Como funciona o programa</strong>
-      <ul>
-        <li>Os pontos são creditados quando o pedido é concluído; pedidos cancelados não pontuam.</li>
-        <li>Estornos ajustam proporcionalmente os pontos da compra e podem deixar saldo negativo, compensado por pontos futuros.</li>
-        <li>Confira o prazo de cada missão: os pontos podem expirar conforme as regras do desafio.</li>
-        <li>Ao resgatar, você recebe um cupom pessoal de uso único, sujeito ao pedido mínimo indicado.</li>
-      </ul>
-    </div>
+    <nav className="loyalty-customer-nav" aria-label="Navegação de Missões e pontos">
+      <a href="#loyalty-missions">Missões <span>{missions.length}</span></a>
+      <a href="#loyalty-rewards">Recompensas <span>{rewards.length}</span></a>
+      <a href="#loyalty-history">Histórico <span>{history.length}</span></a>
+    </nav>
 
     {feedback && <p className={`customer-coupon-feedback${feedback.error ? ' error' : ''}`} role={feedback.error ? 'alert' : 'status'} aria-live={feedback.error ? 'assertive' : 'polite'}>
       {feedback.message}
@@ -187,72 +149,37 @@ export default function CustomerLoyaltyPage() {
       <button type="button" onClick={refresh}>Tentar novamente</button>
     </div>}
 
-    <section className="loyalty-section" aria-labelledby="loyalty-missions-heading">
+    <section className="loyalty-section" id="loyalty-missions" aria-labelledby="loyalty-missions-heading">
       <div className="loyalty-section-heading">
-        <div><span className="orders-kicker">Desafios do Hoje</span><h2 id="loyalty-missions-heading">Missões disponíveis</h2></div>
+        <div><span className="orders-kicker">Desafios do Hoje</span><h2 id="loyalty-missions-heading">Suas missões</h2></div>
         <button className="customer-coupon-refresh" type="button" onClick={refresh} disabled={refreshing} aria-label="Atualizar missões e pontos">
           <RefreshCw size={15} aria-hidden="true" />{refreshing ? 'Atualizando...' : 'Atualizar'}
         </button>
       </div>
+      {!loading && !error && missions.length > 0 && <div className="loyalty-mission-filters" role="group" aria-label="Filtrar missões">
+        {missionFilterOptions.map((filter) => <button
+          key={filter.value}
+          type="button"
+          aria-pressed={missionFilter === filter.value}
+          onClick={() => setMissionFilter(filter.value)}
+        >
+          {filter.label}<span>{filter.count}</span>
+        </button>)}
+      </div>}
       {loading ? <div className="favorites-loading" role="status"><span className="favorites-loading-indicator" />Carregando suas missões...</div>
-        : missions.length ? <div className="loyalty-card-grid loyalty-mission-grid">
-          {missions.map((mission) => {
-            const progress = missionProgress(mission);
-            const complete = Boolean(mission.completedAt);
-            const rewardUnavailable = mission.soldOut && !complete;
-            const progressPercent = complete ? 100 : progress.percent;
-            return <article className={`customer-coupon-card loyalty-mission-card${complete ? ' is-complete' : ''}`} key={mission.id}>
-              <div className="loyalty-mission-card-heading">
-                <div className="loyalty-mission-identity">
-                  <div className="loyalty-mission-thumb">
-                    {mission.imageUrl
-                      ? <img src={mission.imageUrl} alt={`Figurinha da missão ${mission.name}`} loading="lazy" />
-                      : <Target size={20} aria-hidden="true" />}
-                  </div>
-                  <div className="loyalty-mission-info">
-                    <small className="loyalty-mission-kind">{missionRuleLabels[mission.ruleType] || 'Missão'}</small>
-                    <h3>{mission.name}</h3>
-                  </div>
-                </div>
-                <span className={`customer-coupon-status${complete ? '' : mission.soldOut ? ' status-expired' : ''}`}>
-                  {complete ? 'Concluída' : mission.soldOut ? 'Limite atingido' : mission.recurrence === 'weekly' ? 'Missão semanal' : 'Em andamento'}
-                </span>
-              </div>
-              <p className="customer-coupon-card-message">{mission.description || describeMission(mission)}</p>
-              <div className={`loyalty-mission-reward${complete ? ' is-complete' : rewardUnavailable ? ' is-unavailable' : ''}`}>
-                <Gift size={17} aria-hidden="true" />
-                <span>
-                  <small>{complete ? 'Recompensa recebida' : rewardUnavailable ? 'Recompensas esgotadas' : 'Recompensa ao concluir'}</small>
-                  <strong>{rewardUnavailable ? 'Indisponível' : `+${mission.pointsReward.toLocaleString('pt-BR')} pontos`}</strong>
-                </span>
-              </div>
-              <div className="loyalty-progress-label"><span>Conclusão</span><strong>{progress.current} / {progress.target} · {Math.round(progressPercent)}%</strong></div>
-              <div className="loyalty-progress-track" role="progressbar" aria-label={`Conclusão da missão ${mission.name}`} aria-valuemin="0" aria-valuemax="100" aria-valuenow={Math.round(progressPercent)} aria-valuetext={`${Math.round(progressPercent)}% concluído`}>
-                <span style={{ width: `${progressPercent}%` }} />
-              </div>
-              <p className="loyalty-mission-footer">
-                {complete
-                  ? `Concluída em ${formatDate(mission.completedAt)}.`
-                  : rewardUnavailable
-                    ? 'As recompensas desta missão foram esgotadas.'
-                    : mission.recurrence === 'weekly'
-                      ? 'Conclua pedidos elegíveis para avançar. O progresso reinicia a cada semana.'
-                      : 'Conclua pedidos elegíveis para avançar até a meta.'}
-              </p>
-              {mission.remainingRewards !== null && !mission.soldOut && <small className="loyalty-expiry-note">
-                Restam {mission.remainingRewards.toLocaleString('pt-BR')} recompensa(s) nesta missão.
-              </small>}
-              {mission.pointsExpiryPolicy !== 'NEVER' && <small className="loyalty-expiry-note">
-                {mission.pointsExpiryPolicy === 'CYCLE_END'
-                  ? `Os pontos expiram em ${formatDate(mission.cycleEndAt)}.`
-                  : 'Os pontos seguem o prazo de validade configurado nesta missão.'}
-              </small>}
-            </article>;
-          })}
-        </div> : <div className="customer-coupon-empty"><p>Nenhuma missão ativa agora. Volte em breve para conferir novos desafios.</p></div>}
+        : error ? <div className="customer-coupon-empty" role="status"><p>As missões não puderam ser carregadas. Tente atualizar a página.</p></div>
+          : missions.length ? filteredMissions.length
+            ? <div className="loyalty-card-grid loyalty-mission-grid loyalty-mission-list">
+              {filteredMissions.map((mission) => <CustomerMissionCard key={mission.id} mission={mission} />)}
+            </div>
+            : <div className="customer-coupon-empty loyalty-filter-empty" role="status">
+              <p>{missionFilter === 'completed' ? 'Você ainda não concluiu uma missão.' : 'Não há missões em andamento neste momento.'}</p>
+              {missionFilter !== 'all' && <button className="loyalty-empty-action" type="button" onClick={() => setMissionFilter('all')}>Ver todas as missões</button>}
+            </div>
+            : <div className="customer-coupon-empty" role="status"><p>Nenhuma missão ativa agora. Novos desafios aparecerão aqui.</p></div>}
     </section>
 
-    <section className="loyalty-section" aria-labelledby="loyalty-rewards-heading">
+    <section className="loyalty-section" id="loyalty-rewards" aria-labelledby="loyalty-rewards-heading">
       <div className="loyalty-section-heading">
         <div><span className="orders-kicker">Troque seus pontos</span><h2 id="loyalty-rewards-heading">Recompensas</h2></div>
       </div>
@@ -282,7 +209,7 @@ export default function CustomerLoyaltyPage() {
         </div> : <div className="customer-coupon-empty"><p>As recompensas serão exibidas aqui quando estiverem disponíveis.</p></div>}
     </section>
 
-    <section className="loyalty-section" aria-labelledby="loyalty-history-heading">
+    <section className="loyalty-section" id="loyalty-history" aria-labelledby="loyalty-history-heading">
       <div className="loyalty-section-heading">
         <div><span className="orders-kicker">Seu extrato</span><h2 id="loyalty-history-heading">Histórico de pontos</h2></div>
       </div>
@@ -295,6 +222,16 @@ export default function CustomerLoyaltyPage() {
           </article>)}
         </div> : <div className="customer-coupon-empty"><p>Suas movimentações de pontos aparecerão aqui.</p></div>}
     </section>
+
+    <details className="customer-coupon-rules loyalty-program-rules">
+      <summary>Como funciona o programa</summary>
+      <ul>
+        <li>Os pontos são creditados quando o pedido é concluído; pedidos cancelados não pontuam.</li>
+        <li>Estornos ajustam proporcionalmente os pontos da compra e podem deixar saldo negativo, compensado por pontos futuros.</li>
+        <li>Confira o prazo de cada missão: os pontos podem expirar conforme as regras do desafio.</li>
+        <li>Ao resgatar, você recebe um cupom pessoal de uso único, sujeito ao pedido mínimo indicado.</li>
+      </ul>
+    </details>
 
     {feedback?.code && <span className="visually-hidden"><Check aria-hidden="true" /> Cupom disponível: {feedback.code}</span>}
   </div>;
