@@ -3601,19 +3601,16 @@ body {
   .customer-order-receipt-link { transition: none; }
 }
 @media print {
-  @page { size: 80mm; margin: 0; }
+  @page { size: 80mm auto; margin: 0; }
   html, body { width: 80mm !important; min-width: 0 !important; margin: 0 !important; overflow: visible !important; background: #fff !important; }
   body * { visibility: hidden !important; }
-  body *:has(.order-receipt-dialog[open]) { display: contents !important; }
-  body *:not(:has(.order-receipt-dialog[open])):not(.order-receipt-dialog[open]):not(.order-receipt-dialog[open] *) { display: none !important; }
   .order-receipt-dialog[open], .order-receipt-dialog[open] * { visibility: visible !important; }
   .order-receipt-dialog[open] { position: fixed !important; inset: 0 auto auto 0 !important; display: block !important; width: 80mm !important; max-width: 80mm !important; max-height: none !important; margin: 0 !important; padding: 0 !important; overflow: visible !important; border: 0 !important; border-radius: 0 !important; background: #fff !important; box-shadow: none !important; }
-  .erp-order-receipt-dialog[open] { position: absolute !important; }
   .order-receipt-dialog::backdrop { display: none !important; }
   .order-receipt-dialog-inner { display: block !important; width: 80mm !important; min-height: 0 !important; padding: 0 !important; }
   .order-receipt-actions { display: none !important; }
   .order-receipt { width: 80mm !important; max-width: 80mm !important; margin: 0 !important; padding: 4mm !important; border: 0 !important; border-radius: 0 !important; box-shadow: none !important; font-size: 9pt !important; }
-  .order-picking-dialog[open] { position: absolute !important; inset: 0 auto auto 0 !important; display: block !important; width: 80mm !important; max-width: 80mm !important; max-height: none !important; margin: 0 !important; padding: 0 !important; overflow: visible !important; border: 0 !important; border-radius: 0 !important; background: #fff !important; box-shadow: none !important; }
+  .order-picking-dialog[open] { position: fixed !important; inset: 0 auto auto 0 !important; display: block !important; width: 80mm !important; max-width: 80mm !important; max-height: none !important; margin: 0 !important; padding: 0 !important; overflow: visible !important; border: 0 !important; border-radius: 0 !important; background: #fff !important; box-shadow: none !important; }
   .order-picking-dialog[open]::backdrop { display: none !important; }
   .order-picking-dialog[open] .order-receipt-dialog-inner { display: block !important; width: 80mm !important; min-height: 0 !important; padding: 0 !important; }
   .order-picking-dialog[open] .order-picking-sheet { width: 80mm !important; max-width: 80mm !important; margin: 0 !important; padding: 4mm !important; border: 0 !important; border-radius: 0 !important; box-shadow: none !important; font-size: 11pt !important; }

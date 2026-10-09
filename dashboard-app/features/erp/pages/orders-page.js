@@ -397,7 +397,7 @@ export default function ERPOrdersPage() {
       </div>
       <dialog
         ref={printDialogRef}
-        className={`order-receipt-dialog erp-order-receipt-dialog${isPickingList ? ' order-picking-dialog' : ''}`}
+        className={`order-receipt-dialog${isPickingList ? ' order-picking-dialog' : ''}`}
         aria-labelledby={isPickingList ? 'order-picking-list-title' : 'order-receipt-title'}
         aria-describedby={isPickingList ? 'order-picking-list-description' : 'order-receipt-disclaimer'}
         onClose={() => setPrintDocument(null)}
