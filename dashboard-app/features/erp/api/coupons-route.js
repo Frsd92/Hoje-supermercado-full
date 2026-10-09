@@ -7,7 +7,9 @@ import { summarizeCouponCampaign } from '@/features/coupons/coupon-reporting';
 
 export async function GET() {
   const session = await getServerSession(authOptions);
-  if (!hasErpAccess(session?.user)) return Response.json({ error: 'Acesso negado.' }, { status: 403 });
+  const headers = { 'Cache-Control': 'private, no-store, max-age=0' };
+  if (!session?.user) return Response.json({ error: 'Login necessário.' }, { status: 401, headers });
+  if (!hasErpAccess(session.user)) return Response.json({ error: 'Acesso negado.' }, { status: 403, headers });
 
   try {
     const campaigns = await prisma.couponCampaign.findMany({
@@ -48,10 +50,10 @@ export async function GET() {
         ...summarizeCouponCampaign(campaign, orders, now),
         createdBy: campaign.createdBy,
       })),
-    });
+    }, { headers });
   } catch (error) {
     console.error('Não foi possível carregar os cupons enviados:', error);
-    return Response.json({ error: 'Não foi possível carregar os cupons enviados.' }, { status: 500 });
+    return Response.json({ error: 'Não foi possível carregar os cupons enviados.' }, { status: 500, headers });
   }
 }
 

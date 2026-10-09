@@ -1698,11 +1698,19 @@ function inicializarCarrinho() {
 
       applyCouponBtn.disabled = true;
       try {
-        const response = await fetch('/api/coupons', { credentials: 'include', cache: 'no-store' });
+        const response = await fetch('/api/coupons', {
+          method: 'POST',
+          credentials: 'include',
+          cache: 'no-store',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ code: valor }),
+        });
         const data = await response.json();
         if (!response.ok) throw new Error(data.error || 'Não foi possível validar seus cupons.');
-        const assignedCoupon = (data.coupons || []).find((item) => item.code === valor);
-        if (!assignedCoupon) throw new Error('Cupom inválido, expirado ou não enviado para sua conta.');
+        const assignedCoupon = data?.coupon;
+        if (!assignedCoupon || assignedCoupon.code !== valor) {
+          throw new Error('Cupom inválido, expirado ou não enviado para sua conta.');
+        }
 
         cupomAplicado = { codigo: valor, percentual: assignedCoupon.discountPercent };
         if (feedback) {

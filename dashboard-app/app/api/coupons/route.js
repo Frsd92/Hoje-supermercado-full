@@ -1,75 +1,110 @@
 import { getServerSession } from 'next-auth';
 import { authOptions } from '@/auth';
-import { prisma } from '@/lib/prisma';
+import { hasCustomerDashboardAccess } from '@/features/auth/access';
 import { getCouponRecipientStatus, isRealizedCouponOrder } from '@/features/coupons/coupon-reporting';
+import { prisma } from '@/lib/prisma';
 
-export async function GET(request) {
+export { GET } from '@/features/erp/api/coupons-route';
+
+const privateNoStoreHeaders = { 'Cache-Control': 'private, no-store, max-age=0' };
+
+function errorResponse(error, status) {
+  return Response.json({ error }, { status, headers: privateNoStoreHeaders });
+}
+
+function isProcessingCouponOrder(order) {
+  return String(order?.paymentStatus || '').toLowerCase() === 'pending'
+    && order?.status !== 'Cancelado';
+}
+
+export async function POST(request) {
   const session = await getServerSession(authOptions);
+  if (!session?.user) return errorResponse('Login necessário.', 401);
+  if (!hasCustomerDashboardAccess(session.user)) return errorResponse('Acesso negado.', 403);
+
   const email = String(session?.user?.email || '').trim().toLowerCase();
-  if (!email) return Response.json({ error: 'Login necessário.' }, { status: 401 });
+  if (!email) return errorResponse('Login necessário.', 401);
+
+  let body;
+  try {
+    body = await request.json();
+  } catch {
+    return errorResponse('Informe um único código de cupom.', 400);
+  }
+  if (!body || typeof body !== 'object' || Array.isArray(body)
+    || Object.keys(body).length !== 1 || typeof body.code !== 'string') {
+    return errorResponse('Informe um único código de cupom.', 400);
+  }
+
+  const code = body.code.trim().toUpperCase();
+  if (!/^[A-Z0-9_-]{3,24}$/.test(code)) {
+    return errorResponse('O código do cupom é inválido.', 400);
+  }
 
   try {
-    const includeHistory = new URL(request.url).searchParams.get('history') === '1';
     const now = new Date();
-    const campaigns = await prisma.couponCampaign.findMany({
+    const campaign = await prisma.couponCampaign.findFirst({
       where: {
+        code,
         recipients: { some: { email } },
       },
       select: {
+        id: true,
         code: true,
         discountPercent: true,
         minimumOrderAmount: true,
         expiresAt: true,
-        createdAt: true,
-        message: true,
-        redemptions: { where: { email }, select: { orderId: true, createdAt: true } },
+        redemptions: {
+          where: { email },
+          select: { orderId: true, createdAt: true },
+          orderBy: { createdAt: 'desc' },
+        },
       },
+    });
+    if (!campaign) {
+      return errorResponse('Cupom inválido ou não disponível para sua conta.', 404);
+    }
+
+    const usedOrders = await prisma.order.findMany({
+      where: { customerEmail: email, couponCode: code },
+      select: { id: true, createdAt: true, status: true, paymentStatus: true },
       orderBy: { createdAt: 'desc' },
     });
-    const codes = campaigns.map((campaign) => campaign.code);
-    const usedOrders = codes.length
-      ? await prisma.order.findMany({
-        where: { customerEmail: email, couponCode: { in: codes } },
-        select: { id: true, couponCode: true, createdAt: true, status: true, paymentStatus: true },
-        orderBy: { createdAt: 'desc' },
-      })
-      : [];
-    const latestOrderByCode = new Map();
     const ordersById = new Map(usedOrders.map((order) => [order.id, order]));
-    usedOrders.filter((order) => (
-      isRealizedCouponOrder(order) || String(order.paymentStatus || '').toLowerCase() === 'pending'
-    )).forEach((order) => {
-      const code = String(order.couponCode || '').trim().toUpperCase();
-      if (code && !latestOrderByCode.has(code)) latestOrderByCode.set(code, order);
-    });
-    const coupons = campaigns.map((campaign) => {
-      const redemption = campaign.redemptions[0] || null;
-      const linkedOrder = redemption ? ordersById.get(redemption.orderId) : null;
-      const order = latestOrderByCode.get(campaign.code) || null;
-      const validRedemption = redemption && (
-        !linkedOrder
-        || isRealizedCouponOrder(linkedOrder)
-        || String(linkedOrder.paymentStatus || '').toLowerCase() === 'pending'
-      )
-        ? {
-          ...redemption,
-          ...(linkedOrder ? { status: linkedOrder.status, paymentStatus: linkedOrder.paymentStatus } : {}),
-        }
-        : null;
-      return {
+    const redemption = campaign.redemptions[0] || null;
+    const linkedOrder = redemption ? ordersById.get(redemption.orderId) : null;
+    const validRedemption = redemption && (
+      !linkedOrder
+      || isRealizedCouponOrder(linkedOrder)
+      || isProcessingCouponOrder(linkedOrder)
+    )
+      ? {
+        ...redemption,
+        ...(linkedOrder ? { status: linkedOrder.status, paymentStatus: linkedOrder.paymentStatus } : {}),
+      }
+      : null;
+    const latestEligibleOrder = usedOrders.find((order) => (
+      isRealizedCouponOrder(order) || isProcessingCouponOrder(order)
+    )) || null;
+    const status = getCouponRecipientStatus(
+      campaign.expiresAt,
+      validRedemption || latestEligibleOrder,
+      now,
+    );
+    if (status !== 'available') {
+      return errorResponse('Este cupom expirou, já foi utilizado ou está vinculado a um pedido em andamento.', 409);
+    }
+
+    return Response.json({
+      coupon: {
         code: campaign.code,
         discountPercent: campaign.discountPercent,
         minimumOrderAmount: Number(campaign.minimumOrderAmount),
         expiresAt: campaign.expiresAt,
-        createdAt: campaign.createdAt,
-        message: campaign.message,
-        status: getCouponRecipientStatus(campaign.expiresAt, validRedemption || order, now),
-        redeemedAt: validRedemption?.createdAt || order?.createdAt || null,
-      };
-    });
-    return Response.json({ coupons: includeHistory ? coupons : coupons.filter((coupon) => coupon.status === 'available') });
+      },
+    }, { headers: privateNoStoreHeaders });
   } catch (error) {
-    console.error('Não foi possível carregar os cupons do cliente:', error);
-    return Response.json({ error: 'Não foi possível carregar seus cupons agora.' }, { status: 500 });
+    console.error('Não foi possível validar o cupom informado:', error);
+    return errorResponse('Não foi possível validar o cupom agora.', 500);
   }
 }

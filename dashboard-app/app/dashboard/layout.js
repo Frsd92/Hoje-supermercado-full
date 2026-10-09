@@ -717,16 +717,18 @@ export default function DashboardLayout({ children }) {
       return;
     }
     try {
-      const response = await fetch('/api/coupons');
+      const response = await fetch('/api/coupons', {
+        method: 'POST',
+        credentials: 'include',
+        cache: 'no-store',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ code }),
+      });
       const data = await response.json();
       if (!response.ok) throw new Error(data.error || 'Não foi possível validar seus cupons.');
-      const assignedCoupon = (data.coupons || []).find((item) => item.code === code);
-      if (!assignedCoupon) {
-        setCouponDiscountPercent(0);
-        setCouponMinimumOrderAmount(0);
-        setAppliedCouponCode('');
-        setCouponStatus('Cupom inválido, expirado ou não disponível para sua conta.');
-        return;
+      const assignedCoupon = data?.coupon;
+      if (!assignedCoupon || assignedCoupon.code !== code) {
+        throw new Error('Cupom inválido, expirado ou não disponível para sua conta.');
       }
       setCouponDiscountPercent(assignedCoupon.discountPercent);
       const minimumOrderAmount = Number(assignedCoupon.minimumOrderAmount) || 0;
