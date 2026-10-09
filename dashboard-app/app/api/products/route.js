@@ -1,6 +1,4 @@
-import { promises as fs } from 'fs';
 import { createHash } from 'node:crypto';
-import path from 'path';
 import { getServerSession } from 'next-auth';
 import { authOptions } from '@/auth';
 import { erpActorLabel, hasErpAccess } from '@/features/erp/access';
@@ -20,10 +18,10 @@ import {
   resolveInventoryExpiry,
   requiresInventoryExpiry,
 } from '@/features/erp/api/inventory-lots';
+import { getProductCatalog, readLegacyProducts, serializeProduct } from '@/features/erp/api/product-catalog';
 import { getProductOrganizationError } from '@/features/erp/product-organization';
 import { prisma } from '@/lib/prisma';
 
-const productsFile = path.join(process.cwd(), 'data', 'products.json');
 const allowedOrigins = new Set(['http://localhost:8010', 'http://localhost:5500', 'http://127.0.0.1:5500', 'null']);
 const privateProductFields = new Set([
   'cost',
@@ -45,44 +43,6 @@ function corsHeaders(request) {
     'Access-Control-Allow-Headers': 'Content-Type',
     'Access-Control-Allow-Credentials': 'true',
     Vary: 'Origin',
-  };
-}
-
-async function readProducts() {
-  try {
-    const products = JSON.parse(await fs.readFile(productsFile, 'utf8'));
-    return Array.isArray(products) ? products : [];
-  } catch {
-    return [];
-  }
-}
-
-function serializeProduct(record) {
-  const metadata = record.metadata && typeof record.metadata === 'object' && !Array.isArray(record.metadata)
-    ? record.metadata
-    : {};
-  return {
-    ...metadata,
-    shelfLifeDays: parseShelfLifeDays(metadata.shelfLifeDays) || null,
-    id: record.externalId || record.id,
-    title: record.title,
-    description: record.description || '',
-    price: Number(record.price),
-    cost: Number(record.cost),
-    discount: Number(record.discount),
-    quantity: Number(record.quantity),
-    sku: record.sku || '',
-    barcode: record.barcode || '',
-    brand: record.brand || '',
-    supplier: record.supplier || '',
-    subcategory: record.subcategory || '',
-    image: record.image || '',
-    status: record.status,
-    expiry: record.expiry?.toISOString() || '',
-    categories: record.categories || [],
-    createdBy: record.createdBy || '',
-    createdAt: record.createdAt?.toISOString() || null,
-    updatedAt: record.updatedAt?.toISOString() || null,
   };
 }
 
@@ -123,20 +83,6 @@ function productDatabaseData(product) {
     createdBy: product.createdBy ? String(product.createdBy) : null,
     metadata,
   };
-}
-
-async function getProducts() {
-  let databaseProducts = [];
-  try {
-    databaseProducts = (await prisma.product.findMany()).map(serializeProduct);
-  } catch (error) {
-    console.error('Não foi possível carregar o catálogo persistido:', error);
-  }
-
-  const legacyProducts = await readProducts();
-  const productsById = new Map(legacyProducts.map((product) => [String(product.id), product]));
-  databaseProducts.forEach((product) => productsById.set(String(product.id), product));
-  return [...productsById.values()];
 }
 
 class DuplicateProductError extends Error {
@@ -357,7 +303,7 @@ export async function GET(request) {
       console.error('Não foi possível localizar a imagem no catálogo persistido:', error);
     }
     if (!product) {
-      const legacyProducts = await readProducts();
+      const legacyProducts = await readLegacyProducts();
       product = legacyProducts.find((item) => String(item.id) === productId) || null;
     }
 
@@ -391,7 +337,7 @@ export async function GET(request) {
     });
   }
 
-  const products = await getProducts();
+  const products = await getProductCatalog();
   if (purpose === 'search') {
     const searchableProducts = products
       .filter((product) => product.status === 'Ativo')
@@ -569,7 +515,7 @@ export async function POST(request) {
     savedProduct.expiry = initialLotDates.expiry ? inventoryDateOnly(initialLotDates.expiry) : '';
     savedProduct.manufactureDate = inventoryDateOnly(initialLotDates.manufactureDate);
   }
-  const duplicate = matchingDuplicate(savedProduct, await getProducts());
+  const duplicate = matchingDuplicate(savedProduct, await getProductCatalog());
   if (duplicate) return Response.json({ error: duplicate.message }, { status: 409, headers: corsHeaders(request) });
   try {
     await saveProduct(savedProduct, { actor, action: 'CREATE' });
@@ -593,7 +539,7 @@ export async function PUT(request) {
     const productId = String(product?.id || '').trim();
     if (!productId) return Response.json({ error: 'Selecione um produto válido.' }, { status: 400, headers: corsHeaders(request) });
 
-    const products = await getProducts();
+    const products = await getProductCatalog();
     const productIndex = products.findIndex((item) => String(item.id) === productId);
     if (productIndex < 0) return Response.json({ error: 'Produto não encontrado.' }, { status: 404, headers: corsHeaders(request) });
 
@@ -651,7 +597,7 @@ export async function PUT(request) {
   const organizationError = getProductOrganizationError({ ...product, categories });
   if (organizationError) return Response.json({ error: organizationError }, { status: 400, headers: corsHeaders(request) });
 
-  const products = await getProducts();
+  const products = await getProductCatalog();
   const productIndex = products.findIndex((item) => String(item.id) === productId);
   if (productIndex < 0) return Response.json({ error: 'Produto não encontrado.' }, { status: 404, headers: corsHeaders(request) });
 
@@ -701,7 +647,7 @@ export async function DELETE(request) {
   const productId = String(id || '').trim();
   if (!productId) return Response.json({ error: 'Informe o produto que será excluído.' }, { status: 400, headers: corsHeaders(request) });
 
-  const products = await getProducts();
+  const products = await getProductCatalog();
   const product = products.find((item) => String(item.id) === productId);
   if (!product) return Response.json({ error: 'Produto não encontrado.' }, { status: 404, headers: corsHeaders(request) });
   try {

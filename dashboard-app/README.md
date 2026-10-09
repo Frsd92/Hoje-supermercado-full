@@ -53,6 +53,14 @@ Em **ERP → Validade** (`/erp/validade`), cada linha representa um lote e seu p
 
 Para instalar o controle por lote em um banco existente, aplique a migração `20261002210000_product_inventory_lots` com `npx prisma migrate deploy` e gere o Prisma Client com `npm run db:generate`, a partir de `dashboard-app`. A migração preserva o saldo legado em um lote inicial por produto, sem inventar datas de validade. Em produção, execute a migração com o ambiente correto antes de publicar o código que exige as novas tabelas. O backfill independente de auditoria de produtos (`npm run db:backfill-product-audit`) continua necessário apenas quando houver dados legados a recuperar para esse histórico.
 
+## Balanço de estoque
+
+Em **ERP → Balanço de estoque** (`/erp/balanco-estoque`), a equipe inicia uma contagem compartilhada e registra a quantidade física ao lado do saldo online fotografado no início do balanço. Os registros ficam em `InventoryCount` e `InventoryCountItem`; salvar ou concluir um balanço não altera o estoque do produto nem os lotes. Só pode haver um balanço em andamento, e a conclusão exige informar todos os produtos, usando zero quando não houver quantidade física. Balanços concluídos continuam disponíveis para consulta e um novo balanço cria uma nova fotografia do saldo online.
+
+O balanço separa `Hortifruti` em Frutas e Verduras por subcategoria ou por nomes de produtos reconhecidos. Produtos sem classificação reconhecível e categorias não listadas, como Padaria, Cervejas e Bebidas Alcoólicas, aparecem em **Outras categorias** para não serem omitidos. As categorias do catálogo Açougue, Bebidas, Produtos de Limpeza, Pet Shop e Laticínios correspondem respectivamente a Carne, Bebidas sem álcool, Limpeza, Petshop e Laticínio no balanço.
+
+Antes de usar o módulo em um banco existente, aplique a migração `20261009000000_inventory_count` com `npx prisma migrate deploy` e gere o Prisma Client com `npm run db:generate`, a partir de `dashboard-app`. Em produção, aplique a migração no ambiente correto antes de publicar o código que usa essas tabelas.
+
 ## Pedidos e Analytics
 
 Pedidos e itens são persistidos no PostgreSQL; a finalização também registra o endereço de entrega, a forma de pagamento, o consentimento para CPF na nota, o cupom e o custo do produto no momento da venda. As quantidades de `OrderItem` aceitam frações para produtos vendidos por peso. O ERP, o histórico do cliente, a contagem de vendas do catálogo e o Analytics consultam essas mesmas tabelas. Estoque e validade são calculados pelos lotes; perfis e endereços são lidos de `CustomerProfile` e `CustomerAddressBook`, com os endereços exibidos no Analytics somente em forma agregada.

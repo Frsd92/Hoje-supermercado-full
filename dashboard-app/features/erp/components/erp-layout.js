@@ -2,7 +2,7 @@
 
 import Link from 'next/link';
 import { usePathname } from 'next/navigation';
-import { Activity, Award, BarChart3, Bell, CalendarDays, CircleDollarSign, FileText, History, LayoutDashboard, LayoutTemplate, MapPin, Package, Plus, ShoppingCart, TicketPercent, TrendingUp, Truck, Users, Zap } from 'lucide-react';
+import { Activity, Award, BarChart3, Bell, CalendarDays, CircleDollarSign, ClipboardList, FileText, History, LayoutDashboard, LayoutTemplate, MapPin, Package, Plus, ShoppingCart, TicketPercent, TrendingUp, Truck, Users, Zap } from 'lucide-react';
 import { useEffect, useState } from 'react';
 
 const erpNavigationGroups = [
@@ -42,6 +42,7 @@ const erpNavigationGroups = [
   {
     label: 'Operação',
     items: [
+      { label: 'Balanço de estoque', href: '/erp/balanco-estoque', icon: ClipboardList },
       { label: 'Validade', href: '/erp/validade', icon: CalendarDays },
       { label: 'Registrar lote', href: '/erp/registrar-lote', icon: Plus },
       { label: 'Regiões atendidas', href: '/erp/service-regions', icon: MapPin },

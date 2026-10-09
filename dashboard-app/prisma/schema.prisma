@@ -149,6 +149,39 @@ model ProductLot {
   @@index([productId, quantity])
 }
 
+model InventoryCount {
+  id          String               @id @default(cuid())
+  activeKey   String?              @unique
+  status      String               @default("OPEN")
+  createdBy   String
+  createdAt   DateTime             @default(now())
+  completedBy String?
+  completedAt DateTime?
+  items       InventoryCountItem[]
+
+  @@index([status, createdAt])
+}
+
+model InventoryCountItem {
+  id              String         @id @default(cuid())
+  countId         String
+  productId       String
+  productTitle    String
+  productSku      String?
+  productBarcode  String?
+  productStatus   String
+  category        String
+  sourceCategory  String
+  unit            String         @default("un.")
+  systemQuantity  Decimal        @db.Decimal(12, 3)
+  countedQuantity Decimal?       @db.Decimal(12, 3)
+  countedAt       DateTime?
+  count           InventoryCount @relation(fields: [countId], references: [id], onDelete: Cascade)
+
+  @@unique([countId, productId])
+  @@index([countId, category, productTitle])
+}
+
 model InventoryOrderFulfillment {
   orderId     String                   @id
   actor       String
