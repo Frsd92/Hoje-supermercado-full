@@ -3610,7 +3610,7 @@ body {
   .order-receipt-dialog-inner { display: block !important; width: 80mm !important; min-height: 0 !important; padding: 0 !important; }
   .order-receipt-actions { display: none !important; }
   .order-receipt { width: 80mm !important; max-width: 80mm !important; margin: 0 !important; padding: 4mm !important; border: 0 !important; border-radius: 0 !important; box-shadow: none !important; font-size: 9pt !important; }
-  .order-picking-dialog[open] { position: fixed !important; inset: 0 auto auto 0 !important; display: block !important; width: 80mm !important; max-width: 80mm !important; max-height: none !important; margin: 0 !important; padding: 0 !important; overflow: visible !important; border: 0 !important; border-radius: 0 !important; background: #fff !important; box-shadow: none !important; }
+  .order-picking-dialog[open] { position: absolute !important; inset: 0 auto auto 0 !important; display: block !important; width: 80mm !important; max-width: 80mm !important; max-height: none !important; margin: 0 !important; padding: 0 !important; overflow: visible !important; border: 0 !important; border-radius: 0 !important; background: #fff !important; box-shadow: none !important; }
   .order-picking-dialog[open]::backdrop { display: none !important; }
   .order-picking-dialog[open] .order-receipt-dialog-inner { display: block !important; width: 80mm !important; min-height: 0 !important; padding: 0 !important; }
   .order-picking-dialog[open] .order-picking-sheet { width: 80mm !important; max-width: 80mm !important; margin: 0 !important; padding: 4mm !important; border: 0 !important; border-radius: 0 !important; box-shadow: none !important; font-size: 11pt !important; }
