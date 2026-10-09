@@ -3604,6 +3604,8 @@ body {
   @page { size: 80mm; margin: 0; }
   html, body { width: 80mm !important; min-width: 0 !important; margin: 0 !important; overflow: visible !important; background: #fff !important; }
   body * { visibility: hidden !important; }
+  body *:has(.order-receipt-dialog[open]) { display: contents !important; }
+  body *:not(:has(.order-receipt-dialog[open])):not(.order-receipt-dialog[open]):not(.order-receipt-dialog[open] *) { display: none !important; }
   .order-receipt-dialog[open], .order-receipt-dialog[open] * { visibility: visible !important; }
   .order-receipt-dialog[open] { position: fixed !important; inset: 0 auto auto 0 !important; display: block !important; width: 80mm !important; max-width: 80mm !important; max-height: none !important; margin: 0 !important; padding: 0 !important; overflow: visible !important; border: 0 !important; border-radius: 0 !important; background: #fff !important; box-shadow: none !important; }
   .order-receipt-dialog::backdrop { display: none !important; }
