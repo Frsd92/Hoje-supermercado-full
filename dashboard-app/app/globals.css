@@ -3601,7 +3601,7 @@ body {
   .customer-order-receipt-link { transition: none; }
 }
 @media print {
-  @page { size: 80mm auto; margin: 0; }
+  @page { size: 80mm; margin: 0; }
   html, body { width: 80mm !important; min-width: 0 !important; margin: 0 !important; overflow: visible !important; background: #fff !important; }
   body * { visibility: hidden !important; }
   .order-receipt-dialog[open], .order-receipt-dialog[open] * { visibility: visible !important; }
