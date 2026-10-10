@@ -25,6 +25,9 @@ function configurarSlidesBannerPrincipal(slides) {
   let activeIndex = 0;
   let timer;
   const prefersReducedMotion = window.matchMedia('(prefers-reduced-motion: reduce)').matches;
+  banner.style.backgroundSize = 'cover, contain';
+  banner.style.backgroundPosition = 'center';
+  banner.style.backgroundRepeat = 'no-repeat';
   const buttons = slideList.map((slide, index) => {
     const button = document.createElement('button');
     button.type = 'button';
@@ -1858,6 +1861,32 @@ function escapeStoreHtml(value) {
   return String(value ?? '').replace(/[&<>"']/g, (character) => entities[character]);
 }
 
+function renderProductImage(image, title) {
+  const source = String(image ?? '').trim();
+  if (!source) {
+    const accessibleTitle = escapeStoreHtml(title);
+    return `<div class="product-image-placeholder" role="img" aria-label="Imagem de ${accessibleTitle} indisponível"><i data-lucide="image" aria-hidden="true"></i><span>Foto indisponível</span></div>`;
+  }
+
+  return `<img src="${escapeStoreHtml(source)}" alt="${escapeStoreHtml(title)}" class="product-img" loading="lazy" decoding="async">`;
+}
+
+function createProductImageFallback(title) {
+  const fallback = document.createElement('div');
+  fallback.className = 'product-image-placeholder';
+  fallback.setAttribute('role', 'img');
+  fallback.setAttribute('aria-label', `Imagem de ${title || 'produto'} indisponível`);
+  fallback.innerHTML = '<i data-lucide="image" aria-hidden="true"></i><span>Foto indisponível</span>';
+  return fallback;
+}
+
+document.addEventListener('error', (event) => {
+  const image = event.target;
+  if (!(image instanceof HTMLImageElement) || !image.classList.contains('product-img')) return;
+  image.replaceWith(createProductImageFallback(image.alt));
+  if (window.lucide) window.lucide.createIcons();
+}, true);
+
 function getProductCardCategoryLabel(product) {
   const subcategory = String(product.subcategory || '').trim();
   const productType = String(product.productType || '').trim();
@@ -1940,9 +1969,8 @@ function criarCardDoCatalogo(product) {
   const oldPrice = salePrice < Number(product.price) ? ` <span class="old-price">R$ ${Number(product.price).toFixed(2).replace('.', ',')}</span>` : '';
   const category = escapeStoreHtml(getProductCardCategoryLabel(product));
   const title = escapeStoreHtml(product.title);
-  const image = escapeStoreHtml(product.image || '');
   const productId = escapeStoreHtml(product.id);
-  return `<article class="product-card" data-id="${productId}" data-sale-unit="${porKg ? 'Quilograma' : 'Unidade'}">${renderProductBadges(product)}<img src="${image}" alt="${title}" class="product-img" loading="lazy" decoding="async"><div class="product-category">${category}</div>${renderProductDepartmentBadge(product)}<div class="product-name">${title}</div><div class="product-price"><span class="product-price-current">${price}</span><span class="product-price-unit">${porKg ? 'por kg' : 'por unidade'}</span>${oldPrice}</div><div class="product-actions"><button class="btn-comprar" onclick="adicionarProduto(this)">Adicionar</button><div class="qty-controls"><button class="btn-remove" onclick="removerProduto(this)"><i data-lucide="trash-2"></i></button><span class="qty" data-quantity="${porKg ? '0.1' : '1'}">${porKg ? '100 g' : '1'}</span><button class="btn-add" onclick="aumentarQtd(this)">+</button></div></div></article>`;
+  return `<article class="product-card" data-id="${productId}" data-sale-unit="${porKg ? 'Quilograma' : 'Unidade'}">${renderProductBadges(product)}${renderProductImage(product.image, product.title)}<div class="product-category">${category}</div>${renderProductDepartmentBadge(product)}<div class="product-name">${title}</div><div class="product-price"><span class="product-price-current">${price}</span><span class="product-price-unit">${porKg ? 'por kg' : 'por unidade'}</span>${oldPrice}</div><div class="product-actions"><button class="btn-comprar" onclick="adicionarProduto(this)">Adicionar</button><div class="qty-controls"><button class="btn-remove" onclick="removerProduto(this)"><i data-lucide="trash-2"></i></button><span class="qty" data-quantity="${porKg ? '0.1' : '1'}">${porKg ? '100 g' : '1'}</span><button class="btn-add" onclick="aumentarQtd(this)">+</button></div></div></article>`;
 }
 
 const PRODUTOS_POR_LOTE = 8;
@@ -2168,11 +2196,13 @@ async function carregarLayoutGerenciado() {
           element.src = imageUrl;
           return;
         }
-        element.style.backgroundImage = key.startsWith('carousel-')
+        const isCarouselBanner = key.startsWith('carousel-');
+        element.style.backgroundImage = isCarouselBanner
           ? `linear-gradient(180deg, rgba(0, 0, 0, 0.34), rgba(0, 0, 0, 0.48)), ${image}`
-          : key === 'main-hero'
-          ? `linear-gradient(90deg, rgba(7, 23, 15, 0.86), rgba(9, 34, 22, 0.58), rgba(10, 26, 18, 0.22)), ${image}`
           : image;
+        element.style.backgroundSize = isCarouselBanner ? 'cover, contain' : 'contain';
+        element.style.backgroundPosition = 'center';
+        element.style.backgroundRepeat = 'no-repeat';
       });
     });
   } catch (error) {

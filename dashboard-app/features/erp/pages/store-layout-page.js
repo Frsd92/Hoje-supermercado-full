@@ -214,7 +214,7 @@ export default function StoreLayoutPage() {
           }} />
           : <div className="store-layout-preview-empty"><ImagePlus size={26} /><span>Nenhuma imagem personalizada</span></div>}
       </div>
-      <div className="store-layout-dimensions"><span>{isBrandLogo ? 'Logo recomendada' : 'Arte recomendada'}</span><strong>{slot.recommendedWidth} × {slot.recommendedHeight} px</strong><small>{actualSizes[slot.key] ? `Imagem atual: ${actualSizes[slot.key]}` : isBrandLogo ? 'Preserve a proporção e prefira fundo transparente' : 'Proporção sugerida para melhor encaixe'}</small></div>
+      <div className="store-layout-dimensions"><span>{isBrandLogo ? 'Logo recomendada' : 'Arte recomendada'}</span><strong>{slot.recommendedWidth} × {slot.recommendedHeight} px</strong><small>{actualSizes[slot.key] ? `Imagem atual: ${actualSizes[slot.key]}` : isBrandLogo ? 'Preserve a proporção e prefira fundo transparente' : 'Imagem exibida por inteiro, sem recortes'}</small></div>
       {slot.updatedAt && <p className="store-layout-updated">Atualizada em {formatUpdatedAt(slot.updatedAt)} por {slot.updatedBy || 'usuário ERP'}</p>}
       <div className="store-layout-actions">
         <label className="store-layout-upload"><ImagePlus size={15} /> {isBrandLogo ? 'Escolher logo' : slot.group === 'main' ? 'Escolher banner' : 'Escolher arte'}<input type="file" accept="image/png,image/jpeg,image/webp" disabled={saving} onChange={(event) => {
@@ -235,7 +235,7 @@ export default function StoreLayoutPage() {
 
     <details className="store-layout-art-hint">
       <summary><strong>Orientações para imagens</strong><span>Formatos aceitos e recomendações</span></summary>
-      <p>São aceitos PNG, JPEG e WebP de até 10 MB antes da compressão. SVG não é aceito. A transparência é preservada; para logos, prefira PNG ou WebP com fundo transparente. Use as dimensões indicadas em cada espaço como referência.</p>
+      <p>São aceitos PNG, JPEG e WebP de até 10 MB antes da compressão. SVG não é aceito. A transparência é preservada; para logos, prefira PNG ou WebP com fundo transparente. As dimensões recomendadas são: banner principal 1600 × 500 px; banners dos carrosséis 520 × 700 px; banners largos 1400 × 360 px; marcas em destaque 480 × 200 px. As recomendações não mudaram; as imagens agora são exibidas por inteiro, sem cortes, podendo deixar faixas de fundo conforme a tela.</p>
     </details>
     {error && <div className="store-layout-message error" role="alert">{error}</div>}
     {feedback && <div className="store-layout-message" role="status">{feedback}</div>}

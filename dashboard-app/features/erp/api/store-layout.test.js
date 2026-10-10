@@ -18,9 +18,20 @@ test('defines uniquely identified store banners and brand logos with recommended
   assert.equal(STORE_LAYOUT_SLOTS.filter((slot) => slot.group === 'main').length, 1);
   assert.equal(STORE_LAYOUT_SLOTS.filter((slot) => slot.group === 'carousels').length, 3);
   assert.equal(STORE_LAYOUT_SLOTS.filter((slot) => slot.group === 'wide-banners').length, 7);
+  assert.deepEqual(
+    STORE_LAYOUT_SLOTS.filter((slot) => slot.group === 'main').map(({ recommendedWidth, recommendedHeight }) => [recommendedWidth, recommendedHeight]),
+    [[1600, 500]],
+  );
+  assert.ok(STORE_LAYOUT_SLOTS.filter((slot) => slot.group === 'carousels')
+    .every(({ recommendedWidth, recommendedHeight }) => recommendedWidth === 520 && recommendedHeight === 700));
+  assert.ok(STORE_LAYOUT_SLOTS.filter((slot) => slot.group === 'wide-banners')
+    .every(({ recommendedWidth, recommendedHeight }) => recommendedWidth === 1400 && recommendedHeight === 360));
   assert.equal(getStoreLayoutSlot('main-hero')?.recommendedWidth, 1600);
+  assert.equal(getStoreLayoutSlot('main-hero')?.recommendedHeight, 500);
   assert.equal(getStoreLayoutSlot('main-hero')?.fallbackImage, '/imagens/tudo_o_que_vc_precisa.webp');
   assert.equal(getStoreLayoutSlot('main-hero-slide-02')?.label, 'Banner principal 2');
+  assert.equal(getStoreLayoutSlot('main-hero-slide-02')?.recommendedWidth, 1600);
+  assert.equal(getStoreLayoutSlot('main-hero-slide-02')?.recommendedHeight, 500);
   assert.equal(getStoreLayoutSlot('main-hero-slide-02')?.fallbackImage, '');
   assert.equal(getStoreLayoutSlot('main-hero-slide-9999')?.group, 'main');
   assert.equal(getStoreLayoutSlot('main-hero-slide-1'), null);
