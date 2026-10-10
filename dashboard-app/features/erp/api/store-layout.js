@@ -196,6 +196,7 @@ export function getDefaultMainHeroSlideSettings(key) {
     showButton: isOriginalSlide,
     buttonLabel: 'Ver ofertas',
     buttonHref: '#store-offers',
+    buttonPosition: 'default',
   };
 }
 
@@ -210,12 +211,34 @@ export function getMainHeroSlideSettings(settings, key) {
 
 export function validateMainHeroSlideSettings(value) {
   if (!value || typeof value !== 'object' || Array.isArray(value)) return null;
-  const { showLogo, showText, title, description, showButton, buttonLabel, buttonHref } = value;
+  const {
+    showLogo,
+    showText,
+    title,
+    description,
+    showButton,
+    buttonLabel,
+    buttonHref,
+    buttonPosition,
+  } = value;
   if ([showLogo, showText, showButton].some((enabled) => typeof enabled !== 'boolean')) return null;
   if (typeof title !== 'string' || title.length > 100) return null;
   if (typeof description !== 'string' || description.length > 180) return null;
   if (typeof buttonLabel !== 'string' || buttonLabel.trim().length > 32) return null;
   if (typeof buttonHref !== 'string' || buttonHref.trim().length > 300) return null;
+  const allowedButtonPositions = new Set([
+    'default',
+    'top-left',
+    'top-center',
+    'top-right',
+    'center-left',
+    'center',
+    'center-right',
+    'bottom-left',
+    'bottom-center',
+    'bottom-right',
+  ]);
+  if (!allowedButtonPositions.has(buttonPosition)) return null;
 
   const href = buttonHref.trim();
   if (!href || /[\u0000-\u0020\\]/.test(href) || /^[a-z][a-z\d+.-]*:/i.test(href) || href.startsWith('//')) return null;
@@ -229,6 +252,7 @@ export function validateMainHeroSlideSettings(value) {
     showButton,
     buttonLabel: buttonLabel.trim() || 'Ver ofertas',
     buttonHref: href,
+    buttonPosition,
   };
 }
 

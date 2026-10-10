@@ -101,6 +101,7 @@ test('uses existing overlay defaults only for the original hero and validates sl
     showButton: true,
     buttonLabel: 'Ver ofertas',
     buttonHref: '#store-offers',
+    buttonPosition: 'default',
   });
   assert.deepEqual(getDefaultMainHeroSlideSettings('main-hero-slide-02'), {
     showLogo: false,
@@ -110,6 +111,7 @@ test('uses existing overlay defaults only for the original hero and validates sl
     showButton: false,
     buttonLabel: 'Ver ofertas',
     buttonHref: '#store-offers',
+    buttonPosition: 'default',
   });
   assert.deepEqual(getMainHeroSlideSettings({ key: 'main-hero', updatedBy: 'erp-user', showButton: false }, 'main-hero'), {
     ...getDefaultMainHeroSlideSettings('main-hero'),
@@ -121,15 +123,18 @@ test('uses existing overlay defaults only for the original hero and validates sl
     showButton: true,
     buttonHref: '/categoria.html?categoria=vinhos',
     buttonLabel: 'Ver vinhos',
+    buttonPosition: 'bottom-right',
   }), {
     ...settings,
     showButton: true,
     buttonHref: '/categoria.html?categoria=vinhos',
     buttonLabel: 'Ver vinhos',
+    buttonPosition: 'bottom-right',
   });
   assert.equal(validateMainHeroSlideSettings({ ...settings, buttonHref: 'https://example.com' }), null);
   assert.equal(validateMainHeroSlideSettings({ ...settings, buttonHref: '//example.com' }), null);
   assert.equal(validateMainHeroSlideSettings({ ...settings, buttonHref: 'category/vinhos' }), null);
+  assert.equal(validateMainHeroSlideSettings({ ...settings, buttonPosition: 'somewhere-unsafe' }), null);
   assert.equal(validateMainHeroSlideSettings({ ...settings, title: 'x'.repeat(101) }), null);
   assert.equal(validateMainHeroSlideSettings({ ...settings, showText: 'yes' }), null);
 });

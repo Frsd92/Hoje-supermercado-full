@@ -252,6 +252,7 @@ model StoreLayoutSlideSettings {
   showButton   Boolean  @default(false)
   buttonLabel  String   @default("Ver ofertas")
   buttonHref   String   @default("#store-offers")
+  buttonPosition String @default("default")
   updatedBy    String
   updatedAt    DateTime @updatedAt
 }

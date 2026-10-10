@@ -43,6 +43,7 @@ function configurarSlidesBannerPrincipal(slides) {
     const settings = slide.settings || {};
     const imageUrl = new URL(slide.imageUrl, window.location.origin).href;
     const hasOverlay = Boolean(settings.showLogo || settings.showText || settings.showButton);
+    banner.dataset.ctaPosition = settings.buttonPosition || 'default';
     banner.style.backgroundImage = `${hasOverlay ? gradient : 'none'}, url("${imageUrl}")`;
     banner.style.backgroundSize = 'cover';
     banner.style.backgroundPosition = 'center';

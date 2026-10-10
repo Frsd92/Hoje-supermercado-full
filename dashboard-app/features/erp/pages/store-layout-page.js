@@ -294,6 +294,20 @@ export default function StoreLayoutPage() {
         {slideSettings.showButton && <>
           <label>Texto do botão<input type="text" maxLength={32} value={slideSettings.buttonLabel} onChange={(event) => updateSlideSettings(slot, { buttonLabel: event.target.value })} /></label>
           <label>Destino no site<input type="text" maxLength={300} value={slideSettings.buttonHref} onChange={(event) => updateSlideSettings(slot, { buttonHref: event.target.value })} placeholder="/categoria.html?categoria=vinhos" /></label>
+          <label>Posição do botão
+            <select value={slideSettings.buttonPosition} onChange={(event) => updateSlideSettings(slot, { buttonPosition: event.target.value })}>
+              <option value="default">Padrão — abaixo do texto, como no banner 1</option>
+              <option value="top-left">Superior esquerdo</option>
+              <option value="top-center">Superior centralizado</option>
+              <option value="top-right">Superior direito</option>
+              <option value="center-left">Meio à esquerda</option>
+              <option value="center">Centro do banner</option>
+              <option value="center-right">Meio à direita</option>
+              <option value="bottom-left">Inferior esquerdo</option>
+              <option value="bottom-center">Inferior centralizado</option>
+              <option value="bottom-right">Inferior direito</option>
+            </select>
+          </label>
         </>}
         <button type="button" className="store-layout-save-settings" disabled={saving || (!slot.imageUrl && !draft)} onClick={() => saveSlideSettings(slot)}>
           {saving ? <LoaderCircle size={15} className="store-layout-spinner" /> : <Save size={15} />}

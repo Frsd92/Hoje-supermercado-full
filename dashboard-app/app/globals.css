@@ -7909,7 +7909,9 @@ button.metric-mini:focus-visible {
 .store-layout-slide-toggle { display: flex !important; align-items: center; gap: 8px; cursor: pointer; }
 .store-layout-slide-options input[type="checkbox"] { width: 16px; height: 16px; accent-color: #15803d; }
 .store-layout-slide-options input:not([type="checkbox"]) { width: 100%; min-height: 36px; padding: 7px 9px; border: 1px solid #cbd5e1; border-radius: 7px; color: #1e293b; font: inherit; }
+.store-layout-slide-options select { width: 100%; min-height: 36px; padding: 7px 9px; border: 1px solid #cbd5e1; border-radius: 7px; background: #fff; color: #1e293b; font: inherit; }
 .store-layout-slide-options input:focus-visible { outline: 2px solid #15803d; outline-offset: 2px; }
+.store-layout-slide-options select:focus-visible { outline: 2px solid #15803d; outline-offset: 2px; }
 .store-layout-save-settings { display: inline-flex; min-height: 36px; align-items: center; justify-content: center; gap: 6px; padding: 7px 10px; border: 1px solid #bbf7d0; border-radius: 8px; background: #f0fdf4; color: #166534; cursor: pointer; font-size: .7rem; font-weight: 750; }
 .store-layout-save-settings:hover:not(:disabled) { background: #dcfce7; }
 .store-layout-save-settings:disabled { cursor: wait; opacity: .6; }
