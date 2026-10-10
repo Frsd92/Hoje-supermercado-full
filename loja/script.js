@@ -2200,7 +2200,7 @@ async function carregarLayoutGerenciado() {
         element.style.backgroundImage = isCarouselBanner
           ? `linear-gradient(180deg, rgba(0, 0, 0, 0.34), rgba(0, 0, 0, 0.48)), ${image}`
           : image;
-        element.style.backgroundSize = isCarouselBanner ? 'cover, contain' : 'contain';
+        element.style.backgroundSize = isCarouselBanner ? 'cover, contain' : 'cover';
         element.style.backgroundPosition = 'center';
         element.style.backgroundRepeat = 'no-repeat';
       });

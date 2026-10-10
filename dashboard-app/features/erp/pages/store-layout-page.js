@@ -281,7 +281,7 @@ export default function StoreLayoutPage() {
           }} />
           : <div className="store-layout-preview-empty"><ImagePlus size={26} /><span>Nenhuma imagem personalizada</span></div>}
       </div>
-      <div className="store-layout-dimensions"><span>{isBrandLogo ? 'Logo recomendada' : 'Arte recomendada'}</span><strong>{slot.recommendedWidth} × {slot.recommendedHeight} px</strong><small>{actualSizes[slot.key] ? `Imagem atual: ${actualSizes[slot.key]}` : isBrandLogo ? 'Preserve a proporção e prefira fundo transparente' : slot.group === 'main' ? 'Preenche toda a área; bordas podem ser recortadas em outras proporções' : 'Imagem exibida por inteiro, sem recortes'}</small></div>
+      <div className="store-layout-dimensions"><span>{isBrandLogo ? 'Logo recomendada' : 'Arte recomendada'}</span><strong>{slot.recommendedWidth} × {slot.recommendedHeight} px</strong><small>{actualSizes[slot.key] ? `Imagem atual: ${actualSizes[slot.key]}` : isBrandLogo ? 'Preserve a proporção e prefira fundo transparente' : slot.group === 'main' || slot.group === 'wide-banners' ? 'Preenche toda a área; bordas podem ser recortadas em outras proporções' : 'Imagem exibida por inteiro, sem recortes'}</small></div>
       {slideSettings && <fieldset className="store-layout-slide-options">
         <legend>Elementos deste slide</legend>
         <label className="store-layout-slide-toggle"><input type="checkbox" checked={slideSettings.showLogo} onChange={(event) => updateSlideSettings(slot, { showLogo: event.target.checked })} /> Exibir logo Hoje</label>
@@ -335,7 +335,7 @@ export default function StoreLayoutPage() {
 
     <details className="store-layout-art-hint">
       <summary><strong>Orientações para imagens</strong><span>Formatos aceitos e recomendações</span></summary>
-      <p>São aceitos PNG, JPEG e WebP de até 10 MB antes da compressão. SVG não é aceito. A transparência é preservada; para logos, prefira PNG ou WebP com fundo transparente. As dimensões recomendadas são: banner principal 1644 × 760 px (proporção 2,16:1, para preencher a área inteira); banners dos carrosséis 520 × 700 px; banners largos 1400 × 360 px; marcas em destaque 480 × 200 px. O banner principal usa cobertura responsiva para preencher a área, podendo recortar as bordas da imagem quando a tela tiver outra proporção.</p>
+      <p>São aceitos PNG, JPEG e WebP de até 10 MB antes da compressão. SVG não é aceito. A transparência é preservada; para logos, prefira PNG ou WebP com fundo transparente. As dimensões recomendadas são: banner principal 1644 × 760 px (proporção 2,16:1, para preencher a área inteira); banners dos carrosséis 520 × 700 px; banners largos 1400 × 360 px (proporção 3,89:1, para cobrir toda a faixa); marcas em destaque 480 × 200 px. O banner principal e os banners largos usam cobertura responsiva para preencher a área, podendo recortar as bordas da imagem quando a tela tiver outra proporção.</p>
     </details>
     {error && <div className="store-layout-message error" role="alert">{error}</div>}
     {feedback && <div className="store-layout-message" role="status">{feedback}</div>}
