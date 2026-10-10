@@ -2638,10 +2638,6 @@ body {
 /* Banner de destaque de vendedor/marca parceira, tipo "Produtos Hoje" */
 .vendor-banner {
   background-color: #1a3d6d;
-  background-image: url('imagens/banner/vitrini.jpg');
-  background-size: contain;
-  background-position: center;
-  background-repeat: no-repeat;
   border-radius: 10px;
   padding: 20px 25px;
   color: white;
