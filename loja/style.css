@@ -2941,6 +2941,19 @@ body {
   background-repeat: no-repeat;
 }
 
+.wide-banner--managed-art {
+  background-size: cover;
+}
+
+@media (max-width: 640px) {
+  .wide-banner--managed-art {
+    aspect-ratio: auto !important;
+    background-position: center top !important;
+    background-size: 100% auto !important;
+    padding: var(--wide-banner-art-height) 16px 16px;
+  }
+}
+
 .promo-banner h2 {
   font-size: 22px;
   font-weight: 800;

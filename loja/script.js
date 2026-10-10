@@ -2187,24 +2187,37 @@ async function carregarLayoutGerenciado() {
     ));
     configurarSlidesBannerPrincipal(mainHeroSlides);
 
-    (data.banners || []).filter(({ key }) => key !== 'main-hero' && !key.startsWith('main-hero-slide-')).forEach(({ key, imageUrl }) => {
+    for (const { key, imageUrl } of (data.banners || []).filter(({ key }) => key !== 'main-hero' && !key.startsWith('main-hero-slide-'))) {
       const elements = document.querySelectorAll(`[data-store-layout="${key}"]`);
-      if (!elements.length || !imageUrl) return;
+      if (!elements.length || !imageUrl) continue;
       const image = `url("${imageUrl}")`;
-      elements.forEach((element) => {
+      for (const element of elements) {
         if (element.tagName === 'IMG') {
           element.src = imageUrl;
-          return;
+          continue;
         }
         const isCarouselBanner = key.startsWith('carousel-');
+        const isWideBanner = element.matches('.promo-banner, .vendor-banner');
+        if (isWideBanner) {
+          const dimensions = new Image();
+          dimensions.src = imageUrl;
+          try {
+            await dimensions.decode();
+            element.style.aspectRatio = `${dimensions.naturalWidth} / ${dimensions.naturalHeight}`;
+            element.style.setProperty('--wide-banner-art-height', `${dimensions.naturalHeight / dimensions.naturalWidth * 100}%`);
+            element.classList.add('wide-banner--managed-art');
+          } catch (error) {
+            console.warn(`Não foi possível ajustar a proporção do banner ${key}:`, error.message);
+          }
+        }
         element.style.backgroundImage = isCarouselBanner
           ? `linear-gradient(180deg, rgba(0, 0, 0, 0.34), rgba(0, 0, 0, 0.48)), ${image}`
           : image;
         element.style.backgroundSize = isCarouselBanner ? 'cover, contain' : 'cover';
         element.style.backgroundPosition = 'center';
         element.style.backgroundRepeat = 'no-repeat';
-      });
-    });
+      }
+    }
   } catch (error) {
     console.warn('Imagens personalizadas do layout indisponíveis:', error.message);
   }
