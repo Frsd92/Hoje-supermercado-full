@@ -13,7 +13,10 @@ function configurarSlidesBannerPrincipal(slides) {
   const dots = banner?.querySelector('.banner-dots');
   if (!banner || !dots) return;
 
-  const gradient = 'linear-gradient(90deg, rgba(7, 23, 15, 0.86), rgba(9, 34, 22, 0.58), rgba(10, 26, 18, 0.22))';
+  const logo = banner.querySelector('[data-main-hero-logo]');
+  const title = banner.querySelector('[data-main-hero-title]');
+  const description = banner.querySelector('[data-main-hero-description]');
+  const cta = banner.querySelector('[data-main-hero-button]');
   const slideList = Array.isArray(slides) ? slides.filter((slide) => slide?.imageUrl) : [];
   dots.replaceChildren();
 
@@ -25,9 +28,13 @@ function configurarSlidesBannerPrincipal(slides) {
   let activeIndex = 0;
   let timer;
   const prefersReducedMotion = window.matchMedia('(prefers-reduced-motion: reduce)').matches;
-  banner.style.backgroundSize = 'cover, contain';
-  banner.style.backgroundPosition = 'center';
-  banner.style.backgroundRepeat = 'no-repeat';
+  const updateBackdropRegion = () => {
+    const bannerBottom = banner.getBoundingClientRect().bottom + window.scrollY;
+    document.body.style.setProperty('--main-hero-region-height', `${Math.max(0, bannerBottom - 10)}px`);
+  };
+  const backdropObserver = new ResizeObserver(updateBackdropRegion);
+  backdropObserver.observe(banner);
+  window.addEventListener('resize', updateBackdropRegion, { passive: true });
   const buttons = slideList.map((slide, index) => {
     const button = document.createElement('button');
     button.type = 'button';
@@ -44,8 +51,33 @@ function configurarSlidesBannerPrincipal(slides) {
 
   const showSlide = (index) => {
     activeIndex = index;
-    const imageUrl = new URL(slideList[index].imageUrl, window.location.origin).href;
-    banner.style.backgroundImage = `${gradient}, url("${imageUrl}")`;
+    const slide = slideList[index];
+    const settings = slide.settings || {};
+    const imageUrl = new URL(slide.imageUrl, window.location.origin).href;
+    const hasOverlay = Boolean(settings.showLogo || settings.showText || settings.showButton);
+    document.body.classList.add('has-main-hero');
+    document.body.style.setProperty('--main-hero-image', `url("${imageUrl}")`);
+    banner.style.backgroundImage = 'none';
+    banner.classList.toggle('banner--image-only', !hasOverlay);
+    updateBackdropRegion();
+    if (logo) logo.hidden = settings.showLogo !== true;
+    if (title) {
+      title.textContent = settings.title || '';
+      title.hidden = settings.showText !== true || !settings.title;
+    }
+    if (description) {
+      description.textContent = settings.description || '';
+      description.hidden = settings.showText !== true || !settings.description;
+    }
+    if (cta) {
+      cta.hidden = settings.showButton !== true;
+      cta.href = settings.buttonHref || '#store-offers';
+      cta.replaceChildren(document.createTextNode(settings.buttonLabel || 'Ver ofertas '));
+      const arrow = document.createElement('span');
+      arrow.setAttribute('aria-hidden', 'true');
+      arrow.textContent = '→';
+      cta.append(arrow);
+    }
     buttons.forEach((button, buttonIndex) => {
       const active = buttonIndex === activeIndex;
       button.classList.toggle('active', active);

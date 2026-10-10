@@ -5,8 +5,8 @@ export const STORE_LAYOUT_SLOTS = [
     key: 'main-hero',
     label: 'Banner principal da Loja',
     placement: 'Topo da página inicial',
-    recommendedWidth: 1600,
-    recommendedHeight: 500,
+    recommendedWidth: 1644,
+    recommendedHeight: 760,
     fallbackImage: '/imagens/tudo_o_que_vc_precisa.webp',
     group: 'main',
   },
@@ -183,6 +183,55 @@ export const STORE_LAYOUT_SLOTS = [
   },
 ];
 
+const MAIN_HERO_DEFAULT_TITLE = 'Tudo o que você precisa, em um só lugar!';
+const MAIN_HERO_DEFAULT_DESCRIPTION = 'Qualidade, variedade e os melhores preços para o seu dia a dia.';
+
+export function getDefaultMainHeroSlideSettings(key) {
+  const isOriginalSlide = key === 'main-hero';
+  return {
+    showLogo: isOriginalSlide,
+    showText: isOriginalSlide,
+    title: isOriginalSlide ? MAIN_HERO_DEFAULT_TITLE : '',
+    description: isOriginalSlide ? MAIN_HERO_DEFAULT_DESCRIPTION : '',
+    showButton: isOriginalSlide,
+    buttonLabel: 'Ver ofertas',
+    buttonHref: '#store-offers',
+  };
+}
+
+export function getMainHeroSlideSettings(settings, key) {
+  const defaults = getDefaultMainHeroSlideSettings(key);
+  if (!settings) return defaults;
+  return Object.fromEntries(Object.keys(defaults).map((field) => [
+    field,
+    settings[field] ?? defaults[field],
+  ]));
+}
+
+export function validateMainHeroSlideSettings(value) {
+  if (!value || typeof value !== 'object' || Array.isArray(value)) return null;
+  const { showLogo, showText, title, description, showButton, buttonLabel, buttonHref } = value;
+  if ([showLogo, showText, showButton].some((enabled) => typeof enabled !== 'boolean')) return null;
+  if (typeof title !== 'string' || title.length > 100) return null;
+  if (typeof description !== 'string' || description.length > 180) return null;
+  if (typeof buttonLabel !== 'string' || buttonLabel.trim().length > 32) return null;
+  if (typeof buttonHref !== 'string' || buttonHref.trim().length > 300) return null;
+
+  const href = buttonHref.trim();
+  if (!href || /[\u0000-\u0020\\]/.test(href) || /^[a-z][a-z\d+.-]*:/i.test(href) || href.startsWith('//')) return null;
+  if (!href.startsWith('/') && !href.startsWith('#')) return null;
+
+  return {
+    showLogo,
+    showText,
+    title: title.trim(),
+    description: description.trim(),
+    showButton,
+    buttonLabel: buttonLabel.trim() || 'Ver ofertas',
+    buttonHref: href,
+  };
+}
+
 export function getStoreLayoutSlot(key) {
   const slot = STORE_LAYOUT_SLOTS.find((item) => item.key === key);
   if (slot) return slot;
@@ -211,19 +260,22 @@ export function getMainHeroSlideOrder(key) {
   return match ? Number(match[1]) : Number.MAX_SAFE_INTEGER;
 }
 
-export function getMainHeroBanners(savedAssets) {
+export function getMainHeroBanners(savedAssets, savedSettings = []) {
+  const settingsByKey = new Map(savedSettings.map((settings) => [settings.key, settings]));
   const banners = savedAssets
     .filter((asset) => isMainHeroSlideKey(asset.key))
     .sort((first, second) => getMainHeroSlideOrder(first.key) - getMainHeroSlideOrder(second.key))
     .map((asset) => ({
       key: asset.key,
       imageUrl: `/api/store-layout/${asset.key}?v=${asset.updatedAt.getTime()}`,
+      settings: getMainHeroSlideSettings(settingsByKey.get(asset.key), asset.key),
     }));
 
   if (!banners.some((banner) => banner.key === 'main-hero')) {
     banners.unshift({
       key: 'main-hero',
       imageUrl: getStoreLayoutSlot('main-hero').fallbackImage,
+      settings: getMainHeroSlideSettings(settingsByKey.get('main-hero'), 'main-hero'),
     });
   }
 

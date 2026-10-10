@@ -3,8 +3,11 @@ import { prisma } from '@/lib/prisma';
 
 export async function GET() {
   try {
-    const savedAssets = await prisma.storeLayoutAsset.findMany({ select: { key: true, updatedAt: true } });
-    const heroBanners = getMainHeroBanners(savedAssets);
+    const [savedAssets, savedSlideSettings] = await Promise.all([
+      prisma.storeLayoutAsset.findMany({ select: { key: true, updatedAt: true } }),
+      prisma.storeLayoutSlideSettings.findMany(),
+    ]);
+    const heroBanners = getMainHeroBanners(savedAssets, savedSlideSettings);
     const assetsByKey = new Map(savedAssets.map((asset) => [asset.key, asset.updatedAt]));
     const banners = [
       ...heroBanners,

@@ -61,6 +61,10 @@
   backdrop-filter: blur(12px);
 }
 
+.topbar.home-topbar {
+  background: linear-gradient(135deg, rgba(9, 64, 34, 0.76), rgba(12, 46, 31, 0.72), rgba(16, 96, 57, 0.72));
+}
+
 .topbar-item {
   display: flex;
   align-items: center;
@@ -1317,7 +1321,7 @@ body {
   border-bottom: 1px solid rgba(148, 163, 184, 0.12);
   font-size: 14px;
   overflow-x: auto;
-  background: linear-gradient(180deg, rgba(255,255,255,0.86), rgba(239,247,242,0.96));
+  background: linear-gradient(180deg, rgba(255,255,255,0.62), rgba(239,247,242,0.72));
   backdrop-filter: blur(12px);
   -webkit-backdrop-filter: blur(12px);
   box-shadow: inset 0 1px 0 rgba(255,255,255,0.9), 0 12px 28px rgba(15, 23, 42, 0.03);
@@ -1334,8 +1338,28 @@ body {
   border-radius: 999px;
   transition: all 0.2s ease;
   border: 1px solid rgba(148, 163, 184, 0.06);
+  position: relative;
+  isolation: isolate;
   background: rgba(255,255,255,0.3);
   letter-spacing: 0.01em;
+}
+
+body.has-main-hero::before {
+  content: "";
+  position: absolute;
+  z-index: 0;
+  top: 10px;
+  right: 10px;
+  left: 10px;
+  height: var(--main-hero-region-height, 380px);
+  border-radius: 32px;
+  background-image:
+    linear-gradient(90deg, rgba(7, 23, 15, 0.72), rgba(9, 34, 22, 0.48), rgba(10, 26, 18, 0.2)),
+    var(--main-hero-image, url("imagens/tudo_o_que_vc_precisa.webp"));
+  background-position: center;
+  background-size: cover;
+  background-repeat: no-repeat;
+  pointer-events: none;
 }
 
 .categories-bar a:hover {
@@ -1366,6 +1390,8 @@ body {
 /* LAYOUT DE 3 COLUNAS: sidebar + conteúdo + painel direito */
 /* ===================================================== */
 .content-wrapper {
+  position: relative;
+  z-index: 1;
   display: flex;
   gap: 12px;
   padding: 20px 10px;
@@ -1592,14 +1618,11 @@ body {
 
 /* Banner principal: foto de fundo + texto + selo + bolinhas */
 .banner {
-  background-image: linear-gradient(90deg, rgba(7, 23, 15, 0.86), rgba(9, 34, 22, 0.58), rgba(10, 26, 18, 0.22)), url('imagens/tudo_o_que_vc_precisa.webp');
-  background-size: cover, contain;
-  background-position: center;
-  background-repeat: no-repeat;
-  background-color: #0b2e1c;
+  background: transparent;
   border-radius: 32px;
   padding: 52px 42px;
-  min-height: 330px;
+  height: clamp(220px, 31.25vw, 500px);
+  min-height: 0;
   display: flex;
   flex-direction: column;
   justify-content: center;
@@ -1608,6 +1631,67 @@ body {
   box-shadow: 0 36px 64px rgba(15, 23, 42, 0.18), inset 0 1px 0 rgba(255,255,255,0.12);
   border: 1px solid rgba(255,255,255,0.18);
   overflow: hidden;
+}
+
+.banner [hidden] {
+  display: none !important;
+}
+
+.banner--image-only::before,
+.banner--image-only::after {
+  display: none;
+}
+
+.banner--image-only {
+  height: auto;
+  min-height: 0;
+  aspect-ratio: 16 / 5;
+  padding: 0;
+}
+
+@media (max-width: 640px) {
+  .banner {
+    height: clamp(220px, 46vw, 300px);
+    padding: 14px 20px;
+    border-radius: 20px;
+  }
+
+  .banner.banner--image-only {
+    height: auto;
+    aspect-ratio: 16 / 5;
+    padding: 0;
+  }
+
+  .banner-badge {
+    margin-bottom: 4px;
+    padding: 5px 9px;
+  }
+
+  .banner-badge img {
+    height: 34px;
+  }
+
+  .banner h1,
+  .banner p {
+    margin: 5px 0;
+  }
+
+  .banner h1 {
+    max-width: 100%;
+    font-size: clamp(1.25rem, 5.2vw, 2rem);
+    line-height: 1.02;
+  }
+
+  .banner p {
+    max-width: 100%;
+    font-size: .78rem;
+  }
+
+  .banner-cta {
+    min-height: 36px;
+    padding: 8px 14px;
+    font-size: .82rem;
+  }
 }
 
 .banner::before {
@@ -4408,5 +4492,14 @@ body {
 
   .main-header .location select {
     font-size: 0.66rem;
+  }
+}
+
+@media (max-width: 640px) {
+  .banner.banner--image-only {
+    height: auto;
+    min-height: 0;
+    aspect-ratio: 16 / 5;
+    padding: 0;
   }
 }

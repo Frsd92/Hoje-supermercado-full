@@ -243,6 +243,19 @@ model StoreLayoutAsset {
   updatedAt    DateTime @updatedAt
 }
 
+model StoreLayoutSlideSettings {
+  key          String   @id
+  showLogo     Boolean  @default(false)
+  showText     Boolean  @default(false)
+  title        String   @default("")
+  description  String   @default("")
+  showButton   Boolean  @default(false)
+  buttonLabel  String   @default("Ver ofertas")
+  buttonHref   String   @default("#store-offers")
+  updatedBy    String
+  updatedAt    DateTime @updatedAt
+}
+
 model Supplier {
   id                String             @id @default(cuid())
   identityName      String             @unique

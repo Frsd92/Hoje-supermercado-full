@@ -1,12 +1,15 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
 import {
+  getDefaultMainHeroSlideSettings,
   getMainHeroBanners,
+  getMainHeroSlideSettings,
   getMainHeroSlideOrder,
   getStoreLayoutSlot,
   isMainHeroSlideKey,
   STORE_LAYOUT_SLOTS,
   validateStoreLayoutImage,
+  validateMainHeroSlideSettings,
 } from './store-layout.js';
 
 test('defines uniquely identified store banners and brand logos with recommended dimensions', () => {
@@ -21,18 +24,18 @@ test('defines uniquely identified store banners and brand logos with recommended
   assert.equal(STORE_LAYOUT_SLOTS.filter((slot) => slot.group === 'wide-banners').length, 7);
   assert.deepEqual(
     STORE_LAYOUT_SLOTS.filter((slot) => slot.group === 'main').map(({ recommendedWidth, recommendedHeight }) => [recommendedWidth, recommendedHeight]),
-    [[1600, 500]],
+    [[1644, 760]],
   );
   assert.ok(STORE_LAYOUT_SLOTS.filter((slot) => slot.group === 'carousels')
     .every(({ recommendedWidth, recommendedHeight }) => recommendedWidth === 520 && recommendedHeight === 700));
   assert.ok(STORE_LAYOUT_SLOTS.filter((slot) => slot.group === 'wide-banners')
     .every(({ recommendedWidth, recommendedHeight }) => recommendedWidth === 1400 && recommendedHeight === 360));
-  assert.equal(getStoreLayoutSlot('main-hero')?.recommendedWidth, 1600);
-  assert.equal(getStoreLayoutSlot('main-hero')?.recommendedHeight, 500);
+  assert.equal(getStoreLayoutSlot('main-hero')?.recommendedWidth, 1644);
+  assert.equal(getStoreLayoutSlot('main-hero')?.recommendedHeight, 760);
   assert.equal(getStoreLayoutSlot('main-hero')?.fallbackImage, '/imagens/tudo_o_que_vc_precisa.webp');
   assert.equal(getStoreLayoutSlot('main-hero-slide-02')?.label, 'Banner principal 2');
-  assert.equal(getStoreLayoutSlot('main-hero-slide-02')?.recommendedWidth, 1600);
-  assert.equal(getStoreLayoutSlot('main-hero-slide-02')?.recommendedHeight, 500);
+  assert.equal(getStoreLayoutSlot('main-hero-slide-02')?.recommendedWidth, 1644);
+  assert.equal(getStoreLayoutSlot('main-hero-slide-02')?.recommendedHeight, 760);
   assert.equal(getStoreLayoutSlot('main-hero-slide-02')?.fallbackImage, '');
   assert.equal(getStoreLayoutSlot('main-hero-slide-9999')?.group, 'main');
   assert.equal(getStoreLayoutSlot('main-hero-slide-1'), null);
@@ -46,18 +49,35 @@ test('defines uniquely identified store banners and brand logos with recommended
   assert.deepEqual(getMainHeroBanners([]), [{
     key: 'main-hero',
     imageUrl: '/imagens/tudo_o_que_vc_precisa.webp',
+    settings: getDefaultMainHeroSlideSettings('main-hero'),
   }]);
   const updatedAt = new Date('2026-10-09T12:00:00Z');
   assert.deepEqual(getMainHeroBanners([
     { key: 'main-hero-slide-02', updatedAt },
   ]), [
-    { key: 'main-hero', imageUrl: '/imagens/tudo_o_que_vc_precisa.webp' },
-    { key: 'main-hero-slide-02', imageUrl: `/api/store-layout/main-hero-slide-02?v=${updatedAt.getTime()}` },
+    {
+      key: 'main-hero',
+      imageUrl: '/imagens/tudo_o_que_vc_precisa.webp',
+      settings: getDefaultMainHeroSlideSettings('main-hero'),
+    },
+    {
+      key: 'main-hero-slide-02',
+      imageUrl: `/api/store-layout/main-hero-slide-02?v=${updatedAt.getTime()}`,
+      settings: getDefaultMainHeroSlideSettings('main-hero-slide-02'),
+    },
   ]);
   assert.deepEqual(getMainHeroBanners([
     { key: 'main-hero-slide-02', updatedAt },
     { key: 'main-hero', updatedAt },
   ]).map(({ key }) => key), ['main-hero', 'main-hero-slide-02']);
+  assert.deepEqual(getMainHeroBanners(
+    [{ key: 'main-hero-slide-02', updatedAt }],
+    [{ key: 'main-hero-slide-02', updatedAt, updatedBy: 'internal-user', showButton: true, buttonLabel: 'Ver vinhos' }],
+  )[1].settings, {
+    ...getDefaultMainHeroSlideSettings('main-hero-slide-02'),
+    showButton: true,
+    buttonLabel: 'Ver vinhos',
+  });
   assert.equal(getStoreLayoutSlot('carousel-hortifruti')?.recommendedHeight, 700);
   assert.equal(getStoreLayoutSlot('carousel-mercearia')?.recommendedWidth, 520);
   assert.equal(getStoreLayoutSlot('carousel-limpeza')?.recommendedHeight, 700);
@@ -70,6 +90,48 @@ test('defines uniquely identified store banners and brand logos with recommended
   assert.equal(getStoreLayoutSlot('brand-omo')?.fallbackImage, '/imagens/marcas_em_destaque/OMO.webp');
   assert.equal(getStoreLayoutSlot('brand-colgate')?.fallbackImage, '/imagens/marcas_em_destaque/Colgate.png');
   assert.equal(getStoreLayoutSlot('unknown'), null);
+});
+
+test('uses existing overlay defaults only for the original hero and validates slide controls', () => {
+  assert.deepEqual(getDefaultMainHeroSlideSettings('main-hero'), {
+    showLogo: true,
+    showText: true,
+    title: 'Tudo o que você precisa, em um só lugar!',
+    description: 'Qualidade, variedade e os melhores preços para o seu dia a dia.',
+    showButton: true,
+    buttonLabel: 'Ver ofertas',
+    buttonHref: '#store-offers',
+  });
+  assert.deepEqual(getDefaultMainHeroSlideSettings('main-hero-slide-02'), {
+    showLogo: false,
+    showText: false,
+    title: '',
+    description: '',
+    showButton: false,
+    buttonLabel: 'Ver ofertas',
+    buttonHref: '#store-offers',
+  });
+  assert.deepEqual(getMainHeroSlideSettings({ key: 'main-hero', updatedBy: 'erp-user', showButton: false }, 'main-hero'), {
+    ...getDefaultMainHeroSlideSettings('main-hero'),
+    showButton: false,
+  });
+  const settings = getDefaultMainHeroSlideSettings('main-hero-slide-02');
+  assert.deepEqual(validateMainHeroSlideSettings({
+    ...settings,
+    showButton: true,
+    buttonHref: '/categoria.html?categoria=vinhos',
+    buttonLabel: 'Ver vinhos',
+  }), {
+    ...settings,
+    showButton: true,
+    buttonHref: '/categoria.html?categoria=vinhos',
+    buttonLabel: 'Ver vinhos',
+  });
+  assert.equal(validateMainHeroSlideSettings({ ...settings, buttonHref: 'https://example.com' }), null);
+  assert.equal(validateMainHeroSlideSettings({ ...settings, buttonHref: '//example.com' }), null);
+  assert.equal(validateMainHeroSlideSettings({ ...settings, buttonHref: 'category/vinhos' }), null);
+  assert.equal(validateMainHeroSlideSettings({ ...settings, title: 'x'.repeat(101) }), null);
+  assert.equal(validateMainHeroSlideSettings({ ...settings, showText: 'yes' }), null);
 });
 
 test('accepts supported image data and rejects unsupported, malformed, or oversized uploads', () => {

@@ -2,7 +2,11 @@
 
 import { useCallback, useEffect, useState } from 'react';
 import { ImagePlus, LayoutTemplate, LoaderCircle, Plus, Save, Trash2 } from 'lucide-react';
-import { getMainHeroSlideOrder, getStoreLayoutSlot } from '@/features/erp/api/store-layout';
+import {
+  getDefaultMainHeroSlideSettings,
+  getMainHeroSlideOrder,
+  getStoreLayoutSlot,
+} from '@/features/erp/api/store-layout';
 import { loadImage, MAX_IMAGE_UPLOAD_BYTES, prepareImageData, readImageFile } from '@/lib/image-upload.js';
 
 function formatUpdatedAt(value) {
@@ -17,6 +21,7 @@ function formatUpdatedAt(value) {
 export default function StoreLayoutPage() {
   const [slots, setSlots] = useState([]);
   const [drafts, setDrafts] = useState({});
+  const [slideSettingsDrafts, setSlideSettingsDrafts] = useState({});
   const [actualSizes, setActualSizes] = useState({});
   const [activeView, setActiveView] = useState('main');
   const [loading, setLoading] = useState(true);
@@ -76,7 +81,12 @@ export default function StoreLayoutPage() {
       const response = await fetch('/api/erp/store-layout', {
         method: 'PUT',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ key: slot.key, imageData: draft.imageData, originalName: draft.originalName }),
+        body: JSON.stringify({
+          key: slot.key,
+          imageData: draft.imageData,
+          originalName: draft.originalName,
+          ...(slot.group === 'main' ? { settings: getSlideSettings(slot) } : {}),
+        }),
       });
       const data = await response.json();
       if (!response.ok) throw new Error(data.error || 'Não foi possível salvar esta imagem.');
@@ -86,9 +96,51 @@ export default function StoreLayoutPage() {
         delete next[slot.key];
         return next;
       });
+      if (slot.group === 'main') {
+        setSlideSettingsDrafts((current) => {
+          const next = { ...current };
+          delete next[slot.key];
+          return next;
+        });
+      }
       setFeedback(`Imagem de “${slot.label}” atualizada na Loja.`);
     } catch (saveError) {
       setError(saveError.message || 'Não foi possível salvar esta imagem.');
+    } finally {
+      setSavingKey('');
+    }
+  };
+
+  const getSlideSettings = (slot) => slideSettingsDrafts[slot.key] || slot.settings;
+
+  const updateSlideSettings = (slot, change) => {
+    setSlideSettingsDrafts((current) => ({
+      ...current,
+      [slot.key]: { ...getSlideSettings(slot), ...change },
+    }));
+  };
+
+  const saveSlideSettings = async (slot) => {
+    setSavingKey(slot.key);
+    setError('');
+    setFeedback('');
+    try {
+      const response = await fetch('/api/erp/store-layout', {
+        method: 'PATCH',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ key: slot.key, settings: getSlideSettings(slot) }),
+      });
+      const data = await response.json();
+      if (!response.ok) throw new Error(data.error || 'Não foi possível salvar as opções deste slide.');
+      await loadSlots();
+      setSlideSettingsDrafts((current) => {
+        const next = { ...current };
+        delete next[slot.key];
+        return next;
+      });
+      setFeedback(`Opções de “${slot.label}” atualizadas na Loja.`);
+    } catch (settingsError) {
+      setError(settingsError.message || 'Não foi possível salvar as opções deste slide.');
     } finally {
       setSavingKey('');
     }
@@ -105,6 +157,11 @@ export default function StoreLayoutPage() {
         return next;
       });
       setActualSizes((current) => {
+        const next = { ...current };
+        delete next[slot.key];
+        return next;
+      });
+      setSlideSettingsDrafts((current) => {
         const next = { ...current };
         delete next[slot.key];
         return next;
@@ -131,6 +188,11 @@ export default function StoreLayoutPage() {
         delete next[slot.key];
         return next;
       });
+      setSlideSettingsDrafts((current) => {
+        const next = { ...current };
+        delete next[slot.key];
+        return next;
+      });
       setFeedback(isAdditionalHeroSlide
         ? `“${slot.label}” removido do carrossel da Loja.`
         : `Imagem personalizada de “${slot.label}” removida. A Loja voltou à imagem original.`);
@@ -153,8 +215,11 @@ export default function StoreLayoutPage() {
       return;
     }
     setError('');
-    setFeedback('Escolha uma imagem e salve para adicionar o novo slide à Loja.');
-    setSlots((current) => [...current, newSlide].sort((first, second) => (
+    setFeedback('Escolha uma imagem e configure os elementos deste slide.');
+    setSlots((current) => [...current, {
+      ...newSlide,
+      settings: getDefaultMainHeroSlideSettings(newSlide.key),
+    }].sort((first, second) => (
       getMainHeroSlideOrder(first.key) - getMainHeroSlideOrder(second.key)
     )));
   };
@@ -200,13 +265,15 @@ export default function StoreLayoutPage() {
   const pendingActiveCount = activeSlots.filter((slot) => drafts[slot.key]).length;
   const renderSlots = (items) => items.map((slot, index) => {
     const draft = drafts[slot.key];
+    const slideSettings = slot.group === 'main' ? getSlideSettings(slot) : null;
+    const slideSettingsDirty = slot.group === 'main' && Boolean(slideSettingsDrafts[slot.key]);
     const preview = draft?.imageData || slot.imageUrl || slot.fallbackImage;
     const saving = savingKey === slot.key;
     const isBrandLogo = slot.group === 'brands';
     const imageLabel = isBrandLogo ? 'logo' : 'arte';
     return <article className="store-layout-card" key={slot.key}>
       <div className="store-layout-card-heading"><div><span className="store-layout-location">{slot.placement}{slot.group === 'main' ? ` · Slide ${index + 1}` : ''}</span><h2>{slot.label}</h2></div><span className={`store-layout-status ${slot.imageUrl || draft ? 'customized' : ''}`}>{draft ? 'Alteração pendente' : slot.imageUrl ? `${isBrandLogo ? 'Logo' : 'Arte'} personalizada` : `${isBrandLogo ? 'Logo' : 'Arte'} padrão`}</span></div>
-      <div className={`store-layout-preview ${isBrandLogo ? 'store-layout-brand-preview' : ''}`}>
+      <div className={`store-layout-preview ${isBrandLogo ? 'store-layout-brand-preview' : ''} ${slot.group === 'main' ? 'store-layout-hero-preview' : ''}`}>
         {preview
           ? <img src={preview} alt={`Prévia: ${slot.label}`} onLoad={(event) => {
             const { naturalWidth, naturalHeight } = event.currentTarget;
@@ -214,7 +281,26 @@ export default function StoreLayoutPage() {
           }} />
           : <div className="store-layout-preview-empty"><ImagePlus size={26} /><span>Nenhuma imagem personalizada</span></div>}
       </div>
-      <div className="store-layout-dimensions"><span>{isBrandLogo ? 'Logo recomendada' : 'Arte recomendada'}</span><strong>{slot.recommendedWidth} × {slot.recommendedHeight} px</strong><small>{actualSizes[slot.key] ? `Imagem atual: ${actualSizes[slot.key]}` : isBrandLogo ? 'Preserve a proporção e prefira fundo transparente' : 'Imagem exibida por inteiro, sem recortes'}</small></div>
+      <div className="store-layout-dimensions"><span>{isBrandLogo ? 'Logo recomendada' : 'Arte recomendada'}</span><strong>{slot.recommendedWidth} × {slot.recommendedHeight} px</strong><small>{actualSizes[slot.key] ? `Imagem atual: ${actualSizes[slot.key]}` : isBrandLogo ? 'Preserve a proporção e prefira fundo transparente' : slot.group === 'main' ? 'Preenche toda a área; bordas podem ser recortadas em outras proporções' : 'Imagem exibida por inteiro, sem recortes'}</small></div>
+      {slideSettings && <fieldset className="store-layout-slide-options">
+        <legend>Elementos deste slide</legend>
+        <label className="store-layout-slide-toggle"><input type="checkbox" checked={slideSettings.showLogo} onChange={(event) => updateSlideSettings(slot, { showLogo: event.target.checked })} /> Exibir logo Hoje</label>
+        <label className="store-layout-slide-toggle"><input type="checkbox" checked={slideSettings.showText} onChange={(event) => updateSlideSettings(slot, { showText: event.target.checked })} /> Exibir textos</label>
+        {slideSettings.showText && <>
+          <label>Título<input type="text" maxLength={100} value={slideSettings.title} onChange={(event) => updateSlideSettings(slot, { title: event.target.value })} placeholder="Título do banner" /></label>
+          <label>Descrição<input type="text" maxLength={180} value={slideSettings.description} onChange={(event) => updateSlideSettings(slot, { description: event.target.value })} placeholder="Descrição opcional" /></label>
+        </>}
+        <label className="store-layout-slide-toggle"><input type="checkbox" checked={slideSettings.showButton} onChange={(event) => updateSlideSettings(slot, { showButton: event.target.checked })} /> Exibir botão</label>
+        {slideSettings.showButton && <>
+          <label>Texto do botão<input type="text" maxLength={32} value={slideSettings.buttonLabel} onChange={(event) => updateSlideSettings(slot, { buttonLabel: event.target.value })} /></label>
+          <label>Destino no site<input type="text" maxLength={300} value={slideSettings.buttonHref} onChange={(event) => updateSlideSettings(slot, { buttonHref: event.target.value })} placeholder="/categoria.html?categoria=vinhos" /></label>
+        </>}
+        <button type="button" className="store-layout-save-settings" disabled={saving || (!slot.imageUrl && !draft)} onClick={() => saveSlideSettings(slot)}>
+          {saving ? <LoaderCircle size={15} className="store-layout-spinner" /> : <Save size={15} />}
+          {saving ? 'Salvando opções...' : 'Salvar opções do slide'}
+        </button>
+        {slideSettingsDirty && <small className="store-layout-settings-pending">Opções alteradas e ainda não salvas.</small>}
+      </fieldset>}
       {slot.updatedAt && <p className="store-layout-updated">Atualizada em {formatUpdatedAt(slot.updatedAt)} por {slot.updatedBy || 'usuário ERP'}</p>}
       <div className="store-layout-actions">
         <label className="store-layout-upload"><ImagePlus size={15} /> {isBrandLogo ? 'Escolher logo' : slot.group === 'main' ? 'Escolher banner' : 'Escolher arte'}<input type="file" accept="image/png,image/jpeg,image/webp" disabled={saving} onChange={(event) => {
@@ -235,7 +321,7 @@ export default function StoreLayoutPage() {
 
     <details className="store-layout-art-hint">
       <summary><strong>Orientações para imagens</strong><span>Formatos aceitos e recomendações</span></summary>
-      <p>São aceitos PNG, JPEG e WebP de até 10 MB antes da compressão. SVG não é aceito. A transparência é preservada; para logos, prefira PNG ou WebP com fundo transparente. As dimensões recomendadas são: banner principal 1600 × 500 px; banners dos carrosséis 520 × 700 px; banners largos 1400 × 360 px; marcas em destaque 480 × 200 px. As recomendações não mudaram; as imagens agora são exibidas por inteiro, sem cortes, podendo deixar faixas de fundo conforme a tela.</p>
+      <p>São aceitos PNG, JPEG e WebP de até 10 MB antes da compressão. SVG não é aceito. A transparência é preservada; para logos, prefira PNG ou WebP com fundo transparente. As dimensões recomendadas são: banner principal 1644 × 760 px (proporção 2,16:1, para preencher a área inteira); banners dos carrosséis 520 × 700 px; banners largos 1400 × 360 px; marcas em destaque 480 × 200 px. O banner principal usa cobertura responsiva para preencher a área, podendo recortar as bordas da imagem quando a tela tiver outra proporção.</p>
     </details>
     {error && <div className="store-layout-message error" role="alert">{error}</div>}
     {feedback && <div className="store-layout-message" role="status">{feedback}</div>}
