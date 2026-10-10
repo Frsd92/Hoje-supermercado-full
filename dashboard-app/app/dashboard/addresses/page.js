@@ -4,6 +4,7 @@ import { Home, PencilLine, Plus, Trash2 } from 'lucide-react';
 import { useEffect, useRef, useState } from 'react';
 import { useSession } from 'next-auth/react';
 import { formatServiceRegions, getServiceRegionMatch } from '@/features/service-regions/region-utils';
+import AccountPageNav from '../account-page-nav';
 
 const addressesApi = '/api/addresses';
 const deliveryAddressStorageKey = (email) => `hoje-dashboard-delivery-address-${email || 'guest'}`;
@@ -311,15 +312,18 @@ export default function AddressesPage() {
 
   return (
     <div className="section-shell addresses-page">
+      <AccountPageNav current="addresses" />
       <div className="section-header addresses-header">
         <div>
+          <span className="dashboard-page-eyebrow">Minha conta</span>
           <h1>Meus Endereços</h1>
-          <p>Gerencie seus endereços de entrega</p>
+          <p>Escolha onde receber seus pedidos e mantenha suas informações de entrega atualizadas.</p>
+          {!addressesError && <span className="address-count">{addresses.length} {addresses.length === 1 ? 'endereço salvo' : 'endereços salvos'}</span>}
         </div>
         <button type="button" className="primary-cta" onClick={openCreateForm} disabled={isSavingAddress}><Plus size={17} /> Novo Endereço</button>
       </div>
 
-      <aside className="service-area-notice" aria-live="polite">
+      <aside className="service-area-notice" aria-live="polite" aria-busy={serviceRegionsLoading}>
         <div className="service-area-notice-icon" aria-hidden="true"><Home size={18} /></div>
         <div>
           <strong>Regiões atendidas</strong>
@@ -383,8 +387,8 @@ export default function AddressesPage() {
               <div className="address-card-header">
                 <div className="address-tag"><Home size={14} /> {address.title}</div>
                 <div className="address-actions-inline">
-                  <button type="button" className="icon-button-small" aria-label="Editar endereço" onClick={() => openEditForm(address)} disabled={isSavingAddress}><PencilLine size={14} /></button>
-                  <button type="button" className="icon-button-small" aria-label="Excluir endereço" onClick={() => removeAddress(address.id)} disabled={isSavingAddress}>
+                  <button type="button" className="icon-button-small" aria-label={`Editar endereço ${address.title}`} onClick={() => openEditForm(address)} disabled={isSavingAddress}><PencilLine size={14} /></button>
+                  <button type="button" className="icon-button-small" aria-label={`Excluir endereço ${address.title}`} onClick={() => removeAddress(address.id)} disabled={isSavingAddress}>
                     <Trash2 size={14} />
                   </button>
                 </div>

@@ -5,6 +5,7 @@ import { CircleDollarSign, Save } from 'lucide-react';
 import { useSession } from 'next-auth/react';
 import { formatCurrency, getBudgetProgress, getCurrentMonthSpend } from '../budget';
 import { readLocalBudget, saveLocalBudget } from '../budget-storage';
+import AccountPageNav from '../account-page-nav';
 
 export default function BudgetPage() {
   const { data: session, status } = useSession();
@@ -97,8 +98,10 @@ export default function BudgetPage() {
 
   return (
     <div className="section-shell budget-page">
+      <AccountPageNav current="budget" />
       <div className="section-header">
         <div>
+          <span className="dashboard-page-eyebrow">Meu planejamento</span>
           <h1>Meu Orçamento</h1>
           <p>Defina quanto deseja gastar e acompanhe suas compras neste mês.</p>
         </div>
@@ -111,24 +114,26 @@ export default function BudgetPage() {
           <strong>{formatCurrency(monthSpend)}</strong>
           <span className="budget-overview-caption">{budgetAmount ? `de ${formatCurrency(budgetAmount)} definidos` : 'Defina um limite mensal para acompanhar seu progresso.'}</span>
           {budgetAmount > 0 && (
-            <div className="budget-meter budget-page-meter" role="progressbar" aria-label="Uso do orçamento mensal" aria-valuemin="0" aria-valuemax="100" aria-valuenow={Math.round(progress)}>
+            <div className="budget-meter budget-page-meter" role="progressbar" aria-label="Uso do orçamento mensal" aria-valuemin="0" aria-valuemax="100" aria-valuenow={Math.round(progress)} aria-valuetext={`${Math.round(progress)}% do orçamento utilizado`}>
               <span className={progress >= 80 ? 'near-limit' : ''} style={{ width: `${progress}%` }} />
             </div>
           )}
           {budgetAmount > 0 && <span className={`budget-remaining ${monthSpend > budgetAmount ? 'over-budget' : ''}`}>{monthSpend > budgetAmount ? `Você ultrapassou o limite em ${formatCurrency(monthSpend - budgetAmount)}.` : monthSpend === budgetAmount ? 'Você atingiu o limite mensal.' : `Restam ${formatCurrency(budgetAmount - monthSpend)} do seu orçamento.`}</span>}
+          {!budgetAmount && <p className="budget-first-use">Seu limite mensal ajuda a acompanhar o ritmo das compras. Você pode alterá-lo quando quiser.</p>}
         </section>
 
         <form className="budget-form-card" onSubmit={saveBudget}>
+          <span className="budget-form-step">Seu limite pessoal</span>
           <h2>Limite mensal</h2>
           <p>Este valor é pessoal e pode ser alterado sempre que você quiser.</p>
           <label className="form-field" htmlFor="monthly-budget">
             <span>Quanto deseja gastar por mês?</span>
-            <div className="budget-input-wrap"><span>R$</span><input id="monthly-budget" type="number" min="0.01" max="100000000" step="0.01" value={monthlyBudget} onChange={(event) => setMonthlyBudget(event.target.value)} disabled={loading} placeholder="Ex.: 1500,00" required /></div>
+            <div className="budget-input-wrap"><span aria-hidden="true">R$</span><input id="monthly-budget" type="number" inputMode="decimal" min="0.01" max="100000000" step="0.01" value={monthlyBudget} onChange={(event) => setMonthlyBudget(event.target.value)} disabled={loading} placeholder="Ex.: 1500,00" required /></div>
           </label>
           <button className="primary-cta" type="submit" disabled={loading || saving}>
             <Save size={16} /> {saving ? 'Salvando...' : 'Salvar orçamento'}
           </button>
-          {feedback && <p className={`profile-feedback ${feedback.startsWith('Não') || feedback.startsWith('Informe') ? 'error' : ''}`} role="status">{feedback}</p>}
+          {feedback && <p className={`profile-feedback ${feedback.startsWith('Não') || feedback.startsWith('Informe') ? 'error' : ''}`} role={feedback.startsWith('Não') || feedback.startsWith('Informe') ? 'alert' : 'status'} aria-live="polite">{feedback}</p>}
         </form>
       </div>
     </div>

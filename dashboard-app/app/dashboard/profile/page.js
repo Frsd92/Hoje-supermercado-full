@@ -7,6 +7,7 @@ import { useEffect, useRef, useState } from 'react';
 import { formatCurrency, getBudgetProgress, getCurrentMonthSpend } from '../budget';
 import { readLocalBudget } from '../budget-storage';
 import { getCartItemCount } from '../cart-utils';
+import AccountPageNav from '../account-page-nav';
 import contentModeration from '@/lib/content-moderation.js';
 
 const emptyProfile = {
@@ -245,16 +246,19 @@ export default function ProfilePage() {
 
   return (
     <div className="section-shell">
+      <AccountPageNav current="profile" />
       <div className="section-header">
         <div>
+          <span className="dashboard-page-eyebrow">Minha conta</span>
           <h1>Meu Perfil</h1>
-          <p>Gerencie suas informações pessoais</p>
+          <p>Mantenha seus dados atualizados para uma experiência de compra mais simples e segura.</p>
         </div>
       </div>
 
       <div className="profile-shell">
         <div className="profile-picture-box">
-          <h3>Foto do Perfil</h3>
+          <span className="profile-card-eyebrow">Sua identidade</span>
+          <h3>Foto do perfil</h3>
           <p>Usamos sua foto do Google. Você pode escolher outra quando quiser.</p>
           <div className="photo-placeholder">
             {photoUrl ? <img src={photoUrl} alt="Foto do perfil" /> : <UserRound size={38} />}
@@ -268,8 +272,8 @@ export default function ProfilePage() {
 
         <div className="profile-form-box">
           <div className="panel-header no-gap">
-            <h3>Informações Pessoais</h3>
-            <span className="profile-edit-hint">Os dados pessoais podem ser alterados</span>
+            <div><h3>Informações pessoais</h3><p>Atualize seus dados de contato e identificação.</p></div>
+            <span className="profile-edit-hint">Campos com seus dados são editáveis</span>
           </div>
 
           <div className="profile-form-grid">

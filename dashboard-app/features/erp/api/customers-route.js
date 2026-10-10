@@ -4,13 +4,16 @@ import { formatCartQuantity } from '@/app/dashboard/cart-utils';
 import { hasErpAccess } from '@/features/erp/access';
 import { prisma } from '@/lib/prisma';
 import { getDaysSincePurchase, parseOrderDate } from '@/lib/order-sort';
+import { getLoyaltyMissionCycle } from '@/features/loyalty/mission-rules';
+import { getCustomerCouponInsights, getCustomerMissionInsights } from '@/features/erp/customer-insights';
 
 export async function GET() {
   const session = await getServerSession(authOptions);
   if (!hasErpAccess(session?.user)) return Response.json({ error: 'Acesso negado.' }, { status: 403 });
 
   try {
-    const [favoriteRecords, carts, orderList, profiles, addressBooks, users] = await Promise.all([
+    const now = new Date();
+    const [favoriteRecords, carts, orderList, profiles, addressBooks, users, campaigns, activeMissions] = await Promise.all([
       prisma.favorite.findMany({
         select: {
           user: { select: { email: true } },
@@ -24,6 +27,7 @@ export async function GET() {
           customerEmail: true,
           customerName: true,
           total: true,
+          couponCode: true,
           status: true,
           paymentStatus: true,
           refundedAmount: true,
@@ -52,7 +56,68 @@ export async function GET() {
       }),
       prisma.customerAddressBook.findMany({ select: { email: true, addresses: true } }),
       prisma.user.findMany({ select: { email: true, createdAt: true } }),
+      prisma.couponCampaign.findMany({
+        select: {
+          code: true,
+          discountPercent: true,
+          minimumOrderAmount: true,
+          expiresAt: true,
+          createdBy: true,
+          recipients: { select: { email: true } },
+          redemptions: { select: { email: true, orderId: true, createdAt: true } },
+          loyaltyRedemption: { select: { reward: { select: { name: true } } } },
+        },
+      }),
+      prisma.loyaltyMission.findMany({
+        where: {
+          status: 'active',
+          startsAt: { lte: now },
+          OR: [{ endsAt: null }, { endsAt: { gt: now } }],
+        },
+        select: {
+          id: true,
+          name: true,
+          ruleType: true,
+          targetAmount: true,
+          targetCount: true,
+          category: true,
+          recurrence: true,
+          startsAt: true,
+          endsAt: true,
+        },
+      }),
     ]);
+
+    const customerEmails = new Set([
+      ...favoriteRecords.map(({ user }) => user.email.trim().toLowerCase()),
+      ...carts.map((cart) => cart.email.trim().toLowerCase()),
+      ...orderList.map((order) => order.customerEmail?.trim().toLowerCase()).filter(Boolean),
+      ...profiles.map((profile) => profile.email.trim().toLowerCase()),
+      ...users.map((user) => user.email.trim().toLowerCase()),
+      ...campaigns.flatMap((campaign) => campaign.recipients.map((recipient) => recipient.email.trim().toLowerCase())),
+    ].filter((customerEmail) => customerEmail.includes('@')));
+    const missionWindows = activeMissions
+      .map((mission) => ({ mission, cycle: getLoyaltyMissionCycle(mission, now) }))
+      .filter(({ cycle }) => Boolean(cycle));
+    const missionProgress = missionWindows.length
+      ? await prisma.loyaltyMissionProgress.findMany({
+        where: {
+          customerEmail: { in: [...customerEmails] },
+          OR: missionWindows.map(({ mission, cycle }) => ({
+            missionId: mission.id,
+            cycleStartAt: cycle.cycleStartAt,
+          })),
+        },
+        select: {
+          missionId: true,
+          customerEmail: true,
+          progressCount: true,
+          progressAmount: true,
+          completedAt: true,
+        },
+      })
+      : [];
+    const activeMissionsWithCycle = missionWindows.map(({ mission }) => mission);
 
     const favoritesByUser = new Map();
     favoriteRecords.forEach(({ user, product }) => {
@@ -77,18 +142,13 @@ export async function GET() {
     }));
     const profilesByEmail = new Map(profiles.map((profile) => [profile.email.toLowerCase(), profile]));
     const userCreatedAtByEmail = new Map(users.map((user) => [user.email.trim().toLowerCase(), user.createdAt]));
-    const customerEmails = new Set([
-      ...favoritesByUser.keys(),
-      ...cartsByEmail.keys(),
-      ...orderList.map((order) => order.customerEmail?.trim().toLowerCase()).filter(Boolean),
-      ...profiles.map((profile) => profile.email.trim().toLowerCase()),
-      ...users.map((user) => user.email.trim().toLowerCase()),
-    ].filter((customerEmail) => customerEmail.includes('@')));
     const customers = [...customerEmails].map((email, index) => {
       const profile = profilesByEmail.get(email);
       const favorites = favoritesByUser.get(email) || [];
       const cart = cartsByEmail.get(email) || [];
       const customerOrders = orderList.filter((order) => order.customerEmail?.trim().toLowerCase() === email);
+      const customerCoupons = getCustomerCouponInsights(campaigns, customerOrders, email, now);
+      const customerMissions = getCustomerMissionInsights(activeMissionsWithCycle, missionProgress, email);
       const activeOrders = customerOrders.filter((order) => (
         order.status !== 'Cancelado'
         && !['pending', 'failed', 'canceled'].includes(String(order.paymentStatus || '').toLowerCase())
@@ -98,7 +158,6 @@ export async function GET() {
         .filter(({ date }) => date)
         .sort((first, second) => second.date.getTime() - first.date.getTime());
       const totalSpent = activeOrders.reduce((total, order) => total + realizedRevenue(order), 0);
-      const now = new Date();
       const currentMonthSpent = activeOrders.reduce((total, order) => {
         const orderDate = parseOrderDate(order.createdAt);
         return orderDate && orderDate.getFullYear() === now.getFullYear() && orderDate.getMonth() === now.getMonth()
@@ -136,6 +195,10 @@ export async function GET() {
           lastPurchaseDate || profile?.memberSince || userCreatedAtByEmail.get(email),
         ),
         lastPurchase: lastOrder?.createdAt || 'Sem compras registradas',
+        missionProgress: customerMissions,
+        nearMissionCount: customerMissions.filter((mission) => mission.nearCompletion).length,
+        coupons: customerCoupons.coupons,
+        couponCounts: customerCoupons.couponCounts,
         serviceRequests,
       };
     });

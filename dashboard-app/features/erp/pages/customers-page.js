@@ -1,6 +1,6 @@
 'use client';
 
-import { CalendarDays, CheckCircle2, ChevronRight, Mail, MapPin, Phone, PiggyBank, RefreshCw, Search, ShoppingBag, Star, UserRound, X } from 'lucide-react';
+import { Award, CalendarDays, CheckCircle2, ChevronRight, Mail, MapPin, Phone, PiggyBank, RefreshCw, Search, ShoppingBag, Star, TicketPercent, UserRound, X } from 'lucide-react';
 import { useCallback, useEffect, useMemo, useState } from 'react';
 import {
   canApproveOrderServiceRequest,
@@ -21,6 +21,7 @@ export default function ERPCustomersPage() {
   const [loading, setLoading] = useState(true);
   const [query, setQuery] = useState('');
   const [statusFilter, setStatusFilter] = useState('Todos');
+  const [missionFilter, setMissionFilter] = useState('Todos');
   const [selected, setSelected] = useState(null);
   const [budgetDataAvailable, setBudgetDataAvailable] = useState(true);
   const [loadError, setLoadError] = useState('');
@@ -68,14 +69,17 @@ export default function ERPCustomersPage() {
       customer.status,
       ...(customer.tags || []),
     ].join(' '));
-    return searchText.includes(normalizeSearch(query)) && (statusFilter === 'Todos' || customer.status === statusFilter);
-  }), [customers, query, statusFilter]);
+    return searchText.includes(normalizeSearch(query))
+      && (statusFilter === 'Todos' || customer.status === statusFilter)
+      && (missionFilter === 'Todos' || customer.nearMissionCount > 0);
+  }), [customers, query, statusFilter, missionFilter]);
 
   const pendingServiceRequests = customers.flatMap((customer) => customer.serviceRequests || [])
     .filter((request) => request.status === orderServiceRequestStatus.requested);
   const metrics = [
     ['Clientes cadastrados', customers.length, UserRound],
     ['Clientes ativos', customers.filter((customer) => customer.status === 'Ativo').length, ShoppingBag],
+    ['Missões a 75%+', customers.filter((customer) => customer.nearMissionCount > 0).length, Award],
     ['Sem comprar há 24h+', customers.filter((customer) => customer.daysWithoutPurchase >= 1).length, CalendarDays],
     ['LTV médio', 'Sem dados', Star],
     ['Pedidos de cancelamento', pendingServiceRequests.filter((request) => request.type === orderServiceRequestType.cancellation).length, RefreshCw],
@@ -122,6 +126,14 @@ export default function ERPCustomersPage() {
       timeZone: 'America/Sao_Paulo',
     }).format(date);
   };
+  const formatDate = (value) => {
+    if (!value) return 'Data não informada';
+    const date = new Date(value);
+    return Number.isNaN(date.getTime()) ? 'Data não informada' : new Intl.DateTimeFormat('pt-BR', {
+      dateStyle: 'short',
+      timeZone: 'America/Sao_Paulo',
+    }).format(date);
+  };
   const selectedBudgetProgress = selected?.monthlyBudget > 0
     ? Math.min(100, (selected.currentMonthSpent / selected.monthlyBudget) * 100)
     : 0;
@@ -129,14 +141,51 @@ export default function ERPCustomersPage() {
   return (
     <div className="erp-customers-page">
       {loadError && <p className="erp-budget-warning" role="alert">{loadError}</p>}
-      <div className="erp-customer-header"><div><span className="eyebrow">Relacionamento e dados</span><h1>Clientes</h1><p>Visao completa de cadastro, comportamento, compras e preferencias.</p></div><button type="button" className="primary-cta">+ Novo cliente</button></div>
+      <div className="erp-customer-header"><div><span className="eyebrow">Relacionamento e dados</span><h1>Clientes</h1><p>Compras, missões, cupons e preferências em um só lugar.</p></div><button type="button" className="primary-cta">+ Novo cliente</button></div>
       <button type="button" className="editor-ghost" onClick={loadCustomers} disabled={loading}>
         {loading ? 'Atualizando clientes...' : 'Atualizar clientes e favoritos'}
       </button>
       <div className="erp-customer-metrics">{metrics.map(([label, value, Icon]) => <div className="erp-customer-metric" key={label}><Icon size={17} /><strong>{value}</strong><span>{label}</span></div>)}</div>
-      <div className="erp-customer-toolbar"><div className="erp-customer-search"><Search size={16} /><input placeholder="Buscar cliente por nome, e-mail, telefone, cidade ou ID" value={query} onChange={(event) => setQuery(event.target.value)} />{query && <button type="button" aria-label="Limpar busca" onClick={() => setQuery('')}><X size={15} /></button>}</div><select value={statusFilter} onChange={(event) => setStatusFilter(event.target.value)}><option>Todos</option><option>Ativo</option><option>Inativo</option></select></div>
-      <div className="erp-customer-layout"><section className="erp-customer-table-card"><div className="erp-table-heading"><div><h3>Base de clientes</h3><p>{loading ? 'Carregando dados reais...' : `${filteredCustomers.length} registros encontrados`}</p></div></div>{!budgetDataAvailable && <p className="erp-budget-warning" role="status">Os planos orçamentários estão indisponíveis porque não foi possível conectar ao banco de dados.</p>}{filteredCustomers.length ? <div className="erp-table-scroll"><table className="erp-table erp-customers-table"><thead><tr><th>Cliente</th><th>Status</th><th>Última compra</th><th>Dias sem comprar</th><th>Pedidos</th><th>Total gasto</th><th>Plano orçamentário</th><th></th></tr></thead><tbody>{filteredCustomers.map((customer) => <tr key={customer.id} className={selected?.id === customer.id ? 'selected-row' : ''} onClick={() => setSelected(customer)}><td><strong>{customer.name}</strong><small>{customer.id} · {customer.email}</small></td><td><span className={`erp-status ${customer.status.toLowerCase()}`}>{customer.status}</span></td><td>{customer.lastPurchase}</td><td><span className={customer.daysWithoutPurchase >= 30 ? 'customer-risk' : ''}>{customer.daysWithoutPurchase === null ? 'Sem dados' : `${customer.daysWithoutPurchase} dias`}</span></td><td>{customer.orders}</td><td>{formatCurrency(customer.spent)}</td><td>{!customer.budgetDataAvailable ? 'Indisponível' : customer.monthlyBudget ? formatCurrency(customer.monthlyBudget) : 'Não definido'}</td><td><ChevronRight size={15} /></td></tr>)}</tbody></table></div> : <div className="erp-empty-data">{loading ? 'Carregando dados reais...' : 'Nenhum cliente com atividade registrada.'}</div>}</section>
-      {selected && <aside className="erp-customer-detail"><button type="button" className="detail-close" onClick={() => setSelected(null)}><X size={16} /></button><div className="customer-profile-heading"><div className="customer-avatar"><UserRound size={22} /></div><div><h2>{selected.name}</h2><span>{selected.id}</span></div></div><div className="customer-detail-actions"><button type="button" className="editor-ghost" onClick={() => toggleStatus(selected)}>{selected.status === 'Ativo' ? 'Desativar cliente' : 'Ativar cliente'}</button></div><div className="customer-contact-list"><span><Mail size={14} /> {selected.email}</span>{selected.phone && <span><Phone size={14} /> {selected.phone}</span>}{selected.city && <span><MapPin size={14} /> {selected.city}</span>}</div><div className="customer-detail-stats"><div><strong>{selected.orders}</strong><small>Pedidos</small></div><div><strong>{formatCurrency(selected.spent)}</strong><small>Total gasto</small></div><div><strong>{selected.favorites}</strong><small>Favoritos</small></div><div><strong>{selected.cartItems}</strong><small>No carrinho</small></div></div><section className="customer-detail-section customer-budget-section"><h3><PiggyBank size={16} /> Plano orçamentário</h3>{!selected.budgetDataAvailable ? <p>Dados do orçamento indisponíveis no momento.</p> : selected.monthlyBudget > 0 ? <><div className="customer-budget-values"><span>Limite mensal</span><strong>{formatCurrency(selected.monthlyBudget)}</strong></div><div className="customer-budget-values"><span>Gasto neste mês</span><strong>{formatCurrency(selected.currentMonthSpent)}</strong></div><div className="customer-budget-progress" role="progressbar" aria-label="Uso do orçamento mensal" aria-valuemin="0" aria-valuemax="100" aria-valuenow={Math.round(selectedBudgetProgress)}><span className={selectedBudgetProgress >= 80 ? 'near-limit' : ''} style={{ width: `${selectedBudgetProgress}%` }} /></div><small>{selectedBudgetProgress >= 100 ? `Orçamento excedido em ${formatCurrency(selected.currentMonthSpent - selected.monthlyBudget)}` : `${Math.round(selectedBudgetProgress)}% do orçamento mensal utilizado`}</small></> : <p>Este cliente ainda não definiu um orçamento mensal.</p>}</section><section className="customer-detail-section"><h3>Produtos favoritos ({selected.favoriteItems?.length || 0})</h3>{selected.favoriteItems?.length ? selected.favoriteItems.map((item) => <p key={item.name}><strong>{item.name}</strong> · {item.category || 'Sem categoria'}</p>) : <p>Nenhum favorito registrado.</p>}</section><section className="customer-detail-section"><h3>Itens no carrinho ({selected.cartItems})</h3>{selected.cartProducts?.length ? selected.cartProducts.map((item) => <p key={item.name}><strong>{item.name}</strong> · quantidade: {item.quantity || 1}</p>) : <p>Nenhum item no carrinho.</p>}</section><section className="customer-detail-section"><h3>Preferencias</h3>{selected.preferences?.length ? <div className="customer-tags">{selected.preferences.map((preference) => <span key={preference}>{preference}</span>)}</div> : <p>Nenhuma preferencia registrada.</p>}</section><section className="customer-detail-section"><h3>Comportamento</h3><p>Ultima compra: <strong>{selected.lastPurchase}</strong></p><p>Ticket medio: <strong>{selected.orders ? formatCurrency(selected.spent / selected.orders) : 'Sem dados'}</strong></p></section></aside>}
+      <div className="erp-customer-toolbar"><div className="erp-customer-search"><Search size={16} /><input aria-label="Buscar clientes" placeholder="Buscar por nome, e-mail, telefone, cidade ou ID" value={query} onChange={(event) => setQuery(event.target.value)} />{query && <button type="button" aria-label="Limpar busca" onClick={() => setQuery('')}><X size={15} /></button>}</div><label className="erp-customer-filter">Status<select aria-label="Filtrar clientes por status" value={statusFilter} onChange={(event) => setStatusFilter(event.target.value)}><option>Todos</option><option>Ativo</option><option>Inativo</option></select></label><label className="erp-customer-filter">Missões<select aria-label="Filtrar clientes por progresso de missão" value={missionFilter} onChange={(event) => setMissionFilter(event.target.value)}><option>Todos</option><option value="near">Perto de concluir (75%+)</option></select></label></div>
+      <div className="erp-customer-layout"><section className="erp-customer-table-card"><div className="erp-table-heading"><div><h3>Base de clientes</h3><p>{loading ? 'Carregando dados reais...' : `${filteredCustomers.length} registros encontrados`}</p></div></div>{!budgetDataAvailable && <p className="erp-budget-warning" role="status">Os planos orçamentários estão indisponíveis porque não foi possível conectar ao banco de dados.</p>}{filteredCustomers.length ? <div className="erp-table-scroll"><table className="erp-table erp-customers-table"><thead><tr><th>Cliente</th><th>Status</th><th>Missões próximas</th><th>Última compra</th><th>Dias sem comprar</th><th>Pedidos</th><th>Total gasto</th><th>Plano orçamentário</th><th></th></tr></thead><tbody>{filteredCustomers.map((customer) => <tr key={customer.id} className={selected?.id === customer.id ? 'selected-row' : ''} onClick={() => setSelected(customer)}><td><strong>{customer.name}</strong><small>{customer.id} · {customer.email}</small></td><td><span className={`erp-status ${customer.status.toLowerCase()}`}>{customer.status}</span></td><td><span className={customer.nearMissionCount ? 'customer-mission-count is-near' : 'customer-mission-count'}>{customer.nearMissionCount || 0}</span></td><td>{customer.lastPurchase}</td><td><span className={customer.daysWithoutPurchase >= 30 ? 'customer-risk' : ''}>{customer.daysWithoutPurchase === null ? 'Sem dados' : `${customer.daysWithoutPurchase} dias`}</span></td><td>{customer.orders}</td><td>{formatCurrency(customer.spent)}</td><td>{!customer.budgetDataAvailable ? 'Indisponível' : customer.monthlyBudget ? formatCurrency(customer.monthlyBudget) : 'Não definido'}</td><td><ChevronRight size={15} /></td></tr>)}</tbody></table></div> : <div className="erp-empty-data">{loading ? 'Carregando dados reais...' : 'Nenhum cliente encontrado com esses filtros.'}</div>}</section>
+      {selected && <aside className="erp-customer-detail"><button type="button" className="detail-close" aria-label="Fechar detalhes do cliente" onClick={() => setSelected(null)}><X size={16} /></button><div className="customer-profile-heading"><div className="customer-avatar"><UserRound size={22} /></div><div><h2>{selected.name}</h2><span>{selected.id}</span></div></div><div className="customer-detail-actions"><button type="button" className="editor-ghost" onClick={() => toggleStatus(selected)}>{selected.status === 'Ativo' ? 'Desativar cliente' : 'Ativar cliente'}</button></div><div className="customer-contact-list"><span><Mail size={14} /> {selected.email}</span>{selected.phone && <span><Phone size={14} /> {selected.phone}</span>}{selected.city && <span><MapPin size={14} /> {selected.city}</span>}</div><div className="customer-detail-stats"><div><strong>{selected.orders}</strong><small>Pedidos</small></div><div><strong>{formatCurrency(selected.spent)}</strong><small>Total gasto</small></div><div><strong>{selected.favorites}</strong><small>Favoritos</small></div><div><strong>{selected.cartItems}</strong><small>No carrinho</small></div></div><section className="customer-detail-section customer-budget-section"><h3><PiggyBank size={16} /> Plano orçamentário</h3>{!selected.budgetDataAvailable ? <p>Dados do orçamento indisponíveis no momento.</p> : selected.monthlyBudget > 0 ? <><div className="customer-budget-values"><span>Limite mensal</span><strong>{formatCurrency(selected.monthlyBudget)}</strong></div><div className="customer-budget-values"><span>Gasto neste mês</span><strong>{formatCurrency(selected.currentMonthSpent)}</strong></div><div className="customer-budget-progress" role="progressbar" aria-label="Uso do orçamento mensal" aria-valuemin="0" aria-valuemax="100" aria-valuenow={Math.round(selectedBudgetProgress)}><span className={selectedBudgetProgress >= 80 ? 'near-limit' : ''} style={{ width: `${selectedBudgetProgress}%` }} /></div><small>{selectedBudgetProgress >= 100 ? `Orçamento excedido em ${formatCurrency(selected.currentMonthSpent - selected.monthlyBudget)}` : `${Math.round(selectedBudgetProgress)}% do orçamento mensal utilizado`}</small></> : <p>Este cliente ainda não definiu um orçamento mensal.</p>}</section>
+        <section className="customer-detail-section customer-mission-section" aria-labelledby="customer-missions-title">
+          <h3 id="customer-missions-title"><Award size={16} /> Missões em andamento ({selected.missionProgress?.length || 0})</h3>
+          {selected.missionProgress?.length ? selected.missionProgress.map((mission) => {
+            const isAmountMission = ['MINIMUM_SPEND', 'CATEGORY_SPEND'].includes(mission.ruleType);
+            const current = isAmountMission ? formatCurrency(mission.current) : mission.current;
+            const target = isAmountMission ? formatCurrency(mission.target) : mission.target;
+            return <article className="customer-mission-progress" key={mission.id}>
+              <div><strong>{mission.name}</strong>{mission.category && <small>{mission.category}</small>}</div>
+              <span>{current} de {target}</span>
+              <div className="customer-budget-progress" role="progressbar" aria-label={`Progresso da missão ${mission.name}`} aria-valuemin="0" aria-valuemax="100" aria-valuenow={Math.round(mission.percent)}><span className={mission.nearCompletion ? 'near-limit' : ''} style={{ width: `${mission.percent}%` }} /></div>
+              <small>{Math.round(mission.percent)}% concluída{mission.nearCompletion ? ' · perto de concluir' : ''}</small>
+            </article>;
+          }) : <p>Este cliente não tem progresso registrado em missões ativas.</p>}
+        </section>
+        <section className="customer-detail-section customer-coupon-section" aria-labelledby="customer-coupons-title">
+          <h3 id="customer-coupons-title"><TicketPercent size={16} /> Cupons</h3>
+          <div className="customer-coupon-counts">
+            <span><strong>{selected.couponCounts?.available || 0}</strong> disponíveis</span>
+            <span><strong>{selected.couponCounts?.expiredUnused || 0}</strong> expirados sem uso</span>
+            <span><strong>{selected.couponCounts?.used || 0}</strong> usados</span>
+            {(selected.couponCounts?.processing || 0) > 0 && <span><strong>{selected.couponCounts.processing}</strong> em processamento</span>}
+          </div>
+          {selected.coupons?.length ? <div className="customer-coupon-list">{selected.coupons.map((coupon) => (
+            <article className="customer-coupon-card" key={coupon.code}>
+              <div><strong>{coupon.code}</strong><span>{coupon.discountPercent}% de desconto</span></div>
+              <span className={`customer-coupon-status ${coupon.status}`}>{({
+                available: 'Disponível',
+                expired: 'Expirado sem uso',
+                used: 'Usado',
+                processing: 'Em processamento',
+              })[coupon.status]}</span>
+              <small>Origem: {coupon.source === 'missões e pontos' ? 'Missões e pontos' : 'Área de cupons'}{coupon.sourceDetail ? ` · ${coupon.sourceDetail}` : ''}</small>
+              <small>{coupon.status === 'used' || coupon.status === 'processing' ? `Usado em ${formatDate(coupon.usedAt)}` : `Validade: ${formatDate(coupon.expiresAt)}`}</small>
+            </article>
+          ))}</div> : <p>Nenhum cupom associado a este cliente.</p>}
+        </section>
+        <section className="customer-detail-section"><h3>Produtos favoritos ({selected.favoriteItems?.length || 0})</h3>{selected.favoriteItems?.length ? selected.favoriteItems.map((item) => <p key={item.name}><strong>{item.name}</strong> · {item.category || 'Sem categoria'}</p>) : <p>Nenhum favorito registrado.</p>}</section><section className="customer-detail-section"><h3>Itens no carrinho ({selected.cartItems})</h3>{selected.cartProducts?.length ? selected.cartProducts.map((item) => <p key={item.name}><strong>{item.name}</strong> · quantidade: {item.quantity || 1}</p>) : <p>Nenhum item no carrinho.</p>}</section><section className="customer-detail-section"><h3>Preferencias</h3>{selected.preferences?.length ? <div className="customer-tags">{selected.preferences.map((preference) => <span key={preference}>{preference}</span>)}</div> : <p>Nenhuma preferencia registrada.</p>}</section><section className="customer-detail-section"><h3>Comportamento</h3><p>Ultima compra: <strong>{selected.lastPurchase}</strong></p><p>Ticket medio: <strong>{selected.orders ? formatCurrency(selected.spent / selected.orders) : 'Sem dados'}</strong></p></section></aside>}
       </div>
       {selected && <section className="erp-customer-table-card erp-customer-service-requests" aria-labelledby="customer-service-requests-title">
         <div className="erp-table-heading">
