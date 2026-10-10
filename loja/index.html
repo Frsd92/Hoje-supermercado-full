@@ -12,6 +12,7 @@
     <meta name="robots" content="index, follow">
     <link rel="canonical" href="https://www.hojesupermercado.com.br/">
     <meta property="og:type" content="website">
+    <meta property="og:locale" content="pt_BR">
     <meta property="og:site_name" content="Hoje Supermercado">
     <meta property="og:title" content="Hoje Supermercado | Ofertas e compras online">
     <meta property="og:description" content="Encontre ofertas, produtos frescos e tudo o que precisa no Hoje Supermercado. Consulte o catálogo, monte seu carrinho e compre com praticidade.">
@@ -19,12 +20,46 @@
     <meta property="og:image" content="https://www.hojesupermercado.com.br/imagens/tudo_o_que_vc_precisa.webp">
     <meta property="og:image:alt" content="Compre no Hoje Supermercado">
     <meta name="twitter:card" content="summary_large_image">
+    <meta name="twitter:title" content="Hoje Supermercado | Ofertas e compras online">
+    <meta name="twitter:description" content="Encontre ofertas, produtos frescos e tudo o que precisa no Hoje Supermercado. Consulte o catálogo, monte seu carrinho e compre com praticidade.">
+    <meta name="twitter:image" content="https://www.hojesupermercado.com.br/imagens/tudo_o_que_vc_precisa.webp">
+    <meta name="twitter:image:alt" content="Compre no Hoje Supermercado">
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800;900&display=swap" rel="stylesheet">
     <link rel="manifest" href="/manifest.webmanifest">
     <link rel="apple-touch-icon" sizes="180x180" href="/imagens/logo/app-icon-180.png">
     <link rel="icon" type="image/png" sizes="192x192" href="/imagens/logo/app-icon-192.png">
     <link rel="preload" as="image" href="imagens/tudo_o_que_vc_precisa.webp" type="image/webp" fetchpriority="high">
     <link rel="icon" type="image/webp" href="imagens/logo/logo-hj.webp">
     <link rel="stylesheet" href="style.css">
+    <script type="application/ld+json">
+      {
+        "@context": "https://schema.org",
+        "@graph": [
+          {
+            "@type": "Organization",
+            "@id": "https://www.hojesupermercado.com.br/#organization",
+            "name": "Hoje Supermercado",
+            "url": "https://www.hojesupermercado.com.br/",
+            "logo": {
+              "@type": "ImageObject",
+              "url": "https://www.hojesupermercado.com.br/imagens/logo/logo-hoje.webp"
+            }
+          },
+          {
+            "@type": "WebSite",
+            "@id": "https://www.hojesupermercado.com.br/#website",
+            "url": "https://www.hojesupermercado.com.br/",
+            "name": "Hoje Supermercado",
+            "inLanguage": "pt-BR",
+            "publisher": {
+              "@id": "https://www.hojesupermercado.com.br/#organization"
+            }
+          }
+        ]
+      }
+    </script>
     <script src="analytics-consent.js" defer></script>
     <script src="store-presence.js" defer></script>
     <!-- Biblioteca de ícones Lucide (carregada de um link externo, sem precisar instalar nada) -->
@@ -190,7 +225,6 @@
       <a href="categoria.html?categoria=limpeza"><i data-lucide="sparkles"></i> Limpeza</a>
       <a href="categoria.html?categoria=pet"><i data-lucide="dog"></i> Pet Shop</a>
       <a href="categoria.html?categoria=bebes"><i data-lucide="baby"></i> Bebês</a>
-      <a href="#">Mais <i data-lucide="chevron-down"></i></a>
     </nav>
     <div id="all-categories-menu" class="categories-menu" aria-labelledby="all-categories" aria-hidden="true" hidden>
       <a href="categoria.html?categoria=ofertas-relampago"><i data-lucide="zap"></i> Ofertas Relâmpago</a>
@@ -275,13 +309,13 @@
         </div>
         <h1>Tudo o que você precisa,<br><span>em um só lugar!</span></h1>
         <p>Qualidade, variedade e os melhores preços para o seu dia a dia.</p>
-        <button>Ver ofertas →</button>
+        <a class="banner-cta" href="#store-offers">Ver ofertas <span aria-hidden="true">→</span></a>
         <div class="banner-dots" role="group" aria-label="Slides do banner principal" hidden></div>
       </section>
 
       <!-- Carrossel automático de logos de marcas (lista duplicada = efeito de loop infinito) -->
       <section class="brands" id="brand-showcase" tabindex="-1">
-        <h3>Marcas em destaque</h3>
+        <h2>Marcas em destaque</h2>
         <div class="brands-carousel">
           <div class="brands-track">
             <img src="imagens/marcas_em_destaque/Coca-Cola.png" alt="Coca-Cola" data-store-layout="brand-coca-cola" loading="lazy" decoding="async">
@@ -309,31 +343,31 @@
 
       <!-- Cards grandes coloridos de marcas em destaque -->
       <section class="showcases">
-        <h3>Vitrines em destaque</h3>
+        <h2>Vitrines em destaque</h2>
         <div class="showcase-grid">
 
           <div class="showcase-card" style="background-color: #e53935;">
             <span class="showcase-brand">Coca-Cola</span>
             <p>Refresque seus momentos</p>
-            <a href="#">Ver produtos →</a>
+            <a href="categoria.html?categoria=bebidas">Ver produtos →</a>
           </div>
 
           <div class="showcase-card" style="background-color: #fdf6e3;">
             <span class="showcase-brand" style="color: #333;">Nestlé</span>
             <p style="color: #555;">Nutrição que acompanha cada fase</p>
-            <a href="#" style="color: #1a7a3c;">Ver produtos →</a>
+            <a href="categoria.html?categoria=mercearia" style="color: #1a7a3c;">Ver produtos →</a>
           </div>
 
           <div class="showcase-card" style="background-color: #1565c0;">
             <span class="showcase-brand">OMO</span>
             <p>Limpeza profunda para o seu dia a dia</p>
-            <a href="#">Ver produtos →</a>
+            <a href="categoria.html?categoria=lavanderia">Ver produtos →</a>
           </div>
 
           <div class="showcase-card" style="background-color: #1a7a3c;">
             <span class="showcase-brand">Heineken</span>
             <p>Mais sabor para melhores momentos</p>
-            <a href="#">Ver produtos →</a>
+            <a href="categoria.html?categoria=alcoolicas">Ver produtos →</a>
           </div>
 
         </div>
@@ -342,7 +376,7 @@
       <!-- Grade/carrossel de produtos em oferta, com foto, tag, favorito, preço, avaliação e ações de compra -->
       <section id="store-offers" class="offers">
         <div class="carousel-header">
-          <h3>🔥 Ofertas em destaque</h3>
+          <h2>🔥 Ofertas em destaque</h2>
           <a href="categoria.html?categoria=ofertas">Ver todas →</a>
         </div>
         <div class="carousel-wrapper">
@@ -352,7 +386,7 @@
             <div class="product-card">
               <span class="tag tag-bestseller">Mais vendido</span>
               <button class="fav-btn"><i data-lucide="heart"></i></button>
-              <img src="imagens/produtos/coca-cola-2l.jpg" alt="Coca-Cola 2L" class="product-img" loading="lazy" decoding="async">
+              <div class="product-image-placeholder" role="img" aria-label="Imagem de Coca-Cola 2L indisponível"><i data-lucide="image" aria-hidden="true"></i><span>Foto indisponível</span></div>
               <div class="product-name">Coca-Cola 2L</div>
               <div class="product-price">R$ 8,99</div>
               <div class="product-rating">⭐ 4.8 (13.345)</div>
@@ -369,7 +403,7 @@
             <div class="product-card">
               <span class="tag tag-offer">Oferta</span>
               <button class="fav-btn"><i data-lucide="heart"></i></button>
-              <img src="imagens/produtos/arroz-tio-joao-5kg.jpg" alt="Arroz Tio João 5kg" class="product-img" loading="lazy" decoding="async">
+              <div class="product-image-placeholder" role="img" aria-label="Imagem de Arroz Tio João 5kg indisponível"><i data-lucide="image" aria-hidden="true"></i><span>Foto indisponível</span></div>
               <div class="product-name">Arroz Tio João 5kg</div>
               <div class="product-price">R$ 24,90 <span class="old-price">R$ 32,90</span></div>
               <div class="product-rating">⭐ 4.7 (8.900)</div>
@@ -385,7 +419,7 @@
 
             <div class="product-card">
               <button class="fav-btn"><i data-lucide="heart"></i></button>
-              <img src="imagens/produtos/leite-italac-1l.jpg" alt="Leite Italac 1L" class="product-img" loading="lazy" decoding="async">
+              <div class="product-image-placeholder" role="img" aria-label="Imagem de Leite Italac 1L indisponível"><i data-lucide="image" aria-hidden="true"></i><span>Foto indisponível</span></div>
               <div class="product-name">Leite Italac 1L</div>
               <div class="product-price">R$ 5,49</div>
               <div class="product-rating">⭐ 4.6 (5.125)</div>
@@ -401,7 +435,7 @@
 
             <div class="product-card">
               <button class="fav-btn"><i data-lucide="heart"></i></button>
-              <img src="imagens/produtos/cafe-pilao-500g.jpg" alt="Café Pilão 500g" class="product-img" loading="lazy" decoding="async">
+              <div class="product-image-placeholder" role="img" aria-label="Imagem de Café Pilão 500g indisponível"><i data-lucide="image" aria-hidden="true"></i><span>Foto indisponível</span></div>
               <div class="product-name">Café Pilão 500g</div>
               <div class="product-price">R$ 16,90</div>
               <div class="product-rating">⭐ 4.8 (7.842)</div>
@@ -418,7 +452,7 @@
             <div class="product-card">
               <span class="tag tag-offer">Oferta</span>
               <button class="fav-btn"><i data-lucide="heart"></i></button>
-              <img src="imagens/produtos/detergente-ype-500ml.jpg" alt="Detergente Ypê 500ml" class="product-img" loading="lazy" decoding="async">
+              <div class="product-image-placeholder" role="img" aria-label="Imagem de Detergente Ypê 500ml indisponível"><i data-lucide="image" aria-hidden="true"></i><span>Foto indisponível</span></div>
               <div class="product-name">Detergente Ypê 500ml</div>
               <div class="product-price">R$ 2,49 <span class="old-price">R$ 3,49</span></div>
               <div class="product-rating">⭐ 4.5 (9.321)</div>
@@ -435,7 +469,7 @@
             <div class="product-card">
               <span class="tag tag-bestseller">Mais vendido</span>
               <button class="fav-btn"><i data-lucide="heart"></i></button>
-              <img src="imagens/produtos/racao-pedigree-15kg.jpg" alt="Ração Pedigree 15kg" class="product-img" loading="lazy" decoding="async">
+              <div class="product-image-placeholder" role="img" aria-label="Imagem de Ração Pedigree 15kg indisponível"><i data-lucide="image" aria-hidden="true"></i><span>Foto indisponível</span></div>
               <div class="product-name">Ração Pedigree 15kg</div>
               <div class="product-price">R$ 89,90</div>
               <div class="product-rating">⭐ 4.7 (6.721)</div>
@@ -464,15 +498,15 @@
       <!-- ===== HORTIFRUTI: banner + mini carrossel juntos ===== -->
       <section id="hortifruti" class="highlight-banner">
         <div class="highlight-side highlight-verde" data-store-layout="carousel-hortifruti">
-          <h3>🥬 Hortifruti</h3>
+          <h2>🥬 Hortifruti</h2>
           <p>Mais frescor para sua família.</p>
-          <a href="#">Ver todos →</a>
+          <a href="categoria.html?categoria=hortifruti">Ver todos →</a>
         </div>
         <div class="highlight-carousel">
           <button class="carousel-arrow arrow-left" onclick="moveCarousel(this, -1)">‹</button>
           <div class="highlight-products scroll-target">
             <div class="product-card">
-              <img src="imagens/produtos/banana-prata.jpg" alt="Banana Prata" class="product-img" loading="lazy" decoding="async">
+              <div class="product-image-placeholder" role="img" aria-label="Imagem de Banana Prata indisponível"><i data-lucide="image" aria-hidden="true"></i><span>Foto indisponível</span></div>
               <div class="product-name">Banana Prata kg</div>
               <div class="product-price">R$ 4,99</div>
               <div class="product-rating">⭐ 4.6</div>
@@ -486,7 +520,7 @@
               </div>
             </div>
             <div class="product-card">
-              <img src="imagens/produtos/tomate.jpg" alt="Tomate" class="product-img" loading="lazy" decoding="async">
+              <div class="product-image-placeholder" role="img" aria-label="Imagem de Tomate indisponível"><i data-lucide="image" aria-hidden="true"></i><span>Foto indisponível</span></div>
               <div class="product-name">Tomate kg</div>
               <div class="product-price">R$ 5,49</div>
               <div class="product-rating">⭐ 4.5</div>
@@ -500,7 +534,7 @@
               </div>
             </div>
             <div class="product-card">
-              <img src="imagens/produtos/alface.jpg" alt="Alface Crespa" class="product-img" loading="lazy" decoding="async">
+              <div class="product-image-placeholder" role="img" aria-label="Imagem de Alface Crespa indisponível"><i data-lucide="image" aria-hidden="true"></i><span>Foto indisponível</span></div>
               <div class="product-name">Alface Crespa un</div>
               <div class="product-price">R$ 2,99</div>
               <div class="product-rating">⭐ 4.7</div>
@@ -514,7 +548,7 @@
               </div>
             </div>
             <div class="product-card">
-              <img src="imagens/produtos/cenoura.jpg" alt="Cenoura" class="product-img" loading="lazy" decoding="async">
+              <div class="product-image-placeholder" role="img" aria-label="Imagem de Cenoura indisponível"><i data-lucide="image" aria-hidden="true"></i><span>Foto indisponível</span></div>
               <div class="product-name">Cenoura kg</div>
               <div class="product-price">R$ 3,49</div>
               <div class="product-rating">⭐ 4.6</div>
@@ -528,7 +562,7 @@
               </div>
             </div>
             <div class="product-card">
-              <img src="imagens/produtos/maca-gala.jpg" alt="Maçã Gala" class="product-img" loading="lazy" decoding="async">
+              <div class="product-image-placeholder" role="img" aria-label="Imagem de Maçã Gala indisponível"><i data-lucide="image" aria-hidden="true"></i><span>Foto indisponível</span></div>
               <div class="product-name">Maçã Gala kg</div>
               <div class="product-price">R$ 7,99</div>
               <div class="product-rating">⭐ 4.8</div>
@@ -542,7 +576,7 @@
               </div>
             </div>
             <div class="product-card">
-              <img src="imagens/produtos/batata.jpg" alt="Batata Lavada" class="product-img" loading="lazy" decoding="async">
+              <div class="product-image-placeholder" role="img" aria-label="Imagem de Batata Lavada indisponível"><i data-lucide="image" aria-hidden="true"></i><span>Foto indisponível</span></div>
               <div class="product-name">Batata Lavada kg</div>
               <div class="product-price">R$ 4,49</div>
               <div class="product-rating">⭐ 4.5</div>
@@ -565,7 +599,7 @@
         <div>
           <h2>Sabor e frescor <span>em cada escolha.</span></h2>
           <p>Tudo o que sua família precisa, todos os dias.</p>
-          <button class="promo-cta">Confira ofertas</button>
+          <a class="promo-cta" href="#store-mercearia">Confira ofertas</a>
         </div>
         <div class="promo-right">
           <h2>Mercearia</h2>
@@ -576,15 +610,15 @@
       <!-- ===== MERCEARIA: banner + mini carrossel juntos ===== -->
       <section id="store-mercearia" class="highlight-banner">
         <div class="highlight-side highlight-laranja" data-store-layout="carousel-mercearia">
-          <h3>🛒 Mercearia</h3>
+          <h2>🛒 Mercearia</h2>
           <p>Tudo o que você precisa na sua despensa.</p>
-          <a href="#">Ver todos →</a>
+          <a href="categoria.html?categoria=mercearia">Ver todos →</a>
         </div>
         <div class="highlight-carousel">
           <button class="carousel-arrow arrow-left" onclick="moveCarousel(this, -1)">‹</button>
           <div class="highlight-products scroll-target">
             <div class="product-card">
-              <img src="imagens/produtos/arroz-5kg.jpg" alt="Arroz Tio João 5kg" class="product-img" loading="lazy" decoding="async">
+              <div class="product-image-placeholder" role="img" aria-label="Imagem de Arroz Tio João 5kg indisponível"><i data-lucide="image" aria-hidden="true"></i><span>Foto indisponível</span></div>
               <div class="product-name">Arroz Tio João 5kg</div>
               <div class="product-price">R$ 24,90</div>
               <div class="product-rating">⭐ 4.7</div>
@@ -598,7 +632,7 @@
               </div>
             </div>
             <div class="product-card">
-              <img src="imagens/produtos/feijao.jpg" alt="Feijão Carioca 1kg" class="product-img" loading="lazy" decoding="async">
+              <div class="product-image-placeholder" role="img" aria-label="Imagem de Feijão Carioca 1kg indisponível"><i data-lucide="image" aria-hidden="true"></i><span>Foto indisponível</span></div>
               <div class="product-name">Feijão Carioca 1kg</div>
               <div class="product-price">R$ 7,49</div>
               <div class="product-rating">⭐ 4.6</div>
@@ -612,7 +646,7 @@
               </div>
             </div>
             <div class="product-card">
-              <img src="imagens/produtos/macarrao.jpg" alt="Macarrão Adria 500g" class="product-img" loading="lazy" decoding="async">
+              <div class="product-image-placeholder" role="img" aria-label="Imagem de Macarrão Adria 500g indisponível"><i data-lucide="image" aria-hidden="true"></i><span>Foto indisponível</span></div>
               <div class="product-name">Macarrão Adria 500g</div>
               <div class="product-price">R$ 3,99</div>
               <div class="product-rating">⭐ 4.5</div>
@@ -626,7 +660,7 @@
               </div>
             </div>
             <div class="product-card">
-              <img src="imagens/produtos/leite-1l.jpg" alt="Leite Italac 1L" class="product-img" loading="lazy" decoding="async">
+              <div class="product-image-placeholder" role="img" aria-label="Imagem de Leite Italac 1L indisponível"><i data-lucide="image" aria-hidden="true"></i><span>Foto indisponível</span></div>
               <div class="product-name">Leite Italac 1L</div>
               <div class="product-price">R$ 5,49</div>
               <div class="product-rating">⭐ 4.6</div>
@@ -640,7 +674,7 @@
               </div>
             </div>
             <div class="product-card">
-              <img src="imagens/produtos/farinha-trigo.jpg" alt="Farinha de Trigo 1kg" class="product-img" loading="lazy" decoding="async">
+              <div class="product-image-placeholder" role="img" aria-label="Imagem de Farinha de Trigo 1kg indisponível"><i data-lucide="image" aria-hidden="true"></i><span>Foto indisponível</span></div>
               <div class="product-name">Farinha de Trigo 1kg</div>
               <div class="product-price">R$ 4,99</div>
               <div class="product-rating">⭐ 4.5</div>
@@ -654,7 +688,7 @@
               </div>
             </div>
             <div class="product-card">
-              <img src="imagens/produtos/molho-tomate.jpg" alt="Molho de Tomate 340g" class="product-img" loading="lazy" decoding="async">
+              <div class="product-image-placeholder" role="img" aria-label="Imagem de Molho de Tomate 340g indisponível"><i data-lucide="image" aria-hidden="true"></i><span>Foto indisponível</span></div>
               <div class="product-name">Molho de Tomate 340g</div>
               <div class="product-price">R$ 3,49</div>
               <div class="product-rating">⭐ 4.4</div>
@@ -677,7 +711,7 @@
         <div>
           <h2>Sua casa mais <span>limpa e perfumada.</span></h2>
           <p>Produtos de limpeza com qualidade e eficiência.</p>
-          <button class="promo-cta">Ver produtos</button>
+          <a class="promo-cta" href="#store-cleaning">Ver produtos</a>
         </div>
         <div class="promo-right">
           <h2>Produtos de Limpeza</h2>
@@ -688,15 +722,15 @@
       <!-- ===== LIMPEZA: banner + mini carrossel juntos ===== -->
       <section id="store-cleaning" class="highlight-banner">
         <div class="highlight-side highlight-laranja" data-store-layout="carousel-limpeza">
-          <h3>🧽 Produtos de Limpeza</h3>
+          <h2>🧽 Produtos de Limpeza</h2>
           <p>Tudo o que você precisa na sua despensa.</p>
-          <a href="#">Ver todos →</a>
+          <a href="categoria.html?categoria=limpeza">Ver todos →</a>
         </div>
         <div class="highlight-carousel">
           <button class="carousel-arrow arrow-left" onclick="moveCarousel(this, -1)">‹</button>
           <div class="highlight-products scroll-target">
             <div class="product-card">
-              <img src="imagens/produtos/agua-sanitaria.jpg" alt="Água Sanitária 2L" class="product-img" loading="lazy" decoding="async">
+              <div class="product-image-placeholder" role="img" aria-label="Imagem de Água Sanitária 2L indisponível"><i data-lucide="image" aria-hidden="true"></i><span>Foto indisponível</span></div>
               <div class="product-name">Água Sanitária 2L</div>
               <div class="product-price">R$ 2,49</div>
               <div class="product-rating">⭐ 4.5</div>
@@ -710,7 +744,7 @@
               </div>
             </div>
             <div class="product-card">
-              <img src="imagens/produtos/desinfetante.jpg" alt="Desinfetante Ypê 2L" class="product-img" loading="lazy" decoding="async">
+              <div class="product-image-placeholder" role="img" aria-label="Imagem de Desinfetante Ypê 2L indisponível"><i data-lucide="image" aria-hidden="true"></i><span>Foto indisponível</span></div>
               <div class="product-name">Desinfetante Ypê 2L</div>
               <div class="product-price">R$ 5,99</div>
               <div class="product-rating">⭐ 4.6</div>
@@ -724,7 +758,7 @@
               </div>
             </div>
             <div class="product-card">
-              <img src="imagens/produtos/sabao-po.jpg" alt="Sabão em Pó OMO 1kg" class="product-img" loading="lazy" decoding="async">
+              <div class="product-image-placeholder" role="img" aria-label="Imagem de Sabão em Pó OMO 1kg indisponível"><i data-lucide="image" aria-hidden="true"></i><span>Foto indisponível</span></div>
               <div class="product-name">Sabão em Pó OMO 1kg</div>
               <div class="product-price">R$ 4,49</div>
               <div class="product-rating">⭐ 4.7</div>
@@ -738,7 +772,7 @@
               </div>
             </div>
             <div class="product-card">
-              <img src="imagens/produtos/sabao-liquido.jpg" alt="Sabão Líquido OMO 1kg" class="product-img" loading="lazy" decoding="async">
+              <div class="product-image-placeholder" role="img" aria-label="Imagem de Sabão Líquido OMO 1kg indisponível"><i data-lucide="image" aria-hidden="true"></i><span>Foto indisponível</span></div>
               <div class="product-name">Sabão Líquido OMO 1kg</div>
               <div class="product-price">R$ 14,39</div>
               <div class="product-rating">⭐ 4.6</div>
@@ -752,7 +786,7 @@
               </div>
             </div>
             <div class="product-card">
-              <img src="imagens/produtos/amaciante.jpg" alt="Amaciante Comfort 1L" class="product-img" loading="lazy" decoding="async">
+              <div class="product-image-placeholder" role="img" aria-label="Imagem de Amaciante Comfort 1L indisponível"><i data-lucide="image" aria-hidden="true"></i><span>Foto indisponível</span></div>
               <div class="product-name">Amaciante Comfort 1L</div>
               <div class="product-price">R$ 8,99</div>
               <div class="product-rating">⭐ 4.7</div>
@@ -766,7 +800,7 @@
               </div>
             </div>
             <div class="product-card">
-              <img src="imagens/produtos/papel-toalha.jpg" alt="Papel Toalha 340g" class="product-img" loading="lazy" decoding="async">
+              <div class="product-image-placeholder" role="img" aria-label="Imagem de Papel Toalha 340g indisponível"><i data-lucide="image" aria-hidden="true"></i><span>Foto indisponível</span></div>
               <div class="product-name">Papel Toalha 340g</div>
               <div class="product-price">R$ 6,99</div>
               <div class="product-rating">⭐ 4.5</div>
@@ -789,7 +823,7 @@
         <div>
           <h2>Roupas limpas, <span>cheirosas e perfumadas.</span></h2>
           <p>A linha completa para o seu dia a dia.</p>
-          <button class="promo-cta">Ver ofertas</button>
+          <a class="promo-cta" href="#store-laundry">Ver ofertas</a>
         </div>
         <div class="promo-right">
           <h2>Produtos de Lavar Roupa</h2>
@@ -800,14 +834,14 @@
       <!-- ===== PRODUTOS DE LAVAR ROUPA: título + carrossel simples ===== -->
       <section id="store-laundry" class="carousel-section">
         <div class="carousel-header">
-          <h3>Produtos de Lavar Roupa</h3>
-          <a href="#">Ver mais →</a>
+          <h2>Produtos de Lavar Roupa</h2>
+          <a href="categoria.html?categoria=lavanderia">Ver mais →</a>
         </div>
         <div class="carousel-wrapper">
           <button class="carousel-arrow arrow-left" onclick="moveCarousel(this, -1)">‹</button>
           <div class="carousel-track scroll-target">
             <div class="product-card">
-              <img src="imagens/produtos/sabao-po-1kg.jpg" alt="Sabão em Pó OMO 1kg" class="product-img" loading="lazy" decoding="async">
+              <div class="product-image-placeholder" role="img" aria-label="Imagem de Sabão em Pó OMO 1kg indisponível"><i data-lucide="image" aria-hidden="true"></i><span>Foto indisponível</span></div>
               <div class="product-name">Sabão em Pó OMO 1kg</div>
               <div class="product-price">R$ 14,39</div>
               <div class="product-rating">⭐ 4.7</div>
@@ -821,7 +855,7 @@
               </div>
             </div>
             <div class="product-card">
-              <img src="imagens/produtos/desinfetante-2l.jpg" alt="Desinfetante Ypê 2L" class="product-img" loading="lazy" decoding="async">
+              <div class="product-image-placeholder" role="img" aria-label="Imagem de Desinfetante Ypê 2L indisponível"><i data-lucide="image" aria-hidden="true"></i><span>Foto indisponível</span></div>
               <div class="product-name">Desinfetante Ypê 2L</div>
               <div class="product-price">R$ 5,99</div>
               <div class="product-rating">⭐ 4.6</div>
@@ -835,7 +869,7 @@
               </div>
             </div>
             <div class="product-card">
-              <img src="imagens/produtos/limpador-multiuso.jpg" alt="Limpador Multiuso Veja 500ml" class="product-img" loading="lazy" decoding="async">
+              <div class="product-image-placeholder" role="img" aria-label="Imagem de Limpador Multiuso Veja 500ml indisponível"><i data-lucide="image" aria-hidden="true"></i><span>Foto indisponível</span></div>
               <div class="product-name">Limpador Multiuso Veja 500ml</div>
               <div class="product-price">R$ 4,49</div>
               <div class="product-rating">⭐ 4.5</div>
@@ -849,7 +883,7 @@
               </div>
             </div>
             <div class="product-card">
-              <img src="imagens/produtos/sabao-po-1kg-2.jpg" alt="Sabão em Pó OMO 1kg" class="product-img" loading="lazy" decoding="async">
+              <div class="product-image-placeholder" role="img" aria-label="Imagem de Sabão em Pó OMO 1kg indisponível"><i data-lucide="image" aria-hidden="true"></i><span>Foto indisponível</span></div>
               <div class="product-name">Sabão em Pó OMO 1kg</div>
               <div class="product-price">R$ 14,39</div>
               <div class="product-rating">⭐ 4.6</div>
@@ -863,7 +897,7 @@
               </div>
             </div>
             <div class="product-card">
-              <img src="imagens/produtos/amaciante-1l.jpg" alt="Amaciante Comfort 1L" class="product-img" loading="lazy" decoding="async">
+              <div class="product-image-placeholder" role="img" aria-label="Imagem de Amaciante Comfort 1L indisponível"><i data-lucide="image" aria-hidden="true"></i><span>Foto indisponível</span></div>
               <div class="product-name">Amaciante Comfort 1L</div>
               <div class="product-price">R$ 16,90</div>
               <div class="product-rating">⭐ 4.7</div>
@@ -877,7 +911,7 @@
               </div>
             </div>
             <div class="product-card">
-              <img src="imagens/produtos/desinfetante-2l-2.jpg" alt="Desinfetante Ypê 2L" class="product-img" loading="lazy" decoding="async">
+              <div class="product-image-placeholder" role="img" aria-label="Imagem de Desinfetante Ypê 2L indisponível"><i data-lucide="image" aria-hidden="true"></i><span>Foto indisponível</span></div>
               <div class="product-name">Desinfetante Ypê 2L</div>
               <div class="product-price">R$ 5,99</div>
               <div class="product-rating">⭐ 4.5</div>
@@ -900,7 +934,7 @@
         <div>
           <h2>Momentos especiais pedem <span>um bom vinho.</span></h2>
           <p>Grandes rótulos para o seu dia a dia.</p>
-          <button class="promo-cta">Ver vinhos</button>
+          <a class="promo-cta" href="#store-wines">Ver vinhos</a>
         </div>
         <div class="promo-right">
           <h2>Vinhos</h2>
@@ -911,14 +945,14 @@
       <!-- ===== VINHOS: título + carrossel simples ===== -->
       <section id="store-wines" class="carousel-section">
         <div class="carousel-header">
-          <h3>Vinhos</h3>
-          <a href="#">Ver mais →</a>
+          <h2>Vinhos</h2>
+          <a href="categoria.html?categoria=vinhos">Ver mais →</a>
         </div>
         <div class="carousel-wrapper">
           <button class="carousel-arrow arrow-left" onclick="moveCarousel(this, -1)">‹</button>
           <div class="carousel-track scroll-target">
             <div class="product-card">
-              <img src="imagens/produtos/vinho-tinto-reservado.jpg" alt="Vinho Tinto Reservado 750ml" class="product-img" loading="lazy" decoding="async">
+              <div class="product-image-placeholder" role="img" aria-label="Imagem de Vinho Tinto Reservado 750ml indisponível"><i data-lucide="image" aria-hidden="true"></i><span>Foto indisponível</span></div>
               <div class="product-name">Vinho Tinto Reservado 750ml</div>
               <div class="product-price">R$ 39,90</div>
               <div class="product-rating">⭐ 4.7</div>
@@ -932,7 +966,7 @@
               </div>
             </div>
             <div class="product-card">
-              <img src="imagens/produtos/vinho-chileno.jpg" alt="Vinho Chileno 750ml" class="product-img" loading="lazy" decoding="async">
+              <div class="product-image-placeholder" role="img" aria-label="Imagem de Vinho Chileno 750ml indisponível"><i data-lucide="image" aria-hidden="true"></i><span>Foto indisponível</span></div>
               <div class="product-name">Vinho Chileno 750ml</div>
               <div class="product-price">R$ 34,90</div>
               <div class="product-rating">⭐ 4.6</div>
@@ -946,7 +980,7 @@
               </div>
             </div>
             <div class="product-card">
-              <img src="imagens/produtos/vinho-suave.jpg" alt="Vinho Suave 3L" class="product-img" loading="lazy" decoding="async">
+              <div class="product-image-placeholder" role="img" aria-label="Imagem de Vinho Suave 3L indisponível"><i data-lucide="image" aria-hidden="true"></i><span>Foto indisponível</span></div>
               <div class="product-name">Vinho Suave 3L</div>
               <div class="product-price">R$ 28,90</div>
               <div class="product-rating">⭐ 4.4</div>
@@ -960,7 +994,7 @@
               </div>
             </div>
             <div class="product-card">
-              <img src="imagens/produtos/vinho-hoje-750ml.jpg" alt="Vinho Hoje 750ml" class="product-img" loading="lazy" decoding="async">
+              <div class="product-image-placeholder" role="img" aria-label="Imagem de Vinho Hoje 750ml indisponível"><i data-lucide="image" aria-hidden="true"></i><span>Foto indisponível</span></div>
               <div class="product-name">Vinho Hoje 750ml</div>
               <div class="product-price">R$ 26,90</div>
               <div class="product-rating">⭐ 4.5</div>
@@ -974,7 +1008,7 @@
               </div>
             </div>
             <div class="product-card">
-              <img src="imagens/produtos/espumante.jpg" alt="Espumante 750ml" class="product-img" loading="lazy" decoding="async">
+              <div class="product-image-placeholder" role="img" aria-label="Imagem de Espumante 750ml indisponível"><i data-lucide="image" aria-hidden="true"></i><span>Foto indisponível</span></div>
               <div class="product-name">Espumante 750ml</div>
               <div class="product-price">R$ 49,90</div>
               <div class="product-rating">⭐ 4.8</div>
@@ -988,7 +1022,7 @@
               </div>
             </div>
             <div class="product-card">
-              <img src="imagens/produtos/vinho-tinto-2.jpg" alt="Vinho Tinto 750ml" class="product-img" loading="lazy" decoding="async">
+              <div class="product-image-placeholder" role="img" aria-label="Imagem de Vinho Tinto 750ml indisponível"><i data-lucide="image" aria-hidden="true"></i><span>Foto indisponível</span></div>
               <div class="product-name">Vinho Tinto 750ml</div>
               <div class="product-price">R$ 29,90</div>
               <div class="product-rating">⭐ 4.6</div>
@@ -1011,7 +1045,7 @@
         <div>
           <h2>Hora de relaxar <span>pede uma cerveja gelada.</span></h2>
           <p>As melhores marcas, sempre geladinhas.</p>
-          <button class="promo-cta">Ver cervejas</button>
+          <a class="promo-cta" href="#store-beers">Ver cervejas</a>
         </div>
         <div class="promo-right">
           <h2>Cervejas</h2>
@@ -1022,14 +1056,14 @@
       <!-- ===== CERVEJAS: título + carrossel simples ===== -->
       <section id="store-beers" class="carousel-section">
         <div class="carousel-header">
-          <h3>Cervejas</h3>
-          <a href="#">Ver mais →</a>
+          <h2>Cervejas</h2>
+          <a href="categoria.html?categoria=alcoolicas">Ver mais →</a>
         </div>
         <div class="carousel-wrapper">
           <button class="carousel-arrow arrow-left" onclick="moveCarousel(this, -1)">‹</button>
           <div class="carousel-track scroll-target">
             <div class="product-card">
-              <img src="imagens/produtos/heineken-350ml.jpg" alt="Heineken Lata 350ml" class="product-img" loading="lazy" decoding="async">
+              <div class="product-image-placeholder" role="img" aria-label="Imagem de Heineken Lata 350ml indisponível"><i data-lucide="image" aria-hidden="true"></i><span>Foto indisponível</span></div>
               <div class="product-name">Heineken Lata 350ml</div>
               <div class="product-price">R$ 4,99</div>
               <div class="product-rating">⭐ 4.8</div>
@@ -1043,7 +1077,7 @@
               </div>
             </div>
             <div class="product-card">
-              <img src="imagens/produtos/skol-350ml.jpg" alt="Skol Lata 350ml" class="product-img" loading="lazy" decoding="async">
+              <div class="product-image-placeholder" role="img" aria-label="Imagem de Skol Lata 350ml indisponível"><i data-lucide="image" aria-hidden="true"></i><span>Foto indisponível</span></div>
               <div class="product-name">Skol Lata 350ml</div>
               <div class="product-price">R$ 3,49</div>
               <div class="product-rating">⭐ 4.5</div>
@@ -1057,7 +1091,7 @@
               </div>
             </div>
             <div class="product-card">
-              <img src="imagens/produtos/brahma-350ml.jpg" alt="Brahma Duplo Malte 350ml" class="product-img" loading="lazy" decoding="async">
+              <div class="product-image-placeholder" role="img" aria-label="Imagem de Brahma Duplo Malte 350ml indisponível"><i data-lucide="image" aria-hidden="true"></i><span>Foto indisponível</span></div>
               <div class="product-name">Brahma Duplo Malte 350ml</div>
               <div class="product-price">R$ 3,79</div>
               <div class="product-rating">⭐ 4.6</div>
@@ -1071,7 +1105,7 @@
               </div>
             </div>
             <div class="product-card">
-              <img src="imagens/produtos/original-600ml.jpg" alt="Original 600ml" class="product-img" loading="lazy" decoding="async">
+              <div class="product-image-placeholder" role="img" aria-label="Imagem de Original 600ml indisponível"><i data-lucide="image" aria-hidden="true"></i><span>Foto indisponível</span></div>
               <div class="product-name">Original 600ml</div>
               <div class="product-price">R$ 8,90</div>
               <div class="product-rating">⭐ 4.7</div>
@@ -1120,7 +1154,7 @@
       <!-- ===== MAIS VENDIDOS: título + carrossel simples ===== -->
       <section class="carousel-section">
         <div class="carousel-header">
-          <h3>Mais vendidos</h3>
+          <h2>Mais vendidos</h2>
           <a href="#">Ver mais →</a>
         </div>
         <div class="carousel-wrapper">
@@ -1234,7 +1268,7 @@
         <div>
           <h2>Qualidade que você <span>sente no sabor.</span></h2>
           <p>Carnes frescas todos os dias.</p>
-          <button class="promo-cta">Confira agora</button>
+          <a class="promo-cta" href="#store-butcher">Confira agora</a>
         </div>
         <div class="promo-right">
           <h2>Açougue</h2>
@@ -1245,8 +1279,8 @@
       <!-- ===== AÇOUGUE: título + carrossel com setas (agora por último) ===== -->
       <section id="store-butcher" class="carousel-section">
         <div class="carousel-header">
-          <h3>Açougue</h3>
-          <a href="#">Ver mais →</a>
+          <h2>Açougue</h2>
+          <a href="categoria.html?categoria=carnes">Ver mais →</a>
         </div>
 
         <div class="carousel-wrapper">
@@ -1616,20 +1650,20 @@
 
       <div class="footer-columns">
         <div class="footer-column">
-          <h4>Institucional</h4>
+          <h2>Institucional</h2>
           <ul>
-            <li><a href="#">Sobre nós</a></li>
-            <li><a href="#">Fale conosco</a></li>
-            <li><a href="#">Trabalhe conosco</a></li>
+            <li><a href="/sobre-nos.html#sobre">Sobre nós</a></li>
+            <li><a href="/sobre-nos.html#ajuda">Fale conosco</a></li>
+            <li><a href="/sobre-nos.html#sobre">Sobre o Hoje</a></li>
           </ul>
         </div>
 
         <div class="footer-column">
-          <h4>Ajuda</h4>
+          <h2>Ajuda</h2>
           <ul>
-            <li><a href="#">Central de ajuda</a></li>
-            <li><a href="#">Trocas e devoluções</a></li>
-            <li><a href="#formas-de-pagamento">Formas de pagamento</a></li>
+            <li><a href="/sobre-nos.html#ajuda">Central de ajuda</a></li>
+            <li><a href="/termos-de-uso.html#trocas-devolucoes">Trocas e devoluções</a></li>
+            <li><a href="/sobre-nos.html#pagamentos">Formas de pagamento</a></li>
             <li><a href="politica-de-privacidade.html">Política de privacidade</a></li>
             <li><a href="#analytics-preferences" data-analytics-settings-link>Configurações de analytics</a></li>
             <li><a href="termos-de-uso.html">Termos de uso</a></li>
@@ -1638,7 +1672,7 @@
         </div>
 
         <div class="footer-column">
-          <h4 id="formas-de-pagamento">Formas de pagamento</h4>
+          <h2 id="formas-de-pagamento">Formas de pagamento</h2>
           <div class="payment-icons">
             <span class="payment pix">
               <i data-lucide="qr-code" aria-hidden="true"></i>
@@ -1656,24 +1690,15 @@
         </div>
 
         <div class="footer-column newsletter-column">
-          <h4>Redes sociais</h4>
-          <div class="social-icons">
-            <a href="#" aria-label="WhatsApp"><i data-lucide="message-circle"></i></a>
-            <a href="#" aria-label="Instagram"><i data-lucide="instagram"></i></a>
-            <a href="#" aria-label="Facebook"><i data-lucide="facebook"></i></a>
-            <a href="#" aria-label="LinkedIn"><i data-lucide="linkedin"></i></a>
-            <a href="#" aria-label="TikTok"><i data-lucide="music-2"></i></a>
-            <span class="social-icon-static" role="img" aria-label="Blog" title="Blog">
-              <i data-lucide="book-open-text" aria-hidden="true"></i>
-            </span>
+          <h2>Acesso rápido</h2>
+          <div class="social-icons footer-help-links">
+            <a href="/sobre-nos.html#ajuda">Central de ajuda</a>
+            <a href="/dashboard/orders">Meus pedidos</a>
           </div>
 
           <div class="newsletter">
-            <label for="newsletter-email" class="newsletter-label">Receba nossas ofertas</label>
-            <div class="newsletter-form">
-              <input id="newsletter-email" type="email" placeholder="Seu e-mail aqui" aria-label="Seu e-mail" />
-              <button id="newsletter-join" type="button" aria-label="Receber ofertas">Enviar</button>
-            </div>
+            <p class="newsletter-label">Confira os produtos e ofertas disponíveis na loja.</p>
+            <a class="footer-offers-link" href="/categoria.html?categoria=ofertas">Ver ofertas</a>
           </div>
         </div>
       </div>
@@ -1696,7 +1721,7 @@
         window.lucide.createIcons();
       }
 
-      document.querySelectorAll('img').forEach((img) => {
+      document.querySelectorAll('img:not(.product-img)').forEach((img) => {
         img.addEventListener('error', () => {
           const fallback = document.createElement('div');
           fallback.className = 'img-fallback';

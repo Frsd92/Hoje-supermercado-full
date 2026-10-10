@@ -137,7 +137,8 @@ let countdownTimer = null;
 
 async function loadCategory() {
   const category = new URLSearchParams(location.search).get('categoria') || 'hortifruti';
-  const title = categoryLabels[category] || 'Categoria';
+  const hasCategory = Object.prototype.hasOwnProperty.call(categoryLabels, category);
+  const title = hasCategory ? categoryLabels[category] : 'Categoria';
   const description = category === 'ofertas'
     ? 'Confira produtos com ofertas em destaque no Hoje Supermercado.'
     : category === 'ofertas-relampago'
@@ -149,10 +150,29 @@ async function loadCategory() {
   document.getElementById('category-title').textContent = title;
   document.getElementById('category-description').textContent = description;
   document.querySelector('meta[name="description"]')?.setAttribute('content', description);
+  document.querySelector('meta[name="robots"]')?.setAttribute('content', hasCategory ? 'index, follow' : 'noindex, follow');
   document.querySelector('link[rel="canonical"]')?.setAttribute('href', canonical.href);
   document.querySelector('meta[property="og:title"]')?.setAttribute('content', document.title);
   document.querySelector('meta[property="og:description"]')?.setAttribute('content', description);
   document.querySelector('meta[property="og:url"]')?.setAttribute('content', canonical.href);
+  document.querySelector('meta[name="twitter:title"]')?.setAttribute('content', document.title);
+  document.querySelector('meta[name="twitter:description"]')?.setAttribute('content', description);
+  const structuredData = document.getElementById('category-structured-data');
+  if (structuredData) {
+    structuredData.textContent = JSON.stringify({
+      '@context': 'https://schema.org',
+      '@type': 'CollectionPage',
+      name: document.title,
+      description,
+      url: canonical.href,
+      inLanguage: 'pt-BR',
+      isPartOf: {
+        '@type': 'WebSite',
+        name: 'Hoje Supermercado',
+        url: 'https://www.hojesupermercado.com.br/',
+      },
+    });
+  }
 
   const response = await fetch('/api/products?purpose=store');
   if (!response.ok) throw new Error('Não foi possível carregar os produtos desta categoria.');
@@ -174,12 +194,10 @@ async function loadCategory() {
     const porKg = product.saleUnit === 'Quilograma';
     const price = `R$ ${salePrice.toFixed(2).replace('.', ',')}${porKg ? ' / kg' : ''}`;
     const oldPrice = salePrice < Number(product.price) ? ` <span class="old-price">R$ ${Number(product.price).toFixed(2).replace('.', ',')}${porKg ? ' / kg' : ''}</span>` : '';
-    const imageSource = product.image || '';
     const safeName = escapeStoreHtml(name);
-    const safeImage = escapeStoreHtml(imageSource);
     const safeId = escapeStoreHtml(product.id);
     const productCategory = escapeStoreHtml(getProductCardCategoryLabel(product));
-    container.insertAdjacentHTML('beforeend', `<article class="product-card" data-id="${safeId}" data-sale-unit="${porKg ? 'Quilograma' : 'Unidade'}">${renderProductBadges(product)}<img src="${safeImage}" alt="${safeName}" class="product-img" loading="lazy" decoding="async"><div class="product-category">${productCategory}</div>${renderProductDepartmentBadge(product)}<div class="product-name">${safeName}</div><div class="product-price">${price}${oldPrice}</div><div class="product-actions"><button class="btn-comprar" onclick="adicionarProduto(this)">Adicionar</button><div class="qty-controls"><button class="btn-remove" onclick="removerProduto(this)"><i data-lucide="trash-2"></i></button><span class="qty" data-quantity="${porKg ? '0.1' : '1'}">${porKg ? '100 g' : '1'}</span><button class="btn-add" onclick="aumentarQtd(this)">+</button></div></div></article>`);
+    container.insertAdjacentHTML('beforeend', `<article class="product-card" data-id="${safeId}" data-sale-unit="${porKg ? 'Quilograma' : 'Unidade'}">${renderProductBadges(product)}${renderProductImage(product.image, name)}<div class="product-category">${productCategory}</div>${renderProductDepartmentBadge(product)}<div class="product-name">${safeName}</div><div class="product-price">${price}${oldPrice}</div><div class="product-actions"><button class="btn-comprar" onclick="adicionarProduto(this)">Adicionar</button><div class="qty-controls"><button class="btn-remove" onclick="removerProduto(this)"><i data-lucide="trash-2"></i></button><span class="qty" data-quantity="${porKg ? '0.1' : '1'}">${porKg ? '100 g' : '1'}</span><button class="btn-add" onclick="aumentarQtd(this)">+</button></div></div></article>`);
   });
 
   const emptyState = document.getElementById('category-empty');

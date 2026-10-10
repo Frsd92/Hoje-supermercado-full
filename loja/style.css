@@ -1,5 +1,3 @@
-@import url('https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800;900&display=swap');
-
 :root {
   --green-950: #0d3b22;
   --green-900: #145c32;
@@ -1440,6 +1438,18 @@ body {
   }
 }
 
+@media (min-width: 901px) and (max-width: 1180px) {
+  .topbar {
+    gap: 8px;
+    padding-inline: 14px;
+  }
+
+  .topbar-item {
+    gap: 6px;
+    padding-inline: 8px;
+  }
+}
+
 @media (max-width: 1180px) {
   .content-wrapper {
     flex-direction: column;
@@ -1447,6 +1457,7 @@ body {
   }
 
   .sidebar {
+    display: none;
     width: 100%;
   }
 
@@ -1649,11 +1660,18 @@ body {
   letter-spacing: 0.01em;
 }
 
-.banner button {
+.banner button,
+.banner-cta {
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+  min-height: 48px;
   background: linear-gradient(135deg, #f5c518 0%, #f2b60d 100%);
   border: none;
   padding: 14px 24px;
   border-radius: 12px;
+  color: #1a1a1a;
+  text-decoration: none;
   font-weight: 800;
   cursor: pointer;
   box-shadow: 0 20px 36px rgba(245, 197, 24, 0.35);
@@ -1662,9 +1680,15 @@ body {
   z-index: 1;
 }
 
-.banner button:hover {
+.banner button:hover,
+.banner-cta:hover {
   transform: translateY(-1px);
   filter: brightness(1.04);
+}
+
+.banner-cta:focus-visible {
+  outline: 3px solid #fff;
+  outline-offset: 3px;
 }
 
 /* Selinho verde escuro com o logo, dentro do banner */
@@ -1718,6 +1742,7 @@ body {
 }
 
 /* Título "Marcas em destaque" acima do carrossel */
+.brands h2,
 .brands h3 {
   font-size: 16px;
   margin-bottom: 12px;
@@ -1763,6 +1788,7 @@ body {
   }
 }
 
+.showcases h2,
 .showcases h3 {
   font-size: 16px;
   margin-bottom: 12px;
@@ -1841,6 +1867,7 @@ body {
   margin-top: auto;
 }
 
+.offers h2,
 .offers h3 {
   font-size: 16px;
   margin-bottom: 12px;
@@ -2325,6 +2352,7 @@ body {
   justify-content: space-between;
 }
 
+.footer-column h2,
 .footer-column h4 {
   margin: 0 0 10px 0;
   font-size: 14px;
@@ -2435,6 +2463,40 @@ body {
   text-decoration: none;
 }
 
+.footer-help-links {
+  align-items: stretch;
+  flex-direction: column;
+  gap: 8px;
+}
+
+.footer-help-links a {
+  width: auto;
+  height: auto;
+  min-height: 34px;
+  justify-content: flex-start;
+  padding: 7px 10px;
+  border-radius: 9px;
+  font-size: 12px;
+}
+
+.footer-offers-link {
+  display: inline-flex;
+  min-height: 36px;
+  align-items: center;
+  padding: 7px 11px;
+  border: 1px solid rgba(255,255,255,.24);
+  border-radius: 9px;
+  color: #fff;
+  font-size: 12px;
+  font-weight: 700;
+  text-decoration: none;
+}
+
+.footer-offers-link:hover,
+.footer-offers-link:focus-visible {
+  background: rgba(255,255,255,.1);
+}
+
 .social-icons a:hover,
 .social-icons a:focus-visible {
   color: #f5c518;
@@ -2472,7 +2534,7 @@ body {
 /* Banner de destaque de vendedor/marca parceira, tipo "Produtos Hoje" */
 .vendor-banner {
   background-color: #1a3d6d;
-  background-image: url('imagens/vendor-banner/produtos-hoje.jpg');
+  background-image: url('imagens/banner/vitrini.jpg');
   background-size: contain;
   background-position: center;
   background-repeat: no-repeat;
@@ -2492,6 +2554,7 @@ body {
   margin-bottom: 12px;
 }
 
+.carousel-header h2,
 .carousel-header h3 {
   font-size: 16px;
 }
@@ -2593,6 +2656,31 @@ body {
   border: 1px solid rgba(148, 163, 184, 0.12);
 }
 
+.product-image-placeholder {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: 6px;
+  width: 100%;
+  height: 100px;
+  margin-bottom: 8px;
+  border: 1px dashed rgba(26, 122, 60, 0.24);
+  border-radius: 12px;
+  background: linear-gradient(180deg, #f8faf8 0%, #eef5f1 100%);
+  color: #64736a;
+  font-size: 11px;
+  font-weight: 700;
+  text-align: center;
+}
+
+.product-image-placeholder [data-lucide] {
+  width: 24px;
+  height: 24px;
+  color: #1a7a3c;
+  opacity: 0.72;
+}
+
 .product-actions {
   margin-top: auto;
 }
@@ -2679,6 +2767,7 @@ body {
   gap: 8px;
 }
 
+.highlight-side h2,
 .highlight-side h3 {
   font-size: 18px;
 }
@@ -2768,15 +2857,29 @@ body {
 }
 
 .promo-banner .promo-cta {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  min-height: 42px;
   background-color: #f5c518;
   color: #1a1a1a;
   border: none;
-  padding: 8px 16px;
-  border-radius: 4px;
-  font-size: 12px;
+  padding: 10px 16px;
+  border-radius: 10px;
+  font-size: 13px;
   font-weight: bold;
   margin-top: 10px;
   cursor: pointer;
+  text-decoration: none;
+}
+
+.promo-banner .promo-cta:hover {
+  filter: brightness(1.06);
+}
+
+.promo-banner .promo-cta:focus-visible {
+  outline: 3px solid #fff;
+  outline-offset: 3px;
 }
 
 .promo-banner .promo-right {
@@ -2784,35 +2887,29 @@ body {
   max-width: 220px;
 }
 
-/* Cores/fotos de fundo de cada banner (com cor sólida de reserva, caso a foto ainda não exista) */
+/* Cores de fundo dos banners promocionais */
 .promo-fresco {
   background-color: #0f5132;
-  background-image: url('imagens/banners/fresco.jpg');
 }
 
 .promo-acougue {
   background-color: #1a1a1a;
-  background-image: url('imagens/banners/acougue.jpg');
 }
 
 .promo-limpeza {
   background-color: #0d3d75;
-  background-image: url('imagens/banners/limpeza.jpg');
 }
 
 .promo-roupas {
   background-color: #0d2f5c;
-  background-image: url('imagens/banners/roupas.jpg');
 }
 
 .promo-vinho1 {
   background-color: #5c1a2e;
-  background-image: url('imagens/banners/vinho1.jpg');
 }
 
 .promo-vinho2 {
   background-color: #5c1a2e;
-  background-image: url('imagens/banners/vinho2.jpg');
 }
 
 .cart-icon-wrap {
@@ -3073,6 +3170,7 @@ body {
 
 .search-results .product-card,
 .search-results .product-img,
+.search-results .product-image-placeholder,
 .search-results .product-name,
 .search-results .product-actions,
 .search-results .tag,
@@ -4213,11 +4311,10 @@ body {
   }
 }
 
-@media (max-width: 720px) {
+@media (max-width: 1180px) {
   .store-section-shortcuts {
-    position: sticky;
-    top: 0;
-    z-index: 990;
+    position: static;
+    z-index: auto;
     display: flex;
     gap: 8px;
     max-width: 100%;
@@ -4256,17 +4353,60 @@ body {
 
   .main-content [id^="store-"],
   .main-content #hortifruti {
-    scroll-margin-top: 68px;
+    scroll-margin-top: 300px;
   }
+}
 
+@media (max-width: 720px) {
   .carousel-load-more {
     flex-basis: 145px;
     min-height: 230px;
   }
 }
 
+@media (min-width: 1181px) {
+  .main-content [id^="store-"],
+  .main-content #hortifruti {
+    scroll-margin-top: 210px;
+  }
+}
+
 @media (max-width: 340px) {
   .topbar.home-topbar .install-app-short-label {
     display: none;
+  }
+
+  .main-header {
+    grid-template-columns: minmax(0, 0.72fr) minmax(0, 1fr);
+    column-gap: 8px;
+    padding-inline: 10px;
+  }
+
+  .logo img {
+    height: 30px;
+  }
+
+  .main-header .location {
+    gap: 6px;
+    padding: 5px 6px;
+  }
+
+  .main-header .location-icon {
+    width: 28px;
+    height: 28px;
+    flex-basis: 28px;
+  }
+
+  .main-header .location-heading {
+    gap: 4px;
+    min-width: 0;
+  }
+
+  .main-header .location-label {
+    min-width: 0;
+  }
+
+  .main-header .location select {
+    font-size: 0.66rem;
   }
 }

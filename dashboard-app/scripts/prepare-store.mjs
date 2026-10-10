@@ -9,6 +9,8 @@ const publicDirectory = path.join(appDirectory, 'public');
 await mkdir(publicDirectory, { recursive: true });
 await Promise.all([
   cp(path.join(storeDirectory, 'index.html'), path.join(publicDirectory, 'index.html')),
+  cp(path.join(storeDirectory, 'sobre-nos.html'), path.join(publicDirectory, 'sobre-nos.html')),
+  cp(path.join(storeDirectory, 'sobre-nos.css'), path.join(publicDirectory, 'sobre-nos.css')),
   cp(path.join(storeDirectory, 'categoria.html'), path.join(publicDirectory, 'categoria.html')),
   cp(path.join(storeDirectory, 'category.js'), path.join(publicDirectory, 'category.js')),
   cp(path.join(storeDirectory, 'analytics-consent.js'), path.join(publicDirectory, 'analytics-consent.js')),
