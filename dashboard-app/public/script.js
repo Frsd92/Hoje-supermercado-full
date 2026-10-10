@@ -28,13 +28,7 @@ function configurarSlidesBannerPrincipal(slides) {
   let activeIndex = 0;
   let timer;
   const prefersReducedMotion = window.matchMedia('(prefers-reduced-motion: reduce)').matches;
-  const updateBackdropRegion = () => {
-    const bannerBottom = banner.getBoundingClientRect().bottom + window.scrollY;
-    document.body.style.setProperty('--main-hero-region-height', `${Math.max(0, bannerBottom - 10)}px`);
-  };
-  const backdropObserver = new ResizeObserver(updateBackdropRegion);
-  backdropObserver.observe(banner);
-  window.addEventListener('resize', updateBackdropRegion, { passive: true });
+  const gradient = 'linear-gradient(90deg, rgba(7, 23, 15, 0.86), rgba(9, 34, 22, 0.58), rgba(10, 26, 18, 0.22))';
   const buttons = slideList.map((slide, index) => {
     const button = document.createElement('button');
     button.type = 'button';
@@ -55,11 +49,11 @@ function configurarSlidesBannerPrincipal(slides) {
     const settings = slide.settings || {};
     const imageUrl = new URL(slide.imageUrl, window.location.origin).href;
     const hasOverlay = Boolean(settings.showLogo || settings.showText || settings.showButton);
-    document.body.classList.add('has-main-hero');
-    document.body.style.setProperty('--main-hero-image', `url("${imageUrl}")`);
-    banner.style.backgroundImage = 'none';
+    banner.style.backgroundImage = `${hasOverlay ? gradient : 'none'}, url("${imageUrl}")`;
+    banner.style.backgroundSize = 'cover';
+    banner.style.backgroundPosition = 'center';
+    banner.style.backgroundRepeat = 'no-repeat';
     banner.classList.toggle('banner--image-only', !hasOverlay);
-    updateBackdropRegion();
     if (logo) logo.hidden = settings.showLogo !== true;
     if (title) {
       title.textContent = settings.title || '';
