@@ -1,7 +1,8 @@
 'use client';
 
 import { useCallback, useEffect, useState } from 'react';
-import { ImagePlus, LayoutTemplate, LoaderCircle, Save, Trash2 } from 'lucide-react';
+import { ImagePlus, LayoutTemplate, LoaderCircle, Plus, Save, Trash2 } from 'lucide-react';
+import { getMainHeroSlideOrder, getStoreLayoutSlot } from '@/features/erp/api/store-layout';
 import { loadImage, MAX_IMAGE_UPLOAD_BYTES, prepareImageData, readImageFile } from '@/lib/image-upload.js';
 
 function formatUpdatedAt(value) {
@@ -94,7 +95,28 @@ export default function StoreLayoutPage() {
   };
 
   const removeImage = async (slot) => {
-    if (!slot.imageUrl || !window.confirm(`Remover a imagem personalizada de “${slot.label}” e voltar à imagem original?`)) return;
+    const isAdditionalHeroSlide = slot.key.startsWith('main-hero-slide-');
+    if (isAdditionalHeroSlide && !slot.imageUrl) {
+      if (!window.confirm(`Descartar “${slot.label}” sem salvar?`)) return;
+      setSlots((current) => current.filter((item) => item.key !== slot.key));
+      setDrafts((current) => {
+        const next = { ...current };
+        delete next[slot.key];
+        return next;
+      });
+      setActualSizes((current) => {
+        const next = { ...current };
+        delete next[slot.key];
+        return next;
+      });
+      setFeedback(`“${slot.label}” foi descartado.`);
+      return;
+    }
+    if (!slot.imageUrl) return;
+    const confirmationMessage = isAdditionalHeroSlide
+      ? `Remover “${slot.label}” do carrossel da Loja?`
+      : `Remover a imagem personalizada de “${slot.label}” e voltar à imagem original?`;
+    if (!window.confirm(confirmationMessage)) return;
 
     setSavingKey(slot.key);
     setError('');
@@ -109,12 +131,32 @@ export default function StoreLayoutPage() {
         delete next[slot.key];
         return next;
       });
-      setFeedback(`Imagem personalizada de “${slot.label}” removida. A Loja voltou à imagem original.`);
+      setFeedback(isAdditionalHeroSlide
+        ? `“${slot.label}” removido do carrossel da Loja.`
+        : `Imagem personalizada de “${slot.label}” removida. A Loja voltou à imagem original.`);
     } catch (removeError) {
       setError(removeError.message || 'Não foi possível remover esta imagem.');
     } finally {
       setSavingKey('');
     }
+  };
+
+  const addHeroSlide = () => {
+    const usedPositions = new Set(
+      slots.filter((slot) => slot.group === 'main').map((slot) => getMainHeroSlideOrder(slot.key)),
+    );
+    let position = 2;
+    while (usedPositions.has(position) && position <= 9999) position += 1;
+    const newSlide = getStoreLayoutSlot(`main-hero-slide-${String(position).padStart(2, '0')}`);
+    if (!newSlide) {
+      setError('Não é possível adicionar mais banners principais.');
+      return;
+    }
+    setError('');
+    setFeedback('Escolha uma imagem e salve para adicionar o novo slide à Loja.');
+    setSlots((current) => [...current, newSlide].sort((first, second) => (
+      getMainHeroSlideOrder(first.key) - getMainHeroSlideOrder(second.key)
+    )));
   };
 
   const bannerSlots = slots.filter((slot) => slot.group !== 'brands');
@@ -124,7 +166,7 @@ export default function StoreLayoutPage() {
       key: 'main',
       label: 'Banner principal',
       title: 'Banner principal',
-      description: 'Imagem de destaque no topo da página inicial.',
+      description: 'Adicione imagens para criar uma sequência de slides que será exibida automaticamente no topo da página inicial.',
       slots: bannerSlots.filter((slot) => slot.group === 'main'),
     },
     {
@@ -156,14 +198,14 @@ export default function StoreLayoutPage() {
   const activeSlots = activeCategory.slots;
   const customizedActiveCount = activeSlots.filter((slot) => slot.imageUrl).length;
   const pendingActiveCount = activeSlots.filter((slot) => drafts[slot.key]).length;
-  const renderSlots = (items) => items.map((slot) => {
+  const renderSlots = (items) => items.map((slot, index) => {
     const draft = drafts[slot.key];
     const preview = draft?.imageData || slot.imageUrl || slot.fallbackImage;
     const saving = savingKey === slot.key;
     const isBrandLogo = slot.group === 'brands';
     const imageLabel = isBrandLogo ? 'logo' : 'arte';
     return <article className="store-layout-card" key={slot.key}>
-      <div className="store-layout-card-heading"><div><span className="store-layout-location">{slot.placement}</span><h2>{slot.label}</h2></div><span className={`store-layout-status ${slot.imageUrl || draft ? 'customized' : ''}`}>{draft ? 'Alteração pendente' : slot.imageUrl ? `${isBrandLogo ? 'Logo' : 'Arte'} personalizada` : `${isBrandLogo ? 'Logo' : 'Arte'} padrão`}</span></div>
+      <div className="store-layout-card-heading"><div><span className="store-layout-location">{slot.placement}{slot.group === 'main' ? ` · Slide ${index + 1}` : ''}</span><h2>{slot.label}</h2></div><span className={`store-layout-status ${slot.imageUrl || draft ? 'customized' : ''}`}>{draft ? 'Alteração pendente' : slot.imageUrl ? `${isBrandLogo ? 'Logo' : 'Arte'} personalizada` : `${isBrandLogo ? 'Logo' : 'Arte'} padrão`}</span></div>
       <div className={`store-layout-preview ${isBrandLogo ? 'store-layout-brand-preview' : ''}`}>
         {preview
           ? <img src={preview} alt={`Prévia: ${slot.label}`} onLoad={(event) => {
@@ -175,12 +217,12 @@ export default function StoreLayoutPage() {
       <div className="store-layout-dimensions"><span>{isBrandLogo ? 'Logo recomendada' : 'Arte recomendada'}</span><strong>{slot.recommendedWidth} × {slot.recommendedHeight} px</strong><small>{actualSizes[slot.key] ? `Imagem atual: ${actualSizes[slot.key]}` : isBrandLogo ? 'Preserve a proporção e prefira fundo transparente' : 'Proporção sugerida para melhor encaixe'}</small></div>
       {slot.updatedAt && <p className="store-layout-updated">Atualizada em {formatUpdatedAt(slot.updatedAt)} por {slot.updatedBy || 'usuário ERP'}</p>}
       <div className="store-layout-actions">
-        <label className="store-layout-upload"><ImagePlus size={15} /> {isBrandLogo ? 'Escolher logo' : 'Escolher arte'}<input type="file" accept="image/png,image/jpeg,image/webp" disabled={saving} onChange={(event) => {
+        <label className="store-layout-upload"><ImagePlus size={15} /> {isBrandLogo ? 'Escolher logo' : slot.group === 'main' ? 'Escolher banner' : 'Escolher arte'}<input type="file" accept="image/png,image/jpeg,image/webp" disabled={saving} onChange={(event) => {
           selectImage(slot, event.target.files?.[0]);
           event.target.value = '';
         }} /></label>
         <button type="button" className="primary-cta" disabled={!draft || saving} onClick={() => saveImage(slot)}>{saving ? <LoaderCircle size={15} className="store-layout-spinner" /> : <Save size={15} />}{saving ? 'Salvando...' : isBrandLogo ? 'Salvar logo' : 'Salvar na Loja'}</button>
-        {slot.imageUrl && <button type="button" className="store-layout-remove" disabled={saving} onClick={() => removeImage(slot)}><Trash2 size={15} />Remover {imageLabel}</button>}
+        {(slot.imageUrl || slot.key.startsWith('main-hero-slide-')) && <button type="button" className="store-layout-remove" disabled={saving} onClick={() => removeImage(slot)}><Trash2 size={15} />{slot.key.startsWith('main-hero-slide-') && !slot.imageUrl ? 'Descartar slide' : slot.key.startsWith('main-hero-slide-') ? 'Remover slide' : `Remover ${imageLabel}`}</button>}
       </div>
     </article>;
   });
@@ -221,6 +263,7 @@ export default function StoreLayoutPage() {
           <h2>{activeCategory.title}</h2>
           <p>{activeCategory.description}</p>
         </header>
+        {activeCategory.key === 'main' && <button type="button" className="store-layout-add-slide" onClick={addHeroSlide}><Plus size={16} /> Adicionar banner ao carrossel</button>}
         <div className={`store-layout-grid ${activeCategory.key === 'brands' ? 'store-layout-grid--brands' : ''} ${activeSlots.length === 1 ? 'store-layout-grid--single' : ''}`} aria-label={activeCategory.title}>{renderSlots(activeSlots)}</div>
       </section>
     </>}

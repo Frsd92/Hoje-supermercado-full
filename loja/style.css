@@ -1692,10 +1692,23 @@ body {
 }
 
 .dot {
+  display: inline-block;
   width: 8px;
   height: 8px;
+  padding: 0;
+  border: 0;
   border-radius: 50%;
   background-color: rgba(255, 255, 255, 0.5);
+  cursor: pointer;
+}
+
+.banner-dots[hidden] {
+  display: none;
+}
+
+.banner-dots button:focus-visible {
+  outline: 3px solid #fff;
+  outline-offset: 4px;
 }
 
 .dot.active {

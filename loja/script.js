@@ -8,6 +8,75 @@ function moveCarousel(botao, direcao) {
   });
 }
 
+function configurarSlidesBannerPrincipal(slides) {
+  const banner = document.querySelector('.banner[data-store-layout="main-hero"]');
+  const dots = banner?.querySelector('.banner-dots');
+  if (!banner || !dots) return;
+
+  const gradient = 'linear-gradient(90deg, rgba(7, 23, 15, 0.86), rgba(9, 34, 22, 0.58), rgba(10, 26, 18, 0.22))';
+  const slideList = Array.isArray(slides) ? slides.filter((slide) => slide?.imageUrl) : [];
+  dots.replaceChildren();
+
+  if (!slideList.length) {
+    dots.hidden = true;
+    return;
+  }
+
+  let activeIndex = 0;
+  let timer;
+  const prefersReducedMotion = window.matchMedia('(prefers-reduced-motion: reduce)').matches;
+  const buttons = slideList.map((slide, index) => {
+    const button = document.createElement('button');
+    button.type = 'button';
+    button.className = 'dot';
+    button.setAttribute('aria-label', `Mostrar banner ${index + 1} de ${slideList.length}`);
+    button.setAttribute('aria-pressed', 'false');
+    button.addEventListener('click', () => {
+      showSlide(index);
+      restartTimer();
+    });
+    dots.append(button);
+    return button;
+  });
+
+  const showSlide = (index) => {
+    activeIndex = index;
+    const imageUrl = new URL(slideList[index].imageUrl, window.location.origin).href;
+    banner.style.backgroundImage = `${gradient}, url("${imageUrl}")`;
+    buttons.forEach((button, buttonIndex) => {
+      const active = buttonIndex === activeIndex;
+      button.classList.toggle('active', active);
+      button.setAttribute('aria-pressed', String(active));
+    });
+  };
+
+  const stopTimer = () => {
+    window.clearInterval(timer);
+    timer = undefined;
+  };
+  const startTimer = () => {
+    stopTimer();
+    if (slideList.length < 2 || prefersReducedMotion) return;
+    timer = window.setInterval(() => showSlide((activeIndex + 1) % slideList.length), 6000);
+  };
+  const restartTimer = () => {
+    stopTimer();
+    if (!banner.matches(':hover') && !banner.contains(document.activeElement)) startTimer();
+  };
+
+  showSlide(0);
+  dots.hidden = slideList.length < 2;
+  if (slideList.length < 2) return;
+
+  banner.addEventListener('mouseenter', stopTimer);
+  banner.addEventListener('mouseleave', startTimer);
+  banner.addEventListener('focusin', stopTimer);
+  banner.addEventListener('focusout', (event) => {
+    if (!banner.contains(event.relatedTarget)) startTimer();
+  });
+  startTimer();
+}
+
 const FAVORITES_API = '/api/favorites';
 const CART_API = '/api/cart';
 const SESSION_API = '/api/store-session';
@@ -2085,7 +2154,12 @@ async function carregarLayoutGerenciado() {
     const data = await response.json();
     if (!response.ok) throw new Error(data.error || 'Não foi possível carregar as imagens personalizadas.');
 
-    (data.banners || []).forEach(({ key, imageUrl }) => {
+    const mainHeroSlides = (data.banners || []).filter(({ key }) => (
+      key === 'main-hero' || /^main-hero-slide-\d{2,4}$/.test(key)
+    ));
+    configurarSlidesBannerPrincipal(mainHeroSlides);
+
+    (data.banners || []).filter(({ key }) => key !== 'main-hero' && !key.startsWith('main-hero-slide-')).forEach(({ key, imageUrl }) => {
       const elements = document.querySelectorAll(`[data-store-layout="${key}"]`);
       if (!elements.length || !imageUrl) return;
       const image = `url("${imageUrl}")`;

@@ -184,7 +184,31 @@ export const STORE_LAYOUT_SLOTS = [
 ];
 
 export function getStoreLayoutSlot(key) {
-  return STORE_LAYOUT_SLOTS.find((slot) => slot.key === key) || null;
+  const slot = STORE_LAYOUT_SLOTS.find((item) => item.key === key);
+  if (slot) return slot;
+
+  const match = /^main-hero-slide-(\d{2,4})$/.exec(String(key));
+  if (!match) return null;
+  const position = Number(match[1]);
+  if (position < 2 || position > 9999) return null;
+
+  const mainHero = STORE_LAYOUT_SLOTS[0];
+  return {
+    ...mainHero,
+    key,
+    label: `Banner principal ${position}`,
+    fallbackImage: '',
+  };
+}
+
+export function isMainHeroSlideKey(key) {
+  return key === 'main-hero' || /^main-hero-slide-(\d{2,4})$/.test(String(key));
+}
+
+export function getMainHeroSlideOrder(key) {
+  if (key === 'main-hero') return 1;
+  const match = /^main-hero-slide-(\d{2,4})$/.exec(String(key));
+  return match ? Number(match[1]) : Number.MAX_SAFE_INTEGER;
 }
 
 export function validateStoreLayoutImage(imageData) {

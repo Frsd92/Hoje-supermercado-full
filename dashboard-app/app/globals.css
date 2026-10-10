@@ -7880,6 +7880,9 @@ button.metric-mini:focus-visible {
 .store-layout-view-summary strong { color: #1e293b; font-size: .8rem; }
 .store-layout-pending-count { color: #a16207; font-weight: 700; }
 .store-layout-section { display: grid; gap: 12px; }
+.store-layout-add-slide { display: inline-flex; width: fit-content; min-height: 38px; align-items: center; justify-content: center; gap: 7px; padding: 8px 12px; border: 1px solid #bbf7d0; border-radius: 9px; background: #f0fdf4; color: #166534; cursor: pointer; font-size: .76rem; font-weight: 750; }
+.store-layout-add-slide:hover { background: #dcfce7; }
+.store-layout-add-slide:focus-visible { outline: 3px solid #15803d; outline-offset: 3px; }
 .store-layout-groups { display: grid; gap: 24px; }
 .store-layout-section-heading h2 { margin: 0; color: #1e293b; font-size: 1rem; }
 .store-layout-section-heading p { margin: 4px 0 0; color: #64748b; font-size: .76rem; line-height: 1.5; }

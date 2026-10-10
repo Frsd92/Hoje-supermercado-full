@@ -1,6 +1,12 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
-import { getStoreLayoutSlot, STORE_LAYOUT_SLOTS, validateStoreLayoutImage } from './store-layout.js';
+import {
+  getMainHeroSlideOrder,
+  getStoreLayoutSlot,
+  isMainHeroSlideKey,
+  STORE_LAYOUT_SLOTS,
+  validateStoreLayoutImage,
+} from './store-layout.js';
 
 test('defines uniquely identified store banners and brand logos with recommended dimensions', () => {
   assert.equal(STORE_LAYOUT_SLOTS.length, 20);
@@ -14,6 +20,17 @@ test('defines uniquely identified store banners and brand logos with recommended
   assert.equal(STORE_LAYOUT_SLOTS.filter((slot) => slot.group === 'wide-banners').length, 7);
   assert.equal(getStoreLayoutSlot('main-hero')?.recommendedWidth, 1600);
   assert.equal(getStoreLayoutSlot('main-hero')?.fallbackImage, '/imagens/tudo_o_que_vc_precisa.webp');
+  assert.equal(getStoreLayoutSlot('main-hero-slide-02')?.label, 'Banner principal 2');
+  assert.equal(getStoreLayoutSlot('main-hero-slide-02')?.fallbackImage, '');
+  assert.equal(getStoreLayoutSlot('main-hero-slide-9999')?.group, 'main');
+  assert.equal(getStoreLayoutSlot('main-hero-slide-1'), null);
+  assert.equal(getStoreLayoutSlot('main-hero-slide-10000'), null);
+  assert.equal(getStoreLayoutSlot('main-hero-slide-xx'), null);
+  assert.equal(isMainHeroSlideKey('main-hero'), true);
+  assert.equal(isMainHeroSlideKey('main-hero-slide-02'), true);
+  assert.equal(isMainHeroSlideKey('main-hero-slide-xx'), false);
+  assert.equal(getMainHeroSlideOrder('main-hero'), 1);
+  assert.equal(getMainHeroSlideOrder('main-hero-slide-12'), 12);
   assert.equal(getStoreLayoutSlot('carousel-hortifruti')?.recommendedHeight, 700);
   assert.equal(getStoreLayoutSlot('carousel-mercearia')?.recommendedWidth, 520);
   assert.equal(getStoreLayoutSlot('carousel-limpeza')?.recommendedHeight, 700);

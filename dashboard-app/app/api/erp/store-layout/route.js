@@ -1,7 +1,13 @@
 import { getServerSession } from 'next-auth';
 import { authOptions } from '@/auth';
 import { erpActorLabel, hasErpAccess } from '@/features/erp/access';
-import { getStoreLayoutSlot, STORE_LAYOUT_SLOTS, validateStoreLayoutImage } from '@/features/erp/api/store-layout';
+import {
+  getMainHeroSlideOrder,
+  getStoreLayoutSlot,
+  isMainHeroSlideKey,
+  STORE_LAYOUT_SLOTS,
+  validateStoreLayoutImage,
+} from '@/features/erp/api/store-layout';
 import { prisma } from '@/lib/prisma';
 
 export async function GET() {
@@ -11,8 +17,12 @@ export async function GET() {
   try {
     const savedAssets = await prisma.storeLayoutAsset.findMany();
     const assetsByKey = new Map(savedAssets.map((asset) => [asset.key, asset]));
+    const addedHeroSlots = savedAssets
+      .filter((asset) => isMainHeroSlideKey(asset.key) && asset.key !== 'main-hero')
+      .sort((first, second) => getMainHeroSlideOrder(first.key) - getMainHeroSlideOrder(second.key))
+      .map((asset) => getStoreLayoutSlot(asset.key));
     return Response.json({
-      slots: STORE_LAYOUT_SLOTS.map((slot) => {
+      slots: [...STORE_LAYOUT_SLOTS, ...addedHeroSlots].map((slot) => {
         const asset = assetsByKey.get(slot.key);
         return {
           ...slot,
