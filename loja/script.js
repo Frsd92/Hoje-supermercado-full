@@ -1861,32 +1861,6 @@ function escapeStoreHtml(value) {
   return String(value ?? '').replace(/[&<>"']/g, (character) => entities[character]);
 }
 
-function renderProductImage(image, title) {
-  const source = String(image ?? '').trim();
-  if (!source) {
-    const accessibleTitle = escapeStoreHtml(title);
-    return `<div class="product-image-placeholder" role="img" aria-label="Imagem de ${accessibleTitle} indisponível"><i data-lucide="image" aria-hidden="true"></i><span>Foto indisponível</span></div>`;
-  }
-
-  return `<img src="${escapeStoreHtml(source)}" alt="${escapeStoreHtml(title)}" class="product-img" loading="lazy" decoding="async">`;
-}
-
-function createProductImageFallback(title) {
-  const fallback = document.createElement('div');
-  fallback.className = 'product-image-placeholder';
-  fallback.setAttribute('role', 'img');
-  fallback.setAttribute('aria-label', `Imagem de ${title || 'produto'} indisponível`);
-  fallback.innerHTML = '<i data-lucide="image" aria-hidden="true"></i><span>Foto indisponível</span>';
-  return fallback;
-}
-
-document.addEventListener('error', (event) => {
-  const image = event.target;
-  if (!(image instanceof HTMLImageElement) || !image.classList.contains('product-img')) return;
-  image.replaceWith(createProductImageFallback(image.alt));
-  if (window.lucide) window.lucide.createIcons();
-}, true);
-
 function getProductCardCategoryLabel(product) {
   const subcategory = String(product.subcategory || '').trim();
   const productType = String(product.productType || '').trim();
@@ -1969,8 +1943,9 @@ function criarCardDoCatalogo(product) {
   const oldPrice = salePrice < Number(product.price) ? ` <span class="old-price">R$ ${Number(product.price).toFixed(2).replace('.', ',')}</span>` : '';
   const category = escapeStoreHtml(getProductCardCategoryLabel(product));
   const title = escapeStoreHtml(product.title);
+  const image = escapeStoreHtml(product.image || '');
   const productId = escapeStoreHtml(product.id);
-  return `<article class="product-card" data-id="${productId}" data-sale-unit="${porKg ? 'Quilograma' : 'Unidade'}">${renderProductBadges(product)}${renderProductImage(product.image, product.title)}<div class="product-category">${category}</div>${renderProductDepartmentBadge(product)}<div class="product-name">${title}</div><div class="product-price"><span class="product-price-current">${price}</span><span class="product-price-unit">${porKg ? 'por kg' : 'por unidade'}</span>${oldPrice}</div><div class="product-actions"><button class="btn-comprar" onclick="adicionarProduto(this)">Adicionar</button><div class="qty-controls"><button class="btn-remove" onclick="removerProduto(this)"><i data-lucide="trash-2"></i></button><span class="qty" data-quantity="${porKg ? '0.1' : '1'}">${porKg ? '100 g' : '1'}</span><button class="btn-add" onclick="aumentarQtd(this)">+</button></div></div></article>`;
+  return `<article class="product-card" data-id="${productId}" data-sale-unit="${porKg ? 'Quilograma' : 'Unidade'}">${renderProductBadges(product)}<img src="${image}" alt="${title}" class="product-img" loading="lazy" decoding="async"><div class="product-category">${category}</div>${renderProductDepartmentBadge(product)}<div class="product-name">${title}</div><div class="product-price"><span class="product-price-current">${price}</span><span class="product-price-unit">${porKg ? 'por kg' : 'por unidade'}</span>${oldPrice}</div><div class="product-actions"><button class="btn-comprar" onclick="adicionarProduto(this)">Adicionar</button><div class="qty-controls"><button class="btn-remove" onclick="removerProduto(this)"><i data-lucide="trash-2"></i></button><span class="qty" data-quantity="${porKg ? '0.1' : '1'}">${porKg ? '100 g' : '1'}</span><button class="btn-add" onclick="aumentarQtd(this)">+</button></div></div></article>`;
 }
 
 const PRODUTOS_POR_LOTE = 8;
