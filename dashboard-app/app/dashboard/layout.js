@@ -246,6 +246,30 @@ export default function DashboardLayout({ children }) {
   }, [mobileNavOpen]);
 
   useEffect(() => {
+    if (!mobileNavOpen || !window.matchMedia('(max-width: 640px)').matches) return undefined;
+
+    const scrollY = window.scrollY;
+    const bodyStyle = {
+      position: document.body.style.position,
+      top: document.body.style.top,
+      width: document.body.style.width,
+      overflow: document.body.style.overflow,
+    };
+    document.body.style.position = 'fixed';
+    document.body.style.top = `-${scrollY}px`;
+    document.body.style.width = '100%';
+    document.body.style.overflow = 'hidden';
+
+    return () => {
+      document.body.style.position = bodyStyle.position;
+      document.body.style.top = bodyStyle.top;
+      document.body.style.width = bodyStyle.width;
+      document.body.style.overflow = bodyStyle.overflow;
+      window.scrollTo(0, scrollY);
+    };
+  }, [mobileNavOpen]);
+
+  useEffect(() => {
     if (!cartOpen) return undefined;
     const panel = cartPanelRef.current;
     const closeButton = panel?.querySelector('.cart-close');

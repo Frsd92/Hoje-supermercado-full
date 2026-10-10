@@ -1,6 +1,6 @@
 'use client';
 
-import { Award, CalendarDays, CheckCircle2, ChevronRight, Mail, MapPin, Phone, PiggyBank, RefreshCw, Search, ShoppingBag, Star, TicketPercent, UserRound, X } from 'lucide-react';
+import { Award, CalendarDays, CheckCircle2, ChevronRight, Mail, MapPin, Phone, PiggyBank, Printer, RefreshCw, Search, ShoppingBag, Star, TicketPercent, UserRound, X } from 'lucide-react';
 import { useCallback, useEffect, useMemo, useState } from 'react';
 import {
   canApproveOrderServiceRequest,
@@ -22,6 +22,7 @@ export default function ERPCustomersPage() {
   const [query, setQuery] = useState('');
   const [statusFilter, setStatusFilter] = useState('Todos');
   const [missionFilter, setMissionFilter] = useState('Todos');
+  const [historyFilter, setHistoryFilter] = useState('all');
   const [selected, setSelected] = useState(null);
   const [budgetDataAvailable, setBudgetDataAvailable] = useState(true);
   const [loadError, setLoadError] = useState('');
@@ -137,6 +138,16 @@ export default function ERPCustomersPage() {
   const selectedBudgetProgress = selected?.monthlyBudget > 0
     ? Math.min(100, (selected.currentMonthSpent / selected.monthlyBudget) * 100)
     : 0;
+  const customerOrderHistory = selected?.orderHistory || [];
+  const visibleOrderHistory = customerOrderHistory.filter((order) => {
+    if (historyFilter === 'refunds') return order.refundedAmount > 0 || order.refunds.length > 0;
+    if (historyFilter === 'cancellations') return order.status === 'Cancelado'
+      || order.events.some((event) => event.type === 'cancellation');
+    return true;
+  });
+  const confirmedRefundTotal = customerOrderHistory.reduce((total, order) => total + order.refundedAmount, 0);
+  const netPurchaseTotal = customerOrderHistory.reduce((total, order) => total + order.netAmount, 0);
+  const cancellationCount = customerOrderHistory.filter((order) => order.status === 'Cancelado').length;
 
   return (
     <div className="erp-customers-page">
@@ -187,6 +198,104 @@ export default function ERPCustomersPage() {
         </section>
         <section className="customer-detail-section"><h3>Produtos favoritos ({selected.favoriteItems?.length || 0})</h3>{selected.favoriteItems?.length ? selected.favoriteItems.map((item) => <p key={item.name}><strong>{item.name}</strong> · {item.category || 'Sem categoria'}</p>) : <p>Nenhum favorito registrado.</p>}</section><section className="customer-detail-section"><h3>Itens no carrinho ({selected.cartItems})</h3>{selected.cartProducts?.length ? selected.cartProducts.map((item) => <p key={item.name}><strong>{item.name}</strong> · quantidade: {item.quantity || 1}</p>) : <p>Nenhum item no carrinho.</p>}</section><section className="customer-detail-section"><h3>Preferencias</h3>{selected.preferences?.length ? <div className="customer-tags">{selected.preferences.map((preference) => <span key={preference}>{preference}</span>)}</div> : <p>Nenhuma preferencia registrada.</p>}</section><section className="customer-detail-section"><h3>Comportamento</h3><p>Ultima compra: <strong>{selected.lastPurchase}</strong></p><p>Ticket medio: <strong>{selected.orders ? formatCurrency(selected.spent / selected.orders) : 'Sem dados'}</strong></p></section></aside>}
       </div>
+      {selected && <section className="erp-customer-table-card erp-customer-history" aria-labelledby="customer-order-history-title">
+        <div className="erp-table-heading customer-history-heading">
+          <div>
+            <span className="customer-history-eyebrow">Dossiê do cliente</span>
+            <h3 id="customer-order-history-title">Histórico completo de compras, cancelamentos e estornos</h3>
+            <p>{selected.name} · {selected.email} · {customerOrderHistory.length} pedido(s) no histórico</p>
+          </div>
+          <button type="button" className="customer-history-print" onClick={() => window.print()}>
+            <Printer size={15} /> Imprimir histórico
+          </button>
+        </div>
+        <div className="customer-history-summary" aria-label="Resumo financeiro do cliente">
+          <div><span>Pedidos registrados</span><strong>{customerOrderHistory.length}</strong></div>
+          <div><span>Cancelamentos</span><strong>{cancellationCount}</strong></div>
+          <div><span>Valor devolvido</span><strong>{formatCurrency(confirmedRefundTotal)}</strong></div>
+          <div><span>Pedidos após devoluções</span><strong>{formatCurrency(netPurchaseTotal)}</strong></div>
+        </div>
+        <div className="customer-history-filters" role="group" aria-label="Filtrar histórico do cliente">
+          {[['all', 'Tudo'], ['refunds', 'Estornos'], ['cancellations', 'Cancelamentos']].map(([filter, label]) => (
+            <button
+              type="button"
+              key={filter}
+              className={historyFilter === filter ? 'active' : ''}
+              aria-pressed={historyFilter === filter}
+              onClick={() => setHistoryFilter(filter)}
+            >
+              {label}
+            </button>
+          ))}
+        </div>
+        {visibleOrderHistory.length ? <div className="customer-order-history-list">
+          {visibleOrderHistory.map((order) => (
+            <article className="customer-order-history-card" key={order.id}>
+              <header className="customer-order-history-card-heading">
+                <div>
+                  <strong>Pedido {order.id}</strong>
+                  <span>Realizado em {formatRequestDate(order.createdAt)}</span>
+                </div>
+                <div className="customer-order-history-badges">
+                  <span className={`customer-history-status${order.status === 'Cancelado' ? ' cancelled' : ''}`}>{order.status}</span>
+                  <span className={`customer-history-payment ${order.paymentStatus}`}>{({
+                    paid: 'Pago',
+                    partially_refunded: 'Estorno parcial',
+                    refunded: 'Estornado',
+                    pending: 'Aguardando pagamento',
+                    failed: 'Pagamento não aprovado',
+                    canceled: 'Pagamento cancelado',
+                    manual: 'Pagamento manual / combinado',
+                  })[order.paymentStatus] || order.paymentStatus}</span>
+                </div>
+              </header>
+              <dl className="customer-order-financials">
+                <div><dt>Total do pedido</dt><dd>{formatCurrency(order.total)}</dd></div>
+                <div><dt>Devolvido</dt><dd>{formatCurrency(order.refundedAmount)}</dd></div>
+                <div><dt>Após devoluções</dt><dd>{formatCurrency(order.netAmount)}</dd></div>
+                <div><dt>Pagamento</dt><dd>{order.paymentMethod}</dd></div>
+              </dl>
+              {order.statusDateIsApproximate && <p className="customer-history-data-note">Não há um evento de cancelamento registrado para este pedido. A linha do tempo exibe a última atualização disponível, que não confirma a data exata do cancelamento.</p>}
+              {order.refundedAmount > order.total && <p className="customer-history-data-note">O total devolvido registrado supera o valor do pedido. O histórico preserva os valores registrados; confira a conciliação financeira.</p>}
+              <details className="customer-order-history-details">
+                <summary>Ver itens e linha do tempo ({order.items.length} item(ns) · {order.events.length} evento(s))</summary>
+                {order.items.length > 0 && <div className="customer-order-items">
+                  <h4>Itens do pedido</h4>
+                  {order.items.map((item) => <div className="customer-order-item" key={item.id}>
+                    <span><strong>{item.name}</strong>{item.productCode && <small>Código {item.productCode}</small>}</span>
+                    <span>{item.quantity} {item.unit} × {formatCurrency(item.unitPrice)}</span>
+                    <strong>{formatCurrency(item.total)}</strong>
+                  </div>)}
+                </div>}
+                {order.refunds.length > 0 && <div className="customer-refund-history">
+                  <h4>Solicitações de estorno</h4>
+                  {order.refunds.map((refund) => <article key={refund.id}>
+                    <div><strong>{refund.code}</strong><span>{refund.statusLabel} · {formatCurrency(refund.amount)}</span></div>
+                    <p><strong>Motivo:</strong> {refund.reason}</p>
+                    <small>Solicitado por {refund.requestedBy || 'não informado'} em {formatRequestDate(refund.createdAt)}</small>
+                    {refund.reviewedAt && <small>Analisado por {refund.reviewedBy || 'não informado'} em {formatRequestDate(refund.reviewedAt)}</small>}
+                    {refund.decisionNote && <small>Decisão: {refund.decisionNote}</small>}
+                  </article>)}
+                </div>}
+                <ol className="customer-order-event-list">
+                  {order.events.map((event) => <li className={`customer-order-event ${event.type}`} key={event.id}>
+                    <span className="customer-order-event-marker" aria-hidden="true" />
+                    <div>
+                      <strong>{event.label}</strong>
+                      <small>{formatRequestDate(event.createdAt)}{event.actor ? ` · ${event.actor}` : ''}{event.amount ? ` · ${formatCurrency(event.amount)}` : ''}</small>
+                      {event.note && <p>{event.note}</p>}
+                    </div>
+                  </li>)}
+                </ol>
+                <p className="customer-history-data-note">O histórico apresenta os eventos registrados no sistema. Alterações de status sem trilha própria aparecem somente como estado atual ou última atualização; valores devolvidos consideram o acumulado confirmado no pedido. O valor após devoluções é uma subtração do total do pedido e não substitui a conciliação do pagamento.</p>
+              </details>
+            </article>
+          ))}
+        </div> : <div className="erp-empty-data">Não há pedidos que correspondam a este filtro para o cliente.</div>}
+        <footer className="customer-history-report-footer">
+          Extrato gerado em {formatRequestDate(new Date())}. Valores de devolução refletem o total confirmado atualmente registrado em cada pedido.
+        </footer>
+      </section>}
       {selected && <section className="erp-customer-table-card erp-customer-service-requests" aria-labelledby="customer-service-requests-title">
         <div className="erp-table-heading">
           <div>

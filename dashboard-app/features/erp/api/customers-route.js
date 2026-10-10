@@ -6,6 +6,7 @@ import { prisma } from '@/lib/prisma';
 import { getDaysSincePurchase, parseOrderDate } from '@/lib/order-sort';
 import { getLoyaltyMissionCycle } from '@/features/loyalty/mission-rules';
 import { getCustomerCouponInsights, getCustomerMissionInsights } from '@/features/erp/customer-insights';
+import { getCustomerOrderHistory } from '@/features/erp/customer-order-history';
 
 export async function GET() {
   const session = await getServerSession(authOptions);
@@ -30,8 +31,21 @@ export async function GET() {
           couponCode: true,
           status: true,
           paymentStatus: true,
+          paymentMethod: true,
           refundedAmount: true,
           createdAt: true,
+          updatedAt: true,
+          updatedBy: true,
+          items: {
+            select: {
+              id: true,
+              name: true,
+              productCode: true,
+              price: true,
+              quantity: true,
+              unit: true,
+            },
+          },
           serviceRequests: {
             select: {
               id: true,
@@ -48,6 +62,35 @@ export async function GET() {
               createdAt: true,
             },
             orderBy: { createdAt: 'desc' },
+          },
+          paymentEvents: {
+            select: { id: true, eventType: true, receivedAt: true },
+            orderBy: { receivedAt: 'asc' },
+          },
+          refundRequests: {
+            select: {
+              id: true,
+              code: true,
+              amount: true,
+              reason: true,
+              status: true,
+              requestedBy: true,
+              reviewedBy: true,
+              reviewedAt: true,
+              decisionNote: true,
+              createdAt: true,
+              events: {
+                select: {
+                  id: true,
+                  action: true,
+                  actor: true,
+                  note: true,
+                  createdAt: true,
+                },
+                orderBy: { createdAt: 'asc' },
+              },
+            },
+            orderBy: { createdAt: 'asc' },
           },
         },
       }),
@@ -147,6 +190,7 @@ export async function GET() {
       const favorites = favoritesByUser.get(email) || [];
       const cart = cartsByEmail.get(email) || [];
       const customerOrders = orderList.filter((order) => order.customerEmail?.trim().toLowerCase() === email);
+      const orderHistory = getCustomerOrderHistory(customerOrders);
       const customerCoupons = getCustomerCouponInsights(campaigns, customerOrders, email, now);
       const customerMissions = getCustomerMissionInsights(activeMissionsWithCycle, missionProgress, email);
       const activeOrders = customerOrders.filter((order) => (
@@ -199,6 +243,7 @@ export async function GET() {
         nearMissionCount: customerMissions.filter((mission) => mission.nearCompletion).length,
         coupons: customerCoupons.coupons,
         couponCounts: customerCoupons.couponCounts,
+        orderHistory,
         serviceRequests,
       };
     });
