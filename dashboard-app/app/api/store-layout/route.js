@@ -1,16 +1,10 @@
-import { getMainHeroSlideOrder, isMainHeroSlideKey, STORE_LAYOUT_SLOTS } from '@/features/erp/api/store-layout';
+import { getMainHeroBanners, isMainHeroSlideKey, STORE_LAYOUT_SLOTS } from '@/features/erp/api/store-layout';
 import { prisma } from '@/lib/prisma';
 
 export async function GET() {
   try {
     const savedAssets = await prisma.storeLayoutAsset.findMany({ select: { key: true, updatedAt: true } });
-    const heroBanners = savedAssets
-      .filter((asset) => isMainHeroSlideKey(asset.key))
-      .sort((first, second) => getMainHeroSlideOrder(first.key) - getMainHeroSlideOrder(second.key))
-      .map((asset) => ({
-        key: asset.key,
-        imageUrl: `/api/store-layout/${asset.key}?v=${asset.updatedAt.getTime()}`,
-      }));
+    const heroBanners = getMainHeroBanners(savedAssets);
     const assetsByKey = new Map(savedAssets.map((asset) => [asset.key, asset.updatedAt]));
     const banners = [
       ...heroBanners,

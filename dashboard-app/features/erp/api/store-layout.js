@@ -211,6 +211,25 @@ export function getMainHeroSlideOrder(key) {
   return match ? Number(match[1]) : Number.MAX_SAFE_INTEGER;
 }
 
+export function getMainHeroBanners(savedAssets) {
+  const banners = savedAssets
+    .filter((asset) => isMainHeroSlideKey(asset.key))
+    .sort((first, second) => getMainHeroSlideOrder(first.key) - getMainHeroSlideOrder(second.key))
+    .map((asset) => ({
+      key: asset.key,
+      imageUrl: `/api/store-layout/${asset.key}?v=${asset.updatedAt.getTime()}`,
+    }));
+
+  if (!banners.some((banner) => banner.key === 'main-hero')) {
+    banners.unshift({
+      key: 'main-hero',
+      imageUrl: getStoreLayoutSlot('main-hero').fallbackImage,
+    });
+  }
+
+  return banners;
+}
+
 export function validateStoreLayoutImage(imageData) {
   return validateImageDataUrl(imageData);
 }

@@ -1,6 +1,7 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
 import {
+  getMainHeroBanners,
   getMainHeroSlideOrder,
   getStoreLayoutSlot,
   isMainHeroSlideKey,
@@ -42,6 +43,21 @@ test('defines uniquely identified store banners and brand logos with recommended
   assert.equal(isMainHeroSlideKey('main-hero-slide-xx'), false);
   assert.equal(getMainHeroSlideOrder('main-hero'), 1);
   assert.equal(getMainHeroSlideOrder('main-hero-slide-12'), 12);
+  assert.deepEqual(getMainHeroBanners([]), [{
+    key: 'main-hero',
+    imageUrl: '/imagens/tudo_o_que_vc_precisa.webp',
+  }]);
+  const updatedAt = new Date('2026-10-09T12:00:00Z');
+  assert.deepEqual(getMainHeroBanners([
+    { key: 'main-hero-slide-02', updatedAt },
+  ]), [
+    { key: 'main-hero', imageUrl: '/imagens/tudo_o_que_vc_precisa.webp' },
+    { key: 'main-hero-slide-02', imageUrl: `/api/store-layout/main-hero-slide-02?v=${updatedAt.getTime()}` },
+  ]);
+  assert.deepEqual(getMainHeroBanners([
+    { key: 'main-hero-slide-02', updatedAt },
+    { key: 'main-hero', updatedAt },
+  ]).map(({ key }) => key), ['main-hero', 'main-hero-slide-02']);
   assert.equal(getStoreLayoutSlot('carousel-hortifruti')?.recommendedHeight, 700);
   assert.equal(getStoreLayoutSlot('carousel-mercearia')?.recommendedWidth, 520);
   assert.equal(getStoreLayoutSlot('carousel-limpeza')?.recommendedHeight, 700);
