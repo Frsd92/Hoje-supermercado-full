@@ -26,21 +26,15 @@ function configurarSlidesBannerPrincipal(slides) {
   }
 
   let activeIndex = 0;
-  let timer;
-  const prefersReducedMotion = window.matchMedia('(prefers-reduced-motion: reduce)').matches;
   const gradient = 'linear-gradient(90deg, rgba(7, 23, 15, 0.86), rgba(9, 34, 22, 0.58), rgba(10, 26, 18, 0.22))';
-  const buttons = slideList.map((slide, index) => {
-    const button = document.createElement('button');
-    button.type = 'button';
-    button.className = 'dot';
-    button.setAttribute('aria-label', `Mostrar banner ${index + 1} de ${slideList.length}`);
-    button.setAttribute('aria-pressed', 'false');
-    button.addEventListener('click', () => {
-      showSlide(index);
-      restartTimer();
-    });
-    dots.append(button);
-    return button;
+  dots.setAttribute('role', 'status');
+  dots.setAttribute('aria-live', 'polite');
+  const indicators = slideList.map(() => {
+    const indicator = document.createElement('span');
+    indicator.className = 'dot';
+    indicator.setAttribute('aria-hidden', 'true');
+    dots.append(indicator);
+    return indicator;
   });
 
   const showSlide = (index) => {
@@ -72,38 +66,17 @@ function configurarSlidesBannerPrincipal(slides) {
       arrow.textContent = '→';
       cta.append(arrow);
     }
-    buttons.forEach((button, buttonIndex) => {
-      const active = buttonIndex === activeIndex;
-      button.classList.toggle('active', active);
-      button.setAttribute('aria-pressed', String(active));
+    indicators.forEach((indicator, indicatorIndex) => {
+      indicator.classList.toggle('active', indicatorIndex === activeIndex);
     });
-  };
-
-  const stopTimer = () => {
-    window.clearInterval(timer);
-    timer = undefined;
-  };
-  const startTimer = () => {
-    stopTimer();
-    if (slideList.length < 2 || prefersReducedMotion) return;
-    timer = window.setInterval(() => showSlide((activeIndex + 1) % slideList.length), 6000);
-  };
-  const restartTimer = () => {
-    stopTimer();
-    if (!banner.matches(':hover') && !banner.contains(document.activeElement)) startTimer();
+    dots.setAttribute('aria-label', `Banner ${activeIndex + 1} de ${slideList.length}`);
   };
 
   showSlide(0);
   dots.hidden = slideList.length < 2;
   if (slideList.length < 2) return;
 
-  banner.addEventListener('mouseenter', stopTimer);
-  banner.addEventListener('mouseleave', startTimer);
-  banner.addEventListener('focusin', stopTimer);
-  banner.addEventListener('focusout', (event) => {
-    if (!banner.contains(event.relatedTarget)) startTimer();
-  });
-  startTimer();
+  window.setInterval(() => showSlide((activeIndex + 1) % slideList.length), 6000);
 }
 
 const FAVORITES_API = '/api/favorites';

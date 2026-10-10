@@ -1630,8 +1630,15 @@ body {
 
 @media (max-width: 640px) {
   .banner {
+    min-height: 280px;
     padding: 14px 20px;
     border-radius: 20px;
+  }
+
+  .banner.banner--image-only {
+    min-height: 0;
+    aspect-ratio: 2.16 / 1;
+    padding: 0;
   }
 
   .banner-badge {
@@ -1734,6 +1741,31 @@ body {
   transition: transform 0.2s ease, filter 0.2s ease;
   position: relative;
   z-index: 1;
+}
+
+.banner-dots {
+  z-index: 2;
+  align-items: center;
+  gap: 8px;
+}
+
+.banner .dot {
+  display: block;
+  flex: 0 0 9px;
+  width: 9px;
+  height: 9px;
+  padding: 0;
+  border: 1px solid rgba(255, 255, 255, 0.9);
+  border-radius: 50%;
+  background: rgba(255, 255, 255, 0.55);
+  box-shadow: 0 1px 4px rgba(0, 0, 0, 0.32);
+  cursor: default;
+}
+
+.banner .dot.active {
+  background: #f5c518;
+  border-color: #f5c518;
+  transform: scale(1.15);
 }
 
 .banner button:hover,
@@ -4464,5 +4496,57 @@ body {
 
   .main-header .location select {
     font-size: 0.66rem;
+  }
+}
+
+@media (max-width: 640px) {
+  .banner:not(.banner--image-only) {
+    height: auto;
+    min-height: 240px;
+    max-height: none;
+    aspect-ratio: auto;
+    padding: 14px 18px 38px;
+  }
+
+  .banner.banner--image-only {
+    height: auto;
+    min-height: 0;
+    aspect-ratio: 2.16 / 1;
+    padding: 0;
+  }
+
+  .banner .banner-badge {
+    margin-bottom: 8px;
+    padding: 5px 9px;
+  }
+
+  .banner .banner-badge img {
+    height: 30px;
+  }
+
+  .banner h1 {
+    max-width: 100%;
+    margin: 7px 0;
+    font-size: clamp(1.2rem, 5.5vw, 1.6rem);
+    line-height: 1.06;
+    letter-spacing: -0.04em;
+  }
+
+  .banner p {
+    max-width: 100%;
+    margin: 6px 0 10px;
+    font-size: 0.78rem;
+    line-height: 1.25;
+  }
+
+  .banner .banner-cta {
+    min-height: 34px;
+    padding: 8px 14px;
+    font-size: 0.8rem;
+  }
+
+  .banner .banner-dots {
+    right: 14px;
+    bottom: 12px;
   }
 }
