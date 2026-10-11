@@ -2,7 +2,7 @@
 
 import Link from 'next/link';
 import Script from 'next/script';
-import { usePathname } from 'next/navigation';
+import { usePathname, useRouter } from 'next/navigation';
 import { signOut, useSession } from 'next-auth/react';
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { adjustCartQuantity, formatCartQuantity, getCartItemCount, normalizeCartItems } from './cart-utils';
@@ -93,6 +93,7 @@ function getAddressHeading(address) {
 
 export default function DashboardLayout({ children }) {
   const pathname = usePathname();
+  const router = useRouter();
   const { data: session, status: sessionStatus } = useSession();
   const [search, setSearch] = useState('');
   const [theme, setTheme] = useState('dark');
@@ -859,6 +860,13 @@ export default function DashboardLayout({ children }) {
       setAppliedCouponCode('');
       setCouponStatus('');
       setCheckoutOrderId(data.order.id);
+      if (data.order.paymentStatus === 'paid') {
+        setCartOpen(false);
+        setCheckoutStatus('');
+        router.push('/dashboard/orders');
+        window.dispatchEvent(new Event('dashboard-coupons-updated'));
+        return;
+      }
       setCheckoutStatus(data.message || `Pedido ${data.order.id} realizado com sucesso.`);
       window.dispatchEvent(new Event('dashboard-coupons-updated'));
     } catch (error) {

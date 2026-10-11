@@ -2,7 +2,7 @@
 
 import Link from 'next/link';
 import { FileText, PackageOpen, Printer, X } from 'lucide-react';
-import { useEffect, useMemo, useRef, useState } from 'react';
+import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { getOrderStatus, orderStages } from '../order-status';
 import { sortOrdersNewestFirst } from '@/lib/order-sort';
 import OrderReceipt from '@/features/orders/order-receipt';
@@ -57,6 +57,8 @@ export default function OrdersPage() {
   const [pixCopyError, setPixCopyError] = useState('');
   const [checkingPaymentOrderId, setCheckingPaymentOrderId] = useState('');
   const [paymentCheckFeedback, setPaymentCheckFeedback] = useState({});
+  const paymentChecksInFlightRef = useRef(new Set());
+  const paymentPollingInProgressRef = useRef(false);
 
   useEffect(() => {
     let active = true;
@@ -126,27 +128,68 @@ export default function OrdersPage() {
     }
   };
 
-  const verifyPayment = async (order) => {
-    setCheckingPaymentOrderId(order.id);
-    setPaymentCheckFeedback((current) => ({ ...current, [order.id]: null }));
+  const verifyPayment = useCallback(async (order, { automatic = false } = {}) => {
+    if (paymentChecksInFlightRef.current.has(order.id)) return null;
+    paymentChecksInFlightRef.current.add(order.id);
+    if (!automatic) {
+      setCheckingPaymentOrderId(order.id);
+      setPaymentCheckFeedback((current) => ({ ...current, [order.id]: null }));
+    }
     try {
       const response = await fetch(`/api/my/orders/${encodeURIComponent(order.id)}/payment-status`, { method: 'POST' });
       const data = await response.json();
       if (!response.ok) throw new Error(data.error || 'Não foi possível consultar o pagamento agora.');
-      setPaymentCheckFeedback((current) => ({
-        ...current,
-        [order.id]: { message: data.message || 'Status do pagamento atualizado.', error: false },
-      }));
-      setRetryCount((count) => count + 1);
+      if (!automatic || data.paymentStatus !== 'pending') {
+        setPaymentCheckFeedback((current) => ({
+          ...current,
+          [order.id]: { message: data.message || 'Status do pagamento atualizado.', error: false },
+        }));
+        setRetryCount((count) => count + 1);
+      }
+      return data;
     } catch (error) {
       setPaymentCheckFeedback((current) => ({
         ...current,
         [order.id]: { message: error.message || 'Não foi possível consultar o pagamento agora.', error: true },
       }));
+      return null;
     } finally {
-      setCheckingPaymentOrderId('');
+      paymentChecksInFlightRef.current.delete(order.id);
+      if (!automatic) setCheckingPaymentOrderId('');
     }
-  };
+  }, []);
+
+  useEffect(() => {
+    let active = true;
+    const checkPendingPayments = async () => {
+      if (!active || paymentPollingInProgressRef.current || document.visibilityState !== 'visible') return;
+      const pendingOrders = orders.filter((order) => (
+        order.paymentStatus === 'pending'
+        && ['pix', 'cartao'].includes(order.paymentMethod)
+        && order.pagarmeOrderId
+      ));
+      if (!pendingOrders.length) return;
+
+      paymentPollingInProgressRef.current = true;
+      try {
+        for (const order of pendingOrders) {
+          if (!active) return;
+          await verifyPayment(order, { automatic: true });
+        }
+      } finally {
+        paymentPollingInProgressRef.current = false;
+      }
+    };
+
+    void checkPendingPayments();
+    const interval = window.setInterval(checkPendingPayments, 15000);
+    document.addEventListener('visibilitychange', checkPendingPayments);
+    return () => {
+      active = false;
+      window.clearInterval(interval);
+      document.removeEventListener('visibilitychange', checkPendingPayments);
+    };
+  }, [orders, verifyPayment]);
 
   const openServiceRequestDialog = (order, type) => {
     setServiceRequestOrder(order);
@@ -300,6 +343,7 @@ export default function OrdersPage() {
                     </span>)}
                     {order.paymentStatus === 'pending' && order.paymentMethod === 'pix' && order.paymentDetails?.pixQrCode && <span className="customer-pix-payment">
                       <strong>Pix aguardando pagamento</strong>
+                      <small>A confirmação é verificada automaticamente enquanto esta tela estiver aberta.</small>
                       {order.paymentDetails.pixQrCodeUrl && <img src={order.paymentDetails.pixQrCodeUrl} alt={`QR Code Pix do pedido ${order.id}`} />}
                       <textarea aria-label={`Código Pix do pedido ${order.id}`} value={order.paymentDetails.pixQrCode} readOnly rows={3} />
                       <button type="button" onClick={() => copyPixCode(order)}>{copiedPixOrderId === order.id ? 'Código Pix copiado' : 'Copiar código Pix'}</button>
@@ -312,7 +356,7 @@ export default function OrdersPage() {
                     </span>}
                     {order.paymentStatus === 'pending' && ['pix', 'cartao'].includes(order.paymentMethod) && !order.paymentDetails?.pixQrCode && <span className="customer-pix-payment" role="status">
                       <strong>Pagamento aguardando confirmação</strong>
-                      <small>Confira o status antes de tentar pagar novamente.</small>
+                      <small>A confirmação é verificada automaticamente enquanto esta tela estiver aberta. Não tente pagar novamente.</small>
                       <button type="button" disabled={Boolean(checkingPaymentOrderId)} onClick={() => verifyPayment(order)}>
                         {checkingPaymentOrderId === order.id ? 'Consultando pagamento...' : 'Verificar pagamento'}
                       </button>

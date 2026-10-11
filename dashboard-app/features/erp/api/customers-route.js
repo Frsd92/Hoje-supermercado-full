@@ -7,6 +7,8 @@ import { getDaysSincePurchase, parseOrderDate } from '@/lib/order-sort';
 import { getLoyaltyMissionCycle } from '@/features/loyalty/mission-rules';
 import { getCustomerCouponInsights, getCustomerMissionInsights } from '@/features/erp/customer-insights';
 import { getCustomerOrderHistory } from '@/features/erp/customer-order-history';
+import { getRemainingRefundCents, refundRequestStatus } from '@/features/orders/order-refund-utils';
+import { isCardPaymentMethod } from '@/features/payments/card-methods';
 
 export async function GET() {
   const session = await getServerSession(authOptions);
@@ -32,6 +34,7 @@ export async function GET() {
           status: true,
           paymentStatus: true,
           paymentMethod: true,
+          pagarmeChargeId: true,
           refundedAmount: true,
           createdAt: true,
           updatedAt: true,
@@ -215,6 +218,19 @@ export async function GET() {
         orderId: order.id,
         orderStatus: order.status,
         orderCreatedAt: order.createdAt,
+        canProcessCancellationRefund: request.type === 'cancellation'
+          && request.status === 'approved'
+          && order.status === 'Cancelado'
+          && (order.paymentMethod === 'pix' || order.paymentMethod === 'cartao' || isCardPaymentMethod(order.paymentMethod))
+          && ['paid', 'partially_refunded'].includes(order.paymentStatus)
+          && Boolean(order.pagarmeChargeId)
+          && !order.refundRequests.some((refund) => [
+            refundRequestStatus.requested,
+            refundRequestStatus.approvedWaitingGateway,
+            refundRequestStatus.gatewayProcessing,
+            refundRequestStatus.gatewayFailed,
+          ].includes(refund.status))
+          && getRemainingRefundCents(order.total, order.refundRequests, order.refundedAmount) > 0,
       }))).sort((first, second) => (
         (parseOrderDate(second.createdAt)?.getTime() || 0) - (parseOrderDate(first.createdAt)?.getTime() || 0)
       ));

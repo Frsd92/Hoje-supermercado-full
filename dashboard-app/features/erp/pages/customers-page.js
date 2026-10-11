@@ -106,10 +106,10 @@ export default function ERPCustomersPage() {
         }),
       });
       const data = await response.json();
+      if (data.serviceRequest) void loadCustomers();
       if (!response.ok) throw new Error(data.error || 'Não foi possível atualizar a solicitação.');
       setServiceRequestNotes((current) => ({ ...current, [serviceRequest.id]: '' }));
       setServiceRequestActionNotice(data.message || 'Solicitação atualizada.');
-      void loadCustomers();
     } catch (error) {
       setServiceRequestActionError(error.message || 'Não foi possível atualizar a solicitação.');
     } finally {
@@ -332,10 +332,18 @@ export default function ERPCustomersPage() {
                 />
                 <div>
                   <button type="button" disabled={serviceRequestBusyId === request.id || note.trim().length < 8 || !canApprove} onClick={() => updateServiceRequest(request, 'approve')}>
-                    <CheckCircle2 size={14} />{request.type === orderServiceRequestType.cancellation ? 'Aprovar cancelamento' : 'Aprovar troca'}
+                    <CheckCircle2 size={14} />{serviceRequestBusyId === request.id
+                      ? request.type === orderServiceRequestType.cancellation ? 'Cancelando e processando estorno...' : 'Processando troca...'
+                      : request.type === orderServiceRequestType.cancellation ? 'Aprovar cancelamento e estornar' : 'Aprovar troca'}
                   </button>
                   <button type="button" disabled={serviceRequestBusyId === request.id || note.trim().length < 8} onClick={() => updateServiceRequest(request, 'reject')}>Recusar</button>
                 </div>
+              </div>}
+              {request.canProcessCancellationRefund && <div className="customer-service-request-actions">
+                <p role="note">O cancelamento já foi aprovado, mas o estorno Pagar.me ainda não foi solicitado.</p>
+                <button type="button" disabled={serviceRequestBusyId === request.id} onClick={() => updateServiceRequest(request, 'refund')}>
+                  <RefreshCw size={14} />{serviceRequestBusyId === request.id ? 'Processando estorno...' : 'Processar estorno Pagar.me'}
+                </button>
               </div>}
             </article>;
           })}

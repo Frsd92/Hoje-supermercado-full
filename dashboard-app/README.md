@@ -29,6 +29,8 @@ A integração usa a Core API v5. As chaves secreta e pública ficam na [Dashboa
 
 Para validar em produção, publique o código e configure essas duas variáveis no ambiente **Production** do Vercel com as chaves de produção, depois faça um novo deploy. Configure na Pagar.me o webhook para a URL pública do app terminada em `/api/webhooks/pagarme`, com eventos de atualização de pedidos/cobranças e estornos. A rota confirma os eventos consultando a API autenticada da Pagar.me. Pix e cartão online exigem CPF e celular com DDD no perfil do cliente; os dados do cartão são tokenizados diretamente no navegador pela Pagar.me e não são armazenados pela loja. Teste pagamentos e estornos no ambiente de teste antes de ativar as chaves de produção.
 
+Ao aprovar no ERP uma solicitação de cancelamento de um pedido já pago pela Pagar.me, o sistema registra e envia automaticamente o estorno do saldo ainda não devolvido. Cancelamentos aprovados antes dessa integração podem ter o estorno iniciado em **ERP → Clientes**, quando elegíveis. O status fica aguardando confirmação enquanto a Pagar.me processa a devolução; o webhook atualiza o pedido e o histórico quando ela é confirmada. Pedidos pagos fora da Pagar.me continuam exigindo devolução manual.
+
 ## App para Android e iPhone
 
 A loja pode ser instalada como PWA pelo navegador. O manifest e os ícones são mantidos em `../loja`; `npm run build` e `npm run dev` os copiam para `public`. O service worker mantém páginas, scripts, estilos e imagens estáticas em cache para abrir a loja sem conexão; respostas de API, login, dashboard e ERP nunca são armazenadas. A loja continua exigindo conexão para consultar catálogo atualizado, conta, carrinho sincronizado e finalizar pedidos.
