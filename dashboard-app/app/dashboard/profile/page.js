@@ -283,6 +283,10 @@ export default function ProfilePage() {
               {profileNameContainsOffensiveContent && <small id="profile-name-moderation-error" className="profile-moderation-error" role="alert">Remova termos ofensivos para salvar o perfil.</small>}
             </label>
             <label className="form-field">
+              <span>ID do cliente</span>
+              <input type="text" value={loading ? 'Carregando...' : profile.customerId || ''} readOnly />
+            </label>
+            <label className="form-field">
               <span>E-mail</span>
               <input type="email" value={profile.email || session?.user?.email || ''} readOnly />
             </label>

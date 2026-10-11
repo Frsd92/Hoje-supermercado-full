@@ -20,6 +20,7 @@ model User {
 
 model CustomerProfile {
   email         String    @id
+  customerId    String    @unique @default(cuid())
   fullName      String?
   whatsapp      String    @default("")
   cpf           String    @default("")

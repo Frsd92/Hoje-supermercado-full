@@ -2,6 +2,7 @@ import GoogleProviderModule from 'next-auth/providers/google';
 import AppleProviderModule from 'next-auth/providers/apple';
 import CredentialsProviderModule from 'next-auth/providers/credentials';
 import { verifyErpCredentials } from './features/erp/password.js';
+import { prisma } from './lib/prisma.js';
 
 const GoogleProvider = typeof GoogleProviderModule === 'function' ? GoogleProviderModule : GoogleProviderModule.default;
 const AppleProvider = typeof AppleProviderModule === 'function' ? AppleProviderModule : AppleProviderModule.default;
@@ -50,6 +51,23 @@ export const authOptions = {
     strategy: 'jwt',
   },
   callbacks: {
+    async signIn({ user, account }) {
+      if (!['google', 'apple'].includes(account?.provider)) return true;
+      const email = String(user?.email || '').trim().toLowerCase();
+      if (!email) return false;
+
+      try {
+        await prisma.customerProfile.upsert({
+          where: { email },
+          create: { email, fullName: user.name || null },
+          update: {},
+        });
+        return true;
+      } catch (error) {
+        console.error('Não foi possível criar o cadastro do cliente no login:', error);
+        return false;
+      }
+    },
     async redirect({ url, baseUrl }) {
       if (typeof url === 'string' && url.startsWith('/')) return `${baseUrl}${url}`;
       try {

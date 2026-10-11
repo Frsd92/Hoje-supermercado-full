@@ -1,5 +1,6 @@
 import { getServerSession } from 'next-auth';
 import { authOptions } from '@/auth';
+import { formatCustomerId } from '@/features/customers/customer-id';
 import { prisma } from '@/lib/prisma';
 import contentModeration from '@/lib/content-moderation.js';
 
@@ -14,6 +15,7 @@ async function getCustomer() {
 
 function serializeProfile(profile, customer) {
   return {
+    customerId: formatCustomerId(profile?.customerId),
     fullName: profile?.fullName || customer.name,
     email: customer.email,
     whatsapp: profile?.whatsapp || '',

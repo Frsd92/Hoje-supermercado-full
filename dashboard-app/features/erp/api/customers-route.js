@@ -7,6 +7,7 @@ import { getDaysSincePurchase, parseOrderDate } from '@/lib/order-sort';
 import { getLoyaltyMissionCycle } from '@/features/loyalty/mission-rules';
 import { getCustomerCouponInsights, getCustomerMissionInsights } from '@/features/erp/customer-insights';
 import { getCustomerOrderHistory } from '@/features/erp/customer-order-history';
+import { formatCustomerId } from '@/features/customers/customer-id';
 import { getRemainingRefundCents, refundRequestStatus } from '@/features/orders/order-refund-utils';
 import { isCardPaymentMethod } from '@/features/payments/card-methods';
 
@@ -98,10 +99,10 @@ export async function GET() {
         },
       }),
       prisma.customerProfile.findMany({
-        select: { email: true, fullName: true, monthlyBudget: true, memberSince: true },
+        select: { email: true, customerId: true, fullName: true, monthlyBudget: true, memberSince: true },
       }),
       prisma.customerAddressBook.findMany({ select: { email: true, addresses: true } }),
-      prisma.user.findMany({ select: { email: true, createdAt: true } }),
+      prisma.user.findMany({ select: { id: true, email: true, createdAt: true } }),
       prisma.couponCampaign.findMany({
         select: {
           code: true,
@@ -187,6 +188,11 @@ export async function GET() {
       return [addressBook.email.trim().toLowerCase(), addressBook.addresses.length];
     }));
     const profilesByEmail = new Map(profiles.map((profile) => [profile.email.toLowerCase(), profile]));
+    const customerIdsByEmail = new Map(profiles.map((profile) => [
+      profile.email.trim().toLowerCase(),
+      formatCustomerId(profile.customerId),
+    ]));
+    const userIdsByEmail = new Map(users.map((user) => [user.email.trim().toLowerCase(), user.id]));
     const userCreatedAtByEmail = new Map(users.map((user) => [user.email.trim().toLowerCase(), user.createdAt]));
     const customers = [...customerEmails].map((email, index) => {
       const profile = profilesByEmail.get(email);
@@ -235,7 +241,7 @@ export async function GET() {
         (parseOrderDate(second.createdAt)?.getTime() || 0) - (parseOrderDate(first.createdAt)?.getTime() || 0)
       ));
       return {
-        id: `CLI-${String(index + 1).padStart(4, '0')}`,
+        id: customerIdsByEmail.get(email) || formatCustomerId(userIdsByEmail.get(email)),
         name: profile?.fullName || email,
         email,
         status: 'Ativo',
