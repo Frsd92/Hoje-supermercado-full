@@ -32,6 +32,8 @@ const emptySupplier = {
   paymentTerms: '',
   minimumOrderValue: '',
   deliveryTerms: '',
+  acceptsExpiredProductExchange: false,
+  acceptsDamagedProductExchange: false,
 };
 
 const supplierFieldLabels = {
@@ -60,6 +62,8 @@ const supplierFieldLabels = {
   paymentTerms: 'Condições de pagamento',
   minimumOrderValue: 'Pedido mínimo',
   deliveryTerms: 'Condições de entrega',
+  acceptsExpiredProductExchange: 'Troca de produtos após o vencimento',
+  acceptsDamagedProductExchange: 'Troca de produtos danificados',
 };
 
 const formatCurrency = (value) => value === null || value === undefined
@@ -380,6 +384,21 @@ function SupplierForm({ supplier, onClose, onSaved }) {
           {field('Condições de entrega', 'deliveryTerms', 'text', { placeholder: 'Ex.: CIF ou FOB, conforme negociado' })}
         </div></section>
 
+        <section className="supplier-form-section">
+          <h3>Política de trocas</h3>
+          <p className="supplier-section-description">Marque somente as condições confirmadas com o fornecedor. Isso registra a política acordada e não gera uma devolução automaticamente.</p>
+          <div className="supplier-return-policies">
+            <label htmlFor="supplier-accepts-expired-product-exchange">
+              <input id="supplier-accepts-expired-product-exchange" type="checkbox" checked={form.acceptsExpiredProductExchange === true} onChange={(event) => updateField('acceptsExpiredProductExchange', event.target.checked)} />
+              <span>O fornecedor troca produtos após o vencimento</span>
+            </label>
+            <label htmlFor="supplier-accepts-damaged-product-exchange">
+              <input id="supplier-accepts-damaged-product-exchange" type="checkbox" checked={form.acceptsDamagedProductExchange === true} onChange={(event) => updateField('acceptsDamagedProductExchange', event.target.checked)} />
+              <span>O fornecedor troca produtos danificados/avariados</span>
+            </label>
+          </div>
+        </section>
+
         {error && <div className="supplier-form-error" role="alert" tabIndex="-1">{error}</div>}
         <footer className="supplier-form-actions"><button type="button" className="supplier-secondary-button" onClick={onClose} disabled={saving}>Cancelar</button><button type="submit" className="primary-cta" disabled={saving}>{saving ? 'Salvando...' : isEditing ? 'Salvar alterações' : 'Cadastrar em análise'}</button></footer>
       </form>
@@ -447,11 +466,12 @@ export default function SuppliersPage() {
   }, [suppliers, query, statusFilter, categoryFilter]);
 
   const saveCsv = () => {
-    const columns = ['Nome fantasia', 'Razão social', 'CPF/CNPJ', 'E-mail', 'Telefone', 'WhatsApp', 'Categorias', 'Status', 'Motivo', 'Logradouro', 'Número', 'Bairro', 'Cidade', 'UF', 'CEP', 'Condições de pagamento', 'Pedido mínimo', 'Condições de entrega'];
+    const columns = ['Nome fantasia', 'Razão social', 'CPF/CNPJ', 'E-mail', 'Telefone', 'WhatsApp', 'Categorias', 'Status', 'Motivo', 'Logradouro', 'Número', 'Bairro', 'Cidade', 'UF', 'CEP', 'Condições de pagamento', 'Pedido mínimo', 'Condições de entrega', 'Troca após vencimento', 'Troca de danificados'];
     const rows = filteredSuppliers.map((supplier) => [
       supplier.name, supplier.legalName, supplier.taxId, supplier.email, supplier.phone, supplier.whatsapp,
       supplier.categories.join('; '), supplier.status, supplier.statusReason, supplier.address, supplier.addressNumber, supplier.neighborhood, supplier.city, supplier.state, supplier.postalCode,
       supplier.paymentTerms, supplier.minimumOrderValue, supplier.deliveryTerms,
+      supplier.acceptsExpiredProductExchange ? 'Sim' : 'Não', supplier.acceptsDamagedProductExchange ? 'Sim' : 'Não',
     ]);
     const csv = `\uFEFF${[columns, ...rows].map((row) => row.map(escapeCsv).join(';')).join('\r\n')}`;
     const url = URL.createObjectURL(new Blob([csv], { type: 'text/csv;charset=utf-8' }));

@@ -288,6 +288,8 @@ model Supplier {
   paymentTerms      String?
   minimumOrderValue Decimal?           @db.Decimal(12, 2)
   deliveryTerms     String?
+  acceptsExpiredProductExchange Boolean @default(false)
+  acceptsDamagedProductExchange Boolean @default(false)
   createdBy         String
   updatedBy         String?
   createdAt         DateTime           @default(now())

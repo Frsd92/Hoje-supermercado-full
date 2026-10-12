@@ -48,6 +48,19 @@ test('accepts Brazilian currency and normalizes optional address fields', () => 
   assert.equal(data.neighborhood, 'Sé');
 });
 
+test('stores supplier exchange policies as independent boolean options', () => {
+  const { data } = validateSupplier({
+    name: 'Real',
+    acceptsExpiredProductExchange: true,
+    acceptsDamagedProductExchange: false,
+  });
+
+  assert.equal(data.acceptsExpiredProductExchange, true);
+  assert.equal(data.acceptsDamagedProductExchange, false);
+  assert.equal(validateSupplier({ name: 'Outro fornecedor' }).data.acceptsExpiredProductExchange, false);
+  assert.equal(validateSupplier({ name: 'Outro fornecedor' }).data.acceptsDamagedProductExchange, false);
+});
+
 test('rejects malformed Brazilian address and out-of-range currency fields', () => {
   assert.match(validateSupplier({ name: 'Real', minimumOrderValue: '12,345' }).error, /duas casas decimais/);
   assert.match(validateSupplier({ name: 'Real', minimumOrderValue: '10.000.000.000,00' }).error, /duas casas decimais/);

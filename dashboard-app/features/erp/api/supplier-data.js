@@ -26,6 +26,8 @@ export const supplierFields = [
   'paymentTerms',
   'minimumOrderValue',
   'deliveryTerms',
+  'acceptsExpiredProductExchange',
+  'acceptsDamagedProductExchange',
 ];
 
 const text = (value) => {
@@ -142,6 +144,8 @@ export function validateSupplier(input) {
       paymentTerms: text(input?.paymentTerms) || null,
       minimumOrderValue: parsedMinimumOrderValue,
       deliveryTerms: text(input?.deliveryTerms) || null,
+      acceptsExpiredProductExchange: input?.acceptsExpiredProductExchange === true,
+      acceptsDamagedProductExchange: input?.acceptsDamagedProductExchange === true,
     },
   };
 }
