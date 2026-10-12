@@ -56,6 +56,7 @@ const erpNavigationGroups = [
     items: [
       { label: 'Analytics', href: '/erp/analytics', icon: Activity },
       { label: 'Relatórios', href: '/erp/reports', icon: BarChart3 },
+      { label: 'Dados auditáveis', href: '/erp/audit', icon: FileText },
     ],
   },
 ];
@@ -99,7 +100,6 @@ export default function ERPLayout({ children }) {
             </div>
           </div>)}
         </nav>
-        <div className="erp-sidebar-footer"><FileText size={15} /><span>Dados auditáveis</span></div>
       </aside>
       <main className="erp-main" id="erp-main-content" tabIndex="-1">{children}</main>
     </div>

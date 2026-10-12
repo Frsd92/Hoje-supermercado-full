@@ -18,6 +18,35 @@ model User {
   updatedAt     DateTime                @updatedAt
 }
 
+model ActivityAuditLog {
+  id              String   @id @default(cuid())
+  eventKey        String   @unique
+  eventOrigin     String   @default("ACCESS")
+  occurredAt      DateTime @default(now())
+  actorId         String?
+  actorLabel      String
+  actorType       String
+  action          String
+  method          String?
+  route           String
+  resourceName    String
+  resourceId      String?
+  ipAddress       String?
+  deviceType      String
+  browser         String
+  operatingSystem String
+  userAgent       String?
+  queryKeys       String[] @default([])
+  outcome         String
+  snapshot        Json?
+  changes         Json?
+  note            String?
+
+  @@index([occurredAt, id])
+  @@index([actorId, occurredAt])
+  @@index([action, occurredAt])
+}
+
 model CustomerProfile {
   email                     String    @id
   customerId                String    @unique @default(cuid())
