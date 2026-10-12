@@ -24,6 +24,7 @@ const emptySupplier = {
   financeEmail: '',
   financePhone: '',
   address: '',
+  neighborhood: '',
   city: '',
   state: '',
   postalCode: '',
@@ -50,6 +51,7 @@ const supplierFieldLabels = {
   financeEmail: 'E-mail financeiro',
   financePhone: 'Telefone financeiro',
   address: 'Endereço',
+  neighborhood: 'Bairro',
   city: 'Cidade',
   state: 'UF',
   postalCode: 'CEP',
@@ -71,6 +73,33 @@ const escapeCsv = (value) => {
   const safe = /^[\s]*[=+\-@]/.test(text) ? `'${text}` : text;
   return `"${safe.replaceAll('"', '""')}"`;
 };
+const formatBrazilDocument = (value) => {
+  const digits = String(value || '').replace(/\D/g, '').slice(0, 14);
+  if (digits.length <= 11) {
+    return digits
+      .replace(/^(\d{3})(\d)/, '$1.$2')
+      .replace(/^(\d{3})\.(\d{3})(\d)/, '$1.$2.$3')
+      .replace(/\.(\d{3})(\d)/, '.$1-$2');
+  }
+  return digits
+    .replace(/^(\d{2})(\d)/, '$1.$2')
+    .replace(/^(\d{2})\.(\d{3})(\d)/, '$1.$2.$3')
+    .replace(/\.(\d{3})(\d)/, '.$1/$2')
+    .replace(/(\d{4})(\d)/, '$1-$2');
+};
+const formatPostalCode = (value) => {
+  const digits = String(value || '').replace(/\D/g, '').slice(0, 8);
+  return digits.length > 5 ? `${digits.slice(0, 5)}-${digits.slice(5)}` : digits;
+};
+const stateOptions = [
+  ['AC', 'Acre'], ['AL', 'Alagoas'], ['AP', 'Amapá'], ['AM', 'Amazonas'], ['BA', 'Bahia'],
+  ['CE', 'Ceará'], ['DF', 'Distrito Federal'], ['ES', 'Espírito Santo'], ['GO', 'Goiás'],
+  ['MA', 'Maranhão'], ['MT', 'Mato Grosso'], ['MS', 'Mato Grosso do Sul'], ['MG', 'Minas Gerais'],
+  ['PA', 'Pará'], ['PB', 'Paraíba'], ['PR', 'Paraná'], ['PE', 'Pernambuco'], ['PI', 'Piauí'],
+  ['RJ', 'Rio de Janeiro'], ['RN', 'Rio Grande do Norte'], ['RS', 'Rio Grande do Sul'],
+  ['RO', 'Rondônia'], ['RR', 'Roraima'], ['SC', 'Santa Catarina'], ['SP', 'São Paulo'],
+  ['SE', 'Sergipe'], ['TO', 'Tocantins'],
+];
 
 function formatAuditValue(value) {
   if (value && typeof value === 'object' && value.__auditAbsent === true) return 'Não informado';
@@ -105,10 +134,14 @@ function SupplierForm({ supplier, onClose, onSaved }) {
   const [error, setError] = useState('');
   const [audit, setAudit] = useState([]);
   const [auditError, setAuditError] = useState('');
+  const [cnpjLookup, setCnpjLookup] = useState({ loading: false, message: '' });
+  const [cepLookup, setCepLookup] = useState({ loading: false, message: '' });
   const isEditing = Boolean(supplier?.id);
   const dialogRef = useRef(null);
   const closeRef = useRef(onClose);
   const savingRef = useRef(saving);
+  const cnpjRequestRef = useRef(0);
+  const cepRequestRef = useRef(0);
   closeRef.current = onClose;
   savingRef.current = saving;
 
@@ -170,6 +203,65 @@ function SupplierForm({ supplier, onClose, onSaved }) {
   }, [supplier?.id]);
 
   const updateField = (field, value) => setForm((current) => ({ ...current, [field]: value }));
+  const lookupSupplierCnpj = async (value) => {
+    const requestId = ++cnpjRequestRef.current;
+    setCnpjLookup({ loading: true, message: 'Consultando dados públicos do CNPJ…' });
+    try {
+      const response = await fetch(`/api/erp/suppliers/lookup?type=cnpj&value=${encodeURIComponent(value)}`, { cache: 'no-store' });
+      const data = await readSupplierResponse(response, 'Não foi possível consultar este CNPJ.');
+      if (!response.ok) throw new Error(data.error || 'Não foi possível consultar este CNPJ.');
+      if (requestId !== cnpjRequestRef.current) return;
+      setForm((current) => Object.fromEntries(Object.entries(current).map(([key, existing]) => {
+        const suggestion = data[key];
+        if (typeof suggestion !== 'string' || !suggestion.trim() || String(existing || '').trim()) return [key, existing];
+        return [key, key === 'postalCode' ? formatPostalCode(suggestion) : suggestion];
+      })));
+      setCnpjLookup({ loading: false, message: 'Dados públicos encontrados. Confira e complete os campos antes de salvar.' });
+    } catch (lookupError) {
+      if (requestId === cnpjRequestRef.current) setCnpjLookup({ loading: false, message: lookupError.message || 'Consulta indisponível; preencha os dados manualmente.' });
+    }
+  };
+  const lookupSupplierCep = async (value) => {
+    const requestId = ++cepRequestRef.current;
+    setCepLookup({ loading: true, message: 'Consultando o CEP…' });
+    try {
+      const response = await fetch(`/api/erp/suppliers/lookup?type=cep&value=${encodeURIComponent(value)}`, { cache: 'no-store' });
+      const data = await readSupplierResponse(response, 'Não foi possível consultar este CEP.');
+      if (!response.ok) throw new Error(data.error || 'Não foi possível consultar este CEP.');
+      if (requestId !== cepRequestRef.current) return;
+      setForm((current) => ({
+        ...current,
+        address: data.address || current.address,
+        neighborhood: data.neighborhood || current.neighborhood,
+        city: data.city || current.city,
+        state: data.state || current.state,
+        postalCode: formatPostalCode(data.postalCode || value),
+      }));
+      setCepLookup({ loading: false, message: 'Endereço localizado pelo CEP. Confira o número e o complemento.' });
+    } catch (lookupError) {
+      if (requestId === cepRequestRef.current) setCepLookup({ loading: false, message: lookupError.message || 'Consulta indisponível; preencha o endereço manualmente.' });
+    }
+  };
+  const handleTaxIdChange = (event) => {
+    const formatted = formatBrazilDocument(event.target.value);
+    updateField('taxId', formatted);
+    const digits = formatted.replace(/\D/g, '');
+    if (digits.length === 14) lookupSupplierCnpj(digits);
+    else {
+      cnpjRequestRef.current += 1;
+      setCnpjLookup({ loading: false, message: '' });
+    }
+  };
+  const handlePostalCodeChange = (event) => {
+    const formatted = formatPostalCode(event.target.value);
+    updateField('postalCode', formatted);
+    const digits = formatted.replace(/\D/g, '');
+    if (digits.length === 8) lookupSupplierCep(digits);
+    else {
+      cepRequestRef.current += 1;
+      setCepLookup({ loading: false, message: '' });
+    }
+  };
   const addCategories = () => {
     const added = categoryInput.split(',').map((item) => item.trim()).filter(Boolean);
     if (!added.length) return;
@@ -230,7 +322,7 @@ function SupplierForm({ supplier, onClose, onSaved }) {
         id={id}
         type={type}
         value={form[key] ?? ''}
-        onChange={(event) => updateField(key, event.target.value)}
+        onChange={props.onChange || ((event) => updateField(key, event.target.value))}
         required={props.required}
         maxLength={props.maxLength}
         inputMode={props.inputMode}
@@ -248,10 +340,10 @@ function SupplierForm({ supplier, onClose, onSaved }) {
     <section ref={dialogRef} className="supplier-drawer" role="dialog" aria-modal="true" aria-labelledby="supplier-form-title" aria-describedby="supplier-form-description" tabIndex="-1">
       <header className="supplier-drawer-header"><div><span className="eyebrow">Cadastro de fornecedores</span><h2 id="supplier-form-title">{isEditing ? 'Editar fornecedor' : 'Cadastrar fornecedor'}</h2><p id="supplier-form-description">Informe os dados confirmados. Campos sem asterisco são opcionais; novos cadastros começam em análise.</p></div><button type="button" className="supplier-close-button" aria-label="Fechar formulário" onClick={onClose} disabled={saving}><X size={20} /></button></header>
       <form className="supplier-form" onSubmit={save}>
-        <section className="supplier-form-section"><h3>Identificação e contato</h3><div className="supplier-form-grid">
+        <section className="supplier-form-section"><h3>Identificação e contato</h3><p className="supplier-section-description">A consulta automática usa fontes públicas para sugerir dados do CNPJ; revise as informações antes de salvar.</p><div className="supplier-form-grid">
           {field('Nome fantasia', 'name', 'text', { required: true, autoComplete: 'organization' })}
           {field('Razão social', 'legalName')}
-          {field('CPF/CNPJ', 'taxId', 'text', { inputMode: 'numeric', placeholder: 'Digite ou cole o documento', hint: 'O documento é opcional; se informado, será validado.' })}
+          {field('CPF/CNPJ', 'taxId', 'text', { inputMode: 'numeric', placeholder: 'Digite ou cole o documento', autoComplete: 'off', onChange: handleTaxIdChange, hint: cnpjLookup.message || 'Ao completar um CNPJ válido, buscamos os dados públicos da empresa; confira as sugestões.' })}
           {field('E-mail geral', 'email', 'email')}
           {field('Telefone', 'phone', 'tel')}
           {field('WhatsApp', 'whatsapp', 'tel')}
@@ -275,10 +367,11 @@ function SupplierForm({ supplier, onClose, onSaved }) {
         </div></section>
 
         <section className="supplier-form-section"><h3>Endereço e condições comerciais</h3><div className="supplier-form-grid">
+          {field('CEP', 'postalCode', 'text', { inputMode: 'numeric', maxLength: 9, placeholder: '00000-000', onChange: handlePostalCodeChange, hint: cepLookup.message || 'Ao completar os oito dígitos, o endereço é preenchido automaticamente.' })}
           {field('Endereço', 'address')}
+          {field('Bairro', 'neighborhood')}
           {field('Cidade', 'city')}
-          {field('UF', 'state', 'text', { maxLength: 2 })}
-          {field('CEP', 'postalCode', 'text', { inputMode: 'numeric' })}
+          <div className="supplier-field"><label htmlFor="supplier-state">UF</label><select id="supplier-state" value={form.state || ''} onChange={(event) => updateField('state', event.target.value)}><option value="">Selecione a UF</option>{stateOptions.map(([uf, name]) => <option key={uf} value={uf}>{name} ({uf})</option>)}</select></div>
           {field('Condições de pagamento', 'paymentTerms', 'text', { placeholder: 'Ex.: 28 dias, boleto' })}
           {field('Pedido mínimo (R$)', 'minimumOrderValue', 'text', { inputMode: 'decimal', placeholder: 'Ex.: 1.234,56', hint: 'Use vírgula para separar os centavos.' })}
           {field('Condições de entrega', 'deliveryTerms', 'text', { placeholder: 'Ex.: CIF ou FOB, conforme negociado' })}
@@ -351,10 +444,10 @@ export default function SuppliersPage() {
   }, [suppliers, query, statusFilter, categoryFilter]);
 
   const saveCsv = () => {
-    const columns = ['Nome fantasia', 'Razão social', 'CPF/CNPJ', 'E-mail', 'Telefone', 'WhatsApp', 'Categorias', 'Status', 'Motivo', 'Cidade', 'UF', 'Condições de pagamento', 'Pedido mínimo', 'Condições de entrega'];
+    const columns = ['Nome fantasia', 'Razão social', 'CPF/CNPJ', 'E-mail', 'Telefone', 'WhatsApp', 'Categorias', 'Status', 'Motivo', 'Endereço', 'Bairro', 'Cidade', 'UF', 'CEP', 'Condições de pagamento', 'Pedido mínimo', 'Condições de entrega'];
     const rows = filteredSuppliers.map((supplier) => [
       supplier.name, supplier.legalName, supplier.taxId, supplier.email, supplier.phone, supplier.whatsapp,
-      supplier.categories.join('; '), supplier.status, supplier.statusReason, supplier.city, supplier.state,
+      supplier.categories.join('; '), supplier.status, supplier.statusReason, supplier.address, supplier.neighborhood, supplier.city, supplier.state, supplier.postalCode,
       supplier.paymentTerms, supplier.minimumOrderValue, supplier.deliveryTerms,
     ]);
     const csv = `\uFEFF${[columns, ...rows].map((row) => row.map(escapeCsv).join(';')).join('\r\n')}`;

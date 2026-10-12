@@ -35,11 +35,13 @@ test('accepts Brazilian currency and normalizes optional address fields', () => 
     minimumOrderValue: '1.234,56',
     state: 'sp',
     postalCode: '01001-000',
+    neighborhood: 'Sé',
   });
 
   assert.equal(data.minimumOrderValue, 1234.56);
   assert.equal(data.state, 'SP');
   assert.equal(data.postalCode, '01001000');
+  assert.equal(data.neighborhood, 'Sé');
 });
 
 test('rejects malformed Brazilian address and out-of-range currency fields', () => {

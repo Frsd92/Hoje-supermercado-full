@@ -280,6 +280,7 @@ model Supplier {
   financeEmail      String?
   financePhone      String?
   address           String?
+  neighborhood      String?
   city              String?
   state             String?
   postalCode        String?
