@@ -24,6 +24,7 @@ const emptySupplier = {
   financeEmail: '',
   financePhone: '',
   address: '',
+  addressNumber: '',
   neighborhood: '',
   city: '',
   state: '',
@@ -51,6 +52,7 @@ const supplierFieldLabels = {
   financeEmail: 'E-mail financeiro',
   financePhone: 'Telefone financeiro',
   address: 'Endereço',
+  addressNumber: 'Número',
   neighborhood: 'Bairro',
   city: 'Cidade',
   state: 'UF',
@@ -368,7 +370,8 @@ function SupplierForm({ supplier, onClose, onSaved }) {
 
         <section className="supplier-form-section"><h3>Endereço e condições comerciais</h3><div className="supplier-form-grid">
           {field('CEP', 'postalCode', 'text', { inputMode: 'numeric', maxLength: 9, placeholder: '00000-000', onChange: handlePostalCodeChange, hint: cepLookup.message || 'Ao completar os oito dígitos, o endereço é preenchido automaticamente.' })}
-          {field('Endereço', 'address')}
+          {field('Logradouro', 'address', 'text', { autoComplete: 'address-line1', placeholder: 'Rua, avenida, estrada...' })}
+          {field('Número', 'addressNumber', 'text', { autoComplete: 'address-line2', maxLength: 20, placeholder: 'Nº ou s/n' })}
           {field('Bairro', 'neighborhood')}
           {field('Cidade', 'city')}
           <div className="supplier-field"><label htmlFor="supplier-state">UF</label><select id="supplier-state" value={form.state || ''} onChange={(event) => updateField('state', event.target.value)}><option value="">Selecione a UF</option>{stateOptions.map(([uf, name]) => <option key={uf} value={uf}>{name} ({uf})</option>)}</select></div>
@@ -444,10 +447,10 @@ export default function SuppliersPage() {
   }, [suppliers, query, statusFilter, categoryFilter]);
 
   const saveCsv = () => {
-    const columns = ['Nome fantasia', 'Razão social', 'CPF/CNPJ', 'E-mail', 'Telefone', 'WhatsApp', 'Categorias', 'Status', 'Motivo', 'Endereço', 'Bairro', 'Cidade', 'UF', 'CEP', 'Condições de pagamento', 'Pedido mínimo', 'Condições de entrega'];
+    const columns = ['Nome fantasia', 'Razão social', 'CPF/CNPJ', 'E-mail', 'Telefone', 'WhatsApp', 'Categorias', 'Status', 'Motivo', 'Logradouro', 'Número', 'Bairro', 'Cidade', 'UF', 'CEP', 'Condições de pagamento', 'Pedido mínimo', 'Condições de entrega'];
     const rows = filteredSuppliers.map((supplier) => [
       supplier.name, supplier.legalName, supplier.taxId, supplier.email, supplier.phone, supplier.whatsapp,
-      supplier.categories.join('; '), supplier.status, supplier.statusReason, supplier.address, supplier.neighborhood, supplier.city, supplier.state, supplier.postalCode,
+      supplier.categories.join('; '), supplier.status, supplier.statusReason, supplier.address, supplier.addressNumber, supplier.neighborhood, supplier.city, supplier.state, supplier.postalCode,
       supplier.paymentTerms, supplier.minimumOrderValue, supplier.deliveryTerms,
     ]);
     const csv = `\uFEFF${[columns, ...rows].map((row) => row.map(escapeCsv).join(';')).join('\r\n')}`;
