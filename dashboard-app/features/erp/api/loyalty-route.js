@@ -149,7 +149,7 @@ export async function PATCH(request) {
         }
         const updated = await transaction.loyaltyMission.update({
           where: { id: existing.id },
-          data: mission,
+          data: { ...mission, updatedBy: erpActorLabel(session.user) },
         });
         return { mission: updated };
       }, { isolationLevel: 'Serializable' });
@@ -160,7 +160,10 @@ export async function PATCH(request) {
     const reward = validateLoyaltyRewardPayload(body);
     const existing = await prisma.loyaltyReward.findUnique({ where: { id: String(body.id).trim() } });
     if (!existing) return Response.json({ error: 'A recompensa não foi encontrada.' }, { status: 404 });
-    const updated = await prisma.loyaltyReward.update({ where: { id: existing.id }, data: reward });
+    const updated = await prisma.loyaltyReward.update({
+      where: { id: existing.id },
+      data: { ...reward, updatedBy: erpActorLabel(session.user) },
+    });
     return Response.json({ reward: updated });
   } catch (error) {
     if (validationError(error)) return Response.json({ error: error.message }, { status: 400 });

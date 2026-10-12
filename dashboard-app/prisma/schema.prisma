@@ -171,6 +171,7 @@ model ProductLot {
   source           String                   @default("MANUAL")
   sourceReference  String?
   createdBy        String?
+  updatedBy        String?
   createdAt        DateTime                 @default(now())
   updatedAt        DateTime                 @updatedAt
   product          Product                  @relation(fields: [productId], references: [id], onDelete: Restrict)
@@ -207,6 +208,7 @@ model InventoryCountItem {
   systemQuantity  Decimal        @db.Decimal(12, 3)
   countedQuantity Decimal?       @db.Decimal(12, 3)
   countedAt       DateTime?
+  updatedBy       String?
   count           InventoryCount @relation(fields: [countId], references: [id], onDelete: Cascade)
 
   @@unique([countId, productId])
@@ -705,6 +707,7 @@ model CouponRecipient {
   id         String         @id @default(cuid())
   campaignId String
   email      String
+  createdBy  String?
   campaign   CouponCampaign @relation(fields: [campaignId], references: [id], onDelete: Cascade)
 
   @@unique([campaignId, email])
@@ -745,6 +748,7 @@ model LoyaltyMission {
   pointsExpireAt     DateTime?
   status             String                       @default("draft")
   createdBy          String
+  updatedBy          String?
   createdAt          DateTime                     @default(now())
   updatedAt          DateTime                     @updatedAt
   progress           LoyaltyMissionProgress[]
@@ -803,6 +807,7 @@ model LoyaltyReward {
   validityDays       Int
   active             Boolean                   @default(true)
   createdBy          String
+  updatedBy          String?
   createdAt          DateTime                  @default(now())
   updatedAt          DateTime                  @updatedAt
   redemptions        LoyaltyRewardRedemption[]

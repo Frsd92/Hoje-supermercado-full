@@ -2,6 +2,15 @@
 
 import { useCallback, useEffect, useMemo, useState } from 'react';
 import { Download, RefreshCw, Search } from 'lucide-react';
+import Link from 'next/link';
+import {
+  auditEventLabel,
+  auditRelatedHref,
+  auditRelatedRecords,
+  auditResourceHref,
+  auditResourceLabel,
+  sanitizeAuditDetail,
+} from '@/features/erp/api/activity-audit';
 
 const pageSize = 50;
 const timeFormatter = new Intl.DateTimeFormat('pt-BR', {
@@ -26,31 +35,6 @@ function escapeCsv(value) {
   return `"${safe.replaceAll('"', '""')}"`;
 }
 
-function actionLabel(entry) {
-  if (entry.source === 'DATABASE') {
-    return ({ CREATE: 'Registro criado', UPDATE: 'Registro alterado', DELETE: 'Registro excluído' })[entry.action] || entry.action;
-  }
-  if (entry.source !== 'ACCESS') return entry.action || 'Alteração registrada';
-  return ({
-    PAGE_VIEW: 'Visualização de página',
-    DATA_READ: 'Consulta de dados',
-    COMMAND: 'Ação solicitada',
-    UPDATE: 'Alteração solicitada',
-    DELETE: 'Exclusão solicitada',
-    AUTH: 'Acesso/autenticação',
-    REQUEST: 'Requisição',
-  })[entry.action] || entry.action;
-}
-
-function outcomeLabel(outcome) {
-  return ({
-    REQUEST_RECEIVED: 'Solicitação recebida',
-    RECORDED_CHANGE: 'Alteração registrada',
-    LOGIN_REQUIRED: 'Login necessário',
-    ACCESS_DENIED: 'Acesso negado',
-  })[outcome] || outcome || '—';
-}
-
 function actorTypeLabel(actorType) {
   return ({
     ERP: 'Equipe ERP',
@@ -59,6 +43,68 @@ function actorTypeLabel(actorType) {
     ATOR_DO_REGISTRO: 'Ator identificado no registro',
     SISTEMA: 'Sistema/automação',
   })[actorType] || actorType || '—';
+}
+
+const auditFieldLabels = {
+  title: 'Nome do produto',
+  description: 'Descrição',
+  price: 'Preço',
+  cost: 'Custo',
+  discount: 'Desconto',
+  quantity: 'Estoque / quantidade',
+  image: 'Foto / imagem',
+  status: 'Status',
+  expiry: 'Validade',
+  lotCode: 'Código do lote',
+  productId: 'Produto relacionado',
+  orderId: 'Pedido relacionado',
+  orderItemId: 'Item do pedido',
+  supplierId: 'Fornecedor relacionado',
+  invoiceId: 'NF-e relacionada',
+  purchaseOrderId: 'Ordem de compra relacionada',
+  campaignId: 'Cupom relacionado',
+  couponCampaignId: 'Cupom relacionado',
+  missionId: 'Missão relacionada',
+  progressId: 'Progresso da missão',
+  customerEmail: 'Cliente relacionado',
+  email: 'Cliente/destinatário relacionado',
+  countId: 'Balanço relacionado',
+  lotId: 'Lote relacionado',
+  refundRequestId: 'Solicitação de estorno relacionada',
+  sourceOrderId: 'Pedido de origem',
+  rewardId: 'Recompensa relacionada',
+  rewardRedemptionId: 'Resgate de recompensa relacionado',
+  redemptionEntryId: 'Pontos resgatados',
+  awardEntryId: 'Pontos concedidos',
+  orderItemIndex: 'Item do pedido',
+  contributionAmount: 'Valor acumulado na missão',
+  contributionCount: 'Quantidade acumulada na missão',
+  points: 'Pontos movimentados',
+  type: 'Tipo de movimentação',
+  receivedQuantity: 'Quantidade recebida',
+  receivedUnitCost: 'Custo unitário recebido',
+  countedQuantity: 'Quantidade física contada',
+  systemQuantity: 'Quantidade registrada no sistema',
+  refundedAmount: 'Valor estornado',
+  amount: 'Valor da operação',
+  reason: 'Motivo',
+  note: 'Observação',
+  claimedRewards: 'Recompensas concedidas',
+  pointsReward: 'Pontos da missão',
+  targetAmount: 'Meta de valor',
+  targetCount: 'Meta de quantidade',
+  completedBy: 'Concluído por',
+  reviewedBy: 'Revisado por',
+  requestedBy: 'Solicitado por',
+  createdBy: 'Criado por',
+  updatedBy: 'Atualizado por',
+  actor: 'Responsável pela ação',
+};
+
+function auditValueLabel(value) {
+  if (value?.redacted) return 'Conteúdo protegido; alteração do campo registrada.';
+  if (value && typeof value === 'object' && value.__auditAbsent === true) return 'Não informado';
+  return formatValue(value);
 }
 
 export default function AuditPage() {
@@ -105,30 +151,22 @@ export default function AuditPage() {
   };
 
   const exportCurrentPage = () => {
-    const columns = ['Data e hora (America/Sao_Paulo)', 'Usuário', 'Perfil', 'Ação', 'Resultado registrado', 'Origem', 'Método', 'Área/recurso', 'ID do recurso', 'IP', 'Dispositivo', 'Navegador', 'Sistema operacional', 'Parâmetros consultados', 'Alterações/dados disponíveis', 'Observação'];
+    const columns = ['Data e hora (America/Sao_Paulo)', 'Responsável', 'Ação', 'Setor / registro', 'ID do registro', 'Registros relacionados', 'Alterações (antes/depois)', 'Observação'];
     const rows = entries.map((entry) => [
       entry.occurredAt ? timeFormatter.format(new Date(entry.occurredAt)) : '',
       entry.actorLabel,
-      entry.actorType,
-      actionLabel(entry),
-      outcomeLabel(entry.outcome),
-      entry.source,
-      entry.method,
-      entry.route || entry.resourceName,
+      auditEventLabel(entry),
+      auditResourceLabel(entry),
       entry.resourceId,
-      entry.ipAddress,
-      entry.deviceType,
-      entry.browser,
-      entry.operatingSystem,
-      Array.isArray(entry.queryKeys) ? entry.queryKeys.join(', ') : '',
-      JSON.stringify({ changes: entry.changes, snapshot: entry.snapshot }),
+      auditRelatedRecords(entry).map(({ label, id }) => `${label}: ${id}`).join(' | '),
+      JSON.stringify(sanitizeAuditDetail(entry.changes || entry.snapshot)),
       entry.note,
     ]);
     const csv = `\uFEFF${[columns, ...rows].map((row) => row.map(escapeCsv).join(';')).join('\r\n')}`;
     const url = URL.createObjectURL(new Blob([csv], { type: 'text/csv;charset=utf-8' }));
     const link = document.createElement('a');
     link.href = url;
-    link.download = `dados-auditaveis-pagina-${page}.csv`;
+    link.download = `ata-operacional-pagina-${page}.csv`;
     link.click();
     URL.revokeObjectURL(url);
   };
@@ -139,21 +177,21 @@ export default function AuditPage() {
     <header className="audit-page-header">
       <div>
         <span className="eyebrow">Governança e rastreabilidade</span>
-        <h1>Dados auditáveis</h1>
-        <p>Consultas, visualizações e alterações registradas nos setores da plataforma, com data, usuário, dispositivo e histórico disponível.</p>
+        <h1>Trilha de operações</h1>
+        <p>O que foi criado, alterado ou removido, por quem, quando e em qual registro — com vínculos aos pedidos, produtos, lotes e documentos relacionados.</p>
       </div>
       <button type="button" className="supplier-secondary-button" onClick={loadEntries} disabled={loading}><RefreshCw size={16} aria-hidden="true" /> Atualizar</button>
     </header>
 
     <aside className="audit-coverage-notice">
-      <strong>Escopo e integridade do histórico</strong>
-      <p>A trilha de acessos e alterações no banco começa com a ativação deste registro; alterações anteriores só aparecem quando já existia auditoria específica (produtos, fornecedores, NF-e e pedidos de compra). Os dados persistidos passam a registrar diferenças por campo; credenciais, tokens, arquivos e valores extensos são omitidos, mas a mudança do campo continua registrada. Acesso ou solicitação registrada não comprova, por si só, que uma operação sem alteração no banco foi concluída. Os registros não têm expiração automática configurada.</p>
+      <strong>Escopo da ata operacional</strong>
+      <p>Este relatório prioriza operações confirmadas nos registros de produtos e estoque, fornecedores e compras, NF-e, pedidos, estornos e atendimento, cupons e missões. Consultas de tela, leituras de API e tentativas de acesso não aparecem como alterações. Cada linha identifica o registro principal e, quando disponível, os IDs dos registros relacionados. As diferenças mostram os valores anteriores e posteriores; arquivos e conteúdo sensível são omitidos, mas a alteração do campo permanece registrada. Quando o banco não recebeu a identidade de quem executou uma operação, isso é indicado explicitamente como sistema/ator não identificado. Não é possível reconstruir alterações anteriores à ativação da trilha, exceto onde já existia auditoria específica. Os registros não têm expiração automática configurada.</p>
     </aside>
 
     <form className="audit-filters" onSubmit={applyFilters}>
       <div className="audit-search-field">
-        <label htmlFor="audit-search">Buscar em usuário, setor, rota, ação ou alterações registradas</label>
-        <div><Search size={16} aria-hidden="true" /><input id="audit-search" value={query} onChange={(event) => setQuery(event.target.value)} maxLength={100} placeholder="Ex.: fornecedor, produto, relatório..." /></div>
+        <label htmlFor="audit-search">Buscar responsável, ação, registro ou alteração</label>
+        <div><Search size={16} aria-hidden="true" /><input id="audit-search" value={query} onChange={(event) => setQuery(event.target.value)} maxLength={100} placeholder="Ex.: estorno, estoque, cupom, missão..." /></div>
       </div>
       <div><label htmlFor="audit-from">Data inicial</label><input id="audit-from" type="date" value={from} onChange={(event) => setFrom(event.target.value)} /></div>
       <div><label htmlFor="audit-to">Data final</label><input id="audit-to" type="date" value={to} onChange={(event) => setTo(event.target.value)} /></div>
@@ -161,29 +199,31 @@ export default function AuditPage() {
     </form>
 
     <div className="audit-results-summary" role="status">
-      <span>{loading ? 'Carregando histórico...' : `${total.toLocaleString('pt-BR')} registros encontrados`}</span>
-      <button type="button" className="supplier-secondary-button" onClick={exportCurrentPage} disabled={!entries.length || loading}><Download size={15} aria-hidden="true" /> Exportar página CSV</button>
+      <span>{loading ? 'Carregando histórico...' : `${total.toLocaleString('pt-BR')} operações registradas`}</span>
+      <button type="button" className="supplier-secondary-button" onClick={exportCurrentPage} disabled={!entries.length || loading}><Download size={15} aria-hidden="true" /> Exportar ata da página (CSV)</button>
     </div>
 
     {error && <div className="supplier-form-error" role="alert">{error}</div>}
     {!error && !loading && !entries.length && <div className="audit-empty-state">Nenhum registro encontrado para os filtros selecionados.</div>}
     {entries.length > 0 && <div className="audit-table-wrap">
       <table className="audit-table">
-        <thead><tr><th>Data e hora</th><th>Usuário</th><th>Ação / setor</th><th>Dispositivo e rede</th><th>Registro</th></tr></thead>
+        <thead><tr><th>Data e hora</th><th>Responsável</th><th>Ação / setor</th><th>Registro e vínculos</th><th>Ata da alteração</th></tr></thead>
         <tbody>{entries.map((entry) => <tr key={`${entry.source}-${entry.id}`}>
           <td><time dateTime={entry.occurredAt}>{entry.occurredAt ? timeFormatter.format(new Date(entry.occurredAt)) : '—'}</time></td>
-          <td><strong>{entry.actorLabel || 'Usuário não identificado'}</strong><small>{actorTypeLabel(entry.actorType)}</small></td>
-          <td><strong>{actionLabel(entry)}</strong><small>{entry.resourceName || entry.route || '—'}{entry.method ? ` · ${entry.method}` : ''}</small></td>
-          <td><strong>{[entry.deviceType, entry.browser, entry.operatingSystem].filter(Boolean).join(' · ') || '—'}</strong><small>IP: {entry.ipAddress || 'não disponível'}</small></td>
+          <td><strong>{entry.actorLabel || 'Ator não identificado'}</strong><small>{actorTypeLabel(entry.actorType)}</small></td>
+          <td><strong>{auditEventLabel(entry)}</strong><small>{auditResourceLabel(entry)}</small></td>
           <td>
-            <span className={`audit-outcome ${entry.outcome === 'ACCESS_DENIED' ? 'denied' : ''}`}>{outcomeLabel(entry.outcome)}</span>
-            {entry.source === 'ACCESS' && Array.isArray(entry.queryKeys) && entry.queryKeys.length > 0 && <small>Filtros: {entry.queryKeys.join(', ')}</small>}
-            {(entry.changes || entry.snapshot || entry.note || entry.userAgent) && <details className="audit-entry-details">
-              <summary>Ver detalhes</summary>
-              {entry.changes && <div><strong>Diferenças registradas</strong>{Object.entries(entry.changes).map(([key, value]) => <p key={key}><b>{key}</b><br />{value?.redacted ? <span>Conteúdo omitido por segurança; alteração do campo registrada.</span> : <><span>Antes: {formatValue(value?.before)}</span><br /><span>Depois: {formatValue(value?.after)}</span></>}</p>)}</div>}
-              {entry.snapshot && <div><strong>Registro disponível</strong><pre>{formatValue(entry.snapshot)}</pre></div>}
+            {auditResourceHref(entry) && <Link className="audit-resource-link" href={auditResourceHref(entry)}>Abrir setor</Link>}
+            <small>ID: <code>{entry.resourceId || 'não disponível'}</code></small>
+            {auditRelatedRecords(entry).map(({ label, id }) => <small key={`${label}-${id}`}>Vinculado: {label} {auditRelatedHref(label) ? <Link href={auditRelatedHref(label)}><code>{id}</code></Link> : <code>{id}</code>}</small>)}
+          </td>
+          <td>
+            {(entry.changes || entry.snapshot || entry.note) && <details className="audit-entry-details">
+              <summary>Abrir ata e diferenças</summary>
+              <div className="audit-minute-heading"><strong>{auditEventLabel(entry)} · {auditResourceLabel(entry)}</strong><span>{entry.occurredAt ? timeFormatter.format(new Date(entry.occurredAt)) : 'Data não disponível'} · {entry.actorLabel || 'Ator não identificado'}</span></div>
+              {entry.changes && <div><strong>Campos alterados</strong>{Object.entries(sanitizeAuditDetail(entry.changes)).map(([key, value]) => <p key={key}><b>{auditFieldLabels[key] || key}</b><br /><span>Antes: {auditValueLabel(value?.before)}</span><br /><span>Depois: {auditValueLabel(value?.after)}</span></p>)}</div>}
+              {entry.snapshot && <div><strong>Dados do registro</strong><pre>{formatValue(sanitizeAuditDetail(entry.snapshot))}</pre></div>}
               {entry.note && <p><strong>Observação:</strong> {entry.note}</p>}
-              {entry.userAgent && <p><strong>Agente do dispositivo:</strong><br />{entry.userAgent}</p>}
             </details>}
           </td>
         </tr>)}</tbody>

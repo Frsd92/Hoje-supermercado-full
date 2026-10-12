@@ -92,7 +92,11 @@ export async function POST(request) {
       }
 
       const addedRecipients = await prisma.couponRecipient.createMany({
-        data: recipients.map((email) => ({ campaignId: existingCampaign.id, email })),
+        data: recipients.map((email) => ({
+          campaignId: existingCampaign.id,
+          email,
+          createdBy: erpActorLabel(session.user),
+        })),
         skipDuplicates: true,
       });
       if (!addedRecipients.count) {
@@ -125,7 +129,12 @@ export async function POST(request) {
         message: couponMessage,
         expiresAt: new Date(expiresAt),
         createdBy: erpActorLabel(session.user),
-        recipients: { create: recipients.map((email) => ({ email })) },
+        recipients: {
+          create: recipients.map((email) => ({
+            email,
+            createdBy: erpActorLabel(session.user),
+          })),
+        },
       },
     });
     return Response.json({ campaign: { id: campaignId, code, discountPercent, expiresAt, createdAt: createdAt.toISOString(), recipientsCount: recipients.length, addedRecipientsCount: recipients.length, recipientEmails: recipients, message: couponMessage } }, { status: 201 });

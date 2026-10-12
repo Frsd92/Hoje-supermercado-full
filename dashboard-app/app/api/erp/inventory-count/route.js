@@ -272,6 +272,7 @@ export async function PATCH(request) {
             data: {
               countedQuantity: change.quantityMilliUnits === null ? null : change.quantityMilliUnits / 1000,
               countedAt: change.quantityMilliUnits === null ? null : countedAt,
+              updatedBy: erpActorLabel(user),
             },
           });
         }

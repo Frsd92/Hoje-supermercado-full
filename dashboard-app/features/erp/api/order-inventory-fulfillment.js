@@ -50,7 +50,7 @@ export async function allocateOrderInventory(transaction, order, actor, today) {
     const quantity = allocation.quantityMilliUnits / 1000;
     const updatedLot = await transaction.productLot.updateMany({
       where: { id: allocation.lotId, quantity: { gte: quantity } },
-      data: { quantity: { decrement: quantity } },
+      data: { quantity: { decrement: quantity }, updatedBy: actor },
     });
     if (updatedLot.count !== 1) throw new Error('O saldo de um lote mudou durante a separação do pedido.');
   }

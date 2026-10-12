@@ -170,6 +170,7 @@ export async function addInventoryLot(transaction, {
       where: { id: existingLot.id },
       data: {
         quantity: { increment: quantityMilliUnits / QUANTITY_SCALE },
+        updatedBy: String(actor || '').trim() || null,
         ...(parsedShelfLifeDays ? { shelfLifeDays: parsedShelfLifeDays } : {}),
         ...(location ? { location: String(location).trim() } : {}),
       },

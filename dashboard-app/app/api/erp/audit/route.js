@@ -5,6 +5,27 @@ import { hasErpAccess } from '@/features/erp/access';
 import { prisma } from '@/lib/prisma';
 
 const headers = { 'Cache-Control': 'private, no-store, max-age=0' };
+const businessResources = [
+  'ProductLot',
+  'InventoryCount',
+  'InventoryCountItem',
+  'InventoryOrderFulfillment',
+  'InventoryLotAllocation',
+  'Order',
+  'OrderRefundRequest',
+  'OrderRefundEvent',
+  'OrderServiceRequest',
+  'CouponCampaign',
+  'CouponRecipient',
+  'CouponRedemption',
+  'LoyaltyMission',
+  'LoyaltyMissionProgress',
+  'LoyaltyMissionContribution',
+  'LoyaltyReward',
+  'LoyaltyRewardRedemption',
+  'LoyaltyPointEntry',
+  'LoyaltyPointAllocation',
+];
 
 const eventRows = Prisma.sql`
   SELECT
@@ -13,6 +34,9 @@ const eventRows = Prisma.sql`
     "browser", "operatingSystem", "userAgent", to_jsonb("queryKeys") AS "queryKeys",
     "outcome", "snapshot", "changes", "note"
   FROM "ActivityAuditLog"
+  WHERE "eventOrigin" = 'DATABASE'
+    AND "resourceName" IN (${Prisma.join(businessResources)})
+    AND NOT ("resourceName" = 'InventoryCountItem' AND "action" = 'CREATE')
   UNION ALL
   SELECT "id", 'PRODUCT'::text, "occurredAt", NULL::text, "actor", 'ERP'::text,
     "action", NULL::text, NULL::text, "productTitle", "productId", NULL::text,

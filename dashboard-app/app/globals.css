@@ -7697,6 +7697,10 @@ button.metric-mini:focus-visible {
 .audit-entry-details > div, .audit-entry-details > p { margin: 8px 0; }
 .audit-entry-details > div > p { padding: 7px; border-radius: 6px; background: #f8fafc; line-height: 1.5; }
 .audit-entry-details pre { max-height: 300px; overflow: auto; padding: 8px; border-radius: 6px; background: #f8fafc; font-size: .65rem; white-space: pre-wrap; overflow-wrap: anywhere; }
+.audit-resource-link { display: inline-flex; margin-bottom: 4px; color: #166534; font-size: .67rem; font-weight: 750; text-decoration: underline; text-underline-offset: 2px; }
+.audit-resource-link:focus-visible { outline: 2px solid #16a34a; outline-offset: 2px; }
+.audit-entry-details .audit-minute-heading { display: grid; gap: 4px; padding: 9px; border-left: 3px solid #16a34a; background: #f0fdf4; }
+.audit-minute-heading > span { color: #64748b; font-size: .66rem; }
 .audit-pagination { display: flex; justify-content: center; align-items: center; gap: 12px; color: #475569; font-size: .74rem; }
 .audit-empty-state { padding: 28px; border: 1px dashed #cbd5e1; border-radius: 10px; background: #fff; color: #64748b; text-align: center; font-size: .8rem; }
 .audit-pagination button:disabled, .audit-results-summary button:disabled, .audit-page-header button:disabled { cursor: not-allowed; opacity: .5; }

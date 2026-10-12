@@ -128,7 +128,7 @@ export async function awardCompletedOrderMissions(transaction, orderId) {
       if (mission.rewardLimit !== null) claimWhere.claimedRewards = { lt: mission.rewardLimit };
       const claim = await transaction.loyaltyMission.updateMany({
         where: claimWhere,
-        data: { claimedRewards: { increment: 1 } },
+        data: { claimedRewards: { increment: 1 }, updatedBy: 'Sistema (concessão de missão)' },
       });
       if (claim.count !== 1) continue;
     }
@@ -147,7 +147,7 @@ export async function awardCompletedOrderMissions(transaction, orderId) {
       if (completesMission) {
         await transaction.loyaltyMission.update({
           where: { id: mission.id },
-          data: { claimedRewards: { decrement: 1 } },
+          data: { claimedRewards: { decrement: 1 }, updatedBy: 'Sistema (concessão de missão)' },
         });
       }
       continue;
@@ -167,7 +167,7 @@ export async function awardCompletedOrderMissions(transaction, orderId) {
       if (completesMission) {
         await transaction.loyaltyMission.update({
           where: { id: mission.id },
-          data: { claimedRewards: { decrement: 1 } },
+          data: { claimedRewards: { decrement: 1 }, updatedBy: 'Sistema (concessão de missão)' },
         });
       }
       continue;
