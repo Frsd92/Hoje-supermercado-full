@@ -19,23 +19,23 @@ model User {
 }
 
 model CustomerProfile {
-  email         String    @id
-  customerId    String    @unique @default(cuid())
-  fullName      String?
-  whatsapp      String    @default("")
-  cpf           String    @default("")
-  gender        String    @default("")
-  birthDate     DateTime? @db.Date
-  photo         String?   @db.Text
-  monthlyBudget Decimal   @default(0) @db.Decimal(12, 2)
-  pagarmeCustomerId String? @unique
-  pagarmeCardId String? @unique
-  pagarmeCardBrand String?
+  email                     String    @id
+  customerId                String    @unique @default(cuid())
+  fullName                  String?
+  whatsapp                  String    @default("")
+  cpf                       String    @default("")
+  gender                    String    @default("")
+  birthDate                 DateTime? @db.Date
+  photo                     String?   @db.Text
+  monthlyBudget             Decimal   @default(0) @db.Decimal(12, 2)
+  pagarmeCustomerId         String?   @unique
+  pagarmeCardId             String?   @unique
+  pagarmeCardBrand          String?
   pagarmeCardLastFourDigits String?
-  pagarmeCardExpMonth Int?
-  pagarmeCardExpYear Int?
-  memberSince   DateTime  @default(now())
-  updatedAt     DateTime  @updatedAt
+  pagarmeCardExpMonth       Int?
+  pagarmeCardExpYear        Int?
+  memberSince               DateTime  @default(now())
+  updatedAt                 DateTime  @updatedAt
 }
 
 model CustomerAddressBook {
@@ -67,11 +67,11 @@ model ServiceRegionMunicipality {
 }
 
 model StorePresenceSession {
-  id         String   @id
+  id          String   @id
   firstSeenAt DateTime @default(now())
   lastSeenAt  DateTime @default(now())
-  deviceType String   @default("unknown")
-  browser    String   @default("unknown")
+  deviceType  String   @default("unknown")
+  browser     String   @default("unknown")
 
   @@index([lastSeenAt])
 }
@@ -97,35 +97,36 @@ model GuestCart {
 }
 
 model Product {
-  id                 String              @id @default(cuid())
-  externalId         String?             @unique
-  identityTitle      String?             @unique
-  identitySku        String?             @unique
-  identityBarcode    String?             @unique
-  title              String
-  description        String              @default("")
-  price              Decimal             @db.Decimal(12, 2)
-  cost               Decimal             @db.Decimal(12, 2)
-  discount           Decimal             @default(0) @db.Decimal(5, 2)
-  quantity           Decimal             @default(0) @db.Decimal(12, 3)
-  sku                String?
-  barcode            String?
-  brand              String?
-  supplier           String?
-  subcategory        String?
-  image              String?
-  status             String              @default("Ativo")
-  expiry             DateTime?
-  categories         String[]
-  metadata           Json                @default("{}")
-  createdBy          String?
-  createdAt          DateTime            @default(now())
-  updatedAt          DateTime            @updatedAt
-  favorites          Favorite[]
-  inventoryLots      ProductLot[]
-  orderItems         OrderItem[]
-  productBarcodes    ProductBarcode[]
-  purchaseOrderItems PurchaseOrderItem[]
+  id                   String                @id @default(cuid())
+  externalId           String?               @unique
+  identityTitle        String?               @unique
+  identitySku          String?               @unique
+  identityBarcode      String?               @unique
+  title                String
+  description          String                @default("")
+  price                Decimal               @db.Decimal(12, 2)
+  cost                 Decimal               @db.Decimal(12, 2)
+  discount             Decimal               @default(0) @db.Decimal(5, 2)
+  quantity             Decimal               @default(0) @db.Decimal(12, 3)
+  sku                  String?
+  barcode              String?
+  brand                String?
+  supplier             String?
+  subcategory          String?
+  image                String?
+  status               String                @default("Ativo")
+  expiry               DateTime?
+  categories           String[]
+  metadata             Json                  @default("{}")
+  createdBy            String?
+  createdAt            DateTime              @default(now())
+  updatedAt            DateTime              @updatedAt
+  favorites            Favorite[]
+  inventoryLots        ProductLot[]
+  orderItems           OrderItem[]
+  productBarcodes      ProductBarcode[]
+  purchaseOrderItems   PurchaseOrderItem[]
+  supplierInvoiceItems SupplierInvoiceItem[]
 }
 
 model ProductLot {
@@ -245,17 +246,17 @@ model StoreLayoutAsset {
 }
 
 model StoreLayoutSlideSettings {
-  key          String   @id
-  showLogo     Boolean  @default(false)
-  showText     Boolean  @default(false)
-  title        String   @default("")
-  description  String   @default("")
-  showButton   Boolean  @default(false)
-  buttonLabel  String   @default("Ver ofertas")
-  buttonHref   String   @default("#store-offers")
-  buttonPosition String @default("default")
-  updatedBy    String
-  updatedAt    DateTime @updatedAt
+  key            String   @id
+  showLogo       Boolean  @default(false)
+  showText       Boolean  @default(false)
+  title          String   @default("")
+  description    String   @default("")
+  showButton     Boolean  @default(false)
+  buttonLabel    String   @default("Ver ofertas")
+  buttonHref     String   @default("#store-offers")
+  buttonPosition String   @default("default")
+  updatedBy      String
+  updatedAt      DateTime @updatedAt
 }
 
 model Supplier {
@@ -291,6 +292,7 @@ model Supplier {
   updatedAt         DateTime           @updatedAt
   auditLogs         SupplierAuditLog[]
   purchaseOrders    PurchaseOrder[]
+  invoices          SupplierInvoice[]
 
   @@index([status, name])
 }
@@ -326,6 +328,7 @@ model PurchaseOrder {
   supplier         Supplier                @relation(fields: [supplierId], references: [id], onDelete: Restrict)
   items            PurchaseOrderItem[]
   auditLogs        PurchaseOrderAuditLog[]
+  invoices         SupplierInvoice[]
 
   @@index([status, expectedDelivery])
   @@index([orderedAt])
@@ -345,6 +348,120 @@ model PurchaseOrderItem {
 
   @@unique([purchaseOrderId, productId])
   @@index([productId])
+}
+
+model SupplierInvoice {
+  id              String                    @id @default(cuid())
+  accessKey       String                    @unique
+  invoiceNumber   String
+  series          String
+  issuerTaxId     String
+  issuerName      String
+  recipientTaxId  String?
+  issuedAt        DateTime
+  authorizedAt    DateTime?
+  protocolNumber  String?
+  protocolStatus  String?
+  authorizationDataComplete Boolean                   @default(false)
+  total           Decimal                   @db.Decimal(14, 2)
+  status          String                    @default("Em Análise")
+  supplierId      String?
+  purchaseOrderId String?
+  xmlData         Bytes
+  danfeData       Bytes?
+  danfeFileName   String?
+  importedBy      String
+  importedAt      DateTime                  @default(now())
+  postedBy        String?
+  postedAt        DateTime?
+  supplier        Supplier?                 @relation(fields: [supplierId], references: [id], onDelete: Restrict)
+  purchaseOrder   PurchaseOrder?            @relation(fields: [purchaseOrderId], references: [id], onDelete: Restrict)
+  items           SupplierInvoiceItem[]
+  payables        SupplierPayable[]
+  auditLogs       SupplierInvoiceAuditLog[]
+
+  @@index([status, issuedAt])
+  @@index([supplierId, issuedAt])
+  @@index([purchaseOrderId])
+}
+
+model SupplierInvoiceItem {
+  id                  String                      @id @default(cuid())
+  invoiceId           String
+  lineNumber          Int
+  supplierProductCode String
+  ean                 String
+  description         String
+  ncm                 String
+  cfop                String
+  unit                String
+  invoiceQuantity     Decimal                     @db.Decimal(16, 6)
+  invoiceLots         Json                        @default("[]")
+  unitPrice           Decimal                     @db.Decimal(16, 6)
+  lineTotal           Decimal                     @db.Decimal(14, 2)
+  productId           String?
+  acceptedQuantity    Decimal                     @default(0) @db.Decimal(12, 3)
+  missingQuantity     Decimal                     @default(0) @db.Decimal(12, 3)
+  damagedQuantity     Decimal                     @default(0) @db.Decimal(12, 3)
+  returnedQuantity    Decimal                     @default(0) @db.Decimal(12, 3)
+  approvedUnitCost    Decimal?                    @db.Decimal(12, 2)
+  lotCode             String?
+  expiry              DateTime?                   @db.Date
+  manufactureDate     DateTime?                   @db.Date
+  discrepancyNote     String?
+  invoice             SupplierInvoice             @relation(fields: [invoiceId], references: [id], onDelete: Cascade)
+  product             Product?                    @relation(fields: [productId], references: [id], onDelete: Restrict)
+  receiptLots         SupplierInvoiceReceiptLot[]
+
+  @@unique([invoiceId, lineNumber])
+  @@index([productId])
+}
+
+model SupplierInvoiceReceiptLot {
+  id              String              @id @default(cuid())
+  invoiceItemId   String
+  quantity        Decimal             @db.Decimal(12, 3)
+  lotCode         String?
+  expiry          DateTime?           @db.Date
+  manufactureDate DateTime?           @db.Date
+  location        String?
+  invoiceItem     SupplierInvoiceItem @relation(fields: [invoiceItemId], references: [id], onDelete: Cascade)
+
+  @@index([invoiceItemId])
+}
+
+model SupplierPayable {
+  id               String          @id @default(cuid())
+  invoiceId        String
+  installment      String
+  amount           Decimal         @db.Decimal(14, 2)
+  dueAt            DateTime?       @db.Date
+  status           String          @default("Em Análise")
+  paidAt           DateTime?
+  paymentMethod    String?
+  paymentReference String?
+  notes            String?
+  createdAt        DateTime        @default(now())
+  updatedAt        DateTime        @updatedAt
+  invoice          SupplierInvoice @relation(fields: [invoiceId], references: [id], onDelete: Cascade)
+
+  @@unique([invoiceId, installment])
+  @@index([status, dueAt])
+  @@index([invoiceId])
+}
+
+model SupplierInvoiceAuditLog {
+  id         String          @id @default(cuid())
+  invoiceId  String
+  action     String
+  actor      String
+  occurredAt DateTime        @default(now())
+  snapshot   Json?
+  changes    Json?
+  note       String?
+  invoice    SupplierInvoice @relation(fields: [invoiceId], references: [id], onDelete: Restrict)
+
+  @@index([invoiceId, occurredAt])
 }
 
 model PurchaseOrderAuditLog {
@@ -373,37 +490,37 @@ model Favorite {
 }
 
 model Order {
-  id                    String               @id
-  userId                String?
-  customerName          String?
-  customerEmail         String?
-  address               String
-  addressDetails        Json?
-  total                 String
-  subtotal              Decimal              @default(0) @db.Decimal(12, 2)
-  paymentMethod         String               @default("nao_informado")
-  paymentStatus         String               @default("manual")
-  checkoutRequestId     String?              @unique
-  pagarmeOrderId        String?              @unique
-  pagarmeChargeId       String?              @unique
-  paymentDetails        Json?
-  refundedAmount        Decimal              @default(0) @db.Decimal(12, 2)
-  includeCpfOnReceipt   Boolean              @default(false)
-  invoiceCpf            String?
-  couponCode            String?
-  couponDiscountPercent Int?
-  couponDiscountAmount  Decimal              @default(0) @db.Decimal(12, 2)
-  status                String               @default("Recebido")
-  updatedBy             String?
-  createdAt             DateTime             @default(now())
-  updatedAt             DateTime             @updatedAt
-  user                  User?                @relation(fields: [userId], references: [id], onDelete: SetNull)
-  items                 OrderItem[]
-  refundRequests        OrderRefundRequest[]
-  serviceRequests       OrderServiceRequest[]
-  paymentEvents         PagarmeWebhookEvent[]
+  id                          String                       @id
+  userId                      String?
+  customerName                String?
+  customerEmail               String?
+  address                     String
+  addressDetails              Json?
+  total                       String
+  subtotal                    Decimal                      @default(0) @db.Decimal(12, 2)
+  paymentMethod               String                       @default("nao_informado")
+  paymentStatus               String                       @default("manual")
+  checkoutRequestId           String?                      @unique
+  pagarmeOrderId              String?                      @unique
+  pagarmeChargeId             String?                      @unique
+  paymentDetails              Json?
+  refundedAmount              Decimal                      @default(0) @db.Decimal(12, 2)
+  includeCpfOnReceipt         Boolean                      @default(false)
+  invoiceCpf                  String?
+  couponCode                  String?
+  couponDiscountPercent       Int?
+  couponDiscountAmount        Decimal                      @default(0) @db.Decimal(12, 2)
+  status                      String                       @default("Recebido")
+  updatedBy                   String?
+  createdAt                   DateTime                     @default(now())
+  updatedAt                   DateTime                     @updatedAt
+  user                        User?                        @relation(fields: [userId], references: [id], onDelete: SetNull)
+  items                       OrderItem[]
+  refundRequests              OrderRefundRequest[]
+  serviceRequests             OrderServiceRequest[]
+  paymentEvents               PagarmeWebhookEvent[]
   loyaltyMissionContributions LoyaltyMissionContribution[]
-  loyaltyPointEntries   LoyaltyPointEntry[]  @relation("LoyaltyPointsSourceOrder")
+  loyaltyPointEntries         LoyaltyPointEntry[]          @relation("LoyaltyPointsSourceOrder")
 
   @@index([createdAt])
   @@index([customerEmail])
@@ -411,30 +528,30 @@ model Order {
 }
 
 model PagarmeWebhookEvent {
-  id          String   @id
-  eventType   String
-  orderId     String?
-  receivedAt  DateTime @default(now())
-  order       Order?   @relation(fields: [orderId], references: [id], onDelete: SetNull)
+  id         String   @id
+  eventType  String
+  orderId    String?
+  receivedAt DateTime @default(now())
+  order      Order?   @relation(fields: [orderId], references: [id], onDelete: SetNull)
 
   @@index([orderId, receivedAt])
   @@index([eventType, receivedAt])
 }
 
 model OrderItem {
-  id                String   @id @default(cuid())
+  id                String                @id @default(cuid())
   orderId           String
   productId         String?
   name              String
   productCode       String?
   price             String
-  quantity          Decimal  @default(1) @db.Decimal(12, 3)
-  unit              String   @default("unidade")
-  unitCost          Decimal? @db.Decimal(12, 2)
+  quantity          Decimal               @default(1) @db.Decimal(12, 3)
+  unit              String                @default("unidade")
+  unitCost          Decimal?              @db.Decimal(12, 2)
   promotionType     String?
-  promotionDiscount Decimal  @default(0) @db.Decimal(12, 2)
-  order             Order    @relation(fields: [orderId], references: [id], onDelete: Cascade)
-  product           Product? @relation(fields: [productId], references: [id], onDelete: SetNull)
+  promotionDiscount Decimal               @default(0) @db.Decimal(12, 2)
+  order             Order                 @relation(fields: [orderId], references: [id], onDelete: Cascade)
+  product           Product?              @relation(fields: [productId], references: [id], onDelete: SetNull)
   serviceRequests   OrderServiceRequest[]
 
   @@index([productId])
@@ -473,22 +590,22 @@ model OrderRefundEvent {
 }
 
 model OrderServiceRequest {
-  id                 String    @id
-  code               String    @unique
+  id                 String     @id
+  code               String     @unique
   orderId            String
   type               String
-  reason             String    @db.Text
+  reason             String     @db.Text
   orderItemId        String?
   orderItemName      String?
   replacementProduct String?
-  status             String    @default("requested")
+  status             String     @default("requested")
   requestedBy        String
   reviewedBy         String?
   reviewedAt         DateTime?
-  decisionNote       String?   @db.Text
-  createdAt          DateTime  @default(now())
-  updatedAt          DateTime  @updatedAt
-  order              Order     @relation(fields: [orderId], references: [id], onDelete: Restrict)
+  decisionNote       String?    @db.Text
+  createdAt          DateTime   @default(now())
+  updatedAt          DateTime   @updatedAt
+  order              Order      @relation(fields: [orderId], references: [id], onDelete: Restrict)
   orderItem          OrderItem? @relation(fields: [orderItemId], references: [id], onDelete: SetNull)
 
   @@index([orderId, createdAt])
@@ -536,17 +653,17 @@ model NotificationRecipient {
 }
 
 model CouponCampaign {
-  id              String             @id
-  code            String             @unique
-  discountPercent Int
-  minimumOrderAmount Decimal          @default(0) @db.Decimal(12, 2)
-  message         String             @default("")
-  expiresAt       DateTime
-  createdBy       String
-  createdAt       DateTime           @default(now())
-  recipients      CouponRecipient[]
-  redemptions     CouponRedemption[]
-  loyaltyRedemption LoyaltyRewardRedemption?
+  id                 String                   @id
+  code               String                   @unique
+  discountPercent    Int
+  minimumOrderAmount Decimal                  @default(0) @db.Decimal(12, 2)
+  message            String                   @default("")
+  expiresAt          DateTime
+  createdBy          String
+  createdAt          DateTime                 @default(now())
+  recipients         CouponRecipient[]
+  redemptions        CouponRedemption[]
+  loyaltyRedemption  LoyaltyRewardRedemption?
 }
 
 model CouponRecipient {
@@ -572,29 +689,29 @@ model CouponRedemption {
 }
 
 model LoyaltyMission {
-  id                 String                     @id @default(cuid())
+  id                 String                       @id @default(cuid())
   name               String
-  description        String                     @default("")
-  imageData          String?                    @db.Text
+  description        String                       @default("")
+  imageData          String?                      @db.Text
   imageContentType   String?
   ruleType           String
-  targetAmount       Decimal                    @default(0) @db.Decimal(12, 2)
-  targetCount        Int                        @default(1)
+  targetAmount       Decimal                      @default(0) @db.Decimal(12, 2)
+  targetCount        Int                          @default(1)
   category           String?
   destinationPath    String?
   pointsReward       Int
   rewardLimit        Int?
-  claimedRewards     Int                        @default(0)
-  recurrence         String                     @default("none")
+  claimedRewards     Int                          @default(0)
+  recurrence         String                       @default("none")
   startsAt           DateTime
   endsAt             DateTime?
-  pointsExpiryPolicy String                     @default("CYCLE_END")
+  pointsExpiryPolicy String                       @default("CYCLE_END")
   pointsExpiryDays   Int?
   pointsExpireAt     DateTime?
-  status             String                     @default("draft")
+  status             String                       @default("draft")
   createdBy          String
-  createdAt          DateTime                   @default(now())
-  updatedAt          DateTime                   @updatedAt
+  createdAt          DateTime                     @default(now())
+  updatedAt          DateTime                     @updatedAt
   progress           LoyaltyMissionProgress[]
   contributions      LoyaltyMissionContribution[]
   pointEntries       LoyaltyPointEntry[]
@@ -604,20 +721,20 @@ model LoyaltyMission {
 }
 
 model LoyaltyMissionProgress {
-  id            String                       @id @default(cuid())
-  missionId     String
-  customerEmail String
-  cycleStartAt  DateTime
-  cycleEndAt    DateTime
-  progressCount Int                          @default(0)
-  progressAmount Decimal                     @default(0) @db.Decimal(12, 2)
-  completedAt   DateTime?
-  pointsAwarded Int                          @default(0)
-  createdAt     DateTime                     @default(now())
-  updatedAt     DateTime                     @updatedAt
-  mission       LoyaltyMission               @relation(fields: [missionId], references: [id], onDelete: Cascade)
-  contributions LoyaltyMissionContribution[]
-  pointEntries  LoyaltyPointEntry[]
+  id             String                       @id @default(cuid())
+  missionId      String
+  customerEmail  String
+  cycleStartAt   DateTime
+  cycleEndAt     DateTime
+  progressCount  Int                          @default(0)
+  progressAmount Decimal                      @default(0) @db.Decimal(12, 2)
+  completedAt    DateTime?
+  pointsAwarded  Int                          @default(0)
+  createdAt      DateTime                     @default(now())
+  updatedAt      DateTime                     @updatedAt
+  mission        LoyaltyMission               @relation(fields: [missionId], references: [id], onDelete: Cascade)
+  contributions  LoyaltyMissionContribution[]
+  pointEntries   LoyaltyPointEntry[]
 
   @@unique([missionId, customerEmail, cycleStartAt])
   @@index([customerEmail, updatedAt])
@@ -625,16 +742,16 @@ model LoyaltyMissionProgress {
 }
 
 model LoyaltyMissionContribution {
-  id                String                 @id @default(cuid())
-  missionId         String
-  progressId        String
-  orderId           String
-  contributionAmount Decimal               @default(0) @db.Decimal(12, 2)
-  contributionCount Int                    @default(1)
-  contributedAt     DateTime               @default(now())
-  mission           LoyaltyMission         @relation(fields: [missionId], references: [id], onDelete: Restrict)
-  progress          LoyaltyMissionProgress @relation(fields: [progressId], references: [id], onDelete: Cascade)
-  order             Order                  @relation(fields: [orderId], references: [id], onDelete: Restrict)
+  id                 String                 @id @default(cuid())
+  missionId          String
+  progressId         String
+  orderId            String
+  contributionAmount Decimal                @default(0) @db.Decimal(12, 2)
+  contributionCount  Int                    @default(1)
+  contributedAt      DateTime               @default(now())
+  mission            LoyaltyMission         @relation(fields: [missionId], references: [id], onDelete: Restrict)
+  progress           LoyaltyMissionProgress @relation(fields: [progressId], references: [id], onDelete: Cascade)
+  order              Order                  @relation(fields: [orderId], references: [id], onDelete: Restrict)
 
   @@unique([progressId, orderId])
   @@index([missionId, contributedAt])
@@ -642,17 +759,17 @@ model LoyaltyMissionContribution {
 }
 
 model LoyaltyReward {
-  id                 String                     @id @default(cuid())
+  id                 String                    @id @default(cuid())
   name               String
-  description        String                     @default("")
+  description        String                    @default("")
   pointsCost         Int
   discountPercent    Int
-  minimumOrderAmount Decimal                    @default(0) @db.Decimal(12, 2)
+  minimumOrderAmount Decimal                   @default(0) @db.Decimal(12, 2)
   validityDays       Int
-  active             Boolean                    @default(true)
+  active             Boolean                   @default(true)
   createdBy          String
-  createdAt          DateTime                   @default(now())
-  updatedAt          DateTime                   @updatedAt
+  createdAt          DateTime                  @default(now())
+  updatedAt          DateTime                  @updatedAt
   redemptions        LoyaltyRewardRedemption[]
 }
 
@@ -673,23 +790,23 @@ model LoyaltyRewardRedemption {
 }
 
 model LoyaltyPointEntry {
-  id                String                  @id @default(cuid())
-  customerEmail     String
-  type              String
-  points            Int
-  description       String
-  missionId         String?
-  progressId        String?
-  sourceOrderId     String?
-  rewardRedemptionId String?                @unique
-  expiresAt         DateTime?
-  createdAt         DateTime                @default(now())
-  mission           LoyaltyMission?         @relation(fields: [missionId], references: [id], onDelete: SetNull)
-  progress          LoyaltyMissionProgress? @relation(fields: [progressId], references: [id], onDelete: SetNull)
-  sourceOrder       Order?                  @relation("LoyaltyPointsSourceOrder", fields: [sourceOrderId], references: [id], onDelete: SetNull)
-  rewardRedemption  LoyaltyRewardRedemption? @relation(fields: [rewardRedemptionId], references: [id], onDelete: SetNull)
-  awardsAllocations LoyaltyPointAllocation[] @relation("LoyaltyAwardAllocation")
-  spendsAllocations LoyaltyPointAllocation[] @relation("LoyaltySpendAllocation")
+  id                 String                   @id @default(cuid())
+  customerEmail      String
+  type               String
+  points             Int
+  description        String
+  missionId          String?
+  progressId         String?
+  sourceOrderId      String?
+  rewardRedemptionId String?                  @unique
+  expiresAt          DateTime?
+  createdAt          DateTime                 @default(now())
+  mission            LoyaltyMission?          @relation(fields: [missionId], references: [id], onDelete: SetNull)
+  progress           LoyaltyMissionProgress?  @relation(fields: [progressId], references: [id], onDelete: SetNull)
+  sourceOrder        Order?                   @relation("LoyaltyPointsSourceOrder", fields: [sourceOrderId], references: [id], onDelete: SetNull)
+  rewardRedemption   LoyaltyRewardRedemption? @relation(fields: [rewardRedemptionId], references: [id], onDelete: SetNull)
+  awardsAllocations  LoyaltyPointAllocation[] @relation("LoyaltyAwardAllocation")
+  spendsAllocations  LoyaltyPointAllocation[] @relation("LoyaltySpendAllocation")
 
   @@index([customerEmail, createdAt])
   @@index([customerEmail, expiresAt])
@@ -697,11 +814,11 @@ model LoyaltyPointEntry {
 }
 
 model LoyaltyPointAllocation {
-  id                String           @id @default(cuid())
+  id                String            @id @default(cuid())
   redemptionEntryId String
   awardEntryId      String
   points            Int
-  createdAt         DateTime         @default(now())
+  createdAt         DateTime          @default(now())
   redemptionEntry   LoyaltyPointEntry @relation("LoyaltySpendAllocation", fields: [redemptionEntryId], references: [id], onDelete: Cascade)
   awardEntry        LoyaltyPointEntry @relation("LoyaltyAwardAllocation", fields: [awardEntryId], references: [id], onDelete: Restrict)
 

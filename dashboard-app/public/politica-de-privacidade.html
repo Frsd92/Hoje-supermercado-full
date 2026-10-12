@@ -195,6 +195,7 @@
         </ul>
 
         <p><strong>Pagamento:</strong> Pix e cartões são processados pela Pagar.me, que recebe os dados necessários do cliente, do pedido e do pagamento. Ao cadastrar um cartão em Formas de pagamento, o número completo e o código de segurança são enviados diretamente do navegador à processadora para validação e tokenização; a Plataforma não os recebe nem armazena. Mantemos somente as referências seguras retornadas pelo serviço e dados mascarados do cartão (bandeira, quatro últimos dígitos e validade). Você pode remover o cartão no Dashboard. Salvar o cartão não gera cobrança; ela só ocorre quando você confirma um pedido no checkout.</p>
+        <p><strong>Assistente virtual de compras:</strong> quando você usa o chat, sua mensagem e um histórico curto daquela conversa são enviados ao Google Gemini para gerar a resposta. Antes do envio, o sistema tenta remover formatos comuns de CPF, telefone, e-mail, CEP e endereço, mas essa filtragem pode não identificar todos os dados pessoais; não informe dados pessoais, de conta, endereço, pedido ou pagamento no chat. Também enviamos uma seleção de informações públicas do catálogo, como nome e preço dos produtos. As conversas não são salvas pela Loja em histórico de conta. No nível gratuito da API Gemini, o Google informa que o conteúdo pode ser usado para melhorar seus produtos e pode ser revisado por pessoas; consulte os termos do Google AI Studio antes de usar o recurso.</p>
  
         <h3>3.2 Dados coletados automaticamente</h3>
         <ul>
@@ -209,7 +210,10 @@
         <h3>3.3 Dados de terceiros (login social)</h3>
         <p>Atualmente, o único login social implementado para clientes é o <strong>Google</strong>. Se você escolher essa opção, o Google fornece os dados básicos da conta necessários para autenticação, como nome, e-mail e foto de perfil, conforme as permissões do serviço. Apple e Facebook não são apresentados como meios de login disponíveis neste momento.</p>
  
-        <h3>3.4 Cookies e tecnologias similares</h3>
+        <h3>3.4 Assistente virtual e serviços de IA</h3>
+        <p>O chat é opcional e só envia conteúdo ao Google Gemini quando você envia uma mensagem. A Loja não inclui no pedido à IA seu nome, e-mail da conta, endereço salvo, histórico de pedidos ou dados de pagamento; mensagens podem conter informações que você mesmo digitar, por isso não as informe. A proteção automática de dados pessoais é uma tentativa e não uma garantia. Você pode continuar usando a Loja sem abrir o assistente. O tratamento externo da mensagem pelo Google também segue os termos e a política aplicáveis à API e ao nível de uso configurado.</p>
+
+        <h3>3.5 Cookies e tecnologias similares</h3>
         <table class="policy-table">
           <thead>
             <tr><th>Recurso</th><th>Finalidade</th><th>Onde é mantido</th></tr>
@@ -262,6 +266,7 @@
         <p>Podemos compartilhar seus dados com as seguintes categorias de terceiros, sempre limitado ao necessário para a finalidade:</p>
         <ul>
           <li>Google, quando você escolhe o login Google</li>
+          <li>Google Gemini, para gerar respostas do assistente virtual quando você usa o chat; o compartilhamento inclui a mensagem filtrada, histórico curto da conversa e dados públicos selecionados do catálogo</li>
           <li>Provedores de hospedagem e infraestrutura da aplicação e do banco de dados, atualmente Vercel e Supabase, para disponibilizar e operar o site e seus dados</li>
           <li>Pagar.me, para tokenizar cartões e processar pagamentos, conforme os dados necessários à transação</li>
           <li>Hotjar, como prestador de analytics, somente quando você autorizar essa finalidade</li>

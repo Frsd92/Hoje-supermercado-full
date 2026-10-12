@@ -4540,3 +4540,260 @@ body {
     bottom: 12px;
   }
 }
+
+.store-assistant {
+  position: fixed;
+  right: max(20px, env(safe-area-inset-right));
+  bottom: max(20px, env(safe-area-inset-bottom));
+  z-index: 1090;
+}
+
+.store-assistant-toggle {
+  min-height: 52px;
+  padding: 0 19px;
+  border: 0;
+  border-radius: 999px;
+  background: var(--green-900);
+  color: #fff;
+  box-shadow: 0 12px 30px rgba(13, 59, 34, 0.28);
+  font-size: 0.92rem;
+  font-weight: 700;
+  cursor: pointer;
+}
+
+.store-assistant-toggle span {
+  margin-right: 6px;
+  color: #b7f7ca;
+  font-size: 1.1rem;
+}
+
+.store-assistant-panel {
+  position: absolute;
+  right: 0;
+  bottom: 64px;
+  display: flex;
+  width: min(390px, calc(100vw - 28px));
+  height: min(590px, calc(100dvh - 120px));
+  min-height: 380px;
+  flex-direction: column;
+  overflow: hidden;
+  border: 1px solid #dce8df;
+  border-radius: 20px;
+  background: #fff;
+  box-shadow: 0 20px 56px rgba(12, 30, 20, 0.24);
+}
+
+.store-assistant-panel[hidden] {
+  display: none;
+}
+
+.store-assistant-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 16px 18px;
+  background: var(--green-900);
+  color: #fff;
+}
+
+.store-assistant-header div {
+  display: grid;
+  gap: 3px;
+}
+
+.store-assistant-header strong {
+  font-size: 1rem;
+}
+
+.store-assistant-header span {
+  color: #d9f3e2;
+  font-size: 0.78rem;
+}
+
+.store-assistant-header button {
+  width: 36px;
+  height: 36px;
+  border: 0;
+  border-radius: 50%;
+  background: rgba(255, 255, 255, 0.14);
+  color: #fff;
+  font-size: 1.55rem;
+  cursor: pointer;
+}
+
+.store-assistant-privacy {
+  padding: 9px 14px;
+  border-bottom: 1px solid #e7eee9;
+  background: #f5faf6;
+  color: #496252;
+  font-size: 0.69rem;
+  line-height: 1.45;
+}
+
+.store-assistant-messages {
+  display: flex;
+  flex: 1;
+  flex-direction: column;
+  gap: 12px;
+  overflow-y: auto;
+  padding: 16px 13px;
+  overscroll-behavior: contain;
+}
+
+.store-assistant-message {
+  max-width: 88%;
+  align-self: flex-start;
+  padding: 11px 13px;
+  border-radius: 15px 15px 15px 4px;
+  background: #f1f5f2;
+  color: #1a2b20;
+  font-size: 0.88rem;
+  line-height: 1.5;
+  overflow-wrap: anywhere;
+}
+
+.store-assistant-message.customer {
+  align-self: flex-end;
+  border-radius: 15px 15px 4px 15px;
+  background: #e0f3e6;
+}
+
+.store-assistant-message.pending,
+.store-assistant-message.error {
+  color: #617068;
+}
+
+.store-assistant-message.error {
+  background: #fff2f0;
+  color: #8b3026;
+}
+
+.store-assistant-recommendations {
+  display: grid;
+  gap: 8px;
+  margin-top: 10px;
+}
+
+.store-assistant-product {
+  display: grid;
+  grid-template-columns: 52px minmax(0, 1fr);
+  gap: 10px;
+  align-items: center;
+  padding: 8px;
+  border: 1px solid #e2e9e4;
+  border-radius: 12px;
+  background: #fff;
+}
+
+.store-assistant-product img {
+  width: 52px;
+  height: 52px;
+  border-radius: 8px;
+  object-fit: contain;
+}
+
+.store-assistant-product div {
+  display: grid;
+  justify-items: start;
+  gap: 4px;
+}
+
+.store-assistant-product strong {
+  color: #203327;
+  font-size: 0.79rem;
+}
+
+.store-assistant-product span {
+  color: #506158;
+  font-size: 0.75rem;
+}
+
+.store-assistant-product button,
+.store-assistant-cart-link {
+  min-height: 32px;
+  padding: 5px 10px;
+  border: 1px solid #1a7a3c;
+  border-radius: 8px;
+  background: #fff;
+  color: #145c32;
+  font-size: 0.75rem;
+  font-weight: 700;
+  cursor: pointer;
+}
+
+.store-assistant-product button:disabled {
+  border-color: #b7c8bc;
+  color: #53685a;
+  cursor: default;
+}
+
+.store-assistant-cart-link {
+  margin-top: 9px;
+  background: #145c32;
+  color: #fff;
+}
+
+.store-assistant-form {
+  display: flex;
+  gap: 8px;
+  padding: 11px;
+  border-top: 1px solid #e7eee9;
+}
+
+.store-assistant-form input {
+  width: 100%;
+  min-width: 0;
+  min-height: 43px;
+  padding: 0 12px;
+  border: 1px solid #cfdcd2;
+  border-radius: 11px;
+  color: #17251c;
+  font-size: 0.85rem;
+}
+
+.store-assistant-form input:focus-visible,
+.store-assistant-form button:focus-visible,
+.store-assistant-toggle:focus-visible,
+.store-assistant-header button:focus-visible,
+.store-assistant-product button:focus-visible,
+.store-assistant-cart-link:focus-visible {
+  outline: 3px solid #8ce5a7;
+  outline-offset: 2px;
+}
+
+.store-assistant-form button {
+  min-width: 70px;
+  border: 0;
+  border-radius: 11px;
+  background: #145c32;
+  color: #fff;
+  font-size: 0.82rem;
+  font-weight: 700;
+  cursor: pointer;
+}
+
+.store-assistant-form button:disabled {
+  opacity: 0.6;
+  cursor: wait;
+}
+
+@media (max-width: 520px) {
+  .store-assistant {
+    right: max(12px, env(safe-area-inset-right));
+    bottom: max(12px, env(safe-area-inset-bottom));
+  }
+
+  .store-assistant-toggle {
+    min-height: 48px;
+    padding-inline: 15px;
+  }
+
+  .store-assistant-panel {
+    position: fixed;
+    right: max(10px, env(safe-area-inset-right));
+    bottom: max(70px, calc(58px + env(safe-area-inset-bottom)));
+    width: min(430px, calc(100vw - 20px));
+    height: min(650px, calc(100dvh - 95px - env(safe-area-inset-bottom)));
+    min-height: 360px;
+  }
+}

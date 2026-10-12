@@ -176,6 +176,27 @@
     </div>
   </aside>
 
+  <section class="store-assistant" aria-label="Assistente virtual de compras">
+    <button class="store-assistant-toggle" id="store-assistant-toggle" type="button" aria-expanded="false" aria-controls="store-assistant-panel">
+      <span aria-hidden="true">✦</span> Assistente de compras
+    </button>
+    <div class="store-assistant-panel" id="store-assistant-panel" hidden>
+      <header class="store-assistant-header">
+        <div><strong>Assistente Hoje</strong><span>Ajudo você a encontrar produtos</span></div>
+        <button type="button" id="store-assistant-close" aria-label="Fechar assistente">×</button>
+      </header>
+      <p class="store-assistant-privacy">Sou uma IA. As mensagens são processadas pelo Google Gemini; no nível gratuito, o Google pode usá-las para melhorar serviços. Não envie CPF, telefone, endereço, pagamento ou dados de pedidos.</p>
+      <div class="store-assistant-messages" id="store-assistant-messages" role="log" aria-live="polite" aria-relevant="additions text">
+        <div class="store-assistant-message assistant">Oi! Posso ajudar a encontrar produtos e montar seu carrinho. O que você está procurando?</div>
+      </div>
+      <form class="store-assistant-form" id="store-assistant-form">
+        <label class="visually-hidden" for="store-assistant-input">Sua mensagem para a assistente</label>
+        <input id="store-assistant-input" name="message" maxlength="500" placeholder="Ex.: quero frutas para um lanche" autocomplete="off" required>
+        <button type="submit" aria-label="Enviar mensagem">Enviar</button>
+      </form>
+    </div>
+  </section>
+
   <!-- ===================================================== -->
   <!-- CABEÇALHO PRINCIPAL: logo + barra de busca + endereço -->
   <!-- ===================================================== -->
@@ -1712,6 +1733,7 @@
   <!-- script.js precisa vir ANTES de chamar as funções nele definidas -->
   <script src="content-moderation.js"></script>
   <script src="script.js"></script>
+  <script src="store-assistant.js"></script>
   <script src="pwa-register.js" defer></script>
   <script>
     document.addEventListener('DOMContentLoaded', () => {

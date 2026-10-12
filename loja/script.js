@@ -1299,6 +1299,18 @@ function adicionarProduto(botao) {
   exibirConfirmacaoCarrinho(product.title);
 }
 
+window.hojeAssistantAddToCart = (productId) => {
+  if (!catalogoCarregado) return false;
+  const product = produtosCatalogo.find((item) => String(item.id) === String(productId));
+  if (!product || product.status !== 'Ativo') return false;
+  const cartItem = alterarCarrinhoDoProduto(product, 'add', product.saleUnit === 'Quilograma' ? 0.1 : 1);
+  if (!cartItem) return false;
+  exibirConfirmacaoCarrinho(product.title);
+  return true;
+};
+
+window.hojeAssistantOpenCart = abrirCarrinho;
+
 // Chamada quando clica no "+"
 function aumentarQtd(botao) {
   const card = botao.closest('.product-card');

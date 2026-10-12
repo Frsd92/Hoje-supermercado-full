@@ -17,6 +17,7 @@ await Promise.all([
   cp(path.join(storeDirectory, 'store-presence.js'), path.join(publicDirectory, 'store-presence.js')),
   cp(path.join(appDirectory, 'lib', 'content-moderation.js'), path.join(publicDirectory, 'content-moderation.js')),
   cp(path.join(storeDirectory, 'script.js'), path.join(publicDirectory, 'script.js')),
+  cp(path.join(storeDirectory, 'store-assistant.js'), path.join(publicDirectory, 'store-assistant.js')),
   cp(path.join(storeDirectory, 'pwa-register.js'), path.join(publicDirectory, 'pwa-register.js')),
   cp(path.join(storeDirectory, 'service-worker.js'), path.join(publicDirectory, 'service-worker.js')),
   cp(path.join(storeDirectory, 'manifest.webmanifest'), path.join(publicDirectory, 'manifest.webmanifest')),

@@ -1,4 +1,4 @@
-const CACHE_NAME = 'hoje-store-shell-v1';
+const CACHE_NAME = 'hoje-store-shell-v2';
 const PRECACHE_URLS = [
   '/index.html',
   '/categoria.html',
@@ -8,6 +8,7 @@ const PRECACHE_URLS = [
   '/manifest.webmanifest',
   '/style.css',
   '/script.js',
+  '/store-assistant.js',
   '/category.js',
   '/analytics-consent.js',
   '/content-moderation.js',
@@ -27,6 +28,7 @@ const STATIC_ASSET_PATHS = new Set([
   '/manifest.webmanifest',
   '/style.css',
   '/script.js',
+  '/store-assistant.js',
   '/category.js',
   '/analytics-consent.js',
   '/content-moderation.js',

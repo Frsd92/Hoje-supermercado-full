@@ -2,7 +2,7 @@
 
 import Link from 'next/link';
 import { usePathname } from 'next/navigation';
-import { Activity, Award, BarChart3, Bell, CalendarDays, CircleDollarSign, ClipboardList, FileText, History, LayoutDashboard, LayoutTemplate, MapPin, Package, Plus, ShoppingCart, TicketPercent, TrendingUp, Truck, Users, Zap } from 'lucide-react';
+import { Activity, Award, BarChart3, Bell, CalendarDays, CircleDollarSign, ClipboardList, FileText, History, LayoutDashboard, LayoutTemplate, MapPin, Package, Plus, ReceiptText, ShoppingCart, TicketPercent, TrendingUp, Truck, Users, Zap } from 'lucide-react';
 import { useEffect, useState } from 'react';
 
 const erpNavigationGroups = [
@@ -33,7 +33,10 @@ const erpNavigationGroups = [
   },
   {
     label: 'Suprimentos',
-    items: [{ label: 'Fornecedores', href: '/erp/suppliers', icon: Truck }],
+    items: [
+      { label: 'Fornecedores', href: '/erp/suppliers', icon: Truck },
+      { label: 'NF-e / DANFE', href: '/erp/suppliers/invoices', icon: ReceiptText },
+    ],
   },
   {
     label: 'Financeiro',

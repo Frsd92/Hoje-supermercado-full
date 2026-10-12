@@ -68,7 +68,7 @@ export async function GET(request) {
       }),
       prisma.product.findMany({
         where: { status: 'Ativo' },
-        select: { id: true, externalId: true, title: true, sku: true, cost: true, metadata: true },
+        select: { id: true, externalId: true, title: true, sku: true, quantity: true, cost: true, metadata: true },
         orderBy: { title: 'asc' },
       }),
     ]);
@@ -78,9 +78,12 @@ export async function GET(request) {
       externalId: product.externalId,
       title: product.title,
       sku: product.sku || '',
+      quantity: Number(product.quantity),
       cost: Number(product.cost),
       status: 'Ativo',
       saleUnit: product.metadata?.saleUnit === 'Quilograma' ? 'Quilograma' : 'Unidade',
+      controlsLot: product.metadata?.controlsLot === true,
+      controlsExpiry: product.metadata?.controlsExpiry === true || product.metadata?.perishable === true,
     }));
     return Response.json({ orders: enriched, products: catalogProducts }, { headers });
   } catch (error) {
