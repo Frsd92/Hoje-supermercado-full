@@ -29,6 +29,26 @@ test('requires a real supplier name, validates email and commercial minimum, and
   assert.deepEqual(data.categories, ['Bebidas']);
 });
 
+test('accepts Brazilian currency and normalizes optional address fields', () => {
+  const { data } = validateSupplier({
+    name: 'Real',
+    minimumOrderValue: '1.234,56',
+    state: 'sp',
+    postalCode: '01001-000',
+  });
+
+  assert.equal(data.minimumOrderValue, 1234.56);
+  assert.equal(data.state, 'SP');
+  assert.equal(data.postalCode, '01001000');
+});
+
+test('rejects malformed Brazilian address and out-of-range currency fields', () => {
+  assert.match(validateSupplier({ name: 'Real', minimumOrderValue: '12,345' }).error, /duas casas decimais/);
+  assert.match(validateSupplier({ name: 'Real', minimumOrderValue: '10.000.000.000,00' }).error, /duas casas decimais/);
+  assert.match(validateSupplier({ name: 'Real', state: 'São Paulo' }).error, /UF com duas letras/);
+  assert.match(validateSupplier({ name: 'Real', postalCode: '1234' }).error, /CEP com oito dígitos/);
+});
+
 test('captures exact before and after values for supplier audit entries', () => {
   assert.deepEqual(supplierChanges(
     { name: 'Fornecedor A', status: 'Em Análise', phone: null },

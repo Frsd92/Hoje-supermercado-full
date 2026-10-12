@@ -1,6 +1,6 @@
 'use client';
 
-import { useCallback, useEffect, useMemo, useState } from 'react';
+import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { Building2, Check, Download, Pencil, Plus, Search, X } from 'lucide-react';
 import Link from 'next/link';
 
@@ -80,6 +80,24 @@ function formatAuditValue(value) {
   return String(value);
 }
 
+async function readSupplierResponse(response, fallbackMessage) {
+  if (!response.headers.get('content-type')?.includes('application/json')) {
+    throw new Error(fallbackMessage);
+  }
+  try {
+    return await response.json();
+  } catch {
+    throw new Error(fallbackMessage);
+  }
+}
+
+function normalizeSupplierSearch(value) {
+  return String(value || '')
+    .toLocaleLowerCase('pt-BR')
+    .normalize('NFD')
+    .replace(/[\u0300-\u036f]/g, '');
+}
+
 function SupplierForm({ supplier, onClose, onSaved }) {
   const [form, setForm] = useState(supplier || emptySupplier);
   const [categoryInput, setCategoryInput] = useState('');
@@ -88,13 +106,60 @@ function SupplierForm({ supplier, onClose, onSaved }) {
   const [audit, setAudit] = useState([]);
   const [auditError, setAuditError] = useState('');
   const isEditing = Boolean(supplier?.id);
+  const dialogRef = useRef(null);
+  const closeRef = useRef(onClose);
+  const savingRef = useRef(saving);
+  closeRef.current = onClose;
+  savingRef.current = saving;
+
+  useEffect(() => {
+    const previousFocus = document.activeElement;
+    const previousOverflow = document.body.style.overflow;
+    document.body.style.overflow = 'hidden';
+    const firstField = dialogRef.current?.querySelector('#supplier-name');
+    firstField?.focus();
+
+    const handleKeyDown = (event) => {
+      if (event.key === 'Escape') {
+        event.preventDefault();
+        if (!savingRef.current) closeRef.current();
+        return;
+      }
+      if (event.key !== 'Tab' || !dialogRef.current) return;
+
+      const focusable = [...dialogRef.current.querySelectorAll(
+        'a[href], button:not([disabled]), input:not([disabled]), select:not([disabled]), textarea:not([disabled]), [tabindex]:not([tabindex="-1"])',
+      )].filter((element) => element.getClientRects().length);
+      if (!focusable.length) {
+        event.preventDefault();
+        dialogRef.current.focus();
+        return;
+      }
+      const first = focusable[0];
+      const last = focusable[focusable.length - 1];
+      if (event.shiftKey && (document.activeElement === first || !dialogRef.current.contains(document.activeElement))) {
+        event.preventDefault();
+        last.focus();
+      } else if (!event.shiftKey && (document.activeElement === last || !dialogRef.current.contains(document.activeElement))) {
+        event.preventDefault();
+        first.focus();
+      }
+    };
+
+    document.addEventListener('keydown', handleKeyDown);
+    return () => {
+      document.removeEventListener('keydown', handleKeyDown);
+      document.body.style.overflow = previousOverflow;
+      if (previousFocus instanceof HTMLElement && previousFocus.isConnected) previousFocus.focus();
+    };
+  }, []);
 
   useEffect(() => {
     if (!supplier?.id) return;
     let active = true;
     fetch(`/api/erp/suppliers/audit?supplierId=${encodeURIComponent(supplier.id)}`, { cache: 'no-store' })
       .then(async (response) => {
-        const data = await response.json();
+        const data = await readSupplierResponse(response, 'Não foi possível carregar a auditoria.');
         if (!response.ok) throw new Error(data.error || 'Não foi possível carregar a auditoria.');
         if (active) setAudit(data.entries || []);
       })
@@ -108,7 +173,15 @@ function SupplierForm({ supplier, onClose, onSaved }) {
   const addCategories = () => {
     const added = categoryInput.split(',').map((item) => item.trim()).filter(Boolean);
     if (!added.length) return;
-    updateField('categories', [...new Set([...(form.categories || []), ...added])]);
+    const normalizeCategory = (item) => normalizeSupplierSearch(item).trim();
+    const existing = new Set((form.categories || []).map(normalizeCategory));
+    const uniqueAdded = added.filter((item) => {
+      const normalized = normalizeCategory(item);
+      if (existing.has(normalized)) return false;
+      existing.add(normalized);
+      return true;
+    });
+    updateField('categories', [...(form.categories || []), ...uniqueAdded]);
     setCategoryInput('');
   };
 
@@ -123,10 +196,9 @@ function SupplierForm({ supplier, onClose, onSaved }) {
         body: JSON.stringify({
           ...form,
           id: supplier?.id,
-          minimumOrderValue: form.minimumOrderValue === '' ? '' : String(form.minimumOrderValue).replace(',', '.'),
         }),
       });
-      const data = await response.json();
+      const data = await readSupplierResponse(response, 'Não foi possível salvar o fornecedor. Tente novamente.');
       if (!response.ok) throw new Error(data.error || 'Não foi possível salvar o fornecedor.');
       onSaved(data.supplier);
     } catch (saveError) {
@@ -150,34 +222,46 @@ function SupplierForm({ supplier, onClose, onSaved }) {
     return [];
   };
 
-  const field = (label, key, type = 'text', props = {}) => <label key={key} className={props.className || ''}>{label}<input
-    type={type}
-    value={form[key] ?? ''}
-    onChange={(event) => updateField(key, event.target.value)}
-    required={props.required}
-    maxLength={props.maxLength}
-    inputMode={props.inputMode}
-    placeholder={props.placeholder}
-  /></label>;
+  const field = (label, key, type = 'text', props = {}) => {
+    const id = `supplier-${key}`;
+    return <div key={key} className={`supplier-field ${props.className || ''}`}>
+      <label htmlFor={id}>{label}{props.required && <span aria-hidden="true"> *</span>}</label>
+      <input
+        id={id}
+        type={type}
+        value={form[key] ?? ''}
+        onChange={(event) => updateField(key, event.target.value)}
+        required={props.required}
+        maxLength={props.maxLength}
+        inputMode={props.inputMode}
+        placeholder={props.placeholder}
+        min={props.min}
+        step={props.step}
+        autoComplete={props.autoComplete}
+        aria-describedby={props.hint ? `${id}-hint` : undefined}
+      />
+      {props.hint && <small id={`${id}-hint`} className="supplier-field-hint">{props.hint}</small>}
+    </div>;
+  };
 
-  return <div className="supplier-drawer-backdrop" role="presentation" onMouseDown={(event) => { if (event.target === event.currentTarget) onClose(); }}>
-    <section className="supplier-drawer" role="dialog" aria-modal="true" aria-labelledby="supplier-form-title">
-      <header className="supplier-drawer-header"><div><span className="eyebrow">Cadastro de fornecedores</span><h2 id="supplier-form-title">{isEditing ? 'Editar fornecedor' : 'Cadastrar fornecedor'}</h2><p>Use os dados confirmados do fornecedor. O novo cadastro entra em análise.</p></div><button type="button" className="supplier-close-button" aria-label="Fechar formulário" onClick={onClose}><X size={20} /></button></header>
+  return <div className="supplier-drawer-backdrop">
+    <section ref={dialogRef} className="supplier-drawer" role="dialog" aria-modal="true" aria-labelledby="supplier-form-title" aria-describedby="supplier-form-description" tabIndex="-1">
+      <header className="supplier-drawer-header"><div><span className="eyebrow">Cadastro de fornecedores</span><h2 id="supplier-form-title">{isEditing ? 'Editar fornecedor' : 'Cadastrar fornecedor'}</h2><p id="supplier-form-description">Informe os dados confirmados. Campos sem asterisco são opcionais; novos cadastros começam em análise.</p></div><button type="button" className="supplier-close-button" aria-label="Fechar formulário" onClick={onClose} disabled={saving}><X size={20} /></button></header>
       <form className="supplier-form" onSubmit={save}>
         <section className="supplier-form-section"><h3>Identificação e contato</h3><div className="supplier-form-grid">
-          {field('Nome fantasia', 'name', 'text', { required: true })}
+          {field('Nome fantasia', 'name', 'text', { required: true, autoComplete: 'organization' })}
           {field('Razão social', 'legalName')}
-          {field('CPF/CNPJ', 'taxId', 'text', { inputMode: 'numeric', placeholder: 'Somente números ou documento formatado' })}
+          {field('CPF/CNPJ', 'taxId', 'text', { inputMode: 'numeric', placeholder: 'Digite ou cole o documento', hint: 'O documento é opcional; se informado, será validado.' })}
           {field('E-mail geral', 'email', 'email')}
           {field('Telefone', 'phone', 'tel')}
           {field('WhatsApp', 'whatsapp', 'tel')}
         </div></section>
 
-        <section className="supplier-form-section"><h3>Categorias atendidas</h3><div className="supplier-category-entry"><input value={categoryInput} onChange={(event) => setCategoryInput(event.target.value)} onKeyDown={(event) => { if (event.key === 'Enter') { event.preventDefault(); addCategories(); } }} placeholder="Digite uma categoria e pressione Enter" /><button type="button" onClick={addCategories}>Adicionar</button></div><div className="supplier-category-tags">{(form.categories || []).map((category) => <span key={category}>{category}<button type="button" aria-label={`Remover categoria ${category}`} onClick={() => updateField('categories', form.categories.filter((item) => item !== category))}>×</button></span>)}</div></section>
+        <section className="supplier-form-section"><h3 id="supplier-categories-title">Categorias atendidas</h3><p className="supplier-section-description">Adicione uma ou mais categorias separadas por vírgula. Pressione Enter ou use Adicionar.</p><div className="supplier-category-entry"><label className="visually-hidden" htmlFor="supplier-category-input">Nova categoria</label><input id="supplier-category-input" value={categoryInput} onChange={(event) => setCategoryInput(event.target.value)} onKeyDown={(event) => { if (event.key === 'Enter') { event.preventDefault(); addCategories(); } }} placeholder="Ex.: Hortifruti, limpeza" /><button type="button" onClick={addCategories} disabled={!categoryInput.trim()}>Adicionar</button></div>{(form.categories || []).length > 0 ? <ul className="supplier-category-tags" aria-labelledby="supplier-categories-title">{form.categories.map((category) => <li key={category}><span>{category}</span><button type="button" aria-label={`Remover categoria ${category}`} onClick={() => updateField('categories', form.categories.filter((item) => item !== category))}>×</button></li>)}</ul> : <p className="supplier-category-empty">Nenhuma categoria adicionada.</p>}</section>
 
         <section className="supplier-form-section"><h3>Homologação</h3><div className="supplier-form-grid">
-          <label>Status<select value={form.status} onChange={(event) => updateField('status', event.target.value)}>{statusOptions.map((status) => <option key={status}>{status}</option>)}</select></label>
-          <label className="supplier-form-wide">Motivo / observações da análise<textarea rows="2" value={form.statusReason || ''} onChange={(event) => updateField('statusReason', event.target.value)} placeholder="Registre pendências ou o motivo da mudança de status." /></label>
+          <div className="supplier-field"><label htmlFor="supplier-status">Status</label><select id="supplier-status" value={form.status} onChange={(event) => updateField('status', event.target.value)}>{statusOptions.map((status) => <option key={status}>{status}</option>)}</select></div>
+          <div className="supplier-field supplier-form-wide"><label htmlFor="supplier-status-reason">Motivo / observações da análise</label><textarea id="supplier-status-reason" rows="2" value={form.statusReason || ''} onChange={(event) => updateField('statusReason', event.target.value)} placeholder="Registre pendências ou o motivo da mudança de status." /></div>
         </div></section>
 
         <section className="supplier-form-section"><h3>Contatos comerciais e financeiros</h3><div className="supplier-form-grid">
@@ -196,12 +280,12 @@ function SupplierForm({ supplier, onClose, onSaved }) {
           {field('UF', 'state', 'text', { maxLength: 2 })}
           {field('CEP', 'postalCode', 'text', { inputMode: 'numeric' })}
           {field('Condições de pagamento', 'paymentTerms', 'text', { placeholder: 'Ex.: 28 dias, boleto' })}
-          {field('Pedido mínimo (R$)', 'minimumOrderValue', 'number', { inputMode: 'decimal' })}
+          {field('Pedido mínimo (R$)', 'minimumOrderValue', 'text', { inputMode: 'decimal', placeholder: 'Ex.: 1.234,56', hint: 'Use vírgula para separar os centavos.' })}
           {field('Condições de entrega', 'deliveryTerms', 'text', { placeholder: 'Ex.: CIF ou FOB, conforme negociado' })}
         </div></section>
 
-        {error && <div className="supplier-form-error" role="alert">{error}</div>}
-        <footer className="supplier-form-actions"><button type="button" className="supplier-secondary-button" onClick={onClose}>Cancelar</button><button type="submit" className="primary-cta" disabled={saving}>{saving ? 'Salvando...' : isEditing ? 'Salvar alterações' : 'Cadastrar em análise'}</button></footer>
+        {error && <div className="supplier-form-error" role="alert" tabIndex="-1">{error}</div>}
+        <footer className="supplier-form-actions"><button type="button" className="supplier-secondary-button" onClick={onClose} disabled={saving}>Cancelar</button><button type="submit" className="primary-cta" disabled={saving}>{saving ? 'Salvando...' : isEditing ? 'Salvar alterações' : 'Cadastrar em análise'}</button></footer>
       </form>
 
       {isEditing && <section className="supplier-history"><h3>Histórico de auditoria</h3>{auditError && <p role="alert">{auditError}</p>}{!auditError && !audit.length && <p>Nenhuma alteração registrada ainda.</p>}{audit.map((entry) => <details key={entry.id}><summary><strong>{entry.action === 'CREATE' ? 'Cadastro inicial' : 'Alteração'}</strong><span>{formatDate(entry.occurredAt)} · {entry.actor}</span></summary><dl>{auditFieldRows(entry)}</dl></details>)}</section>}
@@ -226,7 +310,7 @@ export default function SuppliersPage() {
     setError('');
     try {
       const response = await fetch('/api/erp/suppliers', { cache: 'no-store' });
-      const data = await response.json();
+      const data = await readSupplierResponse(response, 'Não foi possível carregar fornecedores. Tente novamente.');
       if (!response.ok) throw new Error(data.error || 'Não foi possível carregar fornecedores.');
       setSuppliers(data.suppliers || []);
       setMetrics(data.metrics || null);
@@ -250,12 +334,16 @@ export default function SuppliersPage() {
     Inativo: suppliers.filter((supplier) => supplier.status === 'Inativo').length,
   }), [suppliers]);
   const filteredSuppliers = useMemo(() => {
-    const normalizedQuery = query.trim().toLocaleLowerCase('pt-BR');
+    const normalizedQuery = normalizeSupplierSearch(query.trim());
+    const numericQuery = normalizedQuery.replace(/\D/g, '');
     return suppliers.filter((supplier) => {
-      const matchesQuery = !normalizedQuery || [
-        supplier.name, supplier.legalName, supplier.taxId, supplier.email, supplier.phone,
-        supplier.contactName, supplier.id, ...(supplier.categories || []),
-      ].some((value) => String(value || '').toLocaleLowerCase('pt-BR').includes(normalizedQuery));
+      const searchableValues = [
+        supplier.name, supplier.legalName, supplier.email, supplier.phone, supplier.whatsapp,
+        supplier.contactName, supplier.contactPhone, supplier.id, ...(supplier.categories || []),
+      ];
+      const matchesQuery = !normalizedQuery
+        || searchableValues.some((value) => normalizeSupplierSearch(value).includes(normalizedQuery))
+        || (numericQuery.length > 0 && String(supplier.taxId || '').replace(/\D/g, '').includes(numericQuery));
       return matchesQuery
         && (statusFilter === 'Todos' || supplier.status === statusFilter)
         && (categoryFilter === 'Todas' || supplier.categories.includes(categoryFilter));
@@ -299,7 +387,7 @@ export default function SuppliersPage() {
   return <div className="erp-module-page supplier-page">
     <header className="erp-customer-header supplier-page-header"><div><span className="eyebrow">Compras e abastecimento</span><h1>Fornecedores</h1><p>Cadastros persistidos, homologação e condições comerciais confirmadas.</p></div><div className="supplier-header-actions"><button type="button" className="supplier-secondary-button" onClick={saveCsv} disabled={!filteredSuppliers.length}><Download size={15} /> Exportar CSV</button><button type="button" className="primary-cta" onClick={openCreate}><Plus size={15} /> Novo fornecedor</button></div></header>
 
-    <nav className="supplier-subnav" aria-label="Módulos de abastecimento"><span className="active">Fornecedores</span><Link href="/erp/suppliers/orders">Ordens de compra</Link></nav>
+    <nav className="supplier-subnav" aria-label="Módulos de abastecimento"><span className="active" aria-current="page">Fornecedores</span><Link href="/erp/suppliers/orders">Ordens de compra</Link></nav>
     <section className="supplier-metrics" aria-label="Indicadores calculados com fornecedores cadastrados e ordens persistidas">
       <article><span>Total cadastrados</span><strong>{loading ? '—' : metrics?.total ?? 0}</strong><small>Registros salvos no ERP</small></article>
       <article className="active"><span>Ativos</span><strong>{loading ? '—' : metrics?.active ?? 0}</strong><small>Homologados para operação</small></article>
@@ -316,11 +404,11 @@ export default function SuppliersPage() {
         <label className="supplier-search"><Search size={16} /><input value={query} onChange={(event) => setQuery(event.target.value)} placeholder="Buscar por nome, CNPJ, contato ou categoria" aria-label="Buscar fornecedores" /></label>
         <label className="supplier-category-filter"><span>Categoria</span><select value={categoryFilter} onChange={(event) => setCategoryFilter(event.target.value)}><option value="Todas">Todas</option>{categories.map((category) => <option key={category}>{category}</option>)}</select></label>
       </div>
-      <div className="supplier-status-tabs" role="tablist" aria-label="Filtrar fornecedores por status">{statusTabs.map((status) => <button key={status} type="button" role="tab" aria-selected={statusFilter === status} className={statusFilter === status ? 'active' : ''} onClick={() => setStatusFilter(status)}>{status} <span>{statusCounts[status]}</span></button>)}</div>
+      <div className="supplier-status-tabs" role="group" aria-label="Filtrar fornecedores por status">{statusTabs.map((status) => <button key={status} type="button" aria-pressed={statusFilter === status} className={statusFilter === status ? 'active' : ''} onClick={() => setStatusFilter(status)}>{status} <span aria-label={`${statusCounts[status]} fornecedores`}>{statusCounts[status]}</span></button>)}</div>
 
       {loading && <div className="supplier-empty-state"><Building2 size={26} /><strong>Carregando fornecedores</strong><span>Consultando registros persistidos no banco.</span></div>}
-      {!loading && !error && !filteredSuppliers.length && <div className="supplier-empty-state"><Building2 size={28} /><strong>{suppliers.length ? 'Nenhum resultado encontrado' : 'Nenhum fornecedor cadastrado'}</strong><span>{suppliers.length ? 'Ajuste a busca ou os filtros.' : 'Cadastre fornecedores reais para iniciar a homologação. Nenhum registro demonstrativo foi criado.'}</span>{!suppliers.length && <button type="button" className="primary-cta" onClick={openCreate}><Plus size={15} /> Cadastrar fornecedor</button>}</div>}
-      {!loading && !error && filteredSuppliers.length > 0 && <div className="supplier-table-scroll"><table className="supplier-table">
+      {!loading && !error && !filteredSuppliers.length && <div className="supplier-empty-state"><Building2 size={28} /><strong>{suppliers.length ? 'Nenhum resultado encontrado' : 'Nenhum fornecedor cadastrado'}</strong><span>{suppliers.length ? 'Ajuste a busca ou os filtros.' : 'Cadastre fornecedores reais para iniciar a homologação. Nenhum registro demonstrativo foi criado.'}</span>{suppliers.length > 0 ? <button type="button" className="supplier-secondary-button" onClick={() => { setQuery(''); setStatusFilter('Todos'); setCategoryFilter('Todas'); }}>Limpar filtros</button> : <button type="button" className="primary-cta" onClick={openCreate}><Plus size={15} /> Cadastrar fornecedor</button>}</div>}
+      {!loading && !error && filteredSuppliers.length > 0 && <div className="supplier-table-scroll" role="region" aria-label="Lista de fornecedores. Em telas estreitas, role horizontalmente para ver todas as colunas." tabIndex="0"><table className="supplier-table">
         <thead><tr><th>Fornecedor</th><th>CPF/CNPJ</th><th>Contato</th><th>Categorias</th><th>Status</th><th>Condições</th><th>Ações</th></tr></thead>
         <tbody>{filteredSuppliers.map((supplier) => <tr key={supplier.id}>
           <td><strong>{supplier.name}</strong><small>{supplier.legalName || supplier.id}</small></td>

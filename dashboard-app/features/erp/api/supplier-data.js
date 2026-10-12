@@ -90,10 +90,22 @@ export function validateSupplier(input) {
   if (!statuses.has(status)) return { error: 'Selecione um status válido para o fornecedor.' };
 
   const minimumOrderValue = text(input?.minimumOrderValue);
-  const parsedMinimumOrderValue = minimumOrderValue ? Number(minimumOrderValue.replace(',', '.')) : null;
-  if (parsedMinimumOrderValue !== null && (!Number.isFinite(parsedMinimumOrderValue) || parsedMinimumOrderValue < 0)) {
-    return { error: 'O pedido mínimo deve ser um valor igual ou maior que zero.' };
+  const normalizedMinimumOrderValue = minimumOrderValue.includes(',')
+    ? minimumOrderValue.replace(/\./g, '').replace(',', '.')
+    : minimumOrderValue;
+  const parsedMinimumOrderValue = minimumOrderValue ? Number(normalizedMinimumOrderValue) : null;
+  if (parsedMinimumOrderValue !== null && (
+    !/^\d+(?:\.\d{1,2})?$/.test(normalizedMinimumOrderValue)
+    || !Number.isFinite(parsedMinimumOrderValue)
+    || parsedMinimumOrderValue > 9_999_999_999.99
+  )) {
+    return { error: 'Informe o pedido mínimo em reais, com até duas casas decimais (ex.: 1.234,56).' };
   }
+
+  const state = text(input?.state).toUpperCase();
+  if (state && !/^[A-Z]{2}$/.test(state)) return { error: 'Informe a UF com duas letras.' };
+  const postalCode = text(input?.postalCode).replace(/\D/g, '');
+  if (postalCode && postalCode.length !== 8) return { error: 'Informe um CEP com oito dígitos.' };
 
   const categories = [...new Set((Array.isArray(input?.categories) ? input.categories : [])
     .map((category) => text(category))
@@ -121,8 +133,8 @@ export function validateSupplier(input) {
       financePhone: text(input?.financePhone) || null,
       address: text(input?.address) || null,
       city: text(input?.city) || null,
-      state: text(input?.state).toUpperCase() || null,
-      postalCode: text(input?.postalCode).replace(/\D/g, '') || null,
+      state: state || null,
+      postalCode: postalCode || null,
       paymentTerms: text(input?.paymentTerms) || null,
       minimumOrderValue: parsedMinimumOrderValue,
       deliveryTerms: text(input?.deliveryTerms) || null,

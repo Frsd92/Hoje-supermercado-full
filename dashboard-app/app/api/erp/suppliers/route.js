@@ -69,7 +69,12 @@ export async function POST(request) {
   const session = await getServerSession(authOptions);
   if (!hasErpAccess(session?.user)) return Response.json({ error: 'Acesso negado.' }, { status: 403 });
 
-  const body = await request.json();
+  let body;
+  try {
+    body = await request.json();
+  } catch {
+    return Response.json({ error: 'Não foi possível ler os dados do fornecedor. Revise o formulário e tente novamente.' }, { status: 400, headers });
+  }
   const validation = validateSupplier(body);
   if (validation.error) return Response.json({ error: validation.error }, { status: 400, headers });
   const actor = erpActorLabel(session?.user);
@@ -100,7 +105,12 @@ export async function PUT(request) {
   const session = await getServerSession(authOptions);
   if (!hasErpAccess(session?.user)) return Response.json({ error: 'Acesso negado.' }, { status: 403 });
 
-  const body = await request.json();
+  let body;
+  try {
+    body = await request.json();
+  } catch {
+    return Response.json({ error: 'Não foi possível ler os dados do fornecedor. Revise o formulário e tente novamente.' }, { status: 400, headers });
+  }
   const supplierId = String(body?.id || '').trim();
   if (!supplierId) return Response.json({ error: 'Selecione um fornecedor para alterar.' }, { status: 400, headers });
   const validation = validateSupplier(body);
