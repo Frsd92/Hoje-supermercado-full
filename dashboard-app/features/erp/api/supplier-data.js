@@ -110,44 +110,56 @@ export function validateSupplier(input) {
   if (state && !/^[A-Z]{2}$/.test(state)) return { error: 'Informe a UF com duas letras.' };
   const postalCode = text(input?.postalCode).replace(/\D/g, '');
   if (postalCode && postalCode.length !== 8) return { error: 'Informe um CEP com oito dígitos.' };
+  const logoData = input?.logoData;
+  if (logoData !== undefined && logoData !== null && logoData !== '') {
+    const match = typeof logoData === 'string'
+      ? logoData.match(/^data:image\/(webp|png|jpeg);base64,([A-Za-z0-9+/]+={0,2})$/)
+      : null;
+    if (!match || logoData.length > 350_000 || match[2].length % 4 !== 0) {
+      return { error: 'A logo deve ser uma imagem WEBP, PNG ou JPEG de até 256 KB.' };
+    }
+  }
 
   const categories = [...new Set((Array.isArray(input?.categories) ? input.categories : [])
     .map((category) => text(category))
     .filter(Boolean))];
 
-  return {
-    data: {
-      identityName: normalizeSupplierName(name),
-      identityTaxId: taxId || null,
-      name,
-      legalName: text(input?.legalName) || null,
-      taxId: taxId || null,
-      email: email || null,
-      phone: text(input?.phone) || null,
-      whatsapp: text(input?.whatsapp) || null,
-      categories,
-      status,
-      statusReason: text(input?.statusReason) || null,
-      contactName: text(input?.contactName) || null,
-      contactRole: text(input?.contactRole) || null,
-      contactEmail: contactEmail || null,
-      contactPhone: text(input?.contactPhone) || null,
-      financeContact: text(input?.financeContact) || null,
-      financeEmail: financeEmail || null,
-      financePhone: text(input?.financePhone) || null,
-      address: text(input?.address) || null,
-      addressNumber: text(input?.addressNumber) || null,
-      neighborhood: text(input?.neighborhood) || null,
-      city: text(input?.city) || null,
-      state: state || null,
-      postalCode: postalCode || null,
-      paymentTerms: text(input?.paymentTerms) || null,
-      minimumOrderValue: parsedMinimumOrderValue,
-      deliveryTerms: text(input?.deliveryTerms) || null,
-      acceptsExpiredProductExchange: input?.acceptsExpiredProductExchange === true,
-      acceptsDamagedProductExchange: input?.acceptsDamagedProductExchange === true,
-    },
+  const data = {
+    identityName: normalizeSupplierName(name),
+    identityTaxId: taxId || null,
+    name,
+    legalName: text(input?.legalName) || null,
+    taxId: taxId || null,
+    email: email || null,
+    phone: text(input?.phone) || null,
+    whatsapp: text(input?.whatsapp) || null,
+    categories,
+    status,
+    statusReason: text(input?.statusReason) || null,
+    contactName: text(input?.contactName) || null,
+    contactRole: text(input?.contactRole) || null,
+    contactEmail: contactEmail || null,
+    contactPhone: text(input?.contactPhone) || null,
+    financeContact: text(input?.financeContact) || null,
+    financeEmail: financeEmail || null,
+    financePhone: text(input?.financePhone) || null,
+    address: text(input?.address) || null,
+    addressNumber: text(input?.addressNumber) || null,
+    neighborhood: text(input?.neighborhood) || null,
+    city: text(input?.city) || null,
+    state: state || null,
+    postalCode: postalCode || null,
+    paymentTerms: text(input?.paymentTerms) || null,
+    minimumOrderValue: parsedMinimumOrderValue,
+    deliveryTerms: text(input?.deliveryTerms) || null,
+    acceptsExpiredProductExchange: input?.acceptsExpiredProductExchange === true,
+    acceptsDamagedProductExchange: input?.acceptsDamagedProductExchange === true,
   };
+  if (logoData !== undefined) {
+    data.logoData = logoData || null;
+    data.logoMimeType = logoData ? `image/${logoData.match(/^data:image\/(webp|png|jpeg);/)[1]}` : null;
+  }
+  return { data };
 }
 
 function stableValue(value) {
@@ -176,6 +188,12 @@ export function supplierChanges(before, after) {
 }
 
 export function supplierAuditSnapshot(supplier) {
-  const snapshot = supplierSnapshot(supplier);
-  return Object.fromEntries(Object.entries(snapshot).filter(([key]) => !['identityName', 'identityTaxId'].includes(key)));
+  const auditableSupplier = Object.fromEntries(Object.entries(supplier)
+    .filter(([key]) => !['identityName', 'identityTaxId', 'logoData', 'logoMimeType'].includes(key)));
+  return {
+    ...supplierSnapshot(auditableSupplier),
+    logoPresent: typeof supplier.logoPresent === 'boolean'
+      ? supplier.logoPresent
+      : Boolean(supplier.logoData || supplier.logoMimeType),
+  };
 }

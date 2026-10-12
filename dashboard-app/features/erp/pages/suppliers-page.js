@@ -1,7 +1,7 @@
 'use client';
 
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
-import { Building2, Check, Download, Pencil, Plus, Search, X } from 'lucide-react';
+import { Building2, Check, Download, Pencil, Plus, Search, Upload, X } from 'lucide-react';
 import Link from 'next/link';
 
 const statusOptions = ['Em Análise', 'Ativo', 'Inativo'];
@@ -64,6 +64,7 @@ const supplierFieldLabels = {
   deliveryTerms: 'Condições de entrega',
   acceptsExpiredProductExchange: 'Troca de produtos após o vencimento',
   acceptsDamagedProductExchange: 'Troca de produtos danificados',
+  logoPresent: 'Logo cadastrada',
 };
 
 const formatCurrency = (value) => value === null || value === undefined
@@ -126,6 +127,42 @@ async function readSupplierResponse(response, fallbackMessage) {
   }
 }
 
+async function prepareSupplierLogo(file) {
+  if (!['image/webp', 'image/png', 'image/jpeg'].includes(file.type)) {
+    throw new Error('Escolha uma imagem WEBP, PNG ou JPEG.');
+  }
+  if (file.size > 8 * 1024 * 1024) throw new Error('A imagem original deve ter até 8 MB.');
+
+  const image = await createImageBitmap(file);
+  try {
+    for (const dimension of [320, 256, 192]) {
+      const scale = Math.min(1, dimension / Math.max(image.width, image.height));
+      const canvas = document.createElement('canvas');
+      canvas.width = Math.max(1, Math.round(image.width * scale));
+      canvas.height = Math.max(1, Math.round(image.height * scale));
+      const context = canvas.getContext('2d');
+      if (!context) throw new Error('Não foi possível processar esta imagem.');
+      context.drawImage(image, 0, 0, canvas.width, canvas.height);
+      for (const quality of [0.82, 0.68, 0.54]) {
+        const blob = await new Promise((resolve) => canvas.toBlob(resolve, 'image/webp', quality));
+        if (!blob) throw new Error('Seu navegador não conseguiu converter a logo.');
+        if (blob.size <= 256 * 1024) {
+          const dataUrl = await new Promise((resolve, reject) => {
+            const reader = new FileReader();
+            reader.onload = () => resolve(reader.result);
+            reader.onerror = () => reject(new Error('Não foi possível ler a imagem convertida.'));
+            reader.readAsDataURL(blob);
+          });
+          return dataUrl;
+        }
+      }
+    }
+  } finally {
+    image.close();
+  }
+  throw new Error('Não foi possível reduzir a logo para o limite de 256 KB.');
+}
+
 function normalizeSupplierSearch(value) {
   return String(value || '')
     .toLocaleLowerCase('pt-BR')
@@ -142,6 +179,11 @@ function SupplierForm({ supplier, onClose, onSaved }) {
   const [auditError, setAuditError] = useState('');
   const [cnpjLookup, setCnpjLookup] = useState({ loading: false, message: '' });
   const [cepLookup, setCepLookup] = useState({ loading: false, message: '' });
+  const [logoData, setLogoData] = useState(null);
+  const [removeLogo, setRemoveLogo] = useState(false);
+  const [logoProcessing, setLogoProcessing] = useState(false);
+  const [logoError, setLogoError] = useState('');
+  const logoFileRef = useRef(null);
   const isEditing = Boolean(supplier?.id);
   const dialogRef = useRef(null);
   const closeRef = useRef(onClose);
@@ -283,6 +325,22 @@ function SupplierForm({ supplier, onClose, onSaved }) {
     setCategoryInput('');
   };
 
+  const handleLogoChange = async (event) => {
+    const file = event.target.files?.[0];
+    event.target.value = '';
+    if (!file) return;
+    setLogoError('');
+    setLogoProcessing(true);
+    try {
+      setLogoData(await prepareSupplierLogo(file));
+      setRemoveLogo(false);
+    } catch (processingError) {
+      setLogoError(processingError.message || 'Não foi possível processar esta imagem.');
+    } finally {
+      setLogoProcessing(false);
+    }
+  };
+
   const save = async (event) => {
     event.preventDefault();
     setSaving(true);
@@ -293,6 +351,8 @@ function SupplierForm({ supplier, onClose, onSaved }) {
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
           ...form,
+          ...(logoData ? { logoData } : {}),
+          ...(removeLogo ? { logoData: null } : {}),
           id: supplier?.id,
         }),
       });
@@ -353,7 +413,25 @@ function SupplierForm({ supplier, onClose, onSaved }) {
           {field('E-mail geral', 'email', 'email')}
           {field('Telefone', 'phone', 'tel')}
           {field('WhatsApp', 'whatsapp', 'tel')}
-        </div></section>
+        </div>
+          <div className="supplier-logo-editor">
+            <div className="supplier-logo-preview" aria-label={logoData || (supplier?.logoUrl && !removeLogo) ? 'Pré-visualização da logo do fornecedor' : 'Nenhuma logo selecionada'}>
+              {logoData || (supplier?.logoUrl && !removeLogo)
+                ? <img src={logoData || supplier.logoUrl} alt="Logo do fornecedor" />
+                : <Building2 size={25} aria-hidden="true" />}
+            </div>
+            <div className="supplier-logo-controls">
+              <strong>Logo do fornecedor</strong>
+              <span>Imagem WEBP, PNG ou JPEG; será reduzida para até 256 KB.</span>
+              <div>
+                <button type="button" className="supplier-secondary-button" onClick={() => logoFileRef.current?.click()} disabled={logoProcessing || saving}><Upload size={14} /> {logoProcessing ? 'Processando...' : 'Selecionar logo'}</button>
+                <input ref={logoFileRef} id="supplier-logo-file" className="visually-hidden" type="file" accept="image/webp,image/png,image/jpeg" onChange={handleLogoChange} disabled={logoProcessing || saving} tabIndex="-1" aria-hidden="true" />
+                {(logoData || (supplier?.logoUrl && !removeLogo)) && <button type="button" className="supplier-secondary-button" onClick={() => { setLogoData(null); setRemoveLogo(true); setLogoError(''); }} disabled={logoProcessing || saving}>Remover logo</button>}
+              </div>
+              {logoError && <small role="alert">{logoError}</small>}
+            </div>
+          </div>
+        </section>
 
         <section className="supplier-form-section"><h3 id="supplier-categories-title">Categorias atendidas</h3><p className="supplier-section-description">Adicione uma ou mais categorias separadas por vírgula. Pressione Enter ou use Adicionar.</p><div className="supplier-category-entry"><label className="visually-hidden" htmlFor="supplier-category-input">Nova categoria</label><input id="supplier-category-input" value={categoryInput} onChange={(event) => setCategoryInput(event.target.value)} onKeyDown={(event) => { if (event.key === 'Enter') { event.preventDefault(); addCategories(); } }} placeholder="Ex.: Hortifruti, limpeza" /><button type="button" onClick={addCategories} disabled={!categoryInput.trim()}>Adicionar</button></div>{(form.categories || []).length > 0 ? <ul className="supplier-category-tags" aria-labelledby="supplier-categories-title">{form.categories.map((category) => <li key={category}><span>{category}</span><button type="button" aria-label={`Remover categoria ${category}`} onClick={() => updateField('categories', form.categories.filter((item) => item !== category))}>×</button></li>)}</ul> : <p className="supplier-category-empty">Nenhuma categoria adicionada.</p>}</section>
 
@@ -400,7 +478,7 @@ function SupplierForm({ supplier, onClose, onSaved }) {
         </section>
 
         {error && <div className="supplier-form-error" role="alert" tabIndex="-1">{error}</div>}
-        <footer className="supplier-form-actions"><button type="button" className="supplier-secondary-button" onClick={onClose} disabled={saving}>Cancelar</button><button type="submit" className="primary-cta" disabled={saving}>{saving ? 'Salvando...' : isEditing ? 'Salvar alterações' : 'Cadastrar em análise'}</button></footer>
+        <footer className="supplier-form-actions"><button type="button" className="supplier-secondary-button" onClick={onClose} disabled={saving}>Cancelar</button><button type="submit" className="primary-cta" disabled={saving || logoProcessing}>{saving ? 'Salvando...' : isEditing ? 'Salvar alterações' : 'Cadastrar em análise'}</button></footer>
       </form>
 
       {isEditing && <section className="supplier-history"><h3>Histórico de auditoria</h3>{auditError && <p role="alert">{auditError}</p>}{!auditError && !audit.length && <p>Nenhuma alteração registrada ainda.</p>}{audit.map((entry) => <details key={entry.id}><summary><strong>{entry.action === 'CREATE' ? 'Cadastro inicial' : 'Alteração'}</strong><span>{formatDate(entry.occurredAt)} · {entry.actor}</span></summary><dl>{auditFieldRows(entry)}</dl></details>)}</section>}
@@ -466,12 +544,12 @@ export default function SuppliersPage() {
   }, [suppliers, query, statusFilter, categoryFilter]);
 
   const saveCsv = () => {
-    const columns = ['Nome fantasia', 'Razão social', 'CPF/CNPJ', 'E-mail', 'Telefone', 'WhatsApp', 'Categorias', 'Status', 'Motivo', 'Logradouro', 'Número', 'Bairro', 'Cidade', 'UF', 'CEP', 'Condições de pagamento', 'Pedido mínimo', 'Condições de entrega', 'Troca após vencimento', 'Troca de danificados'];
+    const columns = ['Nome fantasia', 'Razão social', 'CPF/CNPJ', 'E-mail', 'Telefone', 'WhatsApp', 'Categorias', 'Status', 'Motivo', 'Logradouro', 'Número', 'Bairro', 'Cidade', 'UF', 'CEP', 'Condições de pagamento', 'Pedido mínimo', 'Condições de entrega', 'Troca após vencimento', 'Troca de danificados', 'Logo cadastrada'];
     const rows = filteredSuppliers.map((supplier) => [
       supplier.name, supplier.legalName, supplier.taxId, supplier.email, supplier.phone, supplier.whatsapp,
       supplier.categories.join('; '), supplier.status, supplier.statusReason, supplier.address, supplier.addressNumber, supplier.neighborhood, supplier.city, supplier.state, supplier.postalCode,
       supplier.paymentTerms, supplier.minimumOrderValue, supplier.deliveryTerms,
-      supplier.acceptsExpiredProductExchange ? 'Sim' : 'Não', supplier.acceptsDamagedProductExchange ? 'Sim' : 'Não',
+      supplier.acceptsExpiredProductExchange ? 'Sim' : 'Não', supplier.acceptsDamagedProductExchange ? 'Sim' : 'Não', supplier.logoUrl ? 'Sim' : 'Não',
     ]);
     const csv = `\uFEFF${[columns, ...rows].map((row) => row.map(escapeCsv).join(';')).join('\r\n')}`;
     const url = URL.createObjectURL(new Blob([csv], { type: 'text/csv;charset=utf-8' }));
@@ -527,7 +605,7 @@ export default function SuppliersPage() {
       {!loading && !error && filteredSuppliers.length > 0 && <div className="supplier-table-scroll" role="region" aria-label="Lista de fornecedores. Em telas estreitas, role horizontalmente para ver todas as colunas." tabIndex="0"><table className="supplier-table">
         <thead><tr><th>Fornecedor</th><th>CPF/CNPJ</th><th>Contato</th><th>Categorias</th><th>Status</th><th>Condições</th><th>Ações</th></tr></thead>
         <tbody>{filteredSuppliers.map((supplier) => <tr key={supplier.id}>
-          <td><strong>{supplier.name}</strong><small>{supplier.legalName || supplier.id}</small></td>
+          <td><div className="supplier-name-cell">{supplier.logoUrl ? <img className="supplier-list-logo" src={supplier.logoUrl} alt="" /> : <span className="supplier-list-logo supplier-list-logo-empty"><Building2 size={15} aria-hidden="true" /></span>}<div><strong>{supplier.name}</strong><small>{supplier.legalName || supplier.id}</small></div></div></td>
           <td>{supplier.taxId || '—'}</td>
           <td><strong>{supplier.email || supplier.phone || '—'}</strong><small>{supplier.phone || supplier.whatsapp || 'Contato não informado'}</small></td>
           <td><div className="supplier-row-categories">{supplier.categories.length ? supplier.categories.map((category) => <span key={category}>{category}</span>) : '—'}</div></td>

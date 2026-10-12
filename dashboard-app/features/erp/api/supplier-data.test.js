@@ -83,3 +83,31 @@ test('keeps public supplier snapshots free of internal identity keys', () => {
   assert.equal(snapshot.id, 's1');
   assert.equal('identityTaxId' in snapshot, false);
 });
+
+test('validates optional supplier logo data and excludes image content from audit snapshots', () => {
+  const logoData = `data:image/webp;base64,${'A'.repeat(128)}`;
+  const { data } = validateSupplier({ name: 'Real', logoData });
+  assert.equal(data.logoData, logoData);
+  assert.equal(data.logoMimeType, 'image/webp');
+  assert.match(validateSupplier({ name: 'Real', logoData: 'data:text/html;base64,PHNjcmlwdD4=' }).error, /imagem WEBP/);
+  assert.match(validateSupplier({ name: 'Real', logoData: `data:image/png;base64,${'A'.repeat(350_000)}` }).error, /256 KB/);
+
+  const snapshot = supplierAuditSnapshot({
+    id: 's1',
+    logoData,
+    logoMimeType: 'image/webp',
+    name: 'Real',
+  });
+  assert.equal(snapshot.logoPresent, true);
+  assert.equal('logoData' in snapshot, false);
+  assert.equal('logoMimeType' in snapshot, false);
+});
+
+test('supplier audit reports logo presence changes without retaining image data', () => {
+  const changes = supplierChanges(
+    supplierAuditSnapshot({ id: 's1', name: 'Real', logoData: null, logoMimeType: null }),
+    supplierAuditSnapshot({ id: 's1', name: 'Real', logoData: 'private-image-data', logoMimeType: 'image/webp' }),
+  );
+  assert.deepEqual(changes.logoPresent, { before: false, after: true });
+  assert.equal('logoData' in changes, false);
+});

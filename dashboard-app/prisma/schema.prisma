@@ -319,6 +319,8 @@ model Supplier {
   deliveryTerms     String?
   acceptsExpiredProductExchange Boolean @default(false)
   acceptsDamagedProductExchange Boolean @default(false)
+  logoData          String?            @db.Text
+  logoMimeType      String?
   createdBy         String
   updatedBy         String?
   createdAt         DateTime           @default(now())

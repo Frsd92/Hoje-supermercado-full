@@ -7519,6 +7519,19 @@ button.metric-mini:focus-visible {
 .supplier-row-categories { display: flex; flex-wrap: wrap; gap: 4px; max-width: 210px; }
 .supplier-row-categories span { padding: 3px 6px; border-radius: 999px; background: #f1f5f9; color: #475569; font-size: .63rem; }
 .supplier-edit-button { min-height: 31px; padding: 5px 8px; font-size: .68rem; }
+.supplier-name-cell { display: flex; align-items: center; gap: 10px; min-width: 190px; }
+.supplier-list-logo { display: grid; width: 38px; height: 38px; flex: 0 0 38px; place-items: center; border: 1px solid #e2e8f0; border-radius: 8px; background: #fff; object-fit: contain; }
+.supplier-list-logo-empty { color: #94a3b8; background: #f8fafc; }
+.supplier-logo-editor { display: flex; align-items: center; gap: 14px; margin-top: 15px; padding: 13px; border: 1px solid #e2e8f0; border-radius: 10px; background: #fbfdff; }
+.supplier-logo-preview { display: grid; width: 72px; height: 72px; flex: 0 0 72px; place-items: center; overflow: hidden; border: 1px solid #e2e8f0; border-radius: 10px; background: #fff; color: #94a3b8; }
+.supplier-logo-preview img { width: 100%; height: 100%; object-fit: contain; }
+.supplier-logo-controls { display: grid; justify-items: start; gap: 5px; color: #475569; font-size: .72rem; }
+.supplier-logo-controls > strong { color: #1e293b; }
+.supplier-logo-controls > span { color: #64748b; line-height: 1.4; }
+.supplier-logo-controls > div { display: flex; flex-wrap: wrap; gap: 8px; margin-top: 4px; }
+.supplier-logo-controls > small { color: #b91c1c; }
+.supplier-logo-controls label { min-height: 34px; padding: 7px 10px; font-size: .7rem; }
+.supplier-logo-controls button { min-height: 34px; padding: 7px 10px; font-size: .7rem; }
 .supplier-table-footer { padding: 10px 14px; color: #94a3b8; font-size: .68rem; }
 .supplier-empty-state { display: grid; justify-items: center; gap: 9px; padding: 45px 20px; color: #94a3b8; text-align: center; }
 .invoice-page { padding-bottom: 34px; }
@@ -8349,6 +8362,9 @@ button.metric-mini:focus-visible {
   .audit-pagination { justify-content: space-between; }
   .erp-customer-header { align-items: flex-start; flex-direction: column; }
   .erp-customer-header .primary-cta { width: 100%; justify-content: center; }
+  .supplier-logo-editor { align-items: flex-start; }
+  .supplier-logo-controls { min-width: 0; }
+  .supplier-logo-controls > div { width: 100%; }
   .erp-customer-metrics { grid-template-columns: 1fr 1fr; gap: 8px; }
   .erp-customer-metric { padding: 10px; }
   .erp-customer-filter { flex: 1; }
