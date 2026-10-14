@@ -298,6 +298,7 @@ export function buildFinancialMetrics({
   const discountCombinationStats = new Map();
   const candidateStats = new Map();
   const discountOrderReports = [];
+  const trendStats = new Map();
   const firstCustomerOrders = new Map();
   const firstPurchaseCustomersInPeriod = new Set();
   const returningCustomersInPeriod = new Set();
@@ -305,6 +306,8 @@ export function buildFinancialMetrics({
   const overallOrderIds = new Set();
   const couponOrderIds = new Set();
   let revenue = 0;
+  let salesBeforeRefunds = 0;
+  let totalRefunds = 0;
   let knownCost = 0;
   let knownCostRevenue = 0;
   let totalDiscounts = 0;
@@ -319,6 +322,10 @@ export function buildFinancialMetrics({
   let invalidOrders = 0;
   let invalidItems = 0;
   let unreconciledOrders = 0;
+  const dateSpanStart = startDate || (inPeriod.length ? getDateKey(inPeriod[0].date) : getDateKey(now));
+  const dateSpanEnd = endDate || getDateKey(now);
+  const spanDays = Math.max(0, (Date.parse(`${dateSpanEnd}T00:00:00Z`) - Date.parse(`${dateSpanStart}T00:00:00Z`)) / 86400000);
+  const trendGranularity = spanDays <= 90 ? 'day' : 'month';
 
   for (const campaign of Array.isArray(campaigns) ? campaigns : []) {
     const code = String(campaign.code || '').trim().toUpperCase();
@@ -359,7 +366,11 @@ export function buildFinancialMetrics({
 
     overallOrderIds.add(orderId);
     if (orderTotal === null) invalidOrders += 1;
-    else revenue += netOrderRevenue;
+    else {
+      revenue += netOrderRevenue;
+      salesBeforeRefunds += orderTotal;
+      totalRefunds += refundedAmount;
+    }
     if (sourceItems.length === 0 && (orderTotal || 0) > 0) ordersWithoutItems += 1;
     const couponDiscountForOrder = couponCode ? orderDiscount : 0;
     couponDiscount += couponDiscountForOrder;
@@ -430,6 +441,25 @@ export function buildFinancialMetrics({
 
     const orderItemPromotionDiscount = lines.reduce((sum, line) => sum + line.promotionDiscount, 0);
     const orderCost = lines.reduce((sum, line) => sum + line.cost, 0);
+    const trendKey = trendGranularity === 'day' ? getDateKey(date) : getDateKey(date).slice(0, 7);
+    const trendEntry = trendStats.get(trendKey) || {
+      revenue: 0,
+      refunds: 0,
+      discounts: 0,
+      orders: 0,
+      knownCostOfGoodsSold: 0,
+      costsComplete: true,
+    };
+    trendEntry.revenue += netOrderRevenue || 0;
+    trendEntry.refunds += refundedAmount;
+    trendEntry.discounts += orderItemPromotionDiscount + orderDiscount;
+    trendEntry.orders += 1;
+    trendEntry.knownCostOfGoodsSold += orderCost;
+    trendEntry.costsComplete &&= lines.length > 0
+      && orderTotal !== null
+      && orderReconciled
+      && lines.every((line) => line.valid && line.costKnown);
+    trendStats.set(trendKey, trendEntry);
     const discountTypes = getOrderDiscountTypes(lines, couponCode, orderDiscount);
     const discountKey = discountTypes.join('+');
     const discountCombination = discountCombinationStats.get(discountKey)
@@ -563,26 +593,25 @@ export function buildFinancialMetrics({
     }
   }
 
-  const dateSpanStart = startDate || (inPeriod.length ? getDateKey(inPeriod[0].date) : getDateKey(now));
-  const dateSpanEnd = endDate || getDateKey(now);
-  const spanDays = Math.max(0, (Date.parse(`${dateSpanEnd}T00:00:00Z`) - Date.parse(`${dateSpanStart}T00:00:00Z`)) / 86400000);
-  const trendGranularity = spanDays <= 90 ? 'day' : 'month';
-  const formattedTrend = new Map();
-  for (const { order, date } of inPeriod) {
-    const key = trendGranularity === 'day' ? getDateKey(date) : getDateKey(date).slice(0, 7);
-    const entry = formattedTrend.get(key) || { revenue: 0, orders: 0 };
-    const orderTotal = parseAmount(order.total) || 0;
-    const refundedAmount = Math.min(orderTotal, Math.max(0, parseAmount(order.refundedAmount) || 0));
-    entry.revenue += orderTotal - refundedAmount;
-    entry.orders += 1;
-    formattedTrend.set(key, entry);
-  }
-  const trend = [...formattedTrend.entries()].sort(([first], [second]) => first.localeCompare(second)).map(([key, value]) => ({
-    key,
-    label: formatTrendLabel(key, trendGranularity),
-    revenue: roundMoney(value.revenue),
-    orders: value.orders,
-  }));
+  const trend = [...trendStats.entries()].sort(([first], [second]) => first.localeCompare(second)).map(([key, value]) => {
+    const costOfGoodsSold = value.costsComplete ? roundMoney(value.knownCostOfGoodsSold) : null;
+    const grossProfit = costOfGoodsSold === null ? null : roundMoney(value.revenue - costOfGoodsSold);
+    return {
+      key,
+      label: formatTrendLabel(key, trendGranularity),
+      revenue: roundMoney(value.revenue),
+      refunds: roundMoney(value.refunds),
+      discounts: roundMoney(value.discounts),
+      orders: value.orders,
+      knownCostOfGoodsSold: roundMoney(value.knownCostOfGoodsSold),
+      costOfGoodsSold,
+      grossProfit,
+      grossMargin: grossProfit === null || !value.revenue
+        ? null
+        : Number((grossProfit / value.revenue * 100).toFixed(2)),
+      averageTicket: value.orders ? roundMoney(value.revenue / value.orders) : 0,
+    };
+  });
 
   const lineItems = [...productStats.values()];
   const allCostsComplete = totalItems > 0
@@ -670,6 +699,8 @@ export function buildFinancialMetrics({
     },
     totals: {
       revenue: roundMoney(revenue),
+      salesBeforeRefunds: roundMoney(salesBeforeRefunds),
+      refunds: roundMoney(totalRefunds),
       orders: overallOrderIds.size,
       averageTicket: overallOrderIds.size ? roundMoney(revenue / overallOrderIds.size) : 0,
       items: totalItems,
@@ -681,6 +712,14 @@ export function buildFinancialMetrics({
       grossProfit: grossProfit === null ? null : roundMoney(grossProfit),
       grossMargin: grossProfit === null || !revenue ? null : Number((grossProfit / revenue * 100).toFixed(2)),
       marginAvailable: allCostsComplete && overallOrderIds.size > 0,
+    },
+    dre: {
+      salesBeforeRefunds: roundMoney(salesBeforeRefunds),
+      refunds: roundMoney(totalRefunds),
+      netRevenue: roundMoney(revenue),
+      costOfGoodsSold: allCostsComplete && overallOrderIds.size ? roundMoney(knownCost) : null,
+      knownCostOfGoodsSold: roundMoney(knownCost),
+      grossProfit: grossProfit === null ? null : roundMoney(grossProfit),
     },
     coverage: {
       knownCostItems,

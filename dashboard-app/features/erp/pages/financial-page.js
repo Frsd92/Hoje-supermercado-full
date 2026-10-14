@@ -47,12 +47,42 @@ function shiftDate(dateKey, days) {
   return date.toISOString().slice(0, 10);
 }
 
-function MetricCard({ icon: Icon, label, value, detail, emphasis = false }) {
+function createChartPoints(values) {
+  const points = values.slice(-12);
+  if (points.length < 2 || !points.some((value) => Number.isFinite(value))) return '';
+  const numericValues = points.map((value) => Number.isFinite(value) ? value : null);
+  const availableValues = numericValues.filter((value) => value !== null);
+  const min = Math.min(0, ...availableValues);
+  const max = Math.max(0, ...availableValues);
+  const range = Math.max(max - min, 1);
+  return numericValues.map((value, index) => {
+    const x = points.length === 1 ? 50 : 3 + (index / (points.length - 1)) * 94;
+    const y = value === null ? null : 27 - ((value - min) / range) * 22;
+    return y === null ? '' : `${x.toFixed(1)},${y.toFixed(1)}`;
+  }).filter(Boolean).join(' ');
+}
+
+function MetricChart({ values, label, color = 'green' }) {
+  const points = createChartPoints(values);
+  if (!points || !values.some((value) => Number.isFinite(value) && value !== 0)) return null;
+  return <svg
+    className={`financial-metric-chart ${color}`}
+    viewBox="0 0 100 32"
+    role="img"
+    aria-label={label}
+    focusable="false"
+  >
+    <polyline points={points} />
+  </svg>;
+}
+
+function MetricCard({ icon: Icon, label, value, detail, chartValues = [], chartLabel, emphasis = false }) {
   return <article className={`financial-metric${emphasis ? ' emphasis' : ''}`}>
     <span className="financial-metric-icon"><Icon size={18} aria-hidden="true" /></span>
     <span className="financial-metric-label">{label}</span>
     <strong>{value}</strong>
     <small>{detail}</small>
+    <MetricChart values={chartValues} label={chartLabel} />
   </article>;
 }
 
@@ -84,7 +114,7 @@ function csvCell(value) {
   return `"${String(value ?? '').replace(/"/g, '""')}"`;
 }
 
-function exportFinancialCsv(data) {
+function exportFinancialCsv(data, liquidity) {
   const rows = [
     ['Relatório financeiro Hoje Supermercado'],
     ['Período', data.period.allHistory ? 'Todo o histórico disponível' : `${data.period.startDate || 'início'} até ${data.period.endDate || 'hoje'}`],
@@ -98,6 +128,20 @@ function exportFinancialCsv(data) {
     ['Lucro bruto', money(data.totals.grossProfit)],
     ['Margem bruta', percent(data.totals.grossMargin)],
     ['Descontos registrados', money(data.totals.discounts)],
+    [],
+    ['DRE gerencial preliminar', 'Valor'],
+    ['Vendas após descontos e antes de estornos', money(data.dre.salesBeforeRefunds)],
+    ['(-) Estornos confirmados', money(-data.dre.refunds)],
+    ['Receita líquida após estornos', money(data.dre.netRevenue)],
+    ['(-) CMV', money(data.dre.costOfGoodsSold === null ? null : -data.dre.costOfGoodsSold)],
+    ['Lucro bruto', money(data.dre.grossProfit)],
+    ['Despesas operacionais, impostos e resultado líquido', 'Não apurados no ERP'],
+    [],
+    ['Contas a pagar de NF-e lançadas'],
+    ['Saldo em aberto', money(liquidity?.outstanding)],
+    ['Saldo vencido', money(liquidity?.overdue)],
+    ['Vencimento nos próximos 30 dias', money(liquidity?.dueNext30Days)],
+    ['Pago neste mês', money(liquidity?.paidThisMonth)],
     [],
     ['Promoções por tipo', 'Pedidos', 'Itens', 'Faturamento associado', 'Desconto de item', 'Lucro bruto', 'Margem bruta'],
     ...data.promotionTypes.map((item) => [item.label, item.orders, item.itemCount, money(item.revenue), money(item.promotionDiscount), money(item.grossProfit), percent(item.grossMargin)]),
@@ -199,6 +243,9 @@ export default function FinancialPage() {
   const [preset, setPreset] = useState('all');
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState('');
+  const [refundSyncWarning, setRefundSyncWarning] = useState(false);
+  const [dreMode, setDreMode] = useState('managerial');
+  const [liquidity, setLiquidity] = useState(null);
   const [refreshToken, setRefreshToken] = useState(0);
 
   useEffect(() => {
@@ -208,6 +255,15 @@ export default function FinancialPage() {
       setLoading(true);
       setError('');
       try {
+        let syncWarning = false;
+        try {
+          const syncResponse = await fetch('/api/erp/refunds/reconcile', { method: 'POST', cache: 'no-store' });
+          const syncData = await syncResponse.json();
+          syncWarning = !syncResponse.ok || syncData.warning === true;
+        } catch (syncError) {
+          console.error('Não foi possível reconciliar estornos antes de atualizar o financeiro:', syncError);
+          syncWarning = true;
+        }
         const params = new URLSearchParams();
         if (appliedPeriod.startDate) params.set('startDate', appliedPeriod.startDate);
         if (appliedPeriod.endDate) params.set('endDate', appliedPeriod.endDate);
@@ -218,10 +274,14 @@ export default function FinancialPage() {
         });
         const result = await response.json();
         if (!response.ok) throw new Error(result.error || 'Não foi possível carregar os indicadores financeiros.');
-        if (!result.financial || !Array.isArray(result.financial.promotionTypes)) {
+        if (!result.financial || !Array.isArray(result.financial.promotionTypes) || !result.liquidity) {
           throw new Error('A resposta do financeiro veio incompleta. Tente atualizar a página.');
         }
-        if (active) setData(result.financial);
+        if (active) {
+          setData(result.financial);
+          setLiquidity(result.liquidity);
+          setRefundSyncWarning(syncWarning);
+        }
       } catch (loadError) {
         if (active && loadError.name !== 'AbortError') {
           setError(loadError.message || 'Não foi possível carregar os indicadores financeiros. Tente novamente.');
@@ -250,13 +310,18 @@ export default function FinancialPage() {
   const hasFinancialOrders = Boolean(data?.period.orders);
   const hasPromotionCoverageGap = Boolean(data?.totals.items)
     && data.coverage.promotionCoveragePercent !== 100;
+  const trendRows = data?.trend || [];
+  const trendLabel = data?.trendGranularity === 'day' ? 'diário' : 'mensal';
+  const chartValues = (key) => trendRows.map((entry) => entry[key]);
+  const chartDescription = (label) => `${label} ${trendLabel} no período selecionado`;
+  const knownLiquidity = Boolean(liquidity);
 
   return <div className="erp-page financial-page">
     <header className="financial-header">
       <div>
         <span className="eyebrow">Gestão financeira</span>
         <h1>Financeiro</h1>
-        <p>Faturamento, CMV e desempenho promocional baseados nos pedidos registrados.</p>
+        <p>Visão gerencial organizada em três pilares, com dados de vendas, custos registrados e contas a pagar.</p>
       </div>
       <div className="financial-header-actions">
         <Link href="/erp/orders">Pedidos</Link>
@@ -265,7 +330,7 @@ export default function FinancialPage() {
         <button type="button" onClick={() => setRefreshToken((token) => token + 1)} disabled={loading} aria-label="Atualizar indicadores financeiros">
           <RefreshCw size={15} className={loading ? 'is-spinning' : ''} aria-hidden="true" />Atualizar
         </button>
-        <button type="button" onClick={() => data && exportFinancialCsv(data)} disabled={!data} aria-label="Exportar indicadores financeiros para CSV">
+        <button type="button" onClick={() => data && exportFinancialCsv(data, liquidity)} disabled={!data} aria-label="Exportar indicadores financeiros para CSV">
           <ArrowDownToLine size={15} aria-hidden="true" />Exportar CSV
         </button>
       </div>
@@ -286,6 +351,7 @@ export default function FinancialPage() {
       <span>{error}{data ? ' Os dados mostrados são da última consulta concluída.' : ''}</span>
       <button type="button" onClick={() => setRefreshToken((token) => token + 1)} disabled={loading}>Tentar novamente</button>
     </div>}
+    {refundSyncWarning && <div className="financial-data-notice" role="status"><p>Alguns estornos não puderam ser confirmados agora. Os valores do período podem estar temporariamente desatualizados; atualize novamente em instantes.</p></div>}
     {!data && !loading && !error && <EmptyState>Nenhum dado financeiro disponível.</EmptyState>}
     {data && <>
       <div className="financial-period-summary">
@@ -304,13 +370,80 @@ export default function FinancialPage() {
         {data.coverage.unreconciledOrders > 0 && <p>Há pedidos cujos itens e total não conciliam; eles permanecem no faturamento, mas não na margem completa.</p>}
       </div>}
 
-      <section className="financial-metrics" aria-label="Indicadores principais">
-        <MetricCard icon={Banknote} label="Faturamento líquido" value={money(data.totals.revenue)} detail="Total dos pedidos não cancelados" emphasis />
-        <MetricCard icon={CircleDollarSign} label="Lucro bruto" value={money(data.totals.grossProfit)} detail="Faturamento menos CMV; não inclui despesas operacionais" />
-        <MetricCard icon={TrendingUp} label="Margem bruta real" value={percent(data.totals.grossMargin)} detail="Após descontos e custo por item vendido" />
-        <MetricCard icon={PackageSearch} label={data.totals.costOfGoodsSold === null ? 'CMV conhecido' : 'CMV'} value={money(data.totals.costOfGoodsSold ?? data.totals.knownCostOfGoodsSold)} detail={data.totals.costOfGoodsSold === null ? `${data.coverage.knownCostItems} de ${data.totals.items} itens com custo` : 'Custo dos produtos vendidos'} />
-        <MetricCard icon={Tag} label="Descontos registrados" value={money(data.totals.discounts)} detail="Promoções de item e descontos no pedido" />
-        <MetricCard icon={ShoppingBag} label="Ticket médio" value={money(data.totals.averageTicket)} detail={`${data.totals.orders.toLocaleString('pt-BR')} pedido(s) no período`} />
+      <nav className="financial-pillar-nav" aria-label="Navegação pelos pilares financeiros">
+        <a href="#financial-operational">1 · Eficiência operacional</a>
+        <a href="#financial-liquidity">2 · Liquidez e tesouraria</a>
+        <a href="#financial-value">3 · Valor e rentabilidade</a>
+      </nav>
+
+      <section className="financial-metrics" aria-label="Indicadores principais; gráficos mostram a evolução no período selecionado">
+        <MetricCard icon={Banknote} label="Faturamento líquido" value={money(data.totals.revenue)} detail="Vendas registradas menos estornos confirmados" chartValues={chartValues('revenue')} chartLabel={chartDescription('Faturamento líquido')} emphasis />
+        <MetricCard icon={CircleDollarSign} label="Lucro bruto" value={money(data.totals.grossProfit)} detail="Receita líquida menos CMV; antes das despesas" chartValues={chartValues('grossProfit')} chartLabel={chartDescription('Lucro bruto')} />
+        <MetricCard icon={TrendingUp} label="Margem bruta real" value={percent(data.totals.grossMargin)} detail="Após descontos, estornos e custo por item vendido" chartValues={chartValues('grossMargin')} chartLabel={chartDescription('Margem bruta')} />
+        <MetricCard icon={PackageSearch} label={data.totals.costOfGoodsSold === null ? 'CMV conhecido' : 'CMV'} value={money(data.totals.costOfGoodsSold ?? data.totals.knownCostOfGoodsSold)} detail={data.totals.costOfGoodsSold === null ? `${data.coverage.knownCostItems} de ${data.totals.items} itens com custo` : 'Custo dos produtos vendidos'} chartValues={chartValues('knownCostOfGoodsSold')} chartLabel={chartDescription('CMV conhecido')} />
+        <MetricCard icon={Tag} label="Descontos registrados" value={money(data.totals.discounts)} detail="Descontos em itens e no pedido" chartValues={chartValues('discounts')} chartLabel={chartDescription('Descontos registrados')} />
+        <MetricCard icon={ShoppingBag} label="Ticket médio" value={money(data.totals.averageTicket)} detail={`${data.totals.orders.toLocaleString('pt-BR')} pedido(s) no período`} chartValues={chartValues('averageTicket')} chartLabel={chartDescription('Ticket médio')} />
+      </section>
+
+      <section className="financial-panel" id="financial-operational" aria-labelledby="financial-dre-title">
+        <div className="financial-section-heading">
+          <div><span className="eyebrow">Pilar 1 · Eficiência, giro e margem</span><h2 id="financial-dre-title">Demonstração do Resultado (DRE)</h2></div>
+          <div className="financial-mode-switch" role="group" aria-label="Modelo da demonstração de resultado">
+            <button type="button" aria-pressed={dreMode === 'managerial'} onClick={() => setDreMode('managerial')}>Gerencial</button>
+            <button type="button" aria-pressed={dreMode === 'official'} onClick={() => setDreMode('official')}>Oficial</button>
+          </div>
+        </div>
+        {dreMode === 'managerial' ? <>
+          <p className="financial-explainer">DRE gerencial preliminar baseada nos pedidos e no custo histórico salvo nos itens. Valores refletem o período filtrado; despesas não cadastradas não são presumidas como zero.</p>
+          <div className="financial-dre-layout">
+            <div className="financial-table-scroll" role="region" aria-label="DRE gerencial preliminar" tabIndex={0}>
+              <table>
+                <caption>Apuração operacional; esta demonstração não substitui a escrituração contábil oficial</caption>
+                <thead><tr><th scope="col">Linha do resultado</th><th scope="col">Valor</th><th scope="col">Base</th></tr></thead>
+                <tbody>
+                  <tr><th scope="row">Vendas após descontos, antes de estornos</th><td>{money(data.dre.salesBeforeRefunds)}</td><td>Totais dos pedidos elegíveis após descontos</td></tr>
+                  <tr><th scope="row">(-) Estornos confirmados</th><td className="financial-negative">{money(-data.dre.refunds)}</td><td>Confirmação registrada na Pagar.me</td></tr>
+                  <tr className="financial-dre-total"><th scope="row">(=) Receita líquida após estornos</th><td>{money(data.dre.netRevenue)}</td><td>Vendas menos estornos confirmados</td></tr>
+                  <tr><th scope="row">(-) CMV</th><td>{data.dre.costOfGoodsSold === null ? 'Não apurado integralmente' : money(-data.dre.costOfGoodsSold)}</td><td>{data.dre.costOfGoodsSold === null ? `${data.coverage.knownCostItems} de ${data.totals.items} itens com custo` : 'Custo registrado nos itens vendidos'}</td></tr>
+                  <tr className="financial-dre-total"><th scope="row">(=) Lucro bruto</th><td>{money(data.dre.grossProfit)}</td><td>Receita líquida menos CMV completo</td></tr>
+                  <tr><th scope="row">(-) Despesas operacionais, tributos e taxas</th><td>Não apurado</td><td>Não há lançamentos completos destas despesas</td></tr>
+                  <tr><th scope="row">(=) EBITDA / resultado líquido</th><td>Não apurado</td><td>Depende das despesas, impostos e depreciação contabilizados</td></tr>
+                </tbody>
+              </table>
+            </div>
+            <div className="financial-dre-chart" role="img" aria-label={`Composição do resultado: receita líquida ${money(data.dre.netRevenue)}, CMV ${money(data.dre.costOfGoodsSold)}, lucro bruto ${money(data.dre.grossProfit)}`}>
+              <span>Composição da receita</span>
+              <div><i style={{ width: `${data.dre.netRevenue > 0 ? 100 : 0}%` }} /><label>Receita líquida <strong>{money(data.dre.netRevenue)}</strong></label></div>
+              <div><i className="cost" style={{ width: `${data.dre.costOfGoodsSold !== null && data.dre.netRevenue > 0 ? Math.min(100, Math.max(0, data.dre.costOfGoodsSold / data.dre.netRevenue * 100)) : 0}%` }} /><label>CMV completo <strong>{money(data.dre.costOfGoodsSold)}</strong></label></div>
+              <div><i className="profit" style={{ width: `${data.dre.grossProfit !== null && data.dre.netRevenue > 0 ? Math.min(100, Math.max(0, data.dre.grossProfit / data.dre.netRevenue * 100)) : 0}%` }} /><label>Lucro bruto <strong>{money(data.dre.grossProfit)}</strong></label></div>
+              <small>Escala relativa à receita líquida. Quando o CMV está incompleto, a composição não estima o lucro.</small>
+            </div>
+          </div>
+          <p className="financial-source-note">Ponto de equilíbrio, EBITDA completo, margem de contribuição após custos variáveis, ciclo operacional e PME não são calculados sem despesas, folha, taxas, saldos de caixa e datas completas de recebimento/baixa de estoque.</p>
+        </> : <div className="financial-official-notice" role="status">
+          <strong>DRE oficial indisponível — não é um relatório fiscal/contábil.</strong>
+          <p>O sistema ainda não reúne plano de contas, regime de competência, tributos apurados, despesas contabilizadas, folha, depreciação, juros e encerramento contábil. O painel não produz nem substitui uma demonstração oficial assinada por profissional habilitado.</p>
+          <Link href="/erp/suppliers/invoices">Consultar notas fiscais e contas a pagar registradas</Link>
+        </div>}
+      </section>
+
+      <section className="financial-panel" id="financial-liquidity" aria-labelledby="financial-liquidity-title">
+        <div className="financial-section-heading">
+          <div><span className="eyebrow">Pilar 2 · Fôlego, caixa e tesouraria</span><h2 id="financial-liquidity-title">Liquidez registrada no ERP</h2></div>
+          <Link href="/erp/suppliers/invoices">Notas fiscais e parcelas a pagar</Link>
+        </div>
+        <p className="financial-explainer">Visão das parcelas de NF-e já lançadas. Não representa saldo bancário nem fluxo de caixa completo: recebimentos de adquirentes e extratos ainda não são conciliados automaticamente.</p>
+        {knownLiquidity ? <div className="financial-liquidity-grid">
+          <article><span>Contas a pagar em aberto</span><strong>{money(liquidity.outstanding)}</strong><small>{liquidity.openCount} parcela(s) de NF-e lançada(s)</small><MetricChart values={[liquidity.openByDueDate.overdue, liquidity.openByDueDate.dueNext30Days, liquidity.openByDueDate.dueLaterOrUnscheduled]} label="Distribuição do saldo em aberto por faixa de vencimento" color="blue" /></article>
+          <article><span>Parcelas vencidas</span><strong>{money(liquidity.overdue)}</strong><small>Saldo vencido sem baixa registrada</small><div className="financial-liquidity-breakdown" role="img" aria-label={`Saldo vencido ${money(liquidity.overdue)}, próximos 30 dias ${money(liquidity.dueNext30Days)}, depois ou sem vencimento ${money(liquidity.dueLaterOrUnscheduled)}`}>
+            {[
+              ['Vencidas', liquidity.openByDueDate.overdue, 'overdue'],
+              ['Próx. 30 dias', liquidity.openByDueDate.dueNext30Days, 'upcoming'],
+              ['Depois/sem data', liquidity.openByDueDate.dueLaterOrUnscheduled, 'later'],
+            ].map(([label, value, key]) => <span key={key}><i className={key} style={{ width: `${liquidity.outstanding > 0 ? value / liquidity.outstanding * 100 : 0}%` }} /><small>{label} · {money(value)}</small></span>)}
+          </div></article>
+          <article><span>Pagamentos a fornecedores neste mês</span><strong>{money(liquidity.paidThisMonth)}</strong><small>{liquidity.paidCountThisMonth} parcela(s) marcada(s) como paga(s)</small><MetricChart values={liquidity.paidTrend.map((entry) => entry.paid)} label="Pagamentos registrados a fornecedores nos últimos seis meses" color="blue" /></article>
+        </div> : <EmptyState>Resumo de contas a pagar indisponível.</EmptyState>}
       </section>
 
       <section className="financial-panel" aria-labelledby="financial-trend-title">
@@ -421,11 +554,12 @@ export default function FinancialPage() {
         </div> : <EmptyState>Nenhum produto com margem nula ou negativa e compras complementares identificadas com custo completo.</EmptyState>}
       </section>
 
-      <section className="financial-panel" aria-labelledby="financial-products-title">
+      <section className="financial-panel" id="financial-value" aria-labelledby="financial-products-title">
         <div className="financial-section-heading">
-          <div><span className="eyebrow">Rentabilidade</span><h2 id="financial-products-title">Margem real por produto</h2></div>
+          <div><span className="eyebrow">Pilar 3 · Patrimônio, retorno e estratégia</span><h2 id="financial-products-title">Rentabilidade por produto</h2></div>
           <span>Até 30 maiores faturamentos do período</span>
         </div>
+        <p className="financial-explainer">O custo por item permite analisar a margem bruta de produtos. ROI, ROIC, ROE, EVA e valuation exigem balanço patrimonial, capital investido e despesas/retornos de projetos, dados que ainda não são registrados de forma suficiente para apuração.</p>
         {data.products.length ? <div className="financial-table-scroll" role="region" aria-label="Margem bruta por produto" tabIndex={0}>
           <table>
             <caption>Receita líquida e margem bruta por produto usando o custo registrado no pedido</caption>

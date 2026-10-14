@@ -318,4 +318,44 @@ test('excludes unconfirmed payments and subtracts refunds from realized revenue 
   assert.equal(metrics.discountCombinations[0].revenue, 70);
   assert.equal(metrics.discountOrders[0].netRevenue, 70);
   assert.equal(metrics.discountOrders[0].grossProfit, 10);
+  assert.equal(metrics.dre.salesBeforeRefunds, 90);
+  assert.equal(metrics.dre.refunds, 20);
+  assert.equal(metrics.dre.netRevenue, 70);
+  assert.equal(metrics.dre.costOfGoodsSold, 60);
+  assert.equal(metrics.dre.grossProfit, 10);
+  assert.deepEqual(metrics.trend.map((entry) => ({
+    revenue: entry.revenue,
+    refunds: entry.refunds,
+    discounts: entry.discounts,
+    knownCostOfGoodsSold: entry.knownCostOfGoodsSold,
+    costOfGoodsSold: entry.costOfGoodsSold,
+    grossProfit: entry.grossProfit,
+    grossMargin: entry.grossMargin,
+    averageTicket: entry.averageTicket,
+  })), [{
+    revenue: 70,
+    refunds: 20,
+    discounts: 10,
+    knownCostOfGoodsSold: 60,
+    costOfGoodsSold: 60,
+    grossProfit: 10,
+    grossMargin: 14.29,
+    averageTicket: 70,
+  }]);
+});
+
+test('does not report period DRE gross profit when an item has no cost snapshot', () => {
+  const metrics = buildFinancialMetrics({
+    orders: [order({
+      id: 'missing-cost',
+      total: 'R$ 10,00',
+      items: [item({ productId: 'milk', name: 'Leite', price: 10, unitCost: null })],
+    })],
+  });
+
+  assert.equal(metrics.dre.netRevenue, 10);
+  assert.equal(metrics.dre.costOfGoodsSold, null);
+  assert.equal(metrics.dre.grossProfit, null);
+  assert.equal(metrics.trend[0].costOfGoodsSold, null);
+  assert.equal(metrics.trend[0].grossProfit, null);
 });

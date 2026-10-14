@@ -2,6 +2,7 @@ import { getServerSession } from 'next-auth';
 import { authOptions } from '@/auth';
 import { hasErpAccess } from '@/features/erp/access';
 import { prisma } from '@/lib/prisma';
+import { buildSupplierPayablesSummary } from './financial-liquidity.js';
 import { buildFinancialMetrics } from './financial-metrics.js';
 
 function isValidDateFilter(value) {
@@ -23,7 +24,7 @@ export async function GET(request) {
   }
 
   try {
-    const [orders, campaigns] = await Promise.all([
+    const [orders, campaigns, payables] = await Promise.all([
       prisma.order.findMany({
         include: { items: true },
         orderBy: [{ createdAt: 'asc' }, { id: 'asc' }],
@@ -37,10 +38,26 @@ export async function GET(request) {
         },
         orderBy: { createdAt: 'asc' },
       }),
+      prisma.supplierPayable.findMany({
+        select: {
+          amount: true,
+          status: true,
+          dueAt: true,
+          paidAt: true,
+          invoice: { select: { status: true } },
+        },
+      }),
     ]);
 
     return Response.json({
       financial: buildFinancialMetrics({ orders, campaigns, startDate, endDate }),
+      liquidity: buildSupplierPayablesSummary(payables.map((payable) => ({
+        amount: payable.amount,
+        status: payable.status,
+        dueAt: payable.dueAt,
+        paidAt: payable.paidAt,
+        invoiceStatus: payable.invoice.status,
+      }))),
     }, {
       headers: { 'Cache-Control': 'private, no-store, max-age=0' },
     });
