@@ -138,7 +138,6 @@ export async function OPTIONS(request) { return new Response(null, { status: 204
 export async function GET(request) {
   const session = await getServerSession(authOptions);
   if (!hasErpAccess(session?.user)) return Response.json({ error: 'Acesso negado.' }, { status: 403, headers: corsHeaders(request) });
-
   try {
     const orders = await prisma.order.findMany({
       include: {

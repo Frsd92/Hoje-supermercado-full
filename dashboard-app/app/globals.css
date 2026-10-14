@@ -7343,6 +7343,8 @@ button.metric-mini:focus-visible {
 .erp-order-metrics .erp-customer-metric[aria-pressed="true"] { border-color: #16a34a; background: #f0fdf4; box-shadow: 0 0 0 1px #16a34a; }
 .erp-order-metrics .erp-order-metric-canceled svg { color: #dc2626; }
 .erp-order-metrics .erp-order-metric-canceled[aria-pressed="true"] { border-color: #dc2626; background: #fef2f2; box-shadow: 0 0 0 1px #dc2626; }
+.erp-order-metrics .erp-order-metric-refund svg { color: #a16207; }
+.erp-order-metrics .erp-order-metric-refund[aria-pressed="true"] { border-color: #d97706; background: #fffbeb; box-shadow: 0 0 0 1px #d97706; }
 .erp-customer-toolbar { display: flex; justify-content: space-between; gap: 12px; margin-bottom: 14px; }
 .erp-customer-search { display: flex; align-items: center; gap: 8px; flex: 1; max-width: 450px; padding: 0 11px; border: 1px solid #dbe3ea; border-radius: 9px; background: #fff; }
 .erp-customer-search input { width: 100%; border: 0; outline: 0; padding: 10px 0; }

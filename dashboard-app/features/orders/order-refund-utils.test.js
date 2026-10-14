@@ -1,10 +1,18 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
 import {
+  getConfirmedRefundType,
   getRemainingRefundCents,
   refundRequestStatus,
   validateRefundAmount,
 } from './order-refund-utils.js';
+
+test('classifies only confirmed full and partial refunds by the refunded amount', () => {
+  assert.equal(getConfirmedRefundType({ total: 'R$ 100,00', refundedAmount: '100.00' }), 'full');
+  assert.equal(getConfirmedRefundType({ total: 'R$ 100,00', refundedAmount: '35.50' }), 'partial');
+  assert.equal(getConfirmedRefundType({ total: 'R$ 100,00', refundedAmount: '0.00' }), null);
+  assert.equal(getConfirmedRefundType({ total: 'invalid', refundedAmount: '1.00' }), null);
+});
 
 test('reserves requested and approved amounts but not rejected requests', () => {
   const remaining = getRemainingRefundCents('R$ 100,00', [

@@ -6,7 +6,12 @@ import { sortOrdersNewestFirst } from '@/lib/order-sort';
 import { formatCartQuantity } from '@/app/dashboard/cart-utils';
 import OrderReceipt from '@/features/orders/order-receipt';
 import OrderPickingList from '@/features/orders/order-picking-list';
-import { getRemainingRefundCents, refundRequestStatus, refundRequestStatusLabels } from '@/features/orders/order-refund-utils';
+import {
+  getConfirmedRefundType,
+  getRemainingRefundCents,
+  refundRequestStatus,
+  refundRequestStatusLabels,
+} from '@/features/orders/order-refund-utils';
 
 const statuses = ['Todos', 'Recebido', 'Separacao', 'Expedicao', 'Em transito', 'Concluido', 'Cancelado'];
 const paymentLabels = { pix: 'Pix', cartao: 'Cartão', dinheiro: 'Dinheiro', outro: 'Outro / combinar' };
@@ -42,6 +47,7 @@ export default function ERPOrdersPage() {
   const [query, setQuery] = useState('');
   const [loading, setLoading] = useState(true);
   const [loadError, setLoadError] = useState('');
+  const [refundSyncWarning, setRefundSyncWarning] = useState(false);
   const [ordersLoaded, setOrdersLoaded] = useState(false);
   const [reloadToken, setReloadToken] = useState(0);
   const [acknowledged, setAcknowledged] = useState([]);
@@ -60,8 +66,17 @@ export default function ERPOrdersPage() {
 
   useEffect(() => {
     let active = true;
-    fetch('/api/erp/orders', { cache: 'no-store' })
-      .then(async (response) => {
+    const loadOrders = async () => {
+      let syncWarning = false;
+      try {
+        const syncResponse = await fetch('/api/erp/refunds/reconcile', { method: 'POST', cache: 'no-store' });
+        const syncData = await syncResponse.json();
+        syncWarning = !syncResponse.ok || syncData.warning === true;
+      } catch {
+        syncWarning = true;
+      }
+      try {
+        const response = await fetch('/api/erp/orders', { cache: 'no-store' });
         const data = await response.json();
         if (!response.ok) throw new Error(data.error || 'Não foi possível carregar os pedidos.');
         if (!Array.isArray(data.orders)) throw new Error('A resposta de pedidos está inválida.');
@@ -69,12 +84,15 @@ export default function ERPOrdersPage() {
           setOrders(data.orders);
           setOrdersLoaded(true);
           setLoadError('');
+          setRefundSyncWarning(syncWarning);
         }
-      })
-      .catch((error) => {
+      } catch (error) {
         if (active) setLoadError(error.message || 'Não foi possível carregar os pedidos.');
-      })
-      .finally(() => { if (active) setLoading(false); });
+      } finally {
+        if (active) setLoading(false);
+      }
+    };
+    void loadOrders();
     setAcknowledged(JSON.parse(localStorage.getItem('erp-acknowledged-orders') || '[]'));
     return () => { active = false; };
   }, [reloadToken]);
@@ -194,7 +212,9 @@ export default function ERPOrdersPage() {
     const refundRequestMatches = refundFilter === 'all'
       || (refundFilter === 'with-requests' && refundRequests.length > 0)
       || (refundFilter === 'awaiting-review' && refundRequests.some((request) => request.status === refundRequestStatus.requested))
-      || (refundFilter === 'waiting-gateway' && refundRequests.some((request) => waitingGatewayStatuses.includes(request.status)));
+      || (refundFilter === 'waiting-gateway' && refundRequests.some((request) => waitingGatewayStatuses.includes(request.status)))
+      || (refundFilter === 'full-refunded' && getConfirmedRefundType(order) === 'full')
+      || (refundFilter === 'partial-refunded' && getConfirmedRefundType(order) === 'partial');
     return text.includes(query.toLowerCase())
       && (status === 'Todos' || order.status === status)
       && cpfRequestMatches
@@ -208,12 +228,14 @@ export default function ERPOrdersPage() {
     { label: 'Em transito', value: orders.filter((order) => order.status === 'Em transito').length, Icon: Clock3, status: 'Em transito' },
     { label: 'Concluido', value: orders.filter((order) => order.status === 'Concluido').length, Icon: CheckCircle2, status: 'Concluido' },
     { label: 'Cancelados', value: orders.filter((order) => order.status === 'Cancelado').length, Icon: Ban, status: 'Cancelado' },
+    { label: 'Estorno total (100%)', value: orders.filter((order) => getConfirmedRefundType(order) === 'full').length, Icon: RotateCcw, refundFilter: 'full-refunded' },
+    { label: 'Estorno parcial', value: orders.filter((order) => getConfirmedRefundType(order) === 'partial').length, Icon: RotateCcw, refundFilter: 'partial-refunded' },
     { label: 'CPF solicitado', value: orders.filter((order) => order.includeCpfOnReceipt === true).length, Icon: FileText, cpfRequestFilter: 'requested' },
   ];
   const selectMetric = (metric) => {
     setStatus(metric.status || 'Todos');
     setCpfRequestFilter(metric.cpfRequestFilter || 'all');
-    setRefundFilter('all');
+    setRefundFilter(metric.refundFilter || 'all');
     setQuery('');
   };
   const refundRequests = orders.flatMap((order) => order.refundRequests || []);
@@ -238,15 +260,18 @@ export default function ERPOrdersPage() {
         <span><strong>Comprovantes e situação fiscal</strong><span>O código PED do pedido identifica o comprovante interno e serve para localizar solicitações de estorno. Este sistema ainda não registra número/série, chave, protocolo, QR Code ou tributos de uma NFC-e autorizada. A forma de pagamento é apenas a informada no pedido; não há confirmação de valor recebido.</span></span>
       </div>
       {loadError && <p className="erp-budget-warning" role="alert">{loadError}<button type="button" onClick={() => setReloadToken((value) => value + 1)}>Tentar novamente</button></p>}
+      {refundSyncWarning && <p className="erp-budget-warning" role="status">Alguns estornos não puderam ser confirmados agora. Os indicadores podem estar desatualizados; atualize a página para tentar novamente.</p>}
       {ordersLoaded && <div className="erp-customer-metrics erp-order-metrics">
         {metrics.map((metric) => {
           const isActive = metric.status
             ? status === metric.status && cpfRequestFilter === 'all' && refundFilter === 'all' && !query
-            : cpfRequestFilter === metric.cpfRequestFilter && status === 'Todos' && refundFilter === 'all' && !query;
+            : metric.refundFilter
+              ? refundFilter === metric.refundFilter && status === 'Todos' && cpfRequestFilter === 'all' && !query
+              : cpfRequestFilter === metric.cpfRequestFilter && status === 'Todos' && refundFilter === 'all' && !query;
           const Icon = metric.Icon;
           return <button
             type="button"
-            className={`erp-customer-metric${metric.status === 'Cancelado' ? ' erp-order-metric-canceled' : ''}`}
+            className={`erp-customer-metric${metric.status === 'Cancelado' ? ' erp-order-metric-canceled' : ''}${metric.refundFilter ? ' erp-order-metric-refund' : ''}`}
             key={metric.label}
             aria-pressed={isActive}
             aria-label={`${metric.label}: ${metric.value}. Filtrar pedidos.`}
@@ -287,6 +312,8 @@ export default function ERPOrdersPage() {
           <option value="with-requests">Com solicitações</option>
           <option value="awaiting-review">Aguardando análise</option>
           <option value="waiting-gateway">Aguardando gateway</option>
+          <option value="full-refunded">Estorno total confirmado</option>
+          <option value="partial-refunded">Estorno parcial confirmado</option>
         </select>
       </div>
       <div className="erp-order-workspace">

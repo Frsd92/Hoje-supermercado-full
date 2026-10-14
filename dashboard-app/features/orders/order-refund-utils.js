@@ -50,6 +50,15 @@ export function amountToCents(value) {
   return Number.isSafeInteger(roundedCents) && Math.abs(cents - roundedCents) < 0.000001 ? roundedCents : 0;
 }
 
+export function getConfirmedRefundType(order) {
+  const refundedCents = amountToCents(order?.refundedAmount);
+  if (refundedCents <= 0) return null;
+
+  const orderTotalCents = amountToCents(order?.total);
+  if (orderTotalCents <= 0) return null;
+  return refundedCents >= orderTotalCents ? 'full' : 'partial';
+}
+
 export function getReservedRefundCents(refundRequests = []) {
   return refundRequests.reduce((total, request) => (
     reservedRefundStatuses.includes(request?.status)

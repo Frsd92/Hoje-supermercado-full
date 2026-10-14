@@ -71,6 +71,7 @@ export default function OrdersPage() {
   const [activeTab, setActiveTab] = useState('Todos');
   const [isLoading, setIsLoading] = useState(true);
   const [loadError, setLoadError] = useState('');
+  const [refundSyncWarning, setRefundSyncWarning] = useState(false);
   const [retryCount, setRetryCount] = useState(0);
   const [receiptOrder, setReceiptOrder] = useState(null);
   const receiptDialogRef = useRef(null);
@@ -95,6 +96,14 @@ export default function OrdersPage() {
     const loadOrders = async (showLoading = false) => {
       if (showLoading) setIsLoading(true);
       try {
+        let syncWarning = false;
+        try {
+          const syncResponse = await fetch('/api/my/orders/refunds/reconcile', { method: 'POST', cache: 'no-store' });
+          const syncData = await syncResponse.json();
+          syncWarning = !syncResponse.ok || syncData.warning === true;
+        } catch {
+          syncWarning = true;
+        }
         const response = await fetch('/api/my/orders', { cache: 'no-store' });
         const data = await response.json();
         if (!response.ok) throw new Error(data.error || 'Não foi possível carregar seus pedidos.');
@@ -102,6 +111,7 @@ export default function OrdersPage() {
         if (active) {
           setOrders(data.orders);
           setLoadError('');
+          setRefundSyncWarning(syncWarning);
         }
       } catch (error) {
         if (active) setLoadError(error.message || 'Não foi possível carregar seus pedidos.');
@@ -293,6 +303,7 @@ export default function OrdersPage() {
         <FileText size={17} aria-hidden="true" />
         <span>O comprovante informativo mostra os itens e o código interno do pedido; ele não substitui NFC-e/NF-e autorizada. Por aqui você pode solicitar cancelamento ou troca. Estornos, quando cabíveis, são analisados e processados pela loja.</span>
       </div>
+      {refundSyncWarning && <div className="dashboard-data-alert" role="status">Não foi possível confirmar alguns estornos com a Pagar.me agora. O status pode estar temporariamente desatualizado; tente atualizar a página em instantes.</div>}
       {serviceRequestNotice && <div className="customer-service-notice" role="status">{serviceRequestNotice}</div>}
 
       <div className="tab-row order-status-tabs" role="group" aria-label="Filtrar pedidos por status">
