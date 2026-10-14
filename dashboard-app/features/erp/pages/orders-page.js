@@ -1,6 +1,6 @@
 'use client';
 
-import { AlertCircle, CheckCircle2, ClipboardList, Clock3, CreditCard, FileText, MapPin, PackageCheck, Printer, RotateCcw, Search, ShoppingBag, Truck, UserRound, X } from 'lucide-react';
+import { AlertCircle, Ban, CheckCircle2, ClipboardList, Clock3, CreditCard, FileText, MapPin, PackageCheck, Printer, RotateCcw, Search, ShoppingBag, Truck, UserRound, X } from 'lucide-react';
 import { useEffect, useMemo, useRef, useState } from 'react';
 import { sortOrdersNewestFirst } from '@/lib/order-sort';
 import { formatCartQuantity } from '@/app/dashboard/cart-utils';
@@ -202,13 +202,20 @@ export default function ERPOrdersPage() {
   })), [cpfRequestFilter, orders, query, refundFilter, status]);
 
   const metrics = [
-    ['Pedidos recebidos', orders.filter((order) => order.status === 'Recebido').length, ClipboardList],
-    ['Em separacao', orders.filter((order) => order.status === 'Separacao').length, PackageCheck],
-    ['Em expedicao', orders.filter((order) => order.status === 'Expedicao').length, Truck],
-    ['Em transito', orders.filter((order) => order.status === 'Em transito').length, Clock3],
-    ['Concluido', orders.filter((order) => order.status === 'Concluido').length, CheckCircle2],
-    ['CPF solicitado', orders.filter((order) => order.includeCpfOnReceipt === true).length, FileText],
+    { label: 'Pedidos recebidos', value: orders.filter((order) => order.status === 'Recebido').length, Icon: ClipboardList, status: 'Recebido' },
+    { label: 'Em separacao', value: orders.filter((order) => order.status === 'Separacao').length, Icon: PackageCheck, status: 'Separacao' },
+    { label: 'Em expedicao', value: orders.filter((order) => order.status === 'Expedicao').length, Icon: Truck, status: 'Expedicao' },
+    { label: 'Em transito', value: orders.filter((order) => order.status === 'Em transito').length, Icon: Clock3, status: 'Em transito' },
+    { label: 'Concluido', value: orders.filter((order) => order.status === 'Concluido').length, Icon: CheckCircle2, status: 'Concluido' },
+    { label: 'Cancelados', value: orders.filter((order) => order.status === 'Cancelado').length, Icon: Ban, status: 'Cancelado' },
+    { label: 'CPF solicitado', value: orders.filter((order) => order.includeCpfOnReceipt === true).length, Icon: FileText, cpfRequestFilter: 'requested' },
   ];
+  const selectMetric = (metric) => {
+    setStatus(metric.status || 'Todos');
+    setCpfRequestFilter(metric.cpfRequestFilter || 'all');
+    setRefundFilter('all');
+    setQuery('');
+  };
   const refundRequests = orders.flatMap((order) => order.refundRequests || []);
   const refundsAwaitingReview = refundRequests.filter((request) => request.status === refundRequestStatus.requested).length;
   const refundsWaitingGateway = refundRequests.filter((request) => [
@@ -231,8 +238,25 @@ export default function ERPOrdersPage() {
         <span><strong>Comprovantes e situação fiscal</strong><span>O código PED do pedido identifica o comprovante interno e serve para localizar solicitações de estorno. Este sistema ainda não registra número/série, chave, protocolo, QR Code ou tributos de uma NFC-e autorizada. A forma de pagamento é apenas a informada no pedido; não há confirmação de valor recebido.</span></span>
       </div>
       {loadError && <p className="erp-budget-warning" role="alert">{loadError}<button type="button" onClick={() => setReloadToken((value) => value + 1)}>Tentar novamente</button></p>}
-      {ordersLoaded && <div className="erp-customer-metrics">
-        {metrics.map(([label, value, Icon]) => <div className="erp-customer-metric" key={label}><Icon size={17} /><strong>{value}</strong><span>{label}</span></div>)}
+      {ordersLoaded && <div className="erp-customer-metrics erp-order-metrics">
+        {metrics.map((metric) => {
+          const isActive = metric.status
+            ? status === metric.status && cpfRequestFilter === 'all' && refundFilter === 'all' && !query
+            : cpfRequestFilter === metric.cpfRequestFilter && status === 'Todos' && refundFilter === 'all' && !query;
+          const Icon = metric.Icon;
+          return <button
+            type="button"
+            className={`erp-customer-metric${metric.status === 'Cancelado' ? ' erp-order-metric-canceled' : ''}`}
+            key={metric.label}
+            aria-pressed={isActive}
+            aria-label={`${metric.label}: ${metric.value}. Filtrar pedidos.`}
+            onClick={() => selectMetric(metric)}
+          >
+            <Icon size={17} />
+            <strong>{metric.value}</strong>
+            <span>{metric.label}</span>
+          </button>;
+        })}
       </div>}
       <section className="erp-refund-overview" aria-label="Resumo das solicitações de estorno">
         <div><span>Solicitações aguardando análise</span><strong>{refundsAwaitingReview}</strong></div>

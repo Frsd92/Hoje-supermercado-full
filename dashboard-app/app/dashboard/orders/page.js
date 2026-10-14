@@ -34,7 +34,37 @@ const tabs = [
   { value: 'Expedicao', label: 'Em expedição' },
   { value: 'Em transito', label: 'Em trânsito' },
   { value: 'Concluido', label: 'Entrega concluída' },
+  { value: 'Cancelado', label: 'Cancelados' },
 ];
+
+function getOrderActivitySummary(serviceRequests, refundRequests) {
+  const serviceStatusLabels = {
+    requested: 'solicitado',
+    approved: 'aprovado',
+    rejected: 'recusado',
+  };
+  const refundStatusLabels = {
+    requested: 'solicitado',
+    approved_waiting_gateway: 'aprovado',
+    gateway_processing: 'em processamento',
+    gateway_failed: 'requer atenção',
+    rejected: 'recusado',
+    completed: 'confirmado',
+  };
+
+  return [
+    ...serviceRequests.map((request) => ({
+      id: request.id,
+      type: request.type === 'cancellation' ? 'cancellation' : 'service',
+      label: `${request.type === 'cancellation' ? 'Cancelamento' : 'Troca'} ${serviceStatusLabels[request.status] || 'atualizado'}`,
+    })),
+    ...refundRequests.map((request) => ({
+      id: request.id,
+      type: 'refund',
+      label: `Estorno ${refundStatusLabels[request.status] || 'atualizado'}`,
+    })),
+  ];
+}
 
 export default function OrdersPage() {
   const [orders, setOrders] = useState([]);
@@ -322,25 +352,39 @@ export default function OrdersPage() {
               const currentStage = orderStages.indexOf(order.status);
               const refundRequests = order.refundRequests || [];
               const serviceRequests = order.serviceRequests || [];
+              const orderActivity = getOrderActivitySummary(serviceRequests, refundRequests);
               return (
-                <div key={order.id} className="table-row" role="row">
+                <div key={order.id} className={`table-row${order.status === 'Cancelado' ? ' cancelled-order-row' : ''}`} role="row">
                   <span className="customer-order-reference" role="cell">
-                    <strong>{order.id}</strong>
+                    <strong title={order.id}>
+                      <span aria-hidden="true">{order.id.length > 21 ? `${order.id.slice(0, 14)}…${order.id.slice(-5)}` : order.id}</span>
+                      {order.id.length > 21 && <span className="sr-only">{order.id}</span>}
+                    </strong>
                     <button type="button" className="customer-order-receipt-link" aria-label={`Ver comprovante informativo do pedido ${order.id}`} aria-haspopup="dialog" onClick={() => setReceiptOrder(order)}>
-                      <FileText size={14} aria-hidden="true" />Ver comprovante
+                      <FileText size={14} aria-hidden="true" />Comprovante
                     </button>
                     <div className="customer-order-service-actions">
                       {canRequestOrderService(order, orderServiceRequestType.cancellation) && !hasOpenOrderServiceRequest(serviceRequests, orderServiceRequestType.cancellation) && <button type="button" onClick={() => openServiceRequestDialog(order, orderServiceRequestType.cancellation)}>Solicitar cancelamento</button>}
                       {canRequestOrderService(order, orderServiceRequestType.exchange) && order.items?.length > 0 && !hasOpenOrderServiceRequest(serviceRequests, orderServiceRequestType.exchange) && <button type="button" onClick={() => openServiceRequestDialog(order, orderServiceRequestType.exchange)}>Solicitar troca</button>}
                     </div>
-                    {serviceRequests.map((request) => <span className="customer-service-summary" key={request.id}>
-                      <strong>{orderServiceRequestTypeLabels[request.type] || request.type} · {request.code}</strong>
-                      <span>{orderServiceRequestStatusLabels[request.status] || request.status}</span>
-                    </span>)}
-                    {refundRequests.map((request) => <span className="customer-refund-summary" key={request.id}>
-                      <strong>{request.code}</strong>
-                      <span>{currencyFormatter.format(request.amount)} · {refundRequestStatusLabels[request.status] || request.status}</span>
-                    </span>)}
+                    {orderActivity.length > 0 && <div className="customer-order-activity">
+                      <div className="customer-order-activity-badges" aria-label="Resumo de cancelamento e estorno">
+                        {orderActivity.map((activity) => <span className={`customer-order-activity-badge ${activity.type}`} key={activity.id}>{activity.label}</span>)}
+                      </div>
+                      <details className="customer-order-activity-details">
+                        <summary>Ver protocolos e detalhes</summary>
+                        <div className="customer-order-activity-detail-list">
+                          {serviceRequests.map((request) => <span className="customer-service-summary" key={request.id}>
+                            <strong>{orderServiceRequestTypeLabels[request.type] || request.type} · {request.code}</strong>
+                            <span>{orderServiceRequestStatusLabels[request.status] || request.status}</span>
+                          </span>)}
+                          {refundRequests.map((request) => <span className="customer-refund-summary" key={request.id}>
+                            <strong>{request.code}</strong>
+                            <span>{currencyFormatter.format(request.amount)} · {refundRequestStatusLabels[request.status] || request.status}</span>
+                          </span>)}
+                        </div>
+                      </details>
+                    </div>}
                     {order.paymentStatus === 'pending' && order.paymentMethod === 'pix' && order.paymentDetails?.pixQrCode && <span className="customer-pix-payment">
                       <strong>Pix aguardando pagamento</strong>
                       <small>A confirmação é verificada automaticamente enquanto esta tela estiver aberta.</small>
@@ -365,7 +409,7 @@ export default function OrdersPage() {
                   </span>
                   <span className="order-status-cell" role="cell">
                     <span className={`status-badge ${info.tone}`}><span className="order-status-light" aria-hidden="true" />{info.label}</span>
-                    <span className="order-progress" role="group" aria-label={`Andamento do pedido ${order.id}: ${info.label}`}>
+                    {order.status !== 'Cancelado' && <span className="order-progress" role="group" aria-label={`Andamento do pedido ${order.id}: ${info.label}`}>
                       {orderStages.map((stage, index) => {
                         const stageInfo = getOrderStatus(stage);
                         return (
@@ -383,7 +427,7 @@ export default function OrdersPage() {
                           </button>
                         );
                       })}
-                    </span>
+                    </span>}
                   </span>
                   <span role="cell">{order.items?.length || 0}</span>
                   <span role="cell">{order.total || 'R$ 0,00'}<small className="customer-order-payment-status">Pagamento: {paymentStatusLabels[order.paymentStatus] || order.paymentStatus || 'Não informado'}</small></span>
