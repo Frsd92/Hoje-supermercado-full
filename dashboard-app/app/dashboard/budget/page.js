@@ -14,11 +14,21 @@ export default function BudgetPage() {
   const [loading, setLoading] = useState(true);
   const [saving, setSaving] = useState(false);
   const [feedback, setFeedback] = useState('');
+  const [refundSyncWarning, setRefundSyncWarning] = useState(false);
 
   useEffect(() => {
     if (status !== 'authenticated') return;
     let active = true;
     const loadBudget = async () => {
+      try {
+        const syncResponse = await fetch('/api/my/orders/refunds/reconcile', { method: 'POST', cache: 'no-store' });
+        const syncData = await syncResponse.json();
+        if (!syncResponse.ok) throw new Error(syncData.error || 'Não foi possível atualizar os estornos.');
+        if (active) setRefundSyncWarning(syncData.warning === true);
+      } catch (error) {
+        console.error('Não foi possível atualizar os estornos antes de calcular o orçamento:', error);
+        if (active) setRefundSyncWarning(true);
+      }
       const [profileResponse, ordersResponse] = await Promise.all([
         fetch('/api/profile', { cache: 'no-store' }),
         fetch('/api/my/orders', { cache: 'no-store' }),
@@ -106,6 +116,7 @@ export default function BudgetPage() {
           <p>Defina quanto deseja gastar e acompanhe suas compras neste mês.</p>
         </div>
       </div>
+      {refundSyncWarning && <p className="profile-feedback error" role="status">Não foi possível confirmar alguns estornos com a Pagar.me. O gasto mensal pode estar temporariamente desatualizado.</p>}
 
       <div className="budget-page-grid">
         <section className="budget-overview-card">

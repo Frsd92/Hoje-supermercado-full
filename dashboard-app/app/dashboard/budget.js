@@ -20,11 +20,14 @@ function parseOrderDate(value) {
 }
 
 export function getCurrentMonthSpend(orders, now = new Date()) {
-  return orders.reduce((total, order) => {
+  const spentCents = orders.reduce((total, order) => {
     const date = parseOrderDate(order.createdAt);
     if (!date || date.getFullYear() !== now.getFullYear() || date.getMonth() !== now.getMonth()) return total;
-    return total + parseCurrency(order.total);
+    const orderCents = Math.max(0, Math.round(parseCurrency(order.total) * 100));
+    const refundedCents = Math.max(0, Math.round(parseCurrency(order.refundedAmount) * 100));
+    return total + Math.max(0, orderCents - refundedCents);
   }, 0);
+  return spentCents / 100;
 }
 
 export function formatCurrency(value) {
