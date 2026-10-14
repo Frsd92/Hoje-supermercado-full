@@ -24,7 +24,7 @@ export async function GET(request) {
   }
 
   try {
-    const [orders, campaigns, payables] = await Promise.all([
+    const [orders, campaigns, payables, expenses] = await Promise.all([
       prisma.order.findMany({
         include: { items: true },
         orderBy: [{ createdAt: 'asc' }, { id: 'asc' }],
@@ -47,10 +47,14 @@ export async function GET(request) {
           invoice: { select: { status: true } },
         },
       }),
+      prisma.companyExpense.findMany({
+        include: { category: { select: { id: true, code: true, name: true, expenseBehavior: true } } },
+        orderBy: { competenceAt: 'asc' },
+      }),
     ]);
 
     return Response.json({
-      financial: buildFinancialMetrics({ orders, campaigns, startDate, endDate }),
+      financial: buildFinancialMetrics({ orders, campaigns, expenses, startDate, endDate }),
       liquidity: buildSupplierPayablesSummary(payables.map((payable) => ({
         amount: payable.amount,
         status: payable.status,

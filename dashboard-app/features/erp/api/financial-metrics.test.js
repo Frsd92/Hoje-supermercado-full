@@ -282,6 +282,125 @@ test('keeps cancelled orders out of historical revenue and customer cohorts', ()
   assert.equal(metrics.period.firstOrderDate, null);
 });
 
+test('reports refunds for cancelled paid orders without counting them as active sales', () => {
+  const metrics = buildFinancialMetrics({
+    orders: [order({
+      id: 'cancelled-refunded',
+      createdAt: '2026-10-10T12:00:00.000Z',
+      total: 'R$ 0,68',
+      status: 'Cancelado',
+      paymentStatus: 'refunded',
+      refundedAmount: '0.68',
+      items: [item({ productId: 'milk', name: 'Leite', price: 'R$ 0,68', unitCost: 0.4 })],
+    })],
+  });
+
+  assert.equal(metrics.period.orders, 0);
+  assert.equal(metrics.period.financialOrders, 1);
+  assert.equal(metrics.period.firstOrderDate, null);
+  assert.equal(metrics.period.firstFinancialOrderDate, '2026-10-10T12:00:00.000Z');
+  assert.equal(metrics.totals.revenue, 0);
+  assert.equal(metrics.dre.orders, 1);
+  assert.equal(metrics.dre.cancelledOrders, 1);
+  assert.equal(metrics.dre.salesBeforeRefunds, 0.68);
+  assert.equal(metrics.dre.refunds, 0.68);
+  assert.equal(metrics.dre.netRevenue, 0);
+  assert.equal(metrics.dre.costOfGoodsSold, null);
+  assert.equal(metrics.dre.grossProfit, null);
+  assert.equal(metrics.trend[0].revenue, 0);
+  assert.equal(metrics.trend[0].refunds, 0.68);
+});
+
+test('reports partial refunds for cancelled paid orders and excludes cancelled unpaid orders', () => {
+  const metrics = buildFinancialMetrics({
+    orders: [
+      order({
+        id: 'cancelled-partially-refunded',
+        createdAt: '2026-10-10T12:00:00.000Z',
+        total: 'R$ 0,68',
+        status: 'Cancelado',
+        paymentStatus: 'partially_refunded',
+        refundedAmount: '0.30',
+      }),
+      order({
+        id: 'cancelled-unpaid',
+        createdAt: '2026-10-11T12:00:00.000Z',
+        total: 'R$ 10,00',
+        status: 'Cancelado',
+        paymentStatus: 'pending',
+      }),
+    ],
+  });
+
+  assert.equal(metrics.dre.orders, 1);
+  assert.equal(metrics.dre.cancelledOrders, 1);
+  assert.equal(metrics.dre.salesBeforeRefunds, 0.68);
+  assert.equal(metrics.dre.refunds, 0.3);
+  assert.equal(metrics.dre.netRevenue, 0.38);
+  assert.equal(metrics.dre.cancelledRetainedRevenue, 0.38);
+  assert.equal(metrics.trend.length, 1);
+  assert.equal(metrics.trend[0].revenue, 0.38);
+  assert.equal(metrics.trend[0].refunds, 0.3);
+});
+
+test('includes expense ledger entries by competence in the managerial DRE and trend', () => {
+  const metrics = buildFinancialMetrics({
+    orders: [order({
+      id: 'sales',
+      createdAt: '2026-10-10T12:00:00.000Z',
+      subtotal: 100,
+      total: 100,
+      items: [item({ productId: 'milk', name: 'Leite', price: 100, unitCost: 40 })],
+    })],
+    expenses: [
+      {
+        id: 'rent',
+        description: 'Aluguel',
+        amount: '20.00',
+        competenceAt: new Date('2026-10-10T00:00:00.000Z'),
+        status: 'Em aberto',
+        category: { id: 'fixed', code: '4.1', name: 'Aluguel', expenseBehavior: 'FIXED' },
+      },
+      {
+        id: 'delivery',
+        description: 'Entrega',
+        amount: '10.00',
+        competenceAt: '2026-10-11T00:00:00.000Z',
+        status: 'Paga',
+        category: { id: 'variable', code: '4.2', name: 'Entrega', expenseBehavior: 'VARIABLE' },
+      },
+      {
+        id: 'cancelled-expense',
+        description: 'Cancelado',
+        amount: '300.00',
+        competenceAt: '2026-10-11T00:00:00.000Z',
+        status: 'Cancelada',
+        category: { id: 'other', code: '4.3', name: 'Outros', expenseBehavior: 'OTHER' },
+      },
+      {
+        id: 'future-expense',
+        description: 'Conta futura',
+        amount: '500.00',
+        competenceAt: '2026-10-20T00:00:00.000Z',
+        status: 'Em aberto',
+        category: { id: 'other', code: '4.3', name: 'Outros', expenseBehavior: 'OTHER' },
+      },
+    ],
+    now: new Date('2026-10-15T12:00:00.000Z'),
+  });
+
+  assert.equal(metrics.expenses.total, 30);
+  assert.equal(metrics.expenses.fixed, 20);
+  assert.equal(metrics.expenses.variable, 10);
+  assert.equal(metrics.expenses.openAmount, 20);
+  assert.equal(metrics.expenses.paidAmount, 10);
+  assert.equal(metrics.expenses.count, 2);
+  assert.equal(metrics.dre.operatingExpenses, 30);
+  assert.equal(metrics.dre.operatingResult, 30);
+  assert.deepEqual(metrics.expenses.byAccount.map(({ name, amount }) => [name, amount]), [['Aluguel', 20], ['Entrega', 10]]);
+  assert.equal(metrics.trend.reduce((sum, entry) => sum + entry.operatingExpenses, 0), 30);
+});
+
 test('excludes unconfirmed payments and subtracts refunds from realized revenue and margin', () => {
   const metrics = buildFinancialMetrics({
     orders: [

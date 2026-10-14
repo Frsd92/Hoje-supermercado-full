@@ -271,13 +271,17 @@ function formatTrendLabel(key, granularity) {
 export function buildFinancialMetrics({
   orders: sourceOrders,
   campaigns = [],
+  expenses: sourceExpenses = [],
   startDate = '',
   endDate = '',
   now = new Date(),
 }) {
   const allOrders = (Array.isArray(sourceOrders) ? sourceOrders : [])
-    .filter((order) => order.status !== 'Cancelado'
-      && !['pending', 'failed', 'canceled'].includes(String(order.paymentStatus || '').toLowerCase()))
+    .filter((order) => {
+      const paymentStatus = String(order.paymentStatus || '').toLowerCase();
+      const confirmedRefund = Math.max(0, parseAmount(order.refundedAmount) || 0);
+      return !['pending', 'failed', 'canceled'].includes(paymentStatus) || confirmedRefund > 0;
+    })
     .map((order, index) => ({
       order,
       index,
@@ -288,10 +292,11 @@ export function buildFinancialMetrics({
       first.date - second.date
       || String(first.order.id || first.index).localeCompare(String(second.order.id || second.index))
     ));
-  const inPeriod = allOrders.filter(({ date }) => {
+  const financialOrdersInPeriod = allOrders.filter(({ date }) => {
     const key = getDateKey(date);
     return (!startDate || key >= startDate) && (!endDate || key <= endDate);
   });
+  const inPeriod = financialOrdersInPeriod.filter(({ order }) => order.status !== 'Cancelado');
   const promotionStats = new Map();
   const productStats = new Map();
   const couponStats = new Map();
@@ -299,6 +304,7 @@ export function buildFinancialMetrics({
   const candidateStats = new Map();
   const discountOrderReports = [];
   const trendStats = new Map();
+  const financialTrendStats = new Map();
   const firstCustomerOrders = new Map();
   const firstPurchaseCustomersInPeriod = new Set();
   const returningCustomersInPeriod = new Set();
@@ -308,6 +314,9 @@ export function buildFinancialMetrics({
   let revenue = 0;
   let salesBeforeRefunds = 0;
   let totalRefunds = 0;
+  let financialRevenue = 0;
+  let cancelledRetainedRevenue = 0;
+  let invalidFinancialOrders = 0;
   let knownCost = 0;
   let knownCostRevenue = 0;
   let totalDiscounts = 0;
@@ -326,6 +335,76 @@ export function buildFinancialMetrics({
   const dateSpanEnd = endDate || getDateKey(now);
   const spanDays = Math.max(0, (Date.parse(`${dateSpanEnd}T00:00:00Z`) - Date.parse(`${dateSpanStart}T00:00:00Z`)) / 86400000);
   const trendGranularity = spanDays <= 90 ? 'day' : 'month';
+  const allExpenses = (Array.isArray(sourceExpenses) ? sourceExpenses : [])
+    .filter((expense) => expense.status !== 'Cancelada')
+    .map((expense) => ({
+      expense,
+      date: expense.competenceAt instanceof Date ? new Date(expense.competenceAt) : new Date(expense.competenceAt),
+      amount: parseAmount(expense.amount),
+    }))
+    .filter(({ date, amount }) => Number.isFinite(date.getTime()) && amount !== null && amount > 0);
+  const expensesInPeriod = allExpenses.filter(({ date }) => {
+    const key = getDateKey(date);
+    const selectedEndDate = endDate || getDateKey(now);
+    return (!startDate || key >= startDate) && key <= selectedEndDate;
+  });
+  const expenseSummary = {
+    total: 0,
+    fixed: 0,
+    variable: 0,
+    financial: 0,
+    tax: 0,
+    other: 0,
+    count: 0,
+    paidAmount: 0,
+    openAmount: 0,
+    byAccount: [],
+  };
+  const expenseAccountTotals = new Map();
+  for (const { expense, date, amount } of expensesInPeriod) {
+    const behavior = expense.category?.expenseBehavior;
+    const behaviorKey = ({
+      FIXED: 'fixed',
+      VARIABLE: 'variable',
+      FINANCIAL: 'financial',
+      TAX: 'tax',
+    })[behavior] || 'other';
+    expenseSummary.total += amount;
+    expenseSummary[behaviorKey] += amount;
+    expenseSummary.count += 1;
+    if (expense.status === 'Paga') expenseSummary.paidAmount += amount;
+    else if (expense.status === 'Em aberto') expenseSummary.openAmount += amount;
+
+    const accountId = expense.category?.id || 'unclassified';
+    const accountTotal = expenseAccountTotals.get(accountId) || {
+      id: accountId,
+      code: expense.category?.code || '',
+      name: expense.category?.name || 'Conta não identificada',
+      amount: 0,
+      count: 0,
+    };
+    accountTotal.amount += amount;
+    accountTotal.count += 1;
+    expenseAccountTotals.set(accountId, accountTotal);
+
+    const trendKey = trendGranularity === 'day' ? getDateKey(date) : getDateKey(date).slice(0, 7);
+    const trendEntry = financialTrendStats.get(trendKey) || {
+      revenue: 0,
+      refunds: 0,
+      salesBeforeRefunds: 0,
+      orders: 0,
+      cancelledRetainedRevenue: 0,
+      operatingExpenses: 0,
+    };
+    trendEntry.operatingExpenses += amount;
+    financialTrendStats.set(trendKey, trendEntry);
+  }
+  expenseSummary.byAccount = [...expenseAccountTotals.values()]
+    .map((entry) => ({ ...entry, amount: roundMoney(entry.amount) }))
+    .sort((first, second) => second.amount - first.amount);
+  for (const key of ['total', 'fixed', 'variable', 'financial', 'tax', 'other', 'paidAmount', 'openAmount']) {
+    expenseSummary[key] = roundMoney(expenseSummary[key]);
+  }
 
   for (const campaign of Array.isArray(campaigns) ? campaigns : []) {
     const code = String(campaign.code || '').trim().toUpperCase();
@@ -355,22 +434,47 @@ export function buildFinancialMetrics({
     const orderReconciled = orderTotal !== null
       && sourceItems.length > 0
       && Math.abs(expectedLineRevenue - orderTotal) <= 0.05;
-    const inSelectedPeriod = (!startDate || getDateKey(date) >= startDate)
-      && (!endDate || getDateKey(date) <= endDate);
-    const couponCode = String(order.couponCode || '').trim().toUpperCase();
     const customerKey = getCustomerKey(order);
     const hadPriorPurchase = customerKey ? firstCustomerOrders.has(customerKey) : null;
-    if (customerKey && !firstCustomerOrders.has(customerKey)) firstCustomerOrders.set(customerKey, date);
-
+    if (order.status !== 'Cancelado' && customerKey && !hadPriorPurchase) {
+      firstCustomerOrders.set(customerKey, date);
+    }
+    const inSelectedPeriod = (!startDate || getDateKey(date) >= startDate)
+      && (!endDate || getDateKey(date) <= endDate);
     if (!inSelectedPeriod) continue;
+
+    const financialTrendKey = trendGranularity === 'day' ? getDateKey(date) : getDateKey(date).slice(0, 7);
+    const financialTrendEntry = financialTrendStats.get(financialTrendKey) || {
+      revenue: 0,
+      refunds: 0,
+      salesBeforeRefunds: 0,
+      orders: 0,
+      cancelledRetainedRevenue: 0,
+      operatingExpenses: 0,
+    };
+    if (orderTotal === null) {
+      invalidFinancialOrders += 1;
+    } else {
+      financialTrendEntry.revenue += netOrderRevenue;
+      financialTrendEntry.refunds += refundedAmount;
+      financialTrendEntry.salesBeforeRefunds += orderTotal;
+      financialTrendEntry.orders += 1;
+      financialRevenue += netOrderRevenue;
+      salesBeforeRefunds += orderTotal;
+      totalRefunds += refundedAmount;
+      if (order.status === 'Cancelado') {
+        cancelledRetainedRevenue += netOrderRevenue;
+        financialTrendEntry.cancelledRetainedRevenue += netOrderRevenue;
+      }
+    }
+    financialTrendStats.set(financialTrendKey, financialTrendEntry);
+    if (order.status === 'Cancelado') continue;
+
+    const couponCode = String(order.couponCode || '').trim().toUpperCase();
 
     overallOrderIds.add(orderId);
     if (orderTotal === null) invalidOrders += 1;
-    else {
-      revenue += netOrderRevenue;
-      salesBeforeRefunds += orderTotal;
-      totalRefunds += refundedAmount;
-    }
+    else revenue += netOrderRevenue;
     if (sourceItems.length === 0 && (orderTotal || 0) > 0) ordersWithoutItems += 1;
     const couponDiscountForOrder = couponCode ? orderDiscount : 0;
     couponDiscount += couponDiscountForOrder;
@@ -443,17 +547,11 @@ export function buildFinancialMetrics({
     const orderCost = lines.reduce((sum, line) => sum + line.cost, 0);
     const trendKey = trendGranularity === 'day' ? getDateKey(date) : getDateKey(date).slice(0, 7);
     const trendEntry = trendStats.get(trendKey) || {
-      revenue: 0,
-      refunds: 0,
       discounts: 0,
-      orders: 0,
       knownCostOfGoodsSold: 0,
       costsComplete: true,
     };
-    trendEntry.revenue += netOrderRevenue || 0;
-    trendEntry.refunds += refundedAmount;
     trendEntry.discounts += orderItemPromotionDiscount + orderDiscount;
-    trendEntry.orders += 1;
     trendEntry.knownCostOfGoodsSold += orderCost;
     trendEntry.costsComplete &&= lines.length > 0
       && orderTotal !== null
@@ -593,17 +691,24 @@ export function buildFinancialMetrics({
     }
   }
 
-  const trend = [...trendStats.entries()].sort(([first], [second]) => first.localeCompare(second)).map(([key, value]) => {
-    const costOfGoodsSold = value.costsComplete ? roundMoney(value.knownCostOfGoodsSold) : null;
+  const trend = [...financialTrendStats.entries()].sort(([first], [second]) => first.localeCompare(second)).map(([key, value]) => {
+    const operational = trendStats.get(key);
+    const costOfGoodsSold = value.cancelledRetainedRevenue > 0
+      ? null
+      : operational?.costsComplete
+        ? roundMoney(operational.knownCostOfGoodsSold)
+        : null;
     const grossProfit = costOfGoodsSold === null ? null : roundMoney(value.revenue - costOfGoodsSold);
     return {
       key,
       label: formatTrendLabel(key, trendGranularity),
       revenue: roundMoney(value.revenue),
       refunds: roundMoney(value.refunds),
-      discounts: roundMoney(value.discounts),
+      salesBeforeRefunds: roundMoney(value.salesBeforeRefunds),
+      operatingExpenses: roundMoney(value.operatingExpenses || 0),
+      discounts: roundMoney(operational?.discounts || 0),
       orders: value.orders,
-      knownCostOfGoodsSold: roundMoney(value.knownCostOfGoodsSold),
+      knownCostOfGoodsSold: roundMoney(operational?.knownCostOfGoodsSold || 0),
       costOfGoodsSold,
       grossProfit,
       grossMargin: grossProfit === null || !value.revenue
@@ -621,6 +726,15 @@ export function buildFinancialMetrics({
     && invalidItems === 0
     && unreconciledOrders === 0;
   const grossProfit = allCostsComplete && overallOrderIds.size > 0 ? revenue - knownCost : null;
+  const dreCostOfGoodsSold = cancelledRetainedRevenue > 0
+    ? null
+    : allCostsComplete && overallOrderIds.size > 0
+      ? roundMoney(knownCost)
+      : null;
+  const dreGrossProfit = dreCostOfGoodsSold === null ? null : roundMoney(financialRevenue - dreCostOfGoodsSold);
+  const dreOperatingResult = dreGrossProfit === null
+    ? null
+    : roundMoney(dreGrossProfit - expenseSummary.total);
   const promotionTypes = [...promotionStats.entries()]
     .map(([key, accumulator]) => ({ key, label: promotionLabels[key] || promotionLabels.other, ...summarizeLineAccumulator(accumulator) }))
     .sort((first, second) => second.revenue - first.revenue || first.label.localeCompare(second.label, 'pt-BR'));
@@ -683,8 +797,10 @@ export function buildFinancialMetrics({
   const couponGrossProfit = couponGrossProfitAvailable
     ? roundMoney(redeemedCoupons.reduce((sum, coupon) => sum + coupon.grossProfit, 0))
     : null;
-  const historyStart = allOrders[0]?.date || null;
-  const historyEnd = allOrders.at(-1)?.date || null;
+  const operationalHistory = allOrders.filter(({ order }) => order.status !== 'Cancelado');
+  const historyStart = operationalHistory[0]?.date || null;
+  const historyEnd = operationalHistory.at(-1)?.date || null;
+  const financialHistoryStart = allOrders[0]?.date || null;
 
   return {
     generatedAt: now.toISOString(),
@@ -693,9 +809,11 @@ export function buildFinancialMetrics({
       endDate,
       allHistory: !startDate && !endDate,
       firstOrderDate: historyStart?.toISOString() || null,
+      firstFinancialOrderDate: financialHistoryStart?.toISOString() || null,
       lastOrderDate: historyEnd?.toISOString() || null,
-      totalAvailableOrders: allOrders.length,
+      totalAvailableOrders: operationalHistory.length,
       orders: overallOrderIds.size,
+      financialOrders: financialOrdersInPeriod.length,
     },
     totals: {
       revenue: roundMoney(revenue),
@@ -716,11 +834,18 @@ export function buildFinancialMetrics({
     dre: {
       salesBeforeRefunds: roundMoney(salesBeforeRefunds),
       refunds: roundMoney(totalRefunds),
-      netRevenue: roundMoney(revenue),
-      costOfGoodsSold: allCostsComplete && overallOrderIds.size ? roundMoney(knownCost) : null,
+      netRevenue: roundMoney(financialRevenue),
+      costOfGoodsSold: dreCostOfGoodsSold,
       knownCostOfGoodsSold: roundMoney(knownCost),
-      grossProfit: grossProfit === null ? null : roundMoney(grossProfit),
+      grossProfit: dreGrossProfit,
+      operatingExpenses: expenseSummary.total,
+      operatingResult: dreOperatingResult,
+      orders: financialOrdersInPeriod.length,
+      invalidOrders: invalidFinancialOrders,
+      cancelledOrders: financialOrdersInPeriod.filter(({ order }) => order.status === 'Cancelado').length,
+      cancelledRetainedRevenue: roundMoney(cancelledRetainedRevenue),
     },
+    expenses: expenseSummary,
     coverage: {
       knownCostItems,
       missingCostItems,

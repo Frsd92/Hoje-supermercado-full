@@ -487,6 +487,72 @@ model SupplierPayable {
   @@index([invoiceId])
 }
 
+model FinancialChartAccount {
+  id              String          @id @default(cuid())
+  code            String          @unique
+  name            String
+  nature          String          @default("EXPENSE")
+  expenseBehavior String?
+  active          Boolean         @default(true)
+  createdAt       DateTime        @default(now())
+  updatedAt       DateTime        @updatedAt
+  expenses        CompanyExpense[]
+
+  @@index([active, nature])
+}
+
+model CompanyFinancialAccount {
+  id             String          @id @default(cuid())
+  name           String
+  institution    String?
+  accountType    String
+  openingBalance Decimal         @db.Decimal(14, 2)
+  balanceAsOf    DateTime        @db.Date
+  active         Boolean         @default(true)
+  createdAt      DateTime        @default(now())
+  updatedAt      DateTime        @updatedAt
+  expenses       CompanyExpense[]
+
+  @@index([active, accountType])
+}
+
+model CompanyExpense {
+  id                String                   @id @default(cuid())
+  description       String
+  amount            Decimal                  @db.Decimal(14, 2)
+  competenceAt      DateTime                 @db.Date
+  dueAt             DateTime?                @db.Date
+  status            String                   @default("Em aberto")
+  paidAt            DateTime?
+  notes             String?
+  createdBy         String
+  categoryId        String
+  financialAccountId String?
+  createdAt         DateTime                 @default(now())
+  updatedAt         DateTime                 @updatedAt
+  category          FinancialChartAccount    @relation(fields: [categoryId], references: [id], onDelete: Restrict)
+  financialAccount  CompanyFinancialAccount? @relation(fields: [financialAccountId], references: [id], onDelete: Restrict)
+  auditLogs         CompanyExpenseAuditLog[]
+
+  @@index([status, dueAt])
+  @@index([competenceAt, status])
+  @@index([categoryId])
+  @@index([financialAccountId])
+}
+
+model CompanyExpenseAuditLog {
+  id         String         @id @default(cuid())
+  expenseId  String
+  action     String
+  actor      String
+  occurredAt DateTime       @default(now())
+  snapshot   Json?
+  note       String?
+  expense    CompanyExpense @relation(fields: [expenseId], references: [id], onDelete: Restrict)
+
+  @@index([expenseId, occurredAt])
+}
+
 model SupplierInvoiceAuditLog {
   id         String          @id @default(cuid())
   invoiceId  String

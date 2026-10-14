@@ -28,6 +28,12 @@ function formatDate(value) {
     : new Intl.DateTimeFormat('pt-BR', { dateStyle: 'medium', timeZone: 'America/Sao_Paulo' }).format(date);
 }
 
+function formatDateOnly(value) {
+  if (!value) return '—';
+  const key = value instanceof Date ? value.toISOString().slice(0, 10) : String(value).slice(0, 10);
+  return formatPeriodDate(key);
+}
+
 function formatPeriodDate(value) {
   if (!value) return '';
   return /^\d{4}-\d{2}-\d{2}$/.test(value)
@@ -121,13 +127,18 @@ function exportFinancialCsv(data, liquidity) {
     ['Primeiro pedido disponível', formatDate(data.period.firstOrderDate)],
     [],
     ['Resumo', 'Valor'],
-    ['Faturamento líquido', money(data.totals.revenue)],
-    ['Pedidos', data.totals.orders],
-    ['Ticket médio', money(data.totals.averageTicket)],
+    ['Faturamento líquido', money(data.dre.netRevenue)],
+    ['Pedidos financeiros', data.dre.orders],
+    ['Ticket médio líquido', money(data.dre.orders ? data.dre.netRevenue / data.dre.orders : 0)],
     ['CMV', money(data.totals.costOfGoodsSold)],
     ['Lucro bruto', money(data.totals.grossProfit)],
     ['Margem bruta', percent(data.totals.grossMargin)],
     ['Descontos registrados', money(data.totals.discounts)],
+    ['Despesas cadastradas por competência', money(data.expenses.total)],
+    ['Despesas pagas', money(data.expenses.paidAmount)],
+    ['Despesas em aberto', money(data.expenses.openAmount)],
+    ['Resultado após despesas registradas', money(data.dre.operatingResult)],
+    ...data.expenses.byAccount.map((item) => [`Despesa · ${item.code} ${item.name}`, money(item.amount)]),
     [],
     ['DRE gerencial preliminar', 'Valor'],
     ['Vendas após descontos e antes de estornos', money(data.dre.salesBeforeRefunds)],
@@ -135,7 +146,9 @@ function exportFinancialCsv(data, liquidity) {
     ['Receita líquida após estornos', money(data.dre.netRevenue)],
     ['(-) CMV', money(data.dre.costOfGoodsSold === null ? null : -data.dre.costOfGoodsSold)],
     ['Lucro bruto', money(data.dre.grossProfit)],
-    ['Despesas operacionais, impostos e resultado líquido', 'Não apurados no ERP'],
+    ['(-) Despesas cadastradas no período', money(-data.dre.operatingExpenses)],
+    ['Resultado após despesas registradas', money(data.dre.operatingResult)],
+    ['EBITDA / resultado líquido oficial', 'Não apurados no ERP'],
     [],
     ['Contas a pagar de NF-e lançadas'],
     ['Saldo em aberto', money(liquidity?.outstanding)],
@@ -235,8 +248,507 @@ function PeriodFilters({ preset, setPreset, startDate, endDate, setStartDate, se
   </section>;
 }
 
+function daysUntil(value) {
+  if (!value) return null;
+  const dueDate = value instanceof Date ? value.toISOString().slice(0, 10) : String(value).slice(0, 10);
+  return Math.round((Date.parse(`${dueDate}T00:00:00.000Z`) - Date.parse(`${getLocalDateKey(new Date())}T00:00:00.000Z`)) / 86400000);
+}
+
+function FinancialRecords({ ledger, onSaved }) {
+  const [notice, setNotice] = useState('');
+  const [error, setError] = useState('');
+  const [saving, setSaving] = useState(false);
+  const [processingExpense, setProcessingExpense] = useState('');
+  const [selectedAccounts, setSelectedAccounts] = useState({});
+  const [expenseForm, setExpenseForm] = useState({
+    description: '',
+    amount: '',
+    competenceAt: getLocalDateKey(new Date()),
+    dueAt: '',
+    categoryId: '',
+    notes: '',
+  });
+  const [chartForm, setChartForm] = useState({
+    code: '',
+    name: '',
+    nature: 'EXPENSE',
+    expenseBehavior: 'FIXED',
+  });
+  const [accountForm, setAccountForm] = useState({
+    name: '',
+    institution: '',
+    accountType: 'BANK',
+    openingBalance: '0.00',
+    balanceAsOf: getLocalDateKey(new Date()),
+  });
+
+  const send = async (event, body, onSuccess) => {
+    event.preventDefault();
+    setSaving(true);
+    setError('');
+    setNotice('');
+    try {
+      const response = await fetch('/api/erp/financeiro/records', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify(body),
+      });
+      const result = await response.json();
+      if (!response.ok) throw new Error(result.error || 'Não foi possível salvar o cadastro.');
+      onSuccess();
+      setNotice('Cadastro salvo.');
+      await onSaved();
+    } catch (saveError) {
+      setError(saveError.message || 'Não foi possível salvar o cadastro.');
+    } finally {
+      setSaving(false);
+    }
+  };
+
+  const updateExpense = async (expense, action) => {
+    const financialAccountId = selectedAccounts[expense.id] || '';
+    if (action === 'pay' && !financialAccountId) {
+      setError('Selecione a conta da empresa usada para o pagamento.');
+      return;
+    }
+    if (action === 'cancel' && !window.confirm(`Cancelar o lançamento "${expense.description}"?`)) return;
+    setProcessingExpense(expense.id);
+    setError('');
+    setNotice('');
+    try {
+      const response = await fetch('/api/erp/financeiro/records', {
+        method: 'PATCH',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ expenseId: expense.id, action, financialAccountId }),
+      });
+      const result = await response.json();
+      if (!response.ok) throw new Error(result.error || 'Não foi possível atualizar a despesa.');
+      setNotice(action === 'pay' ? 'Pagamento registrado.' : 'Despesa cancelada.');
+      await onSaved();
+    } catch (updateError) {
+      setError(updateError.message || 'Não foi possível atualizar a despesa.');
+    } finally {
+      setProcessingExpense('');
+    }
+  };
+
+  const activeChartAccounts = ledger.chartAccounts.filter((account) => account.active && account.nature === 'EXPENSE');
+  const activeFinancialAccounts = ledger.financialAccounts.filter((account) => account.active);
+  return <section className="financial-panel" id="financial-records" aria-labelledby="financial-records-title">
+    <div className="financial-section-heading">
+      <div><span className="eyebrow">Lançamentos registrados</span><h2 id="financial-records-title">Despesas, contas e vencimentos</h2></div>
+      <a href="/erp/suppliers/invoices">NF-e e contas de fornecedores</a>
+    </div>
+    <p className="financial-explainer">Despesas manuais entram no DRE pela competência. Saldos de contas são snapshots informados por você; não são conciliados automaticamente com vendas ou extratos bancários.</p>
+    {(error || notice) && <p className={`financial-record-message${error ? ' error' : ''}`} role={error ? 'alert' : 'status'}>{error || notice}</p>}
+
+    <div className="financial-record-summary" aria-label="Resumo dos vencimentos cadastrados">
+      <article><span>Despesas em aberto</span><strong>{money(ledger.dueSummary.openAmount)}</strong><small>{ledger.dueSummary.openCount} lançamento(s) não pagos</small></article>
+      <article><span>Vencidas</span><strong>{ledger.dueSummary.overdueCount}</strong><small>Precisam de acompanhamento</small></article>
+      <article><span>Vencem hoje</span><strong>{ledger.dueSummary.dueTodayCount}</strong><small>Despesas com vencimento cadastrado</small></article>
+      <article><span>Próximos 7 dias</span><strong>{ledger.dueSummary.dueNextSevenDays}</strong><small>Contagem baseada na data de vencimento</small></article>
+    </div>
+
+    <div className="financial-record-forms">
+      <form className="financial-record-form" onSubmit={(event) => send(event, { kind: 'expense', ...expenseForm }, () => setExpenseForm({
+        description: '',
+        amount: '',
+        competenceAt: getLocalDateKey(new Date()),
+        dueAt: '',
+        categoryId: '',
+        notes: '',
+      }))}>
+        <h3>Lançar gasto da empresa</h3>
+        <label>Descrição<input required maxLength={180} value={expenseForm.description} onChange={(event) => setExpenseForm({ ...expenseForm, description: event.target.value })} /></label>
+        <div className="financial-record-form-row">
+          <label>Valor (R$)<input required type="number" min="0.01" step="0.01" value={expenseForm.amount} onChange={(event) => setExpenseForm({ ...expenseForm, amount: event.target.value })} /></label>
+          <label>Competência<input required type="date" value={expenseForm.competenceAt} onChange={(event) => setExpenseForm({ ...expenseForm, competenceAt: event.target.value })} /></label>
+        </div>
+        <div className="financial-record-form-row">
+          <label>Vencimento<input type="date" value={expenseForm.dueAt} onChange={(event) => setExpenseForm({ ...expenseForm, dueAt: event.target.value })} /></label>
+          <label>Conta do plano<select required value={expenseForm.categoryId} onChange={(event) => setExpenseForm({ ...expenseForm, categoryId: event.target.value })}>
+            <option value="">Selecione uma conta</option>
+            {activeChartAccounts.map((account) => <option key={account.id} value={account.id}>{account.code} · {account.name}</option>)}
+          </select></label>
+        </div>
+        <label>Observação (opcional)<input maxLength={1000} value={expenseForm.notes} onChange={(event) => setExpenseForm({ ...expenseForm, notes: event.target.value })} /></label>
+        <button type="submit" disabled={saving || !activeChartAccounts.length}>{saving ? 'Salvando…' : 'Registrar despesa'}</button>
+        {!activeChartAccounts.length && <small>Cadastre uma conta de despesa no plano de contas para lançar gastos.</small>}
+      </form>
+
+      <form className="financial-record-form" onSubmit={(event) => send(event, { kind: 'financialAccount', ...accountForm }, () => setAccountForm({
+        name: '',
+        institution: '',
+        accountType: 'BANK',
+        openingBalance: '0.00',
+        balanceAsOf: getLocalDateKey(new Date()),
+      }))}>
+        <h3>Cadastrar conta da empresa</h3>
+        <label>Nome para identificação<input required maxLength={120} placeholder="Ex.: Conta operacional" value={accountForm.name} onChange={(event) => setAccountForm({ ...accountForm, name: event.target.value })} /></label>
+        <label>Banco ou instituição (opcional)<input maxLength={120} value={accountForm.institution} onChange={(event) => setAccountForm({ ...accountForm, institution: event.target.value })} /></label>
+        <div className="financial-record-form-row">
+          <label>Tipo<select value={accountForm.accountType} onChange={(event) => setAccountForm({ ...accountForm, accountType: event.target.value })}>
+            <option value="BANK">Conta bancária</option><option value="DIGITAL">Conta digital</option><option value="CASH">Caixa físico</option>
+          </select></label>
+          <label>Saldo informado (R$)<input required type="number" step="0.01" value={accountForm.openingBalance} onChange={(event) => setAccountForm({ ...accountForm, openingBalance: event.target.value })} /></label>
+        </div>
+        <label>Saldo referente a<input required type="date" value={accountForm.balanceAsOf} onChange={(event) => setAccountForm({ ...accountForm, balanceAsOf: event.target.value })} /></label>
+        <button type="submit" disabled={saving}>{saving ? 'Salvando…' : 'Cadastrar conta'}</button>
+      </form>
+
+      <form className="financial-record-form" onSubmit={(event) => send(event, { kind: 'chartAccount', ...chartForm }, () => setChartForm({
+        code: '',
+        name: '',
+        nature: 'EXPENSE',
+        expenseBehavior: 'FIXED',
+      }))}>
+        <h3>Criar conta no plano contábil</h3>
+        <div className="financial-record-form-row">
+          <label>Código<input required maxLength={30} placeholder="Ex.: 4.1.01" value={chartForm.code} onChange={(event) => setChartForm({ ...chartForm, code: event.target.value })} /></label>
+          <label>Natureza<select value={chartForm.nature} onChange={(event) => setChartForm({ ...chartForm, nature: event.target.value })}>
+            <option value="EXPENSE">Despesa</option><option value="REVENUE">Receita</option><option value="ASSET">Ativo</option><option value="LIABILITY">Passivo</option><option value="EQUITY">Patrimônio líquido</option>
+          </select></label>
+        </div>
+        <label>Nome da conta<input required maxLength={120} placeholder="Ex.: Aluguel" value={chartForm.name} onChange={(event) => setChartForm({ ...chartForm, name: event.target.value })} /></label>
+        {chartForm.nature === 'EXPENSE' && <label>Comportamento da despesa<select value={chartForm.expenseBehavior} onChange={(event) => setChartForm({ ...chartForm, expenseBehavior: event.target.value })}>
+          <option value="FIXED">Fixa</option><option value="VARIABLE">Variável</option><option value="FINANCIAL">Financeira</option><option value="TAX">Tributos</option><option value="OTHER">Outra</option>
+        </select></label>}
+        <button type="submit" disabled={saving}>{saving ? 'Salvando…' : 'Adicionar ao plano'}</button>
+      </form>
+    </div>
+
+    <div className="financial-record-lists">
+      <div>
+        <h3>Contas cadastradas</h3>
+        {ledger.financialAccounts.length ? <ul className="financial-account-list">{ledger.financialAccounts.map((account) => <li key={account.id}>
+          <strong>{account.name}</strong><span>{account.institution || 'Instituição não informada'} · {account.accountType === 'CASH' ? 'Caixa' : account.accountType === 'DIGITAL' ? 'Digital' : 'Bancária'}</span>
+          <small>Saldo informado: {money(account.openingBalance)} em {formatDateOnly(account.balanceAsOf)}</small>
+        </li>)}</ul> : <EmptyState>Nenhuma conta financeira cadastrada.</EmptyState>}
+      </div>
+      <div>
+        <h3>Plano de contas</h3>
+        {ledger.chartAccounts.length ? <ul className="financial-account-list">{ledger.chartAccounts.map((account) => <li key={account.id}>
+          <strong>{account.code} · {account.name}</strong>
+          <span>{account.nature === 'EXPENSE' ? `Despesa ${account.expenseBehavior === 'FIXED' ? 'fixa' : account.expenseBehavior === 'VARIABLE' ? 'variável' : account.expenseBehavior === 'FINANCIAL' ? 'financeira' : account.expenseBehavior === 'TAX' ? 'tributária' : 'diversa'}` : account.nature === 'REVENUE' ? 'Receita' : account.nature === 'ASSET' ? 'Ativo' : account.nature === 'LIABILITY' ? 'Passivo' : 'Patrimônio líquido'}</span>
+          {!account.active && <small>Inativa</small>}
+        </li>)}</ul> : <EmptyState>Nenhuma conta contábil cadastrada.</EmptyState>}
+      </div>
+    </div>
+
+    <div className="financial-record-table-wrap" role="region" aria-label="Despesas registradas e seus vencimentos" tabIndex={0}>
+      <table>
+        <caption>Despesas gerenciais registradas; vencimentos exibem dias corridos restantes ou de atraso</caption>
+        <thead><tr><th scope="col">Despesa / conta</th><th scope="col">Competência</th><th scope="col">Valor</th><th scope="col">Vencimento</th><th scope="col">Situação</th><th scope="col">Ação</th></tr></thead>
+        <tbody>{ledger.expenses.map((expense) => {
+          const days = daysUntil(expense.dueAt);
+          const countdown = days === null ? 'Sem vencimento cadastrado'
+            : days < 0 ? `Vencida há ${Math.abs(days)} dia(s)`
+              : days === 0 ? 'Vence hoje' : `Vence em ${days} dia(s)`;
+          return <tr key={expense.id}>
+            <th scope="row">{expense.description}<small>{expense.category?.code} · {expense.category?.name}</small></th>
+            <td>{formatDateOnly(expense.competenceAt)}</td>
+            <td>{money(expense.amount)}</td>
+            <td>{expense.dueAt ? <>{formatDateOnly(expense.dueAt)}<small>{countdown}</small></> : countdown}</td>
+            <td>{expense.status === 'Paga' ? `Paga${expense.financialAccount?.name ? ` · ${expense.financialAccount.name}` : ''}` : expense.status}</td>
+            <td>{expense.status === 'Em aberto' ? <div className="financial-record-actions">
+              <label className="visually-hidden" htmlFor={`expense-account-${expense.id}`}>Conta usada no pagamento de {expense.description}</label>
+              <select id={`expense-account-${expense.id}`} value={selectedAccounts[expense.id] || ''} onChange={(event) => setSelectedAccounts({ ...selectedAccounts, [expense.id]: event.target.value })}>
+                <option value="">Conta do pagamento</option>
+                {activeFinancialAccounts.map((account) => <option key={account.id} value={account.id}>{account.name}</option>)}
+              </select>
+              <button type="button" onClick={() => updateExpense(expense, 'pay')} disabled={processingExpense === expense.id || !activeFinancialAccounts.length}>Marcar paga</button>
+              <button type="button" className="danger" onClick={() => updateExpense(expense, 'cancel')} disabled={processingExpense === expense.id}>Cancelar</button>
+            </div> : <span>—</span>}</td>
+          </tr>;
+        })}</tbody>
+      </table>
+      {!ledger.expenses.length && <EmptyState>Nenhuma despesa foi lançada. Cadastre uma despesa para iniciar o controle.</EmptyState>}
+    </div>
+  </section>;
+}
+
+const indicatorStatusLabels = {
+  available: 'Dado registrado',
+  partial: 'Parcial / cobertura limitada',
+  unavailable: 'Sem base suficiente',
+};
+
+function buildPillarIndicators(data, liquidity, ledger) {
+  const cmv = data.dre.costOfGoodsSold;
+  const grossProfit = data.dre.grossProfit;
+  const accountCount = ledger.financialAccounts.filter((account) => account.active).length;
+  const expenseAmount = money(data.expenses.total);
+  const supplierOpen = money(liquidity.outstanding);
+  const paidCompanyExpenses = money(data.expenses.paidAmount);
+  const expenseCount = data.expenses.count;
+  const itemsWithCost = `${data.coverage.knownCostItems} de ${data.totals.items}`;
+  const productsEvaluated = data.products.length;
+
+  return {
+    operational: [
+      {
+        name: 'DRE (oficial vs. gerencial)',
+        accounting: 'Apuração legal por competência e escrituração fiscal.',
+        accountingValue: 'Não escriturada neste ERP',
+        finance: `Vendas líquidas ${money(data.dre.netRevenue)}; despesas cadastradas ${expenseAmount}; CMV ${money(cmv)}.`,
+        financeValue: data.dre.operatingResult === null ? 'Resultado não apurado por CMV incompleto' : `Resultado após despesas cadastradas: ${money(data.dre.operatingResult)}`,
+        status: 'partial',
+      },
+      {
+        name: 'Margem de contribuição',
+        accounting: 'Base fiscal de custos e valorização de estoque.',
+        accountingValue: 'Não apurada por contabilidade',
+        finance: `Lucro bruto registrado: ${money(grossProfit)}; despesas variáveis lançadas: ${money(data.expenses.variable)}. Custos variáveis podem estar incompletos.`,
+        financeValue: grossProfit === null ? 'Sem margem bruta completa' : `Base parcial: ${money(grossProfit - data.expenses.variable)}`,
+        status: 'partial',
+      },
+      {
+        name: 'Ponto de equilíbrio',
+        accounting: 'Cobertura contábil dos custos de estrutura.',
+        accountingValue: 'Sem custos completos e escrituração',
+        finance: `Despesas fixas cadastradas: ${money(data.expenses.fixed)}; o cadastro pode não representar todos os custos da operação.`,
+        financeValue: 'Não calculado — custos fixos e variáveis não têm cobertura confirmada',
+        status: 'unavailable',
+      },
+      {
+        name: 'EBITDA e margem EBITDA',
+        accounting: 'Resultado antes de juros, impostos, depreciação e amortização.',
+        accountingValue: 'Não escriturado',
+        finance: `Despesas financeiras: ${money(data.expenses.financial)}; tributos cadastrados: ${money(data.expenses.tax)}. Depreciação e amortização não são registradas.`,
+        financeValue: 'Não apurado — faltam despesas e depreciação/amortização completas',
+        status: 'unavailable',
+      },
+      {
+        name: 'Ciclo operacional e de caixa',
+        accounting: 'Datas contábeis de recebimento de mercadorias e liquidação.',
+        accountingValue: 'Sem trilha completa',
+        finance: 'Há datas de NF-e, vencimentos e pedidos, mas os recebimentos de vendas e movimentos de estoque não estão conciliados.',
+        financeValue: 'Não calculado — recebimentos e giro de estoque não conciliados',
+        status: 'unavailable',
+      },
+      {
+        name: 'CMV e prazo médio de estocagem (PME)',
+        accounting: 'CMV oficial por inventário e custo médio ponderado.',
+        accountingValue: 'Não há inventário contábil fechado',
+        finance: `CMV calculado em ${itemsWithCost} itens com custo histórico.`,
+        financeValue: cmv === null ? 'CMV incompleto; PME sem histórico de giro valorizado' : `CMV registrado: ${money(cmv)}; PME ainda sem base de movimentação`,
+        status: cmv === null ? 'partial' : 'partial',
+      },
+      {
+        name: 'Markup por setor e Curva ABC',
+        accounting: 'Custo médio ponderado de aquisição por setor.',
+        accountingValue: 'Custo oficial não consolidado',
+        finance: `${productsEvaluated} produto(s) com venda no período estão disponíveis para análise por SKU.`,
+        financeValue: 'Markup setorial e classificação ABC ainda não calculados',
+        status: productsEvaluated ? 'partial' : 'unavailable',
+      },
+      {
+        name: 'Quebras, perdas e desperdício',
+        accounting: 'Baixas físicas rastreáveis para conformidade fiscal.',
+        accountingValue: 'Sem lançamentos de perdas contábeis',
+        finance: 'O módulo financeiro não recebe baixas de perdas com custo e motivo conciliados.',
+        financeValue: 'Sem total financeiro de perdas confirmado',
+        status: 'unavailable',
+      },
+      {
+        name: 'Provisão de férias, 13º e turnover',
+        accounting: 'Provisões legais e custo de folha.',
+        accountingValue: 'Sem módulo de folha/contabilidade',
+        finance: 'O ERP não possui cadastro de folha nem custos de desligamento.',
+        financeValue: 'Não calculado — dados de RH ausentes',
+        status: 'unavailable',
+      },
+    ],
+    liquidity: [
+      {
+        name: 'Fluxo de caixa (DFC vs. operacional)',
+        accounting: 'DFC oficial pelas normas contábeis.',
+        accountingValue: 'Não gerado neste ERP',
+        finance: `Despesas da empresa pagas e registradas: ${paidCompanyExpenses}; fornecedores pagos neste mês: ${money(liquidity.paidThisMonth)}.`,
+        financeValue: 'Parcial — vendas e extratos bancários não conciliados',
+        status: 'partial',
+      },
+      {
+        name: 'Capital de giro e NCG',
+        accounting: 'Mutações do capital circulante líquido.',
+        accountingValue: 'Ativos e passivos não fechados',
+        finance: `Obrigações abertas registradas: fornecedores ${supplierOpen}; despesas manuais ${money(data.expenses.openAmount)}.`,
+        financeValue: 'Parcial — faltam recebíveis e estoque valorizado',
+        status: 'partial',
+      },
+      {
+        name: 'Índices de liquidez',
+        accounting: 'Liquidez corrente, seca, imediata e geral no balanço.',
+        accountingValue: 'Sem balanço patrimonial completo',
+        finance: `${accountCount} conta(s) financeira(s) ativa(s) cadastrada(s); saldos informados têm datas de referência próprias.`,
+        financeValue: 'Índices não calculados — ativos e passivos não conciliados',
+        status: accountCount ? 'partial' : 'unavailable',
+      },
+      {
+        name: 'Conciliação de cartões e Pix',
+        accounting: 'Escrituração das vendas por adquirente, taxas e extrato.',
+        accountingValue: 'Sem conciliação contábil de recebíveis',
+        finance: 'O ERP registra pedidos e estornos, mas não concilia liquidações da adquirente com extrato bancário.',
+        financeValue: 'Não conciliado',
+        status: 'unavailable',
+      },
+      {
+        name: 'Prazos médios de recebimento e pagamento (PMR/PMF)',
+        accounting: 'Histórico de recebimento e pagamento por competência.',
+        accountingValue: 'Datas de liquidação incompletas',
+        finance: `${liquidity.openCount} parcela(s) de NF-e lançada(s) em aberto; recebimentos de clientes não conciliados.`,
+        financeValue: 'PMR/PMF não calculados — faltam baixas conciliadas',
+        status: 'partial',
+      },
+      {
+        name: 'Orçamento vs. realizado',
+        accounting: 'Consolidação e registro dos desvios orçamentários.',
+        accountingValue: 'Orçamento contábil não cadastrado',
+        finance: `${expenseCount} despesa(s) cadastrada(s), total de ${expenseAmount} por competência.`,
+        financeValue: 'Realizado disponível; orçamento mensal ainda não cadastrado',
+        status: expenseCount ? 'partial' : 'unavailable',
+      },
+      {
+        name: 'Inadimplência e PDD',
+        accounting: 'Provisão contábil de créditos duvidosos.',
+        accountingValue: 'Sem carteira de recebíveis contabilizada',
+        finance: `Parcelas de fornecedor vencidas: ${money(liquidity.overdue)}; não representa inadimplência de clientes.`,
+        financeValue: 'PDD não calculada — recebíveis e chargebacks não conciliados',
+        status: 'partial',
+      },
+      {
+        name: 'Runway e burn rate',
+        accounting: 'Consumo de reservas patrimoniais acumuladas.',
+        accountingValue: 'Sem saldos contábeis fechados',
+        finance: 'Existem snapshots de saldo informados e despesas, mas sem histórico completo de entradas/saídas.',
+        financeValue: 'Não calculado — fluxo de caixa incompleto',
+        status: 'unavailable',
+      },
+      {
+        name: 'Efeito tesoura (overtrading)',
+        accounting: 'Sinalização de descasamento no ativo circulante.',
+        accountingValue: 'Sem balanços comparáveis',
+        finance: 'Não há série de capital de giro e crescimento conciliada com saldo de caixa.',
+        financeValue: 'Não calculado',
+        status: 'unavailable',
+      },
+      {
+        name: 'Créditos tributários (ICMS/PIS/COFINS)',
+        accounting: 'Escrituração e compensação fiscal de tributos.',
+        accountingValue: 'Sem apuração fiscal no ERP',
+        finance: 'NF-e de entrada estão registradas, mas créditos não foram validados por regime e escrituração.',
+        financeValue: 'Não calculado — requer validação fiscal',
+        status: 'unavailable',
+      },
+    ],
+    value: [
+      {
+        name: 'Balanço patrimonial',
+        accounting: 'Ativo, passivo e patrimônio líquido oficiais.',
+        accountingValue: 'Não escriturado',
+        finance: 'Há cadastros de contas e obrigações de NF-e, mas não um razão patrimonial completo.',
+        financeValue: 'Não gerado',
+        status: 'unavailable',
+      },
+      {
+        name: 'ROI e ROIC',
+        accounting: 'Retorno sobre ativos e capital investido.',
+        accountingValue: 'Ativos/investimentos sem escrituração',
+        finance: 'Não há imobilizado nem histórico de capital investido cadastrado.',
+        financeValue: 'Não calculado',
+        status: 'unavailable',
+      },
+      {
+        name: 'ROE',
+        accounting: 'Retorno sobre patrimônio líquido integralizado.',
+        accountingValue: 'Patrimônio líquido não apurado',
+        finance: 'Não há saldo de capital dos sócios e lucro líquido fechado.',
+        financeValue: 'Não calculado',
+        status: 'unavailable',
+      },
+      {
+        name: 'Valuation e EVA',
+        accounting: 'DVA e valor adicionado escriturado.',
+        accountingValue: 'Sem demonstrações contábeis fechadas',
+        finance: 'Não há custo de capital, fluxo projetado ou avaliação de mercado cadastrados.',
+        financeValue: 'Não calculado',
+        status: 'unavailable',
+      },
+      {
+        name: 'Endividamento geral',
+        accounting: 'Passivo total em relação ao ativo.',
+        accountingValue: 'Ativo/passivo total não apurados',
+        finance: `Obrigações em aberto de NF-e: ${supplierOpen}; esse valor isolado não é índice de endividamento.`,
+        financeValue: 'Parcial — demais dívidas e ativos não cadastrados',
+        status: 'partial',
+      },
+      {
+        name: 'Custo de capital (WACC)',
+        accounting: 'Custo ponderado de capital próprio e de terceiros.',
+        accountingValue: 'Fontes de capital não escrituradas',
+        finance: 'Faltam custo de dívida, capital próprio e estrutura de financiamento.',
+        financeValue: 'Não calculado',
+        status: 'unavailable',
+      },
+      {
+        name: 'Grau de alavancagem financeira (GAF)',
+        accounting: 'Impacto de despesas financeiras no lucro.',
+        accountingValue: 'DRE contábil completa indisponível',
+        finance: `Despesas financeiras cadastradas no período: ${money(data.expenses.financial)}; resultado e juros não estão completos.`,
+        financeValue: 'Não calculado',
+        status: 'unavailable',
+      },
+      {
+        name: 'Testes de impairment',
+        accounting: 'Redução legal do valor recuperável dos ativos.',
+        accountingValue: 'Imobilizado não escriturado',
+        finance: 'Não há cadastro de ativos imobilizados e valor recuperável.',
+        financeValue: 'Não calculado',
+        status: 'unavailable',
+      },
+      {
+        name: 'DMPL / DLPA',
+        accounting: 'Mutações do patrimônio líquido e destinação do lucro.',
+        accountingValue: 'Sem saldos contábeis de patrimônio',
+        finance: 'Distribuições e reinvestimentos não são registrados no ERP.',
+        financeValue: 'Não gerado',
+        status: 'unavailable',
+      },
+      {
+        name: 'Provisões e contingências',
+        accounting: 'Obrigações prováveis fiscais, trabalhistas e cíveis.',
+        accountingValue: 'Sem cadastro contábil de contingências',
+        finance: 'Não há registros de provisões e riscos jurídicos integrados.',
+        financeValue: 'Não calculado',
+        status: 'unavailable',
+      },
+    ],
+  };
+}
+
+function PillarIndicatorTable({ title, id, rows }) {
+  return <section className="financial-panel financial-indicator-panel" id={id} aria-labelledby={`${id}-title`}>
+    <div className="financial-section-heading">
+      <div><span className="eyebrow">Mapa completo de mostradores</span><h2 id={`${id}-title`}>{title}</h2></div>
+      <span>{rows.length} indicadores do PDF</span>
+    </div>
+    <div className="financial-indicator-table-wrap" role="region" aria-label={`${title}: contabilidade e financeiro`} tabIndex={0}>
+      <table>
+        <caption>Dados de origem/compliance e aplicação/rotina; lacunas aparecem como indisponíveis, nunca como zero presumido</caption>
+        <thead><tr><th scope="col">Indicador</th><th scope="col">Contabilidade <small>Origem / compliance</small></th><th scope="col">Financeiro <small>Aplicação / rotina</small></th></tr></thead>
+        <tbody>{rows.map((row) => <tr key={row.name}>
+          <th scope="row">{row.name}</th>
+          <td><span className="financial-indicator-state unavailable">{indicatorStatusLabels.unavailable}</span><p>{row.accountingValue}</p><small>{row.accounting}</small></td>
+          <td><span className={`financial-indicator-state ${row.status}`}>{indicatorStatusLabels[row.status]}</span><p>{row.financeValue}</p><small>{row.finance}</small></td>
+        </tr>)}</tbody>
+      </table>
+    </div>
+  </section>;
+}
+
 export default function FinancialPage() {
   const [data, setData] = useState(null);
+  const [ledger, setLedger] = useState(null);
   const [startDate, setStartDate] = useState('');
   const [endDate, setEndDate] = useState('');
   const [appliedPeriod, setAppliedPeriod] = useState({ startDate: '', endDate: '' });
@@ -268,18 +780,26 @@ export default function FinancialPage() {
         if (appliedPeriod.startDate) params.set('startDate', appliedPeriod.startDate);
         if (appliedPeriod.endDate) params.set('endDate', appliedPeriod.endDate);
         const query = params.toString();
-        const response = await fetch(`/api/erp/financeiro${query ? `?${query}` : ''}`, {
-          cache: 'no-store',
-          signal: controller.signal,
-        });
-        const result = await response.json();
+        const [response, ledgerResponse] = await Promise.all([
+          fetch(`/api/erp/financeiro${query ? `?${query}` : ''}`, {
+            cache: 'no-store',
+            signal: controller.signal,
+          }),
+          fetch('/api/erp/financeiro/records', { cache: 'no-store', signal: controller.signal }),
+        ]);
+        const [result, ledgerResult] = await Promise.all([response.json(), ledgerResponse.json()]);
         if (!response.ok) throw new Error(result.error || 'Não foi possível carregar os indicadores financeiros.');
+        if (!ledgerResponse.ok) throw new Error(ledgerResult.error || 'Não foi possível carregar os lançamentos financeiros.');
         if (!result.financial || !Array.isArray(result.financial.promotionTypes) || !result.liquidity) {
           throw new Error('A resposta do financeiro veio incompleta. Tente atualizar a página.');
+        }
+        if (!Array.isArray(ledgerResult.chartAccounts) || !Array.isArray(ledgerResult.financialAccounts) || !Array.isArray(ledgerResult.expenses) || !ledgerResult.dueSummary) {
+          throw new Error('A resposta dos cadastros financeiros veio incompleta. Atualize a página.');
         }
         if (active) {
           setData(result.financial);
           setLiquidity(result.liquidity);
+          setLedger(ledgerResult);
           setRefundSyncWarning(syncWarning);
         }
       } catch (loadError) {
@@ -305,7 +825,7 @@ export default function FinancialPage() {
   };
 
   const periodLabel = data?.period.allHistory
-    ? `Todo o histórico desde ${formatDate(data.period.firstOrderDate)}`
+    ? `Todo o histórico desde ${formatDate(data.period.firstFinancialOrderDate || data.period.firstOrderDate)}`
     : `${formatPeriodDate(data?.period.startDate) || 'Início do histórico'} a ${formatPeriodDate(data?.period.endDate) || formatDate(new Date())}`;
   const hasFinancialOrders = Boolean(data?.period.orders);
   const hasPromotionCoverageGap = Boolean(data?.totals.items)
@@ -315,6 +835,7 @@ export default function FinancialPage() {
   const chartValues = (key) => trendRows.map((entry) => entry[key]);
   const chartDescription = (label) => `${label} ${trendLabel} no período selecionado`;
   const knownLiquidity = Boolean(liquidity);
+  const pillarIndicators = data && liquidity && ledger ? buildPillarIndicators(data, liquidity, ledger) : null;
 
   return <div className="erp-page financial-page">
     <header className="financial-header">
@@ -353,14 +874,14 @@ export default function FinancialPage() {
     </div>}
     {refundSyncWarning && <div className="financial-data-notice" role="status"><p>Alguns estornos não puderam ser confirmados agora. Os valores do período podem estar temporariamente desatualizados; atualize novamente em instantes.</p></div>}
     {!data && !loading && !error && <EmptyState>Nenhum dado financeiro disponível.</EmptyState>}
-    {data && <>
+    {data && ledger && <>
       <div className="financial-period-summary">
         <CalendarDays size={15} aria-hidden="true" />
         <span>{periodLabel}</span>
-        <strong>{data.period.orders.toLocaleString('pt-BR')} pedido(s)</strong>
+        <strong>{data.dre.orders.toLocaleString('pt-BR')} pedido(s) financeiros · {data.period.orders.toLocaleString('pt-BR')} operacionais</strong>
       </div>
 
-      {((hasFinancialOrders && !data.totals.marginAvailable) || hasPromotionCoverageGap || data.coverage.unreconciledOrders > 0) && <div className="financial-data-notice" role="status">
+      {((hasFinancialOrders && !data.totals.marginAvailable) || hasPromotionCoverageGap || data.coverage.unreconciledOrders > 0 || data.dre.cancelledOrders > 0) && <div className="financial-data-notice" role="status">
         {hasFinancialOrders && !data.totals.marginAvailable && <p>
           Margem bruta completa indisponível: {data.coverage.missingCostItems} item(ns) sem custo, {data.coverage.ordersWithoutItems} pedido(s) sem itens, {data.coverage.invalidOrders} pedido(s) com valor inválido, {data.coverage.invalidItems} item(ns) inválido(s) e {data.coverage.unreconciledOrders} pedido(s) sem conciliação. Custos parciais não são tratados como zero.
         </p>}
@@ -368,22 +889,28 @@ export default function FinancialPage() {
           Tipo promocional registrado em {percent(data.coverage.promotionCoveragePercent)} dos itens; pedidos antigos sem marcador ficam como “Não rastreado”, não como venda sem promoção.
         </p>}
         {data.coverage.unreconciledOrders > 0 && <p>Há pedidos cujos itens e total não conciliam; eles permanecem no faturamento, mas não na margem completa.</p>}
+        {data.dre.cancelledOrders > 0 && <p>{data.dre.cancelledOrders} pedido(s) cancelado(s) com atividade financeira entram no DRE e nos estornos, mas não nas análises operacionais de vendas. Quando houver saldo após estorno, o CMV fica sem apuração até confirmar o destino do estoque.</p>}
       </div>}
 
       <nav className="financial-pillar-nav" aria-label="Navegação pelos pilares financeiros">
         <a href="#financial-operational">1 · Eficiência operacional</a>
         <a href="#financial-liquidity">2 · Liquidez e tesouraria</a>
         <a href="#financial-value">3 · Valor e rentabilidade</a>
+        <a href="#financial-indicators-operational">Mostradores contábeis e financeiros</a>
+        <a href="#financial-records">Despesas e vencimentos</a>
       </nav>
 
       <section className="financial-metrics" aria-label="Indicadores principais; gráficos mostram a evolução no período selecionado">
-        <MetricCard icon={Banknote} label="Faturamento líquido" value={money(data.totals.revenue)} detail="Vendas registradas menos estornos confirmados" chartValues={chartValues('revenue')} chartLabel={chartDescription('Faturamento líquido')} emphasis />
+        <MetricCard icon={Banknote} label="Faturamento líquido" value={money(data.dre.netRevenue)} detail="Vendas registradas menos estornos confirmados" chartValues={chartValues('revenue')} chartLabel={chartDescription('Faturamento líquido')} emphasis />
         <MetricCard icon={CircleDollarSign} label="Lucro bruto" value={money(data.totals.grossProfit)} detail="Receita líquida menos CMV; antes das despesas" chartValues={chartValues('grossProfit')} chartLabel={chartDescription('Lucro bruto')} />
         <MetricCard icon={TrendingUp} label="Margem bruta real" value={percent(data.totals.grossMargin)} detail="Após descontos, estornos e custo por item vendido" chartValues={chartValues('grossMargin')} chartLabel={chartDescription('Margem bruta')} />
         <MetricCard icon={PackageSearch} label={data.totals.costOfGoodsSold === null ? 'CMV conhecido' : 'CMV'} value={money(data.totals.costOfGoodsSold ?? data.totals.knownCostOfGoodsSold)} detail={data.totals.costOfGoodsSold === null ? `${data.coverage.knownCostItems} de ${data.totals.items} itens com custo` : 'Custo dos produtos vendidos'} chartValues={chartValues('knownCostOfGoodsSold')} chartLabel={chartDescription('CMV conhecido')} />
         <MetricCard icon={Tag} label="Descontos registrados" value={money(data.totals.discounts)} detail="Descontos em itens e no pedido" chartValues={chartValues('discounts')} chartLabel={chartDescription('Descontos registrados')} />
-        <MetricCard icon={ShoppingBag} label="Ticket médio" value={money(data.totals.averageTicket)} detail={`${data.totals.orders.toLocaleString('pt-BR')} pedido(s) no período`} chartValues={chartValues('averageTicket')} chartLabel={chartDescription('Ticket médio')} />
+        <MetricCard icon={ShoppingBag} label="Ticket médio" value={money(data.dre.orders ? data.dre.netRevenue / data.dre.orders : 0)} detail={`${data.dre.orders.toLocaleString('pt-BR')} pedido(s) financeiros no período`} chartValues={chartValues('averageTicket')} chartLabel={chartDescription('Ticket médio')} />
+        <MetricCard icon={TrendingDown} label="Despesas cadastradas" value={money(data.expenses.total)} detail={`${data.expenses.count} lançamento(s) por competência; pagamentos em aberto: ${money(data.expenses.openAmount)}`} chartValues={chartValues('operatingExpenses')} chartLabel={chartDescription('Despesas cadastradas')} />
       </section>
+
+      <FinancialRecords ledger={ledger} onSaved={() => setRefreshToken((token) => token + 1)} />
 
       <section className="financial-panel" id="financial-operational" aria-labelledby="financial-dre-title">
         <div className="financial-section-heading">
@@ -394,27 +921,29 @@ export default function FinancialPage() {
           </div>
         </div>
         {dreMode === 'managerial' ? <>
-          <p className="financial-explainer">DRE gerencial preliminar baseada nos pedidos e no custo histórico salvo nos itens. Valores refletem o período filtrado; despesas não cadastradas não são presumidas como zero.</p>
+          <p className="financial-explainer">DRE gerencial preliminar baseada nos pedidos, no custo histórico dos itens e nas despesas manuais lançadas por competência. O total de despesas cadastradas não significa que toda a operação foi lançada.</p>
           <div className="financial-dre-layout">
             <div className="financial-table-scroll" role="region" aria-label="DRE gerencial preliminar" tabIndex={0}>
               <table>
                 <caption>Apuração operacional; esta demonstração não substitui a escrituração contábil oficial</caption>
                 <thead><tr><th scope="col">Linha do resultado</th><th scope="col">Valor</th><th scope="col">Base</th></tr></thead>
                 <tbody>
-                  <tr><th scope="row">Vendas após descontos, antes de estornos</th><td>{money(data.dre.salesBeforeRefunds)}</td><td>Totais dos pedidos elegíveis após descontos</td></tr>
-                  <tr><th scope="row">(-) Estornos confirmados</th><td className="financial-negative">{money(-data.dre.refunds)}</td><td>Confirmação registrada na Pagar.me</td></tr>
+                  <tr><th scope="row">Vendas após descontos, antes de estornos</th><td>{money(data.dre.salesBeforeRefunds)}</td><td>{data.dre.orders} pedido(s) financeiro(s), incluindo pedidos cancelados com pagamento/estorno reconhecido</td></tr>
+                  <tr><th scope="row">(-) Estornos confirmados</th><td className="financial-negative">{money(-data.dre.refunds)}</td><td>Valores confirmados registrados no ERP/Pagar.me</td></tr>
                   <tr className="financial-dre-total"><th scope="row">(=) Receita líquida após estornos</th><td>{money(data.dre.netRevenue)}</td><td>Vendas menos estornos confirmados</td></tr>
                   <tr><th scope="row">(-) CMV</th><td>{data.dre.costOfGoodsSold === null ? 'Não apurado integralmente' : money(-data.dre.costOfGoodsSold)}</td><td>{data.dre.costOfGoodsSold === null ? `${data.coverage.knownCostItems} de ${data.totals.items} itens com custo` : 'Custo registrado nos itens vendidos'}</td></tr>
                   <tr className="financial-dre-total"><th scope="row">(=) Lucro bruto</th><td>{money(data.dre.grossProfit)}</td><td>Receita líquida menos CMV completo</td></tr>
-                  <tr><th scope="row">(-) Despesas operacionais, tributos e taxas</th><td>Não apurado</td><td>Não há lançamentos completos destas despesas</td></tr>
-                  <tr><th scope="row">(=) EBITDA / resultado líquido</th><td>Não apurado</td><td>Depende das despesas, impostos e depreciação contabilizados</td></tr>
+                  <tr><th scope="row">(-) Despesas cadastradas no período</th><td>{money(-data.dre.operatingExpenses)}</td><td>{data.expenses.count} lançamento(s) por competência; pagas {money(data.expenses.paidAmount)} · em aberto {money(data.expenses.openAmount)}</td></tr>
+                  <tr className="financial-dre-total"><th scope="row">(=) Resultado após despesas registradas</th><td>{money(data.dre.operatingResult)}</td><td>Gerencial e parcial; despesas não lançadas não são presumidas como zero</td></tr>
+                  <tr><th scope="row">EBITDA / resultado líquido oficial</th><td>Não apurado</td><td>Faltam escrituração completa, tributos, juros, depreciação e amortização</td></tr>
                 </tbody>
               </table>
             </div>
-            <div className="financial-dre-chart" role="img" aria-label={`Composição do resultado: receita líquida ${money(data.dre.netRevenue)}, CMV ${money(data.dre.costOfGoodsSold)}, lucro bruto ${money(data.dre.grossProfit)}`}>
+            <div className="financial-dre-chart" role="img" aria-label={`Composição do resultado: receita líquida ${money(data.dre.netRevenue)}, CMV ${money(data.dre.costOfGoodsSold)}, despesas registradas ${money(data.dre.operatingExpenses)}, lucro bruto ${money(data.dre.grossProfit)}`}>
               <span>Composição da receita</span>
               <div><i style={{ width: `${data.dre.netRevenue > 0 ? 100 : 0}%` }} /><label>Receita líquida <strong>{money(data.dre.netRevenue)}</strong></label></div>
               <div><i className="cost" style={{ width: `${data.dre.costOfGoodsSold !== null && data.dre.netRevenue > 0 ? Math.min(100, Math.max(0, data.dre.costOfGoodsSold / data.dre.netRevenue * 100)) : 0}%` }} /><label>CMV completo <strong>{money(data.dre.costOfGoodsSold)}</strong></label></div>
+              <div><i className="expenses" style={{ width: `${data.dre.netRevenue > 0 ? Math.min(100, Math.max(0, data.dre.operatingExpenses / data.dre.netRevenue * 100)) : 0}%` }} /><label>Despesas cadastradas <strong>{money(data.dre.operatingExpenses)}</strong></label></div>
               <div><i className="profit" style={{ width: `${data.dre.grossProfit !== null && data.dre.netRevenue > 0 ? Math.min(100, Math.max(0, data.dre.grossProfit / data.dre.netRevenue * 100)) : 0}%` }} /><label>Lucro bruto <strong>{money(data.dre.grossProfit)}</strong></label></div>
               <small>Escala relativa à receita líquida. Quando o CMV está incompleto, a composição não estima o lucro.</small>
             </div>
@@ -422,10 +951,11 @@ export default function FinancialPage() {
           <p className="financial-source-note">Ponto de equilíbrio, EBITDA completo, margem de contribuição após custos variáveis, ciclo operacional e PME não são calculados sem despesas, folha, taxas, saldos de caixa e datas completas de recebimento/baixa de estoque.</p>
         </> : <div className="financial-official-notice" role="status">
           <strong>DRE oficial indisponível — não é um relatório fiscal/contábil.</strong>
-          <p>O sistema ainda não reúne plano de contas, regime de competência, tributos apurados, despesas contabilizadas, folha, depreciação, juros e encerramento contábil. O painel não produz nem substitui uma demonstração oficial assinada por profissional habilitado.</p>
+          <p>O plano de contas e os lançamentos gerenciais podem ser cadastrados no ERP, mas ainda não há escrituração em partidas dobradas, regime fiscal/contábil completo, tributos apurados, folha, depreciação, juros ou encerramento contábil. O painel não produz nem substitui uma demonstração oficial assinada por profissional habilitado.</p>
           <Link href="/erp/suppliers/invoices">Consultar notas fiscais e contas a pagar registradas</Link>
         </div>}
       </section>
+      {pillarIndicators && <PillarIndicatorTable id="financial-indicators-operational" title="1 · Eficiência, giro e margem" rows={pillarIndicators.operational} />}
 
       <section className="financial-panel" id="financial-liquidity" aria-labelledby="financial-liquidity-title">
         <div className="financial-section-heading">
@@ -445,6 +975,7 @@ export default function FinancialPage() {
           <article><span>Pagamentos a fornecedores neste mês</span><strong>{money(liquidity.paidThisMonth)}</strong><small>{liquidity.paidCountThisMonth} parcela(s) marcada(s) como paga(s)</small><MetricChart values={liquidity.paidTrend.map((entry) => entry.paid)} label="Pagamentos registrados a fornecedores nos últimos seis meses" color="blue" /></article>
         </div> : <EmptyState>Resumo de contas a pagar indisponível.</EmptyState>}
       </section>
+      {pillarIndicators && <PillarIndicatorTable id="financial-indicators-liquidity" title="2 · Liquidez, fôlego e tesouraria" rows={pillarIndicators.liquidity} />}
 
       <section className="financial-panel" aria-labelledby="financial-trend-title">
         <div className="financial-section-heading">
@@ -453,6 +984,7 @@ export default function FinancialPage() {
         </div>
         <FinancialTrend trend={data.trend} granularity={data.trendGranularity} />
       </section>
+      {pillarIndicators && <PillarIndicatorTable id="financial-indicators-value" title="3 · Patrimônio, retorno e estratégia" rows={pillarIndicators.value} />}
 
       <section className="financial-panel" aria-labelledby="financial-promotions-title">
         <div className="financial-section-heading">
@@ -609,7 +1141,7 @@ export default function FinancialPage() {
 
       <footer className="financial-disclaimer">
         <TrendingDown size={16} aria-hidden="true" />
-        <p>Este painel calcula margem bruta real a partir do custo salvo em cada item vendido. Não representa lucro líquido: despesas fixas, taxas de pagamento, impostos, frete e devoluções só podem ser incluídos quando registrados no ERP.</p>
+        <p>Este painel calcula uma visão gerencial com pedidos, custos históricos e despesas cadastradas. Não representa contabilidade oficial: despesas fixas, taxas, impostos, folha, ativos e recebíveis podem estar incompletos e não são presumidos como zero.</p>
       </footer>
     </>}
   </div>;
