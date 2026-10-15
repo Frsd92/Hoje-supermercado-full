@@ -7130,6 +7130,13 @@ button.metric-mini:focus-visible {
 .erp-nav { display: flex; flex-direction: column; gap: 13px; }
 .erp-nav-group { display: grid; gap: 5px; }
 .erp-nav-group-label { padding: 0 12px; color: var(--erp-muted); font-size: .61rem; font-weight: 850; letter-spacing: .09em; text-transform: uppercase; }
+.erp-nav-group-toggle { display: flex; min-height: 40px; align-items: center; gap: 10px; padding: 8px 11px; border: 1px solid transparent; border-radius: 9px; background: transparent; color: var(--erp-text); cursor: pointer; font: inherit; font-size: .83rem; font-weight: 750; text-align: left; }
+.erp-nav-group-toggle > span { flex: 1; }
+.erp-nav-group-toggle > svg:last-child { color: var(--erp-muted); transition: transform .15s ease; }
+.erp-nav-group-toggle[aria-expanded="true"] > svg:last-child { transform: rotate(180deg); }
+.erp-nav-group-toggle:hover { background: var(--erp-surface-soft); }
+.erp-nav-group-toggle:focus-visible { outline: 3px solid rgba(47,118,86,.28); outline-offset: 2px; }
+.erp-nav-group-finance > .erp-nav-group-items { padding-left: 10px; border-left: 2px solid var(--erp-primary-border); }
 .erp-nav-group-items { display: grid; gap: 3px; }
 .erp-nav-item { display: flex; min-height: 40px; align-items: center; gap: 11px; padding: 9px 11px; border: 1px solid transparent; border-radius: 9px; color: var(--erp-text); font-size: .83rem; font-weight: 600; text-decoration: none; transition: background-color .15s ease, border-color .15s ease, color .15s ease; }
 .erp-nav-item:hover:not(.active) { background: var(--erp-surface-soft); }

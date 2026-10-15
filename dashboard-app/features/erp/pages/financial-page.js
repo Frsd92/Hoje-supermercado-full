@@ -992,8 +992,7 @@ export default function FinancialPage() {
         const [result, ledgerResult] = await Promise.all([response.json(), ledgerResponse.json()]);
         if (!response.ok) throw new Error(result.error || 'Não foi possível carregar os indicadores financeiros.');
         if (!ledgerResponse.ok) throw new Error(ledgerResult.error || 'Não foi possível carregar os lançamentos financeiros.');
-        if (!result.financial || !Array.isArray(result.financial.promotionTypes) || !result.liquidity || !result.automaticChartActivity
-          || (pathname === '/erp/financeiro/dre' && !result.comparisonFinancial)) {
+        if (!result.financial || !Array.isArray(result.financial.promotionTypes) || !result.liquidity || !result.automaticChartActivity) {
           throw new Error('A resposta do financeiro veio incompleta. Tente atualizar a página.');
         }
         if (!Array.isArray(ledgerResult.chartAccounts) || !Array.isArray(ledgerResult.financialAccounts) || !Array.isArray(ledgerResult.expenses) || !ledgerResult.dueSummary) {

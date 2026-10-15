@@ -2,7 +2,7 @@
 
 import Link from 'next/link';
 import { usePathname } from 'next/navigation';
-import { Activity, Award, BarChart3, Bell, CalendarDays, CircleDollarSign, ClipboardList, FileText, History, LayoutDashboard, LayoutTemplate, MapPin, Package, Plus, ReceiptText, ShoppingCart, TicketPercent, TrendingUp, Truck, Users, Zap } from 'lucide-react';
+import { Activity, Award, BarChart3, Bell, CalendarDays, ChevronDown, CircleDollarSign, ClipboardList, FileText, History, LayoutDashboard, LayoutTemplate, MapPin, Package, Plus, ReceiptText, ShoppingCart, TicketPercent, TrendingUp, Truck, Users, Zap } from 'lucide-react';
 import { useEffect, useState } from 'react';
 
 const erpNavigationGroups = [
@@ -71,6 +71,11 @@ const erpNavigationGroups = [
 export default function ERPLayout({ children }) {
   const pathname = usePathname();
   const [newOrders, setNewOrders] = useState(0);
+  const [financeExpanded, setFinanceExpanded] = useState(() => pathname.startsWith('/erp/financeiro'));
+
+  useEffect(() => {
+    if (pathname.startsWith('/erp/financeiro')) setFinanceExpanded(true);
+  }, [pathname]);
 
   useEffect(() => {
     if (pathname === '/erp/login') return undefined;
@@ -95,17 +100,25 @@ export default function ERPLayout({ children }) {
           <div><span>HOJE</span><strong>ERP Operacional</strong></div>
         </Link>
         <nav className="erp-nav" aria-label="Navegação ERP">
-          {erpNavigationGroups.map((group) => <div className="erp-nav-group" key={group.label}>
-            <span className="erp-nav-group-label">{group.label}</span>
-            <div className="erp-nav-group-items">
+          {erpNavigationGroups.map((group) => {
+            const isFinance = group.label === 'Financeiro';
+            const expanded = isFinance ? financeExpanded : true;
+            return <div className={`erp-nav-group${isFinance ? ' erp-nav-group-finance' : ''}`} key={group.label}>
+            {isFinance
+              ? <button type="button" className="erp-nav-group-toggle" aria-expanded={expanded} aria-controls="erp-finance-nav-items" onClick={() => setFinanceExpanded((value) => !value)}>
+                <CircleDollarSign size={17} aria-hidden="true" /><span>{group.label}</span><ChevronDown size={15} aria-hidden="true" />
+              </button>
+              : <span className="erp-nav-group-label">{group.label}</span>}
+            {expanded && <div className="erp-nav-group-items" id={isFinance ? 'erp-finance-nav-items' : undefined}>
               {group.items.map(({ label, href, icon: Icon }) => {
-                const active = pathname === href || (href === '/erp/financeiro' && pathname.startsWith('/erp/financeiro/')) || (href !== '/erp' && href !== '/erp/financeiro' && pathname.startsWith(href));
+                const active = pathname === href || (href !== '/erp' && href !== '/erp/financeiro' && pathname.startsWith(href));
                 const content = <><Icon size={17} aria-hidden="true" /><span>{label}</span>{label === 'Pedidos' && newOrders > 0 && <><span className="erp-nav-badge" aria-hidden="true">{newOrders}</span><span className="visually-hidden">{newOrders} novos pedidos</span></>}</>;
                 const className = `erp-nav-item ${active ? 'active' : ''}`;
                 return <Link key={label} href={href} className={className} aria-current={active ? 'page' : undefined}>{content}</Link>;
               })}
-            </div>
-          </div>)}
+            </div>}
+          </div>;
+          })}
         </nav>
       </aside>
       <main className="erp-main" id="erp-main-content" tabIndex="-1">{children}</main>
