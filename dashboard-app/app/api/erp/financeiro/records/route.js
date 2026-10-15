@@ -121,6 +121,38 @@ export async function POST(request) {
       return Response.json({ chartAccount }, { status: 201, headers });
     }
 
+    if (body.kind === 'chartAccountsImport') {
+      if (!Array.isArray(body.accounts) || body.accounts.length === 0 || body.accounts.length > 500) {
+        return Response.json({ error: 'Envie de 1 a 500 contas no arquivo CSV.' }, { status: 400, headers });
+      }
+      const importedCodes = new Set();
+      const accounts = [];
+      for (const [index, item] of body.accounts.entries()) {
+        const code = String(item?.code || '').trim();
+        const name = String(item?.name || '').trim();
+        const nature = String(item?.nature || '');
+        const expenseBehavior = item?.expenseBehavior ? String(item.expenseBehavior) : null;
+        if (!/^[A-Za-z0-9][A-Za-z0-9._/-]{0,29}$/.test(code) || !name || name.length > 120
+          || !accountNatures.has(nature)) {
+          return Response.json({ error: `A conta na linha ${index + 2} tem código, nome ou natureza inválidos.` }, { status: 400, headers });
+        }
+        if ((nature === 'EXPENSE' && !expenseBehaviors.has(expenseBehavior))
+          || (nature !== 'EXPENSE' && expenseBehavior !== null)) {
+          return Response.json({ error: `A classificação da conta ${code} não é válida.` }, { status: 400, headers });
+        }
+        if (importedCodes.has(code)) {
+          return Response.json({ error: `O código ${code} está repetido no arquivo CSV.` }, { status: 400, headers });
+        }
+        importedCodes.add(code);
+        accounts.push({ code, name, nature, expenseBehavior });
+      }
+      const result = await prisma.financialChartAccount.createMany({ data: accounts, skipDuplicates: true });
+      return Response.json({
+        createdCount: result.count,
+        skippedCount: accounts.length - result.count,
+      }, { status: 201, headers });
+    }
+
     if (body.kind === 'financialAccount') {
       const name = String(body.name || '').trim();
       const institution = String(body.institution || '').trim() || null;
@@ -151,9 +183,14 @@ export async function POST(request) {
 
       const category = await prisma.financialChartAccount.findFirst({
         where: { id: categoryId, nature: 'EXPENSE', active: true },
-        select: { id: true },
+        select: { id: true, code: true },
       });
       if (!category) return Response.json({ error: 'A conta contábil não existe ou está inativa.' }, { status: 400, headers });
+      const childAccount = await prisma.financialChartAccount.findFirst({
+        where: { active: true, code: { startsWith: `${category.code}.` } },
+        select: { id: true },
+      });
+      if (childAccount) return Response.json({ error: 'Selecione uma conta analítica sem subcontas para lançar a despesa.' }, { status: 400, headers });
 
       const expense = await prisma.$transaction(async (transaction) => {
         const created = await transaction.companyExpense.create({
@@ -253,5 +290,41 @@ export async function PATCH(request) {
   } catch (error) {
     console.error('Não foi possível atualizar a despesa:', error);
     return Response.json({ error: 'Não foi possível atualizar a despesa.' }, { status: 503, headers });
+  }
+}
+
+export async function DELETE(request) {
+  const session = await getServerSession(authOptions);
+  if (!hasErpAccess(session?.user)) return Response.json({ error: 'Acesso negado.' }, { status: 403, headers });
+  const body = await readBody(request);
+  const financialAccountId = String(body?.financialAccountId || '').trim();
+  if (!financialAccountId) {
+    return Response.json({ error: 'Informe a conta da empresa que deseja excluir.' }, { status: 400, headers });
+  }
+
+  try {
+    const account = await prisma.companyFinancialAccount.findUnique({
+      where: { id: financialAccountId },
+      select: { id: true },
+    });
+    if (!account) return Response.json({ error: 'A conta da empresa não foi encontrada.' }, { status: 404, headers });
+
+    const linkedExpenses = await prisma.companyExpense.count({ where: { financialAccountId } });
+    if (linkedExpenses > 0) {
+      await prisma.companyFinancialAccount.update({
+        where: { id: financialAccountId },
+        data: { active: false },
+      });
+      return Response.json({ deleted: false, archived: true }, { headers });
+    }
+
+    await prisma.companyFinancialAccount.delete({ where: { id: financialAccountId } });
+    return Response.json({ deleted: true, archived: false }, { headers });
+  } catch (error) {
+    if (error?.code === 'P2003') {
+      return Response.json({ error: 'A conta passou a ter lançamentos associados. Atualize a tela e tente novamente.' }, { status: 409, headers });
+    }
+    console.error('Não foi possível excluir a conta da empresa:', error);
+    return Response.json({ error: 'Não foi possível excluir a conta da empresa.' }, { status: 503, headers });
   }
 }

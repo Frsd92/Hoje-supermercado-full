@@ -1,0 +1,181 @@
+﻿codigo;nome;natureza;comportamento
+1;Receitas;REVENUE;
+1.1;Vendas de Mercadorias;REVENUE;
+1.1.1;Mercearia (seca e básica);REVENUE;
+1.1.2;Hortifruti;REVENUE;
+1.1.3;Açougue e Peixaria;REVENUE;
+1.1.4;Padaria e Confeitaria (produção própria);REVENUE;
+1.1.5;Frios e Laticínios;REVENUE;
+1.1.6;Bebidas (alcoólicas e não alcoólicas);REVENUE;
+1.1.7;Higiene e Limpeza;REVENUE;
+1.1.8;Perfumaria e Cosméticos;REVENUE;
+1.1.9;Congelados;REVENUE;
+1.1.10;Pet;REVENUE;
+1.1.11;Bazar e Utilidades;REVENUE;
+1.1.12;Marca própria;REVENUE;
+1.2;Vendas por Canal;REVENUE;
+1.2.1;Loja física (frente de caixa);REVENUE;
+1.2.2;Delivery próprio (site e app Hoje);REVENUE;
+1.2.3;Marketplaces e apps de entrega;REVENUE;
+1.2.4;Retirada na loja (click and collect);REVENUE;
+1.2.5;Vendas atacado / PJ;REVENUE;
+1.3;Receitas de Serviços;REVENUE;
+1.3.1;Taxa de entrega;REVENUE;
+1.3.2;Serviços de loja (recarga, pagamento de contas, encomendas);REVENUE;
+1.3.3;Clube de assinatura / planos de fidelidade;REVENUE;
+1.4;Receitas Comerciais com Fornecedores;REVENUE;
+1.4.1;Bonificações e rebates de fornecedores;REVENUE;
+1.4.2;Verba de trade marketing e exposição (gôndola, ponta de gôndola);REVENUE;
+1.4.3;Publicidade e mídia no app, site e loja;REVENUE;
+1.4.4;Comissões recebidas;REVENUE;
+1.5;Outras Receitas;REVENUE;
+1.5.1;Venda de recicláveis (papelão, plástico, óleo);REVENUE;
+1.5.2;Aluguel de espaços (quiosques, ilhas);REVENUE;
+1.5.3;Monetização de dados e insights (anonimizados, conforme LGPD);REVENUE;
+1.6;Receita Financeira;REVENUE;
+1.6.1;Juros sobre aplicações;REVENUE;
+1.6.2;Rendimentos bancários;REVENUE;
+1.6.3;Descontos obtidos;REVENUE;
+1.7;Deduções da Receita;REVENUE;
+1.7.1;Devoluções e trocas de clientes;REVENUE;
+1.7.2;Descontos e promoções concedidos;REVENUE;
+1.7.3;Cancelamentos;REVENUE;
+2;Custo da Mercadoria Vendida (CMV);EXPENSE;VARIABLE
+2.1;Compras de Mercadorias;EXPENSE;VARIABLE
+2.1.1;Compras por departamento (espelha o grupo 1.1);EXPENSE;VARIABLE
+2.1.2;Compras de marca própria;EXPENSE;VARIABLE
+2.1.3;Insumos de produção (padaria, açougue, rotisseria);EXPENSE;VARIABLE
+2.2;Custos Acessórios de Compra;EXPENSE;VARIABLE
+2.2.1;Frete sobre compras;EXPENSE;VARIABLE
+2.2.2;Seguro de carga;EXPENSE;VARIABLE
+2.2.3;Impostos não recuperáveis na compra;EXPENSE;VARIABLE
+2.3;Perdas Operacionais;EXPENSE;VARIABLE
+2.3.1;Quebra por validade vencida;EXPENSE;VARIABLE
+2.3.2;Quebra por avaria e manuseio;EXPENSE;VARIABLE
+2.3.3;Furto e perda desconhecida;EXPENSE;VARIABLE
+2.3.4;Perdas de perecíveis (hortifruti, carnes, frios);EXPENSE;VARIABLE
+2.3.5;Doações e descartes;EXPENSE;VARIABLE
+2.4;Ajustes de Estoque;EXPENSE;VARIABLE
+2.4.1;Diferenças de inventário;EXPENSE;VARIABLE
+2.4.2;Consumo interno;EXPENSE;VARIABLE
+2.4.3;Devoluções a fornecedores;EXPENSE;VARIABLE
+2.5;Embalagens e Materiais de Consumo da Venda;EXPENSE;VARIABLE
+2.5.1;Sacolas e embalagens;EXPENSE;VARIABLE
+2.5.2;Etiquetas e bobinas de balança/PDV;EXPENSE;VARIABLE
+3;Despesas Operacionais;EXPENSE;OTHER
+3.1;Salários de Funcionários;EXPENSE;OTHER
+3.1.1;Operadores de caixa;EXPENSE;OTHER
+3.1.2;Repositores e empacotadores;EXPENSE;OTHER
+3.1.3;Açougueiros, padeiros e manipuladores;EXPENSE;OTHER
+3.1.4;Fiscais de prevenção de perdas;EXPENSE;OTHER
+3.1.5;Entregadores e separadores de pedidos;EXPENSE;OTHER
+3.1.6;Gerência e supervisão de loja;EXPENSE;OTHER
+3.1.7;Equipe administrativa (financeiro, compras, comercial e marketing);EXPENSE;OTHER
+3.1.8;Horas extras e adicional noturno;EXPENSE;OTHER
+3.1.9;Comissões e bônus;EXPENSE;OTHER
+3.2;Pró-labore dos Sócios;EXPENSE;OTHER
+3.2.1;Pró-labore por sócio;EXPENSE;OTHER
+3.2.2;INSS sobre pró-labore;EXPENSE;OTHER
+3.3;Benefícios e Encargos dos Funcionários;EXPENSE;OTHER
+3.3.1;INSS e FGTS;EXPENSE;OTHER
+3.3.2;Vale alimentação e vale transporte;EXPENSE;OTHER
+3.3.3;Plano de saúde;EXPENSE;OTHER
+3.3.4;Uniformes e EPIs;EXPENSE;OTHER
+3.3.5;Férias, 13º e rescisões;EXPENSE;OTHER
+3.3.6;Refeições fornecidas;EXPENSE;OTHER
+3.4;Ocupação e Manutenção da Loja;EXPENSE;OTHER
+3.4.1;Aluguel;EXPENSE;OTHER
+3.4.2;Energia elétrica (câmaras frias, iluminação);EXPENSE;OTHER
+3.4.3;Água e esgoto;EXPENSE;OTHER
+3.4.4;Limpeza e conservação;EXPENSE;OTHER
+3.4.5;Manutenção de refrigeração e equipamentos;EXPENSE;OTHER
+3.4.6;Manutenção predial;EXPENSE;OTHER
+3.4.7;Segurança e monitoramento;EXPENSE;OTHER
+3.4.8;Dedetização e controle de pragas;EXPENSE;OTHER
+3.4.9;Gás;EXPENSE;OTHER
+3.5;Logística e Entrega;EXPENSE;OTHER
+3.5.1;Combustível e manutenção de frota;EXPENSE;OTHER
+3.5.2;Entregadores terceirizados;EXPENSE;OTHER
+3.5.3;Fretes entre depósito e loja;EXPENSE;OTHER
+3.5.4;Correios e transportadoras;EXPENSE;OTHER
+3.6;Marketing e Vendas;EXPENSE;OTHER
+3.6.1;Encartes e panfletos;EXPENSE;OTHER
+3.6.2;Tráfego pago (Google Ads, Meta Ads, TikTok Ads);EXPENSE;OTHER
+3.6.3;Redes sociais e criação de conteúdo;EXPENSE;OTHER
+3.6.4;Programa de fidelidade e cashback;EXPENSE;OTHER
+3.6.5;Comunicação visual e adesivos (logo);EXPENSE;OTHER
+3.6.6;Ações promocionais e degustações;EXPENSE;OTHER
+3.6.7;Comissões de representantes e afiliados;EXPENSE;OTHER
+3.7;Tecnologia e Sistemas;EXPENSE;OTHER
+3.7.1;Sistema de PDV e ERP;EXPENSE;OTHER
+3.7.2;Hospedagem (AWS, Google Cloud, Firebase, Vercel, MongoDB);EXPENSE;OTHER
+3.7.3;Ferramentas e assinaturas (Notion, Figma, Google Workspace, PostHog, OpenAI, Claude, GitHub, Zoho);EXPENSE;OTHER
+3.7.4;Serviço de e-mail;EXPENSE;OTHER
+3.7.5;Internet e telefonia (VoIP, Twilio, Zoom);EXPENSE;OTHER
+3.8;Serviços de Terceiros;EXPENSE;OTHER
+3.8.1;Jurídico e contábil;EXPENSE;OTHER
+3.8.2;Consultorias (SEO, varejo, abastecimento);EXPENSE;OTHER
+3.8.3;Freelancers de Funcionários (loja e administração);EXPENSE;OTHER
+3.8.3.1;Freelancers de operadores de caixa;EXPENSE;OTHER
+3.8.3.2;Freelancers de repositores e empacotadores;EXPENSE;OTHER
+3.8.3.3;Freelancers de açougueiros, padeiros e manipuladores;EXPENSE;OTHER
+3.8.3.4;Freelancers de fiscais de prevenção de perdas;EXPENSE;OTHER
+3.8.3.5;Freelancers de entregadores e separadores de pedidos;EXPENSE;OTHER
+3.8.3.6;Apoio administrativo;EXPENSE;OTHER
+3.8.3.7;Outras funções operacionais;EXPENSE;OTHER
+3.8.4;Freelancers Gerais;EXPENSE;OTHER
+3.8.4.1;Design (UX/UI e branding);EXPENSE;OTHER
+3.8.4.2;Desenvolvimento (front e back);EXPENSE;OTHER
+3.8.4.3;Conteúdo e copywriting;EXPENSE;OTHER
+3.8.4.4;Social media e vídeos;EXPENSE;OTHER
+3.8.4.5;Outros serviços específicos;EXPENSE;OTHER
+3.8.5;Agências externas;EXPENSE;OTHER
+3.9;Administrativo;EXPENSE;OTHER
+3.9.1;Material de escritório;EXPENSE;OTHER
+3.9.2;Cursos e capacitações;EXPENSE;OTHER
+3.9.3;Eventos internos e confraternizações;EXPENSE;OTHER
+3.9.4;Eventos e ações com clientes;EXPENSE;OTHER
+3.9.5;Despesas gerais (mercado, padaria, saúde e farmácia de uso interno);EXPENSE;OTHER
+4;Meios de Pagamento, Tributos, Investimentos e Capital;EXPENSE;OTHER
+4.1;Meios de Pagamento e Cobrança;EXPENSE;FINANCIAL
+4.1.1;Taxas de cartão de crédito e débito;EXPENSE;FINANCIAL
+4.1.2;Taxas de Pix e boleto (Asaas);EXPENSE;FINANCIAL
+4.1.3;Taxas de vale-alimentação e vale-refeição (Alelo, Sodexo, Ticket, VR);EXPENSE;FINANCIAL
+4.1.4;Taxas de marketplaces e apps de entrega;EXPENSE;FINANCIAL
+4.1.5;Antecipação de recebíveis;EXPENSE;FINANCIAL
+4.1.6;Chargebacks e fraudes;EXPENSE;FINANCIAL
+4.1.7;Serviços adicionais e notificações de cobrança;EXPENSE;FINANCIAL
+4.2;Tributos e Obrigações;EXPENSE;TAX
+4.2.1;Simples Nacional (DAS) ou ICMS, PIS/COFINS no regime normal;EXPENSE;TAX
+4.2.2;ISS (serviços e delivery);EXPENSE;TAX
+4.2.3;DARFs e tributos federais;EXPENSE;TAX
+4.2.4;Alvarás, licenças e vigilância sanitária;EXPENSE;TAX
+4.2.5;Taxas, cartório e Junta Comercial;EXPENSE;TAX
+4.2.6;Parcelamentos de tributos;EXPENSE;TAX
+4.2.7;Multas e juros por atraso;EXPENSE;TAX
+4.2.8;Honorários contábeis;EXPENSE;TAX
+4.3;Investimentos e Expansão;ASSET;
+4.3.1;Equipamentos de loja (gôndolas, câmaras frias, balanças, caixas);ASSET;
+4.3.2;Reformas e ampliações;ASSET;
+4.3.3;Novas lojas e unidades;ASSET;
+4.3.4;Desenvolvimento do site e do app Hoje;ASSET;
+4.3.5;Branding (logotipo, identidade visual, registro de marca no INPI);ASSET;
+4.3.6;Compra de ativos digitais (domínios);ASSET;
+4.3.7;Notebooks e periféricos;ASSET;
+4.3.8;Pesquisa e inovação (UX, novas soluções);ASSET;
+4.4;Eventos Extraordinários;EXPENSE;OTHER
+4.4.1;Multas contratuais e juros de mora;EXPENSE;OTHER
+4.4.2;Venda de equipamentos e ativos;REVENUE;
+4.4.3;Perdas extraordinárias (sinistros, enchentes, falta de energia);EXPENSE;OTHER
+4.4.4;Ajustes de exercícios anteriores;EXPENSE;OTHER
+4.4.5;Estornos de receita;EXPENSE;OTHER
+4.5;Distribuição de Resultados;EQUITY;
+4.5.1;Distribuição de lucros (mensal ou trimestral);EQUITY;
+4.5.2;Reserva de capital e caixa estratégico;EQUITY;
+4.5.3;Reinvestimento;EQUITY;
+4.6;Fluxo de Capital (extra-operacional);EXPENSE;OTHER
+4.6.1;Aportes de sócios e investidores;EQUITY;
+4.6.2;Empréstimos e financiamentos bancários;LIABILITY;
+4.6.3;Empréstimos de e para sócios e funcionários;LIABILITY;
+4.6.4;Cauções e garantias (de aluguel, de contrato e de fornecedores);ASSET;
+4.6.5;Devoluções e reembolsos de garantias;ASSET;

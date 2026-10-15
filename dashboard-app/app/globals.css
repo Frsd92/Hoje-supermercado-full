@@ -8216,12 +8216,21 @@ button.metric-mini:focus-visible {
 .financial-record-form button:hover:not(:disabled), .financial-record-actions button:hover:not(:disabled) { background: #145332; }
 .financial-record-form button:disabled, .financial-record-actions button:disabled { cursor: not-allowed; opacity: .55; }
 .financial-record-form > small { color: #78877e; font-size: .64rem; line-height: 1.4; }
+.financial-chart-import { display: grid; gap: 6px; padding: 10px; border: 1px dashed #cad9cd; border-radius: 8px; background: #f7faf7; }
+.financial-chart-import label { gap: 6px; }
+.financial-chart-import input[type="file"] { padding: 6px; background: #fff; font-size: .66rem; }
+.financial-chart-import a { color: #23613c; font-size: .68rem; font-weight: 750; }
+.financial-chart-import small { color: #78877e; font-size: .63rem; line-height: 1.45; }
 .financial-record-lists { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 12px; margin: 15px 0; }
 .financial-record-lists > div { display: grid; align-content: start; gap: 8px; min-width: 0; }
 .financial-account-list { display: grid; gap: 7px; margin: 0; padding: 0; list-style: none; }
 .financial-account-list li { display: grid; gap: 4px; padding: 9px 10px; border: 1px solid #e8eeea; border-radius: 8px; background: #fff; }
 .financial-account-list strong { color: #344b3a; font-size: .71rem; }
 .financial-account-list span, .financial-account-list small { color: #728078; font-size: .65rem; line-height: 1.4; }
+.financial-record-delete { width: fit-content; min-height: 30px; padding: 5px 8px; border: 1px solid #e6c5c2; border-radius: 7px; background: #fff; color: #a22b20; cursor: pointer; font: inherit; font-size: .64rem; font-weight: 750; }
+.financial-record-delete:hover:not(:disabled) { background: #fff3f2; }
+.financial-record-delete:focus-visible { outline: 3px solid rgba(162,43,32,.2); outline-offset: 2px; }
+.financial-record-delete:disabled { cursor: not-allowed; opacity: .55; }
 .financial-record-table-wrap { max-width: 100%; overflow: auto; border: 1px solid #edf1ee; border-radius: 9px; }
 .financial-record-table-wrap:focus-visible { outline: 3px solid rgba(47,118,86,.28); outline-offset: 2px; }
 .financial-record-table-wrap table { width: 100%; border-collapse: collapse; font-size: .7rem; text-align: left; }

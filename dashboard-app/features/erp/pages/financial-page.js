@@ -4,6 +4,7 @@ import Link from 'next/link';
 import { usePathname } from 'next/navigation';
 import { ArrowDownToLine, Banknote, CalendarDays, CircleDollarSign, PackageSearch, RefreshCw, ShoppingBag, Tag, TicketPercent, TrendingDown, TrendingUp } from 'lucide-react';
 import { useEffect, useState } from 'react';
+import { parseChartAccountsCsv } from '@/features/erp/api/financial-csv';
 
 const currencyFormatter = new Intl.NumberFormat('pt-BR', { style: 'currency', currency: 'BRL' });
 const financialScreenLabels = {
@@ -267,6 +268,8 @@ function FinancialRecords({ ledger, onSaved }) {
   const [notice, setNotice] = useState('');
   const [error, setError] = useState('');
   const [saving, setSaving] = useState(false);
+  const [importingChart, setImportingChart] = useState(false);
+  const [deletingAccount, setDeletingAccount] = useState('');
   const [processingExpense, setProcessingExpense] = useState('');
   const [selectedAccounts, setSelectedAccounts] = useState({});
   const [expenseForm, setExpenseForm] = useState({
@@ -341,7 +344,75 @@ function FinancialRecords({ ledger, onSaved }) {
     }
   };
 
-  const activeChartAccounts = ledger.chartAccounts.filter((account) => account.active && account.nature === 'EXPENSE');
+  const importChartAccounts = async (csvContent) => {
+    setImportingChart(true);
+    setError('');
+    setNotice('');
+    try {
+      const accounts = parseChartAccountsCsv(await csvContent);
+      const response = await fetch('/api/erp/financeiro/records', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ kind: 'chartAccountsImport', accounts }),
+      });
+      const result = await response.json();
+      if (!response.ok) throw new Error(result.error || 'Não foi possível importar o plano de contas.');
+      setNotice(`Importação concluída: ${result.createdCount} conta(s) adicionada(s); ${result.skippedCount} já existia(m) e foi/foram preservada(s).`);
+      await onSaved();
+    } catch (importError) {
+      setError(importError.message || 'Não foi possível importar o plano de contas.');
+    } finally {
+      setImportingChart(false);
+    }
+  };
+
+  const importChartCsv = (event) => {
+    const input = event.currentTarget;
+    const file = input.files?.[0];
+    input.value = '';
+    if (!file) return;
+    if (file.size > 1024 * 1024) {
+      setError('O CSV não pode ultrapassar 1 MB.');
+      return;
+    }
+    importChartAccounts(file.text());
+  };
+
+  const importProvidedChart = async () => {
+    const csvContent = fetch('/dados/plano-contas-hoje.csv', { cache: 'no-store' }).then(async (response) => {
+      if (!response.ok) throw new Error('Não foi possível carregar o CSV do plano Hoje.');
+      return response.text();
+    });
+    await importChartAccounts(csvContent);
+  };
+
+  const removeFinancialAccount = async (account) => {
+    if (!window.confirm(`Excluir a conta "${account.name}"? Se houver despesas vinculadas, ela será desativada para preservar o histórico.`)) return;
+    setDeletingAccount(account.id);
+    setError('');
+    setNotice('');
+    try {
+      const response = await fetch('/api/erp/financeiro/records', {
+        method: 'DELETE',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ financialAccountId: account.id }),
+      });
+      const result = await response.json();
+      if (!response.ok) throw new Error(result.error || 'Não foi possível excluir a conta.');
+      setNotice(result.archived
+        ? 'A conta possui despesas vinculadas e foi desativada para preservar o histórico.'
+        : 'Conta da empresa excluída.');
+      await onSaved();
+    } catch (deleteError) {
+      setError(deleteError.message || 'Não foi possível excluir a conta.');
+    } finally {
+      setDeletingAccount('');
+    }
+  };
+
+  const activeChartAccounts = ledger.chartAccounts.filter((account) => account.active
+    && account.nature === 'EXPENSE'
+    && !ledger.chartAccounts.some((child) => child.active && child.code.startsWith(`${account.code}.`)));
   const activeFinancialAccounts = ledger.financialAccounts.filter((account) => account.active);
   return <section className="financial-panel" id="financial-records" aria-labelledby="financial-records-title">
     <div className="financial-section-heading">
@@ -423,6 +494,14 @@ function FinancialRecords({ ledger, onSaved }) {
           <option value="FIXED">Fixa</option><option value="VARIABLE">Variável</option><option value="FINANCIAL">Financeira</option><option value="TAX">Tributos</option><option value="OTHER">Outra</option>
         </select></label>}
         <button type="submit" disabled={saving}>{saving ? 'Salvando…' : 'Adicionar ao plano'}</button>
+        <div className="financial-chart-import">
+          <button type="button" onClick={importProvidedChart} disabled={importingChart}>
+            {importingChart ? 'Importando…' : 'Importar plano Hoje do PDF (180 contas)'}
+          </button>
+          <label>Importar plano de contas CSV<input type="file" accept=".csv,text/csv" onChange={importChartCsv} disabled={importingChart} /></label>
+          <a href="/dados/plano-contas-hoje.csv" download>Baixar CSV do plano Hoje (PDF)</a>
+          <small>{importingChart ? 'Validando e importando contas…' : 'Códigos e nomes vêm do PDF. Natureza e comportamento são sugestões; valide com seu contador. Até 500 contas por arquivo.'}</small>
+        </div>
       </form>
     </div>
 
@@ -432,6 +511,10 @@ function FinancialRecords({ ledger, onSaved }) {
         {ledger.financialAccounts.length ? <ul className="financial-account-list">{ledger.financialAccounts.map((account) => <li key={account.id}>
           <strong>{account.name}</strong><span>{account.institution || 'Instituição não informada'} · {account.accountType === 'CASH' ? 'Caixa' : account.accountType === 'DIGITAL' ? 'Digital' : 'Bancária'}</span>
           <small>Saldo informado: {money(account.openingBalance)} em {formatDateOnly(account.balanceAsOf)}</small>
+          {!account.active && <small>Inativa</small>}
+          <button type="button" className="financial-record-delete" onClick={() => removeFinancialAccount(account)} disabled={deletingAccount === account.id}>
+            {deletingAccount === account.id ? 'Excluindo…' : 'Excluir conta'}
+          </button>
         </li>)}</ul> : <EmptyState>Nenhuma conta financeira cadastrada.</EmptyState>}
       </div>
       <div>
