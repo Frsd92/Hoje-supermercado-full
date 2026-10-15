@@ -1,6 +1,6 @@
 import assert from 'node:assert/strict';
 import test from 'node:test';
-import { buildFinancialMetrics } from './financial-metrics.js';
+import { buildAutomaticChartActivity, buildFinancialMetrics } from './financial-metrics.js';
 
 const order = ({
   id,
@@ -44,6 +44,39 @@ const item = ({
   unitCost,
   promotionType,
   promotionDiscount,
+});
+
+test('assigns eligible sales and confirmed refunds to automatic chart accounts without duplicating net values', () => {
+  const activity = buildAutomaticChartActivity([
+    order({ id: 'paid-order', total: '120.00', paymentStatus: 'paid', refundedAmount: '20.00' }),
+    order({ id: 'refunded-cancelled-order', total: '45.00', paymentStatus: 'canceled', refundedAmount: '60.00' }),
+    order({ id: 'pending-order', total: '90.00', paymentStatus: 'pending' }),
+    order({ id: 'failed-order', total: '30.00', paymentStatus: 'failed' }),
+  ]);
+
+  assert.deepEqual(activity.accounts.map(({ code, amount, count }) => ({ code, amount, count })), [
+    { code: 'AUTO-REV-SALES', amount: 165, count: 2 },
+    { code: 'AUTO-REV-REFUNDS', amount: -65, count: 2 },
+  ]);
+  assert.equal(activity.totalEntries, 4);
+  assert.deepEqual(activity.entries.map(({ type, orderId, amount }) => ({ type, orderId, amount })), [
+    { type: 'sale', orderId: 'refunded-cancelled-order', amount: 45 },
+    { type: 'refund', orderId: 'refunded-cancelled-order', amount: -45 },
+    { type: 'sale', orderId: 'paid-order', amount: 120 },
+    { type: 'refund', orderId: 'paid-order', amount: -20 },
+  ]);
+});
+
+test('limits automatic chart activity details while keeping full account totals', () => {
+  const activity = buildAutomaticChartActivity([
+    order({ id: 'newest', total: '20.00' }),
+    order({ id: 'older', total: '10.00', createdAt: '2026-09-01T15:00:00.000Z' }),
+  ], 1);
+
+  assert.equal(activity.entries.length, 1);
+  assert.equal(activity.entries[0].orderId, 'newest');
+  assert.equal(activity.totalEntries, 2);
+  assert.equal(activity.accounts[0].amount, 30);
 });
 
 test('calculates realized gross margin after item promotion, coupon allocation and cost snapshot', () => {

@@ -2,7 +2,7 @@
 
 import Link from 'next/link';
 import { usePathname } from 'next/navigation';
-import { ArrowDownToLine, Banknote, CalendarDays, CircleDollarSign, PackageSearch, RefreshCw, ShoppingBag, Tag, TicketPercent, TrendingDown, TrendingUp } from 'lucide-react';
+import { ArrowDownToLine, Banknote, CalendarDays, CircleDollarSign, PackageSearch, Printer, RefreshCw, ShoppingBag, Tag, TicketPercent, TrendingDown, TrendingUp } from 'lucide-react';
 import { useEffect, useState } from 'react';
 import { parseChartAccountsCsv } from '@/features/erp/api/financial-csv';
 
@@ -28,6 +28,14 @@ function money(value) {
 
 function percent(value) {
   return value === null || value === undefined ? '—' : `${Number(value).toLocaleString('pt-BR', { maximumFractionDigits: 2 })}%`;
+}
+
+function percentChange(current, previous, absolute = false) {
+  if (current === null || current === undefined || previous === null || previous === undefined) return '—';
+  const currentValue = absolute ? Math.abs(current) : current;
+  const previousValue = absolute ? Math.abs(previous) : previous;
+  if (previousValue === 0) return currentValue === 0 ? '0%' : 'Novo';
+  return percent((currentValue - previousValue) / Math.abs(previousValue) * 100);
 }
 
 function formatDate(value) {
@@ -258,6 +266,25 @@ function PeriodFilters({ preset, setPreset, startDate, endDate, setStartDate, se
   </section>;
 }
 
+function DrePeriodControls({ year, month, firstYear, onChange }) {
+  const currentYear = Number(getLocalDateKey(new Date()).slice(0, 4));
+  const oldestYear = Number.isInteger(firstYear) ? Math.min(firstYear, currentYear) : currentYear;
+  const years = Array.from({ length: Math.min(Math.max(currentYear - oldestYear + 1, 1), 100) }, (_, index) => String(currentYear - index));
+  return <div className="financial-dre-period-controls" aria-label="Período do DRE">
+    <label>Período<select value={month} onChange={(event) => onChange(year, event.target.value)}>
+      <option value="all">Janeiro a Dezembro</option>
+      {[
+        ['01', 'Janeiro'], ['02', 'Fevereiro'], ['03', 'Março'], ['04', 'Abril'],
+        ['05', 'Maio'], ['06', 'Junho'], ['07', 'Julho'], ['08', 'Agosto'],
+        ['09', 'Setembro'], ['10', 'Outubro'], ['11', 'Novembro'], ['12', 'Dezembro'],
+      ].map(([value, label]) => <option key={value} value={value}>{label}</option>)}
+    </select></label>
+    <label>Ano<select value={year} onChange={(event) => onChange(event.target.value, month)}>
+      {years.map((option) => <option key={option} value={option}>{option}</option>)}
+    </select></label>
+  </div>;
+}
+
 function daysUntil(value) {
   if (!value) return null;
   const dueDate = value instanceof Date ? value.toISOString().slice(0, 10) : String(value).slice(0, 10);
@@ -286,14 +313,6 @@ function FinancialRecords({ ledger, onSaved }) {
     nature: 'EXPENSE',
     expenseBehavior: 'FIXED',
   });
-  const [accountForm, setAccountForm] = useState({
-    name: '',
-    institution: '',
-    accountType: 'BANK',
-    openingBalance: '0.00',
-    balanceAsOf: getLocalDateKey(new Date()),
-  });
-
   const send = async (event, body, onSuccess) => {
     event.preventDefault();
     setSaving(true);
@@ -414,6 +433,8 @@ function FinancialRecords({ ledger, onSaved }) {
     && account.nature === 'EXPENSE'
     && !ledger.chartAccounts.some((child) => child.active && child.code.startsWith(`${account.code}.`)));
   const activeFinancialAccounts = ledger.financialAccounts.filter((account) => account.active);
+  const automaticAccountTotals = new Map((ledger.automaticChartActivity?.accounts || [])
+    .map((account) => [account.code, account]));
   return <section className="financial-panel" id="financial-records" aria-labelledby="financial-records-title">
     <div className="financial-section-heading">
       <div><span className="eyebrow">Lançamentos registrados</span><h2 id="financial-records-title">Despesas, contas e vencimentos</h2></div>
@@ -454,26 +475,6 @@ function FinancialRecords({ ledger, onSaved }) {
         <label>Observação (opcional)<input maxLength={1000} value={expenseForm.notes} onChange={(event) => setExpenseForm({ ...expenseForm, notes: event.target.value })} /></label>
         <button type="submit" disabled={saving || !activeChartAccounts.length}>{saving ? 'Salvando…' : 'Registrar despesa'}</button>
         {!activeChartAccounts.length && <small>Cadastre uma conta de despesa no plano de contas para lançar gastos.</small>}
-      </form>
-
-      <form className="financial-record-form" onSubmit={(event) => send(event, { kind: 'financialAccount', ...accountForm }, () => setAccountForm({
-        name: '',
-        institution: '',
-        accountType: 'BANK',
-        openingBalance: '0.00',
-        balanceAsOf: getLocalDateKey(new Date()),
-      }))}>
-        <h3>Cadastrar conta da empresa</h3>
-        <label>Nome para identificação<input required maxLength={120} placeholder="Ex.: Conta operacional" value={accountForm.name} onChange={(event) => setAccountForm({ ...accountForm, name: event.target.value })} /></label>
-        <label>Banco ou instituição (opcional)<input maxLength={120} value={accountForm.institution} onChange={(event) => setAccountForm({ ...accountForm, institution: event.target.value })} /></label>
-        <div className="financial-record-form-row">
-          <label>Tipo<select value={accountForm.accountType} onChange={(event) => setAccountForm({ ...accountForm, accountType: event.target.value })}>
-            <option value="BANK">Conta bancária</option><option value="DIGITAL">Conta digital</option><option value="CASH">Caixa físico</option>
-          </select></label>
-          <label>Saldo informado (R$)<input required type="number" step="0.01" value={accountForm.openingBalance} onChange={(event) => setAccountForm({ ...accountForm, openingBalance: event.target.value })} /></label>
-        </div>
-        <label>Saldo referente a<input required type="date" value={accountForm.balanceAsOf} onChange={(event) => setAccountForm({ ...accountForm, balanceAsOf: event.target.value })} /></label>
-        <button type="submit" disabled={saving}>{saving ? 'Salvando…' : 'Cadastrar conta'}</button>
       </form>
 
       <form className="financial-record-form" onSubmit={(event) => send(event, { kind: 'chartAccount', ...chartForm }, () => setChartForm({
@@ -522,10 +523,25 @@ function FinancialRecords({ ledger, onSaved }) {
         {ledger.chartAccounts.length ? <ul className="financial-account-list">{ledger.chartAccounts.map((account) => <li key={account.id}>
           <strong>{account.code} · {account.name}</strong>
           <span>{account.nature === 'EXPENSE' ? `Despesa ${account.expenseBehavior === 'FIXED' ? 'fixa' : account.expenseBehavior === 'VARIABLE' ? 'variável' : account.expenseBehavior === 'FINANCIAL' ? 'financeira' : account.expenseBehavior === 'TAX' ? 'tributária' : 'diversa'}` : account.nature === 'REVENUE' ? 'Receita' : account.nature === 'ASSET' ? 'Ativo' : account.nature === 'LIABILITY' ? 'Passivo' : 'Patrimônio líquido'}</span>
+          {automaticAccountTotals.has(account.code) && <small>Movimento automático: {money(automaticAccountTotals.get(account.code).amount)} · {automaticAccountTotals.get(account.code).count} lançamento(s)</small>}
           {!account.active && <small>Inativa</small>}
         </li>)}</ul> : <EmptyState>Nenhuma conta contábil cadastrada.</EmptyState>}
       </div>
     </div>
+
+    {ledger.automaticChartActivity && <div className="financial-record-table-wrap" role="region" aria-label="Vendas e estornos lançados automaticamente no plano de contas" tabIndex={0}>
+      <table>
+        <caption>Vendas e estornos confirmados são associados automaticamente às contas do plano. Baseado nos pedidos existentes; o DRE já os considera e não deve ser somado novamente. Exibindo os {ledger.automaticChartActivity.entries.length} movimentos mais recentes de {ledger.automaticChartActivity.totalEntries} no histórico.</caption>
+        <thead><tr><th scope="col">Movimento / conta</th><th scope="col">Data do pedido</th><th scope="col">Pedido</th><th scope="col">Valor</th></tr></thead>
+        <tbody>{ledger.automaticChartActivity.entries.map((entry) => <tr key={entry.id}>
+          <th scope="row">{entry.type === 'refund' ? 'Estorno' : 'Venda'}<small>{entry.accountCode} · {entry.accountName}</small></th>
+          <td>{formatDateOnly(entry.occurredAt)}</td>
+          <td>{entry.orderId}</td>
+          <td>{money(entry.amount)}</td>
+        </tr>)}</tbody>
+      </table>
+      {!ledger.automaticChartActivity.entries.length && <EmptyState>Ainda não há vendas ou estornos confirmados para registrar automaticamente.</EmptyState>}
+    </div>}
 
     <div className="financial-record-table-wrap" role="region" aria-label="Despesas registradas e seus vencimentos" tabIndex={0}>
       <table>
@@ -929,11 +945,14 @@ function PillarIndicatorGroup({ title, id, rows, perspective }) {
 
 export default function FinancialPage() {
   const pathname = usePathname();
+  const currentYear = Number(getLocalDateKey(new Date()).slice(0, 4));
   const [data, setData] = useState(null);
+  const [comparisonData, setComparisonData] = useState(null);
   const [ledger, setLedger] = useState(null);
   const [startDate, setStartDate] = useState('');
   const [endDate, setEndDate] = useState('');
   const [appliedPeriod, setAppliedPeriod] = useState({ startDate: '', endDate: '' });
+  const [drePeriod, setDrePeriod] = useState({ year: String(currentYear), month: 'all' });
   const [preset, setPreset] = useState('all');
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState('');
@@ -961,6 +980,7 @@ export default function FinancialPage() {
         const params = new URLSearchParams();
         if (appliedPeriod.startDate) params.set('startDate', appliedPeriod.startDate);
         if (appliedPeriod.endDate) params.set('endDate', appliedPeriod.endDate);
+        if (pathname === '/erp/financeiro/dre') params.set('compare', 'previous-year');
         const query = params.toString();
         const [response, ledgerResponse] = await Promise.all([
           fetch(`/api/erp/financeiro${query ? `?${query}` : ''}`, {
@@ -972,7 +992,8 @@ export default function FinancialPage() {
         const [result, ledgerResult] = await Promise.all([response.json(), ledgerResponse.json()]);
         if (!response.ok) throw new Error(result.error || 'Não foi possível carregar os indicadores financeiros.');
         if (!ledgerResponse.ok) throw new Error(ledgerResult.error || 'Não foi possível carregar os lançamentos financeiros.');
-        if (!result.financial || !Array.isArray(result.financial.promotionTypes) || !result.liquidity) {
+        if (!result.financial || !Array.isArray(result.financial.promotionTypes) || !result.liquidity || !result.automaticChartActivity
+          || (pathname === '/erp/financeiro/dre' && !result.comparisonFinancial)) {
           throw new Error('A resposta do financeiro veio incompleta. Tente atualizar a página.');
         }
         if (!Array.isArray(ledgerResult.chartAccounts) || !Array.isArray(ledgerResult.financialAccounts) || !Array.isArray(ledgerResult.expenses) || !ledgerResult.dueSummary) {
@@ -980,8 +1001,9 @@ export default function FinancialPage() {
         }
         if (active) {
           setData(result.financial);
+          setComparisonData(result.comparisonFinancial);
           setLiquidity(result.liquidity);
-          setLedger(ledgerResult);
+          setLedger({ ...ledgerResult, automaticChartActivity: result.automaticChartActivity });
           setRefundSyncWarning(syncWarning);
         }
       } catch (loadError) {
@@ -997,14 +1019,41 @@ export default function FinancialPage() {
       active = false;
       controller.abort();
     };
-  }, [appliedPeriod, refreshToken]);
+  }, [appliedPeriod, pathname, refreshToken]);
 
   const applyPeriod = (nextStartDate, nextEndDate) => {
     setStartDate(nextStartDate);
     setEndDate(nextEndDate);
     setData(null);
+    setComparisonData(null);
     setAppliedPeriod({ startDate: nextStartDate, endDate: nextEndDate });
   };
+
+  const applyDrePeriod = (year, month) => {
+    const start = month === 'all' ? `${year}-01-01` : `${year}-${month}-01`;
+    const end = month === 'all'
+      ? `${year}-12-31`
+      : new Date(Date.UTC(Number(year), Number(month), 0)).toISOString().slice(0, 10);
+    setDrePeriod({ year, month });
+    setStartDate('');
+    setEndDate('');
+    setPreset('custom');
+    setData(null);
+    setComparisonData(null);
+    setAppliedPeriod({ startDate: start, endDate: end });
+  };
+
+  useEffect(() => {
+    if (pathname !== '/erp/financeiro/dre') return;
+    const year = String(currentYear);
+    setDrePeriod({ year, month: 'all' });
+    setStartDate('');
+    setEndDate('');
+    setPreset('custom');
+    setData(null);
+    setComparisonData(null);
+    setAppliedPeriod({ startDate: `${year}-01-01`, endDate: `${year}-12-31` });
+  }, [pathname, currentYear]);
 
   const periodLabel = data?.period.allHistory
     ? `Todo o histórico desde ${formatDate(data.period.firstFinancialOrderDate || data.period.firstOrderDate)}`
@@ -1019,6 +1068,37 @@ export default function FinancialPage() {
   const knownLiquidity = Boolean(liquidity);
   const pillarIndicators = data && liquidity && ledger ? buildPillarIndicators(data, liquidity, ledger) : null;
   const financialScreen = pathname === '/erp/financeiro' ? 'home' : pathname.split('/').filter(Boolean).at(-1);
+  const dreFirstYear = data?.period.firstFinancialOrderDate
+    ? Number(data.period.firstFinancialOrderDate.slice(0, 4))
+    : currentYear;
+  const previousDreYear = String(Number(drePeriod.year) - 1);
+  const previousDre = comparisonData?.dre;
+  const previousPeriodHasData = Boolean(previousDre?.orders);
+  const previousMoney = (value) => previousPeriodHasData ? money(value) : 'Sem dados';
+  const dreChange = (current, previous, absolute = false) => (
+    previousPeriodHasData ? percentChange(current, previous, absolute) : '—'
+  );
+  const dreExpenseMax = Math.max(1, ...(data?.expenses.byAccount || []).map((expense) => expense.amount));
+  const dreExpenseRows = (() => {
+    const currentExpenses = data?.expenses.byAccount || [];
+    const previousExpenses = comparisonData?.expenses.byAccount || [];
+    const expenseKey = (expense) => expense.code || `${expense.name}:${expense.id}`;
+    const currentByKey = new Map(currentExpenses.map((expense) => [expenseKey(expense), expense]));
+    const previousByKey = new Map(previousExpenses.map((expense) => [expenseKey(expense), expense]));
+    return [...new Set([...currentByKey.keys(), ...previousByKey.keys()])]
+      .map((key) => ({
+        key,
+        current: currentByKey.get(key),
+        previous: previousByKey.get(key),
+      }))
+      .sort((first, second) => (
+        (second.current?.amount || 0) - (first.current?.amount || 0)
+        || (second.previous?.amount || 0) - (first.previous?.amount || 0)
+      ));
+  })();
+  const dreShare = (amount) => data?.dre.netRevenue > 0
+    ? percent(amount / data.dre.netRevenue * 100)
+    : '—';
 
   return <div className="erp-page financial-page">
     <header className="financial-header">
@@ -1040,7 +1120,7 @@ export default function FinancialPage() {
       </div>
     </header>
 
-    <PeriodFilters
+    {financialScreen !== 'dre' && <PeriodFilters
       preset={preset}
       setPreset={setPreset}
       startDate={startDate}
@@ -1048,7 +1128,7 @@ export default function FinancialPage() {
       setStartDate={setStartDate}
       setEndDate={setEndDate}
       onApply={applyPeriod}
-    />
+    />}
 
     {loading && <p className="financial-loading" role="status">{data ? 'Atualizando indicadores…' : 'Carregando dados financeiros…'}</p>}
     {error && <div className="financial-error" role="alert">
@@ -1066,11 +1146,11 @@ export default function FinancialPage() {
       <Link href="/erp/financeiro/mostradores-financeiro" aria-current={financialScreen === 'mostradores-financeiro' ? 'page' : undefined}>Mostradores Financeiro</Link>
       <Link href="/erp/financeiro/mostradores-contador" aria-current={financialScreen === 'mostradores-contador' ? 'page' : undefined}>Mostradores Contador</Link>
     </nav>
-    <div className="financial-period-summary" id="financial-home">
+    {financialScreen !== 'dre' && <div className="financial-period-summary" id="financial-home">
       <CalendarDays size={15} aria-hidden="true" />
         <span>{periodLabel}</span>
         <strong>{data.dre.orders.toLocaleString('pt-BR')} pedido(s) financeiros · {data.period.orders.toLocaleString('pt-BR')} operacionais</strong>
-      </div>
+      </div>}
 
       {((hasFinancialOrders && !data.totals.marginAvailable) || hasPromotionCoverageGap || data.coverage.unreconciledOrders > 0 || data.dre.cancelledOrders > 0) && <div className="financial-data-notice" role="status">
         {hasFinancialOrders && !data.totals.marginAvailable && <p>
@@ -1093,43 +1173,97 @@ export default function FinancialPage() {
         <MetricCard icon={TrendingDown} label="Despesas cadastradas" value={money(data.expenses.total)} detail={`${data.expenses.count} lançamento(s) por competência; pagamentos em aberto: ${money(data.expenses.openAmount)}`} chartValues={chartValues('operatingExpenses')} chartLabel={chartDescription('Despesas cadastradas')} />
       </section>}
 
-      {financialScreen === 'dre' && <section className="financial-panel" id="financial-dre" aria-labelledby="financial-dre-title">
-        <div className="financial-section-heading">
-          <div><span className="eyebrow">Pilar 1 · Eficiência, giro e margem</span><h2 id="financial-dre-title">Demonstração do Resultado (DRE)</h2></div>
-          <div className="financial-mode-switch" role="group" aria-label="Modelo da demonstração de resultado">
-            <button type="button" aria-pressed={dreMode === 'managerial'} onClick={() => setDreMode('managerial')}>Gerencial</button>
-            <button type="button" aria-pressed={dreMode === 'official'} onClick={() => setDreMode('official')}>Oficial</button>
+      {financialScreen === 'dre' && <section className="financial-panel financial-dre-report" id="financial-dre" aria-labelledby="financial-dre-title">
+        <div className="financial-section-heading financial-dre-heading">
+          <div><span className="eyebrow">Visão gerencial · CPC 51 / IFRS 18</span><h2 id="financial-dre-title">DRE — Demonstrativo do Resultado do Exercício</h2>
+            <p>Acompanhe o resultado dos pedidos e despesas registrados. Valores sem base suficiente são identificados, não estimados.</p>
+          </div>
+          <div className="financial-dre-actions">
+            <DrePeriodControls
+              year={drePeriod.year}
+              month={drePeriod.month}
+              firstYear={dreFirstYear}
+              onChange={applyDrePeriod}
+            />
+            <div className="financial-mode-switch" role="group" aria-label="Modelo da demonstração de resultado">
+              <button type="button" aria-pressed={dreMode === 'managerial'} onClick={() => setDreMode('managerial')}>Gerencial</button>
+              <button type="button" aria-pressed={dreMode === 'official'} onClick={() => setDreMode('official')}>Oficial</button>
+            </div>
+            <button type="button" className="financial-dre-print" onClick={() => window.print()}><Printer size={15} aria-hidden="true" />Exportar PDF</button>
           </div>
         </div>
         {dreMode === 'managerial' ? <>
-          <p className="financial-explainer">DRE gerencial preliminar baseada nos pedidos, no custo histórico dos itens e nas despesas manuais lançadas por competência. O total de despesas cadastradas não significa que toda a operação foi lançada.</p>
+          <p className="financial-explainer">Baseado nos pedidos e estornos confirmados, custo dos itens e despesas lançadas por competência. É uma visão gerencial parcial; despesas não cadastradas não são presumidas como zero.</p>
+          <section className="financial-dre-kpis" aria-label="Indicadores do DRE">
+            <MetricCard icon={Banknote} label="Receita líquida" value={money(data.dre.netRevenue)} detail={`Vendas após descontos e estornos · ${dreChange(data.dre.netRevenue, previousDre?.netRevenue)} vs. ${previousDreYear}`} chartValues={chartValues('revenue')} chartLabel={chartDescription('Receita líquida')} emphasis />
+            <MetricCard icon={CircleDollarSign} label="Lucro bruto" value={money(data.dre.grossProfit)} detail={`${data.dre.grossProfit === null ? `${data.coverage.knownCostItems} de ${data.totals.items} itens com custo; CMV incompleto` : 'Receita líquida menos CMV completo'} · ${dreChange(data.dre.grossProfit, previousDre?.grossProfit)} vs. ${previousDreYear}`} chartValues={chartValues('grossProfit')} chartLabel={chartDescription('Lucro bruto')} />
+            <MetricCard icon={TrendingUp} label="Resultado operacional registrado" value={money(data.dre.operatingResult)} detail={`Após despesas cadastradas · ${dreChange(data.dre.operatingResult, previousDre?.operatingResult)} vs. ${previousDreYear}`} chartValues={trendRows.map((entry) => entry.grossProfit === null ? null : entry.grossProfit - entry.operatingExpenses)} chartLabel={chartDescription('Resultado após despesas registradas')} />
+            <MetricCard icon={CircleDollarSign} label="Lucro líquido oficial" value="Não apurado" detail="Exige escrituração completa, tributos e resultado financeiro" />
+          </section>
+
           <div className="financial-dre-layout">
-            <div className="financial-table-scroll" role="region" aria-label="DRE gerencial preliminar" tabIndex={0}>
-              <table>
-                <caption>Apuração operacional; esta demonstração não substitui a escrituração contábil oficial</caption>
-                <thead><tr><th scope="col">Linha do resultado</th><th scope="col">Valor</th><th scope="col">Base</th></tr></thead>
-                <tbody>
-                  <tr><th scope="row">Vendas após descontos, antes de estornos</th><td>{money(data.dre.salesBeforeRefunds)}</td><td>{data.dre.orders} pedido(s) financeiro(s), incluindo pedidos cancelados com pagamento/estorno reconhecido</td></tr>
-                  <tr><th scope="row">(-) Estornos confirmados</th><td className="financial-negative">{money(-data.dre.refunds)}</td><td>Valores confirmados registrados no ERP/Pagar.me</td></tr>
-                  <tr className="financial-dre-total"><th scope="row">(=) Receita líquida após estornos</th><td>{money(data.dre.netRevenue)}</td><td>Vendas menos estornos confirmados</td></tr>
-                  <tr><th scope="row">(-) CMV</th><td>{data.dre.costOfGoodsSold === null ? 'Não apurado integralmente' : money(-data.dre.costOfGoodsSold)}</td><td>{data.dre.costOfGoodsSold === null ? `${data.coverage.knownCostItems} de ${data.totals.items} itens com custo` : 'Custo registrado nos itens vendidos'}</td></tr>
-                  <tr className="financial-dre-total"><th scope="row">(=) Lucro bruto</th><td>{money(data.dre.grossProfit)}</td><td>Receita líquida menos CMV completo</td></tr>
-                  <tr><th scope="row">(-) Despesas cadastradas no período</th><td>{money(-data.dre.operatingExpenses)}</td><td>{data.expenses.count} lançamento(s) por competência; pagas {money(data.expenses.paidAmount)} · em aberto {money(data.expenses.openAmount)}</td></tr>
-                  <tr className="financial-dre-total"><th scope="row">(=) Resultado após despesas registradas</th><td>{money(data.dre.operatingResult)}</td><td>Gerencial e parcial; despesas não lançadas não são presumidas como zero</td></tr>
-                  <tr><th scope="row">EBITDA / resultado líquido oficial</th><td>Não apurado</td><td>Faltam escrituração completa, tributos, juros, depreciação e amortização</td></tr>
-                </tbody>
-              </table>
-            </div>
-            <div className="financial-dre-chart" role="img" aria-label={`Composição do resultado: receita líquida ${money(data.dre.netRevenue)}, CMV ${money(data.dre.costOfGoodsSold)}, despesas registradas ${money(data.dre.operatingExpenses)}, lucro bruto ${money(data.dre.grossProfit)}`}>
-              <span>Composição da receita</span>
-              <div><i style={{ width: `${data.dre.netRevenue > 0 ? 100 : 0}%` }} /><label>Receita líquida <strong>{money(data.dre.netRevenue)}</strong></label></div>
-              <div><i className="cost" style={{ width: `${data.dre.costOfGoodsSold !== null && data.dre.netRevenue > 0 ? Math.min(100, Math.max(0, data.dre.costOfGoodsSold / data.dre.netRevenue * 100)) : 0}%` }} /><label>CMV completo <strong>{money(data.dre.costOfGoodsSold)}</strong></label></div>
-              <div><i className="expenses" style={{ width: `${data.dre.netRevenue > 0 ? Math.min(100, Math.max(0, data.dre.operatingExpenses / data.dre.netRevenue * 100)) : 0}%` }} /><label>Despesas cadastradas <strong>{money(data.dre.operatingExpenses)}</strong></label></div>
-              <div><i className="profit" style={{ width: `${data.dre.grossProfit !== null && data.dre.netRevenue > 0 ? Math.min(100, Math.max(0, data.dre.grossProfit / data.dre.netRevenue * 100)) : 0}%` }} /><label>Lucro bruto <strong>{money(data.dre.grossProfit)}</strong></label></div>
-              <small>Escala relativa à receita líquida. Quando o CMV está incompleto, a composição não estima o lucro.</small>
-            </div>
+            <section className="financial-dre-table-card" aria-labelledby="financial-dre-structure-title">
+              <div className="financial-dre-subheading"><h3 id="financial-dre-structure-title">Estrutura do resultado</h3><span>{drePeriod.month === 'all' ? `Ano ${drePeriod.year} vs. ${previousDreYear}` : `${periodLabel} vs. mesmo período de ${previousDreYear}`}</span></div>
+              <div className="financial-table-scroll financial-dre-table-scroll" role="region" aria-label="Estrutura do DRE gerencial" tabIndex={0}>
+                <table className="financial-dre-table">
+                  <caption>Comparação do período selecionado com o mesmo período do ano anterior; percentuais sobre a receita líquida</caption>
+                  <thead><tr><th scope="col">Descrição</th><th scope="col">{drePeriod.year}</th><th scope="col">{previousDreYear}</th><th scope="col">Variação</th><th scope="col">Base / cobertura</th></tr></thead>
+                  <tbody>
+                    <tr className="financial-dre-section"><th scope="row" colSpan="5">1. Receita de vendas</th></tr>
+                    <tr><th scope="row">Vendas após descontos, antes de estornos</th><td>{money(data.dre.salesBeforeRefunds)}</td><td>{previousMoney(previousDre?.salesBeforeRefunds)}</td><td>{dreChange(data.dre.salesBeforeRefunds, previousDre?.salesBeforeRefunds)}</td><td>{data.dre.orders} pedido(s) com atividade financeira</td></tr>
+                    <tr><th scope="row">(-) Estornos confirmados</th><td className="financial-negative">{money(-data.dre.refunds)}</td><td className="financial-negative">{previousPeriodHasData ? money(-previousDre.refunds) : 'Sem dados'}</td><td>{dreChange(-data.dre.refunds, previousDre ? -previousDre.refunds : null, true)}</td><td>Valores confirmados no ERP / Pagar.me</td></tr>
+                    <tr className="financial-dre-total"><th scope="row">(=) Receita líquida</th><td>{money(data.dre.netRevenue)}</td><td>{previousMoney(previousDre?.netRevenue)}</td><td>{dreChange(data.dre.netRevenue, previousDre?.netRevenue)}</td><td>Vendas menos estornos confirmados</td></tr>
+
+                    <tr className="financial-dre-section"><th scope="row" colSpan="5">2. Custos das mercadorias vendidas (CMV)</th></tr>
+                    <tr><th scope="row">(-) CMV</th><td className="financial-negative">{data.dre.costOfGoodsSold === null ? 'Não apurado integralmente' : money(-data.dre.costOfGoodsSold)}</td><td className="financial-negative">{!previousPeriodHasData ? 'Sem dados' : previousDre.costOfGoodsSold === null ? 'Não apurado' : money(-previousDre.costOfGoodsSold)}</td><td>{dreChange(data.dre.costOfGoodsSold, previousDre?.costOfGoodsSold, true)}</td><td>{data.dre.costOfGoodsSold === null ? `${data.coverage.knownCostItems} de ${data.totals.items} itens com custo válido` : 'Custo registrado nos itens vendidos'}</td></tr>
+                    <tr className="financial-dre-total"><th scope="row">(=) Lucro bruto</th><td>{money(data.dre.grossProfit)}</td><td>{previousPeriodHasData ? money(previousDre.grossProfit) : 'Sem dados'}</td><td>{dreChange(data.dre.grossProfit, previousDre?.grossProfit)}</td><td>Receita líquida menos CMV completo</td></tr>
+
+                    <tr className="financial-dre-section"><th scope="row" colSpan="5">3. Despesas operacionais registradas</th></tr>
+                    {dreExpenseRows.map(({ key, current, previous }) => <tr className="financial-dre-detail" key={key}>
+                      <th scope="row">{current?.code || previous?.code ? `${current?.code || previous?.code} · ` : ''}{current?.name || previous?.name}</th><td className="financial-negative">{current ? money(-current.amount) : '—'}</td><td className="financial-negative">{previous ? money(-previous.amount) : '—'}</td><td>{current && previous ? percentChange(current.amount, previous.amount, true) : '—'}</td><td>{current ? `${current.count} lançamento(s) por competência` : 'Sem lançamentos neste período'}</td>
+                    </tr>)}
+                    {!dreExpenseRows.length && <tr><th scope="row">Nenhuma despesa lançada no período</th><td>—</td><td>—</td><td>—</td><td>Cadastre despesas para incluí-las no DRE</td></tr>}
+                    <tr className="financial-dre-total"><th scope="row">(-) Total de despesas registradas</th><td className="financial-negative">{money(-data.dre.operatingExpenses)}</td><td className="financial-negative">{previousPeriodHasData ? money(-previousDre.dre.operatingExpenses) : 'Sem dados'}</td><td>{dreChange(data.dre.operatingExpenses, previousDre?.dre.operatingExpenses, true)}</td><td>{data.expenses.count} lançamento(s); pagas {money(data.expenses.paidAmount)} · em aberto {money(data.expenses.openAmount)}</td></tr>
+                    <tr className="financial-dre-result"><th scope="row">(=) Resultado após despesas registradas</th><td>{money(data.dre.operatingResult)}</td><td>{previousPeriodHasData ? money(previousDre.operatingResult) : 'Sem dados'}</td><td>{dreChange(data.dre.operatingResult, previousDre?.operatingResult)}</td><td>Parcial; despesas não cadastradas não estão incluídas</td></tr>
+
+                    <tr className="financial-dre-section"><th scope="row" colSpan="5">4. Resultado financeiro, tributos e lucro líquido</th></tr>
+                    <tr><th scope="row">Receitas / despesas financeiras e tributos</th><td>Não apurados</td><td>Não apurados</td><td>—</td><td>Faltam escrituração, conciliação e apuração fiscal completas</td></tr>
+                    <tr className="financial-dre-net"><th scope="row">(=) Lucro líquido oficial</th><td>Não apurado</td><td>Não apurado</td><td>—</td><td>Não substitui demonstração contábil assinada</td></tr>
+                  </tbody>
+                </table>
+              </div>
+            </section>
+
+            <aside className="financial-dre-sidebar" aria-label="Indicadores e gráficos do DRE">
+              <section className="financial-dre-sidecard">
+                <h3>Principais indicadores</h3>
+                <div className="financial-dre-indicators">
+                  <article><span>Margem bruta</span><strong>{percent(data.totals.grossMargin)}</strong><small>{data.totals.marginAvailable ? 'CMV completo' : 'Base de custos incompleta'}</small></article>
+                  <article><span>Despesas / receita líquida</span><strong>{data.dre.netRevenue > 0 ? percent(data.dre.operatingExpenses / data.dre.netRevenue * 100) : '—'}</strong><small>Somente despesas registradas</small></article>
+                  <article><span>Margem após despesas registradas</span><strong>{data.dre.operatingResult === null || data.dre.netRevenue <= 0 ? '—' : percent(data.dre.operatingResult / data.dre.netRevenue * 100)}</strong><small>Parcial, não é margem líquida oficial</small></article>
+                  <article><span>Estornos confirmados</span><strong>{data.dre.refunds ? percent(data.dre.refunds / Math.max(data.dre.salesBeforeRefunds, 1) * 100) : '0%'}</strong><small>{money(data.dre.refunds)} no período</small></article>
+                </div>
+              </section>
+              <section className="financial-dre-sidecard">
+                <div className="financial-dre-subheading"><h3>Evolução do resultado</h3><span>{trendLabel}</span></div>
+                <FinancialTrend trend={data.trend} granularity={data.trendGranularity} />
+                <div className="financial-dre-legend"><span><i /> Receita líquida</span><span className="profit"><i /> Lucro bruto conhecido</span></div>
+                <MetricChart values={trendRows.map((entry) => entry.grossProfit)} label={chartDescription('Lucro bruto conhecido')} color="blue" />
+                <small>Lucro bruto é exibido apenas quando o custo dos itens está completo.</small>
+              </section>
+              <section className="financial-dre-sidecard">
+                <h3>Composição das despesas registradas</h3>
+                {data.expenses.byAccount.length ? <div className="financial-dre-expense-chart" role="list" aria-label="Despesas por conta do plano">
+                  {data.expenses.byAccount.slice(0, 6).map((expense) => <div role="listitem" key={expense.id}>
+                    <span><strong>{expense.name}</strong><b>{money(expense.amount)}</b></span>
+                    <i><em style={{ width: `${Math.min(100, expense.amount / dreExpenseMax * 100)}%` }} /></i>
+                  </div>)}
+                </div> : <EmptyState>Sem despesas registradas neste período.</EmptyState>}
+                {data.expenses.byAccount.length > 6 && <small>Exibindo 6 de {data.expenses.byAccount.length} contas; a tabela contém todas.</small>}
+              </section>
+            </aside>
           </div>
-          <p className="financial-source-note">Ponto de equilíbrio, EBITDA completo, margem de contribuição após custos variáveis, ciclo operacional e PME não são calculados sem despesas, folha, taxas, saldos de caixa e datas completas de recebimento/baixa de estoque.</p>
+          <p className="financial-source-note">A estrutura segue a apresentação gerencial do exemplo. O DRE oficial, EBITDA, impostos, receitas financeiras e lucro líquido exigem escrituração contábil, fiscal e custos completos; o sistema não presume dados ausentes como zero.</p>
         </> : <div className="financial-official-notice" role="status">
           <strong>DRE oficial indisponível — não é um relatório fiscal/contábil.</strong>
           <p>O plano de contas e os lançamentos gerenciais podem ser cadastrados no ERP, mas ainda não há escrituração em partidas dobradas, regime fiscal/contábil completo, tributos apurados, folha, depreciação, juros ou encerramento contábil. O painel não produz nem substitui uma demonstração oficial assinada por profissional habilitado.</p>

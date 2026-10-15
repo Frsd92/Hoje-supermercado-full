@@ -3,13 +3,20 @@ import { authOptions } from '@/auth';
 import { hasErpAccess } from '@/features/erp/access';
 import { prisma } from '@/lib/prisma';
 import { buildSupplierPayablesSummary } from './financial-liquidity.js';
-import { buildFinancialMetrics } from './financial-metrics.js';
+import { buildAutomaticChartActivity, buildFinancialMetrics } from './financial-metrics.js';
 
 function isValidDateFilter(value) {
   if (!value) return true;
   if (!/^\d{4}-\d{2}-\d{2}$/.test(value)) return false;
   const parsed = new Date(`${value}T00:00:00.000Z`);
   return Number.isFinite(parsed.getTime()) && parsed.toISOString().slice(0, 10) === value;
+}
+
+function previousYearDate(value) {
+  const [year, month, day] = value.split('-').map(Number);
+  const previousYear = year - 1;
+  const lastDay = new Date(Date.UTC(previousYear, month, 0)).getUTCDate();
+  return `${previousYear}-${String(month).padStart(2, '0')}-${String(Math.min(day, lastDay)).padStart(2, '0')}`;
 }
 
 export async function GET(request) {
@@ -19,6 +26,7 @@ export async function GET(request) {
   const searchParams = new URL(request.url).searchParams;
   const startDate = searchParams.get('startDate') || '';
   const endDate = searchParams.get('endDate') || '';
+  const comparePreviousYear = searchParams.get('compare') === 'previous-year';
   if (!isValidDateFilter(startDate) || !isValidDateFilter(endDate) || (startDate && endDate && startDate > endDate)) {
     return Response.json({ error: 'O período informado é inválido.' }, { status: 400 });
   }
@@ -53,8 +61,21 @@ export async function GET(request) {
       }),
     ]);
 
+    const financial = buildFinancialMetrics({ orders, campaigns, expenses, startDate, endDate });
+    const comparisonFinancial = comparePreviousYear && startDate && endDate
+      ? buildFinancialMetrics({
+        orders,
+        campaigns,
+        expenses,
+        startDate: previousYearDate(startDate),
+        endDate: previousYearDate(endDate),
+      })
+      : null;
+
     return Response.json({
-      financial: buildFinancialMetrics({ orders, campaigns, expenses, startDate, endDate }),
+      financial,
+      comparisonFinancial,
+      automaticChartActivity: buildAutomaticChartActivity(orders),
       liquidity: buildSupplierPayablesSummary(payables.map((payable) => ({
         amount: payable.amount,
         status: payable.status,

@@ -36,6 +36,11 @@ const discountTypeOrder = [
   'no_discount',
 ];
 
+export const automaticChartAccounts = [
+  { code: 'AUTO-REV-SALES', name: 'Vendas (pedidos)', nature: 'REVENUE', expenseBehavior: null },
+  { code: 'AUTO-REV-REFUNDS', name: 'Estornos de vendas', nature: 'REVENUE', expenseBehavior: null },
+];
+
 function parseAmount(value) {
   if (typeof value === 'number') return Number.isFinite(value) ? value : null;
   if (value === null || value === undefined || value === '') return null;
@@ -48,6 +53,75 @@ function parseAmount(value) {
 
 function roundMoney(value) {
   return Number((Number(value) || 0).toFixed(2));
+}
+
+export function buildAutomaticChartActivity(sourceOrders = [], limit = 100) {
+  const accounts = new Map(automaticChartAccounts.map((account) => [account.code, {
+    ...account,
+    amount: 0,
+    count: 0,
+  }]));
+  const entries = [];
+
+  for (const order of Array.isArray(sourceOrders) ? sourceOrders : []) {
+    const paymentStatus = String(order.paymentStatus || '').toLowerCase();
+    const orderAmount = parseAmount(order.total);
+    const refundedAmount = orderAmount === null
+      ? 0
+      : Math.min(Math.max(0, orderAmount), Math.max(0, parseAmount(order.refundedAmount) || 0));
+    if (['pending', 'failed', 'canceled'].includes(paymentStatus) && refundedAmount === 0) continue;
+    if (orderAmount === null || orderAmount < 0) continue;
+
+    const date = order.createdAt instanceof Date ? order.createdAt : new Date(order.createdAt);
+    if (!Number.isFinite(date.getTime())) continue;
+    const occurredAt = date.toISOString();
+    const orderId = String(order.id || '');
+    const movements = [
+      ...(orderAmount > 0 ? [{
+        accountCode: automaticChartAccounts[0].code,
+        description: `Venda do pedido ${orderId}`,
+        amount: orderAmount,
+        type: 'sale',
+      }] : []),
+      ...(refundedAmount > 0 ? [{
+        accountCode: automaticChartAccounts[1].code,
+        description: `Estorno do pedido ${orderId}`,
+        amount: -refundedAmount,
+        type: 'refund',
+      }] : []),
+    ];
+
+    for (const movement of movements) {
+      const account = accounts.get(movement.accountCode);
+      account.amount += movement.amount;
+      account.count += 1;
+      entries.push({
+        id: `${movement.type}:${orderId}`,
+        accountCode: movement.accountCode,
+        accountName: account.name,
+        description: movement.description,
+        orderId,
+        occurredAt,
+        amount: roundMoney(movement.amount),
+        type: movement.type,
+      });
+    }
+  }
+
+  entries.sort((first, second) => (
+    second.occurredAt.localeCompare(first.occurredAt)
+    || second.orderId.localeCompare(first.orderId)
+    || (first.type === 'sale' ? -1 : 1)
+  ));
+
+  return {
+    accounts: [...accounts.values()].map((account) => ({
+      ...account,
+      amount: roundMoney(account.amount),
+    })),
+    entries: entries.slice(0, Math.max(0, limit)),
+    totalEntries: entries.length,
+  };
 }
 
 function getDateKey(date) {

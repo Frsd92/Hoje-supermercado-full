@@ -2,6 +2,7 @@ import { getServerSession } from 'next-auth';
 import { authOptions } from '@/auth';
 import { erpActorLabel, hasErpAccess } from '@/features/erp/access';
 import { prisma } from '@/lib/prisma';
+import { automaticChartAccounts } from '@/features/erp/api/financial-metrics';
 
 const headers = { 'Cache-Control': 'private, no-store, max-age=0' };
 const expenseBehaviors = new Set(['FIXED', 'VARIABLE', 'FINANCIAL', 'TAX', 'OTHER']);
@@ -41,6 +42,10 @@ export async function GET() {
     const todayDate = dateOnly(today);
     const weekEnd = new Date(todayDate);
     weekEnd.setUTCDate(weekEnd.getUTCDate() + 7);
+    await prisma.financialChartAccount.createMany({
+      data: automaticChartAccounts,
+      skipDuplicates: true,
+    });
     const [chartAccounts, financialAccounts, expenses, openCount, openTotal, overdueCount, dueTodayCount, dueNextSevenDays] = await Promise.all([
       prisma.financialChartAccount.findMany({
         orderBy: [{ active: 'desc' }, { code: 'asc' }],
