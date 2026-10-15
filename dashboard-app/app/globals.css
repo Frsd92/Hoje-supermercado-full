@@ -8095,6 +8095,22 @@ button.metric-mini:focus-visible {
 .financial-pillar-nav a { min-height: 38px; display: inline-flex; align-items: center; padding: 8px 11px; border: 1px solid #e1e8e3; border-radius: 8px; color: #28513b; font-size: .72rem; font-weight: 750; text-decoration: none; }
 .financial-pillar-nav a:hover { background: #f2f8f3; border-color: #8fb39a; }
 .financial-pillar-nav a:focus-visible, .financial-mode-switch button:focus-visible { outline: 3px solid rgba(47,118,86,.28); outline-offset: 2px; }
+.financial-pillar-dashboard { min-width: 0; padding: 17px; border: 1px solid #e1e8e3; border-radius: 14px; background: #fff; box-shadow: 0 10px 24px rgba(15,23,42,.045); }
+.financial-pillar-dashboard-grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(min(100%, 270px), 1fr)); gap: 10px; }
+.financial-pillar-indicator { display: grid; align-content: start; gap: 10px; min-width: 0; padding: 13px; border: 1px solid #e7ece8; border-radius: 11px; background: #fcfdfc; }
+.financial-pillar-indicator-heading { display: flex; align-items: flex-start; justify-content: space-between; gap: 8px; }
+.financial-pillar-indicator-heading h3 { margin: 0; color: #263a2d; font-size: .8rem; line-height: 1.4; }
+.financial-pillar-indicator-value { overflow-wrap: anywhere; color: #1e3428; font-size: clamp(1.05rem, 2vw, 1.35rem); font-variant-numeric: tabular-nums; }
+.financial-pillar-indicator-value-label { color: #748178; font-size: .65rem; line-height: 1.45; }
+.financial-pillar-indicator-columns { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 9px; }
+.financial-pillar-indicator-columns section { display: grid; align-content: start; gap: 6px; min-width: 0; padding: 9px; border-radius: 8px; background: #f5f8f5; }
+.financial-pillar-indicator-columns section > span { color: #52655a; font-size: .66rem; font-weight: 800; }
+.financial-pillar-indicator-columns section > span small { display: block; margin-top: 2px; color: #7b8980; font-size: .59rem; font-weight: 600; }
+.financial-pillar-indicator-columns section > strong { color: #344b3a; font-size: .68rem; line-height: 1.4; }
+.financial-pillar-indicator-columns section > p { margin: 0; color: #748178; font-size: .64rem; line-height: 1.5; }
+.financial-pillar-chart { display: grid; gap: 2px; min-width: 0; margin: 0; padding: 7px 8px 4px; border-top: 1px solid #edf1ee; }
+.financial-pillar-chart .financial-metric-chart { display: block; }
+.financial-pillar-chart figcaption { color: #748178; font-size: .6rem; line-height: 1.4; }
 .financial-metric { position: relative; display: grid; grid-template-columns: 34px minmax(0, 1fr); align-content: start; align-items: center; column-gap: 10px; row-gap: 5px; min-width: 0; min-height: 142px; padding: 14px; border: 1px solid #e1e8e3; border-radius: 13px; background: #fff; box-shadow: 0 8px 20px rgba(15,23,42,.035); }
 .financial-metric.emphasis { border-color: #b6d7bf; background: linear-gradient(145deg, #f1faf3, #fff); }
 .financial-metric-icon { display: grid; width: 32px; height: 32px; grid-row: span 2; place-items: center; border-radius: 9px; background: #eef7f0; color: #277545; }
@@ -8220,6 +8236,8 @@ button.metric-mini:focus-visible {
   .financial-page { gap: 12px; }
   .financial-pillar-nav { position: static; }
   .financial-pillar-nav a { flex: 1 1 145px; justify-content: center; text-align: center; }
+  .financial-pillar-dashboard { padding: 12px; }
+  .financial-pillar-indicator-columns { grid-template-columns: minmax(0, 1fr); }
   .financial-dre-layout, .financial-liquidity-grid { grid-template-columns: minmax(0, 1fr); }
   .financial-record-forms { grid-template-columns: repeat(2, minmax(0, 1fr)); }
   .financial-record-summary { grid-template-columns: repeat(2, minmax(0, 1fr)); }

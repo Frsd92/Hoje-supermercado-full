@@ -492,6 +492,11 @@ function buildPillarIndicators(data, liquidity, ledger) {
         accountingValue: 'Não escriturada neste ERP',
         finance: `Vendas líquidas ${money(data.dre.netRevenue)}; despesas cadastradas ${expenseAmount}; CMV ${money(cmv)}.`,
         financeValue: data.dre.operatingResult === null ? 'Resultado não apurado por CMV incompleto' : `Resultado após despesas cadastradas: ${money(data.dre.operatingResult)}`,
+        financeAmount: data.dre.operatingResult,
+        financeUnit: 'currency',
+        financeAmountLabel: 'Resultado gerencial com custos conhecidos e despesas cadastradas',
+        chartValues: data.trend.map((entry) => entry.grossProfit === null ? null : entry.grossProfit - entry.operatingExpenses),
+        chartLabel: 'Resultado após despesas registradas por período',
         status: 'partial',
       },
       {
@@ -500,6 +505,11 @@ function buildPillarIndicators(data, liquidity, ledger) {
         accountingValue: 'Não apurada por contabilidade',
         finance: `Lucro bruto registrado: ${money(grossProfit)}; despesas variáveis lançadas: ${money(data.expenses.variable)}. Custos variáveis podem estar incompletos.`,
         financeValue: grossProfit === null ? 'Sem margem bruta completa' : `Base parcial: ${money(grossProfit - data.expenses.variable)}`,
+        financeAmount: grossProfit === null ? null : grossProfit - data.expenses.variable,
+        financeUnit: 'currency',
+        financeAmountLabel: 'Lucro bruto menos despesas variáveis cadastradas; cobertura parcial',
+        chartValues: data.trend.map((entry) => entry.grossProfit),
+        chartLabel: 'Lucro bruto registrado por período; não desconta todos os custos variáveis',
         status: 'partial',
       },
       {
@@ -508,6 +518,7 @@ function buildPillarIndicators(data, liquidity, ledger) {
         accountingValue: 'Sem custos completos e escrituração',
         finance: `Despesas fixas cadastradas: ${money(data.expenses.fixed)}; o cadastro pode não representar todos os custos da operação.`,
         financeValue: 'Não calculado — custos fixos e variáveis não têm cobertura confirmada',
+        financeAmount: null,
         status: 'unavailable',
       },
       {
@@ -516,6 +527,7 @@ function buildPillarIndicators(data, liquidity, ledger) {
         accountingValue: 'Não escriturado',
         finance: `Despesas financeiras: ${money(data.expenses.financial)}; tributos cadastrados: ${money(data.expenses.tax)}. Depreciação e amortização não são registradas.`,
         financeValue: 'Não apurado — faltam despesas e depreciação/amortização completas',
+        financeAmount: null,
         status: 'unavailable',
       },
       {
@@ -524,6 +536,7 @@ function buildPillarIndicators(data, liquidity, ledger) {
         accountingValue: 'Sem trilha completa',
         finance: 'Há datas de NF-e, vencimentos e pedidos, mas os recebimentos de vendas e movimentos de estoque não estão conciliados.',
         financeValue: 'Não calculado — recebimentos e giro de estoque não conciliados',
+        financeAmount: null,
         status: 'unavailable',
       },
       {
@@ -532,7 +545,12 @@ function buildPillarIndicators(data, liquidity, ledger) {
         accountingValue: 'Não há inventário contábil fechado',
         finance: `CMV calculado em ${itemsWithCost} itens com custo histórico.`,
         financeValue: cmv === null ? 'CMV incompleto; PME sem histórico de giro valorizado' : `CMV registrado: ${money(cmv)}; PME ainda sem base de movimentação`,
-        status: cmv === null ? 'partial' : 'partial',
+        financeAmount: data.totals.knownCostOfGoodsSold,
+        financeUnit: 'currency',
+        financeAmountLabel: 'CMV conhecido; itens sem custo ficam de fora',
+        chartValues: data.trend.map((entry) => entry.knownCostOfGoodsSold),
+        chartLabel: 'Custo conhecido dos produtos vendidos por período',
+        status: 'partial',
       },
       {
         name: 'Markup por setor e Curva ABC',
@@ -540,6 +558,11 @@ function buildPillarIndicators(data, liquidity, ledger) {
         accountingValue: 'Custo oficial não consolidado',
         finance: `${productsEvaluated} produto(s) com venda no período estão disponíveis para análise por SKU.`,
         financeValue: 'Markup setorial e classificação ABC ainda não calculados',
+        financeAmount: data.products.length ? data.products.reduce((sum, product) => sum + product.revenue, 0) : null,
+        financeUnit: 'currency',
+        financeAmountLabel: 'Faturamento dos produtos listados; markup/Curva ABC não calculados',
+        chartValues: data.products.slice(0, 12).map((product) => product.revenue),
+        chartLabel: 'Faturamento por produto nos itens mais vendidos',
         status: productsEvaluated ? 'partial' : 'unavailable',
       },
       {
@@ -548,6 +571,7 @@ function buildPillarIndicators(data, liquidity, ledger) {
         accountingValue: 'Sem lançamentos de perdas contábeis',
         finance: 'O módulo financeiro não recebe baixas de perdas com custo e motivo conciliados.',
         financeValue: 'Sem total financeiro de perdas confirmado',
+        financeAmount: null,
         status: 'unavailable',
       },
       {
@@ -556,6 +580,7 @@ function buildPillarIndicators(data, liquidity, ledger) {
         accountingValue: 'Sem módulo de folha/contabilidade',
         finance: 'O ERP não possui cadastro de folha nem custos de desligamento.',
         financeValue: 'Não calculado — dados de RH ausentes',
+        financeAmount: null,
         status: 'unavailable',
       },
     ],
@@ -566,6 +591,11 @@ function buildPillarIndicators(data, liquidity, ledger) {
         accountingValue: 'Não gerado neste ERP',
         finance: `Despesas da empresa pagas e registradas: ${paidCompanyExpenses}; fornecedores pagos neste mês: ${money(liquidity.paidThisMonth)}.`,
         financeValue: 'Parcial — vendas e extratos bancários não conciliados',
+        financeAmount: liquidity.paidThisMonth,
+        financeUnit: 'currency',
+        financeAmountLabel: 'Pagamentos registrados a fornecedores neste mês',
+        chartValues: liquidity.paidTrend.map((entry) => entry.paid),
+        chartLabel: 'Pagamentos a fornecedores registrados por mês',
         status: 'partial',
       },
       {
@@ -574,6 +604,9 @@ function buildPillarIndicators(data, liquidity, ledger) {
         accountingValue: 'Ativos e passivos não fechados',
         finance: `Obrigações abertas registradas: fornecedores ${supplierOpen}; despesas manuais ${money(data.expenses.openAmount)}.`,
         financeValue: 'Parcial — faltam recebíveis e estoque valorizado',
+        financeAmount: liquidity.outstanding + data.expenses.openAmount,
+        financeUnit: 'currency',
+        financeAmountLabel: 'Obrigações abertas registradas; não é NCG',
         status: 'partial',
       },
       {
@@ -582,6 +615,11 @@ function buildPillarIndicators(data, liquidity, ledger) {
         accountingValue: 'Sem balanço patrimonial completo',
         finance: `${accountCount} conta(s) financeira(s) ativa(s) cadastrada(s); saldos informados têm datas de referência próprias.`,
         financeValue: 'Índices não calculados — ativos e passivos não conciliados',
+        financeAmount: accountCount ? ledger.financialAccounts
+          .filter((account) => account.active)
+          .reduce((sum, account) => sum + Number(account.openingBalance), 0) : null,
+        financeUnit: 'currency',
+        financeAmountLabel: 'Soma de saldos informados nas contas ativas; não conciliada',
         status: accountCount ? 'partial' : 'unavailable',
       },
       {
@@ -590,6 +628,7 @@ function buildPillarIndicators(data, liquidity, ledger) {
         accountingValue: 'Sem conciliação contábil de recebíveis',
         finance: 'O ERP registra pedidos e estornos, mas não concilia liquidações da adquirente com extrato bancário.',
         financeValue: 'Não conciliado',
+        financeAmount: null,
         status: 'unavailable',
       },
       {
@@ -598,6 +637,7 @@ function buildPillarIndicators(data, liquidity, ledger) {
         accountingValue: 'Datas de liquidação incompletas',
         finance: `${liquidity.openCount} parcela(s) de NF-e lançada(s) em aberto; recebimentos de clientes não conciliados.`,
         financeValue: 'PMR/PMF não calculados — faltam baixas conciliadas',
+        financeAmount: null,
         status: 'partial',
       },
       {
@@ -606,6 +646,11 @@ function buildPillarIndicators(data, liquidity, ledger) {
         accountingValue: 'Orçamento contábil não cadastrado',
         finance: `${expenseCount} despesa(s) cadastrada(s), total de ${expenseAmount} por competência.`,
         financeValue: 'Realizado disponível; orçamento mensal ainda não cadastrado',
+        financeAmount: data.expenses.total,
+        financeUnit: 'currency',
+        financeAmountLabel: 'Despesas cadastradas por competência; orçamento não informado',
+        chartValues: data.trend.map((entry) => entry.operatingExpenses),
+        chartLabel: 'Despesas lançadas por competência ao longo do período',
         status: expenseCount ? 'partial' : 'unavailable',
       },
       {
@@ -614,6 +659,11 @@ function buildPillarIndicators(data, liquidity, ledger) {
         accountingValue: 'Sem carteira de recebíveis contabilizada',
         finance: `Parcelas de fornecedor vencidas: ${money(liquidity.overdue)}; não representa inadimplência de clientes.`,
         financeValue: 'PDD não calculada — recebíveis e chargebacks não conciliados',
+        financeAmount: liquidity.overdue,
+        financeUnit: 'currency',
+        financeAmountLabel: 'Contas de fornecedores vencidas; não representa inadimplência de clientes',
+        chartValues: [liquidity.openByDueDate.overdue, liquidity.openByDueDate.dueNext30Days, liquidity.openByDueDate.dueLaterOrUnscheduled],
+        chartLabel: 'Contas a pagar por faixa de vencimento',
         status: 'partial',
       },
       {
@@ -622,6 +672,7 @@ function buildPillarIndicators(data, liquidity, ledger) {
         accountingValue: 'Sem saldos contábeis fechados',
         finance: 'Existem snapshots de saldo informados e despesas, mas sem histórico completo de entradas/saídas.',
         financeValue: 'Não calculado — fluxo de caixa incompleto',
+        financeAmount: null,
         status: 'unavailable',
       },
       {
@@ -630,6 +681,7 @@ function buildPillarIndicators(data, liquidity, ledger) {
         accountingValue: 'Sem balanços comparáveis',
         finance: 'Não há série de capital de giro e crescimento conciliada com saldo de caixa.',
         financeValue: 'Não calculado',
+        financeAmount: null,
         status: 'unavailable',
       },
       {
@@ -638,6 +690,7 @@ function buildPillarIndicators(data, liquidity, ledger) {
         accountingValue: 'Sem apuração fiscal no ERP',
         finance: 'NF-e de entrada estão registradas, mas créditos não foram validados por regime e escrituração.',
         financeValue: 'Não calculado — requer validação fiscal',
+        financeAmount: null,
         status: 'unavailable',
       },
     ],
@@ -648,6 +701,7 @@ function buildPillarIndicators(data, liquidity, ledger) {
         accountingValue: 'Não escriturado',
         finance: 'Há cadastros de contas e obrigações de NF-e, mas não um razão patrimonial completo.',
         financeValue: 'Não gerado',
+        financeAmount: null,
         status: 'unavailable',
       },
       {
@@ -656,6 +710,7 @@ function buildPillarIndicators(data, liquidity, ledger) {
         accountingValue: 'Ativos/investimentos sem escrituração',
         finance: 'Não há imobilizado nem histórico de capital investido cadastrado.',
         financeValue: 'Não calculado',
+        financeAmount: null,
         status: 'unavailable',
       },
       {
@@ -664,6 +719,7 @@ function buildPillarIndicators(data, liquidity, ledger) {
         accountingValue: 'Patrimônio líquido não apurado',
         finance: 'Não há saldo de capital dos sócios e lucro líquido fechado.',
         financeValue: 'Não calculado',
+        financeAmount: null,
         status: 'unavailable',
       },
       {
@@ -672,6 +728,7 @@ function buildPillarIndicators(data, liquidity, ledger) {
         accountingValue: 'Sem demonstrações contábeis fechadas',
         finance: 'Não há custo de capital, fluxo projetado ou avaliação de mercado cadastrados.',
         financeValue: 'Não calculado',
+        financeAmount: null,
         status: 'unavailable',
       },
       {
@@ -680,6 +737,11 @@ function buildPillarIndicators(data, liquidity, ledger) {
         accountingValue: 'Ativo/passivo total não apurados',
         finance: `Obrigações em aberto de NF-e: ${supplierOpen}; esse valor isolado não é índice de endividamento.`,
         financeValue: 'Parcial — demais dívidas e ativos não cadastrados',
+        financeAmount: liquidity.outstanding,
+        financeUnit: 'currency',
+        financeAmountLabel: 'Obrigações abertas de fornecedores; não é índice de endividamento',
+        chartValues: liquidity.paidTrend.map((entry) => entry.paid),
+        chartLabel: 'Histórico de pagamentos a fornecedores; dívidas adicionais não conciliadas',
         status: 'partial',
       },
       {
@@ -688,6 +750,7 @@ function buildPillarIndicators(data, liquidity, ledger) {
         accountingValue: 'Fontes de capital não escrituradas',
         finance: 'Faltam custo de dívida, capital próprio e estrutura de financiamento.',
         financeValue: 'Não calculado',
+        financeAmount: null,
         status: 'unavailable',
       },
       {
@@ -696,6 +759,9 @@ function buildPillarIndicators(data, liquidity, ledger) {
         accountingValue: 'DRE contábil completa indisponível',
         finance: `Despesas financeiras cadastradas no período: ${money(data.expenses.financial)}; resultado e juros não estão completos.`,
         financeValue: 'Não calculado',
+        financeAmount: data.expenses.financial,
+        financeUnit: 'currency',
+        financeAmountLabel: 'Despesas financeiras cadastradas; GAF não calculado',
         status: 'unavailable',
       },
       {
@@ -704,6 +770,7 @@ function buildPillarIndicators(data, liquidity, ledger) {
         accountingValue: 'Imobilizado não escriturado',
         finance: 'Não há cadastro de ativos imobilizados e valor recuperável.',
         financeValue: 'Não calculado',
+        financeAmount: null,
         status: 'unavailable',
       },
       {
@@ -712,6 +779,7 @@ function buildPillarIndicators(data, liquidity, ledger) {
         accountingValue: 'Sem saldos contábeis de patrimônio',
         finance: 'Distribuições e reinvestimentos não são registrados no ERP.',
         financeValue: 'Não gerado',
+        financeAmount: null,
         status: 'unavailable',
       },
       {
@@ -720,6 +788,7 @@ function buildPillarIndicators(data, liquidity, ledger) {
         accountingValue: 'Sem cadastro contábil de contingências',
         finance: 'Não há registros de provisões e riscos jurídicos integrados.',
         financeValue: 'Não calculado',
+        financeAmount: null,
         status: 'unavailable',
       },
     ],
@@ -727,21 +796,39 @@ function buildPillarIndicators(data, liquidity, ledger) {
 }
 
 function PillarIndicatorTable({ title, id, rows }) {
-  return <section className="financial-panel financial-indicator-panel" id={id} aria-labelledby={`${id}-title`}>
+  return <section className="financial-pillar-dashboard" id={id} aria-labelledby={`${id}-title`}>
     <div className="financial-section-heading">
-      <div><span className="eyebrow">Mapa completo de mostradores</span><h2 id={`${id}-title`}>{title}</h2></div>
-      <span>{rows.length} indicadores do PDF</span>
+      <div><span className="eyebrow">Mostradores do pilar</span><h2 id={`${id}-title`}>{title}</h2></div>
+      <span>{rows.length} indicadores</span>
     </div>
-    <div className="financial-indicator-table-wrap" role="region" aria-label={`${title}: contabilidade e financeiro`} tabIndex={0}>
-      <table>
-        <caption>Dados de origem/compliance e aplicação/rotina; lacunas aparecem como indisponíveis, nunca como zero presumido</caption>
-        <thead><tr><th scope="col">Indicador</th><th scope="col">Contabilidade <small>Origem / compliance</small></th><th scope="col">Financeiro <small>Aplicação / rotina</small></th></tr></thead>
-        <tbody>{rows.map((row) => <tr key={row.name}>
-          <th scope="row">{row.name}</th>
-          <td><span className="financial-indicator-state unavailable">{indicatorStatusLabels.unavailable}</span><p>{row.accountingValue}</p><small>{row.accounting}</small></td>
-          <td><span className={`financial-indicator-state ${row.status}`}>{indicatorStatusLabels[row.status]}</span><p>{row.financeValue}</p><small>{row.finance}</small></td>
-        </tr>)}</tbody>
-      </table>
+    <div className="financial-pillar-dashboard-grid" aria-label={`${title}: indicadores por contabilidade e financeiro`}>
+      {rows.map((row) => <article className="financial-pillar-indicator" key={row.name}>
+        <div className="financial-pillar-indicator-heading">
+          <h3>{row.name}</h3>
+          <span className={`financial-indicator-state ${row.status}`}>{indicatorStatusLabels[row.status]}</span>
+        </div>
+        {row.financeAmount !== undefined && <strong className="financial-pillar-indicator-value">
+          {row.financeAmount === null ? '—' : row.financeUnit === 'percent' ? percent(row.financeAmount) : row.financeUnit === 'days' ? `${Number(row.financeAmount).toLocaleString('pt-BR', { maximumFractionDigits: 1 })} dias` : money(row.financeAmount)}
+        </strong>}
+        {row.financeAmountLabel && <small className="financial-pillar-indicator-value-label">{row.financeAmountLabel}</small>}
+        <div className="financial-pillar-indicator-columns">
+          <section>
+            <span>Contabilidade <small>Origem / compliance</small></span>
+            <strong>{row.accountingValue}</strong>
+            <p>{row.accounting}</p>
+          </section>
+          <section>
+            <span>Financeiro <small>Aplicação / rotina</small></span>
+            {row.financeAmount === undefined && <strong>{row.financeValue}</strong>}
+            {row.financeAmount !== undefined && <strong>{row.financeValue}</strong>}
+            <p>{row.finance}</p>
+          </section>
+        </div>
+        {row.chartValues && <figure className="financial-pillar-chart">
+          <MetricChart values={row.chartValues} label={row.chartLabel} color="blue" />
+          <figcaption>{row.chartLabel}</figcaption>
+        </figure>}
+      </article>)}
     </div>
   </section>;
 }
