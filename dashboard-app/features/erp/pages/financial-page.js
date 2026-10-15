@@ -1,10 +1,19 @@
 'use client';
 
 import Link from 'next/link';
+import { usePathname } from 'next/navigation';
 import { ArrowDownToLine, Banknote, CalendarDays, CircleDollarSign, PackageSearch, RefreshCw, ShoppingBag, Tag, TicketPercent, TrendingDown, TrendingUp } from 'lucide-react';
 import { useEffect, useState } from 'react';
 
 const currencyFormatter = new Intl.NumberFormat('pt-BR', { style: 'currency', currency: 'BRL' });
+const financialScreenLabels = {
+  home: 'Início',
+  dre: 'DRE',
+  'fluxo-de-caixa': 'Fluxo de Caixa',
+  despesas: 'Despesas, contas e vencimentos',
+  'mostradores-financeiro': 'Mostradores Financeiro',
+  'mostradores-contador': 'Mostradores Contador',
+};
 const saopauloDateFormatter = new Intl.DateTimeFormat('en-CA', {
   timeZone: 'America/Sao_Paulo',
   year: 'numeric',
@@ -795,45 +804,48 @@ function buildPillarIndicators(data, liquidity, ledger) {
   };
 }
 
-function PillarIndicatorTable({ title, id, rows }) {
-  return <section className="financial-pillar-dashboard" id={id} aria-labelledby={`${id}-title`}>
-    <div className="financial-section-heading">
-      <div><span className="eyebrow">Mostradores do pilar</span><h2 id={`${id}-title`}>{title}</h2></div>
-      <span>{rows.length} indicadores</span>
-    </div>
-    <div className="financial-pillar-dashboard-grid" aria-label={`${title}: indicadores por contabilidade e financeiro`}>
-      {rows.map((row) => <article className="financial-pillar-indicator" key={row.name}>
-        <div className="financial-pillar-indicator-heading">
-          <h3>{row.name}</h3>
-          <span className={`financial-indicator-state ${row.status}`}>{indicatorStatusLabels[row.status]}</span>
-        </div>
-        {row.financeAmount !== undefined && <strong className="financial-pillar-indicator-value">
-          {row.financeAmount === null ? '—' : row.financeUnit === 'percent' ? percent(row.financeAmount) : row.financeUnit === 'days' ? `${Number(row.financeAmount).toLocaleString('pt-BR', { maximumFractionDigits: 1 })} dias` : money(row.financeAmount)}
-        </strong>}
-        {row.financeAmountLabel && <small className="financial-pillar-indicator-value-label">{row.financeAmountLabel}</small>}
-        <div className="financial-pillar-indicator-columns">
-          <section>
-            <span>Contabilidade <small>Origem / compliance</small></span>
-            <strong>{row.accountingValue}</strong>
-            <p>{row.accounting}</p>
-          </section>
-          <section>
-            <span>Financeiro <small>Aplicação / rotina</small></span>
-            {row.financeAmount === undefined && <strong>{row.financeValue}</strong>}
-            {row.financeAmount !== undefined && <strong>{row.financeValue}</strong>}
-            <p>{row.finance}</p>
-          </section>
-        </div>
-        {row.chartValues && <figure className="financial-pillar-chart">
-          <MetricChart values={row.chartValues} label={row.chartLabel} color="blue" />
-          <figcaption>{row.chartLabel}</figcaption>
-        </figure>}
-      </article>)}
-    </div>
-  </section>;
+function PillarIndicatorGroup({ title, id, rows, perspective }) {
+  const isFinancial = perspective === 'financial';
+  return <details className="financial-pillar-disclosure" id={id}>
+    <summary>
+      <span>{title}</span>
+      <small>{rows.length} mostradores</small>
+    </summary>
+    <section className="financial-pillar-dashboard" aria-label={`${title}: mostradores ${isFinancial ? 'financeiros' : 'contábeis'}`}>
+      <div className="financial-pillar-dashboard-grid">
+        {rows.map((row) => <article className="financial-pillar-indicator" key={row.name}>
+          <div className="financial-pillar-indicator-heading">
+            <h3>{row.name}</h3>
+            <span className={`financial-indicator-state ${row.status}`}>{indicatorStatusLabels[row.status]}</span>
+          </div>
+          {isFinancial ? <>
+            <strong className="financial-pillar-indicator-value">
+              {row.financeAmount === undefined
+                ? row.financeValue
+                : row.financeAmount === null
+                  ? '—'
+                  : row.financeUnit === 'percent' ? percent(row.financeAmount) : row.financeUnit === 'days' ? `${Number(row.financeAmount).toLocaleString('pt-BR', { maximumFractionDigits: 1 })} dias` : money(row.financeAmount)}
+            </strong>
+            <small className="financial-pillar-indicator-value-label">
+              {row.financeAmount === null ? row.financeValue : row.financeAmountLabel || row.financeValue}
+            </small>
+            <p className="financial-pillar-indicator-description">{row.finance}</p>
+          </> : <>
+            <strong className="financial-pillar-indicator-value">{row.accountingValue}</strong>
+            <p className="financial-pillar-indicator-description">{row.accounting}</p>
+          </>}
+          {isFinancial && row.chartValues && <figure className="financial-pillar-chart">
+            <MetricChart values={row.chartValues} label={row.chartLabel} color="blue" />
+            <figcaption>{row.chartLabel}</figcaption>
+          </figure>}
+        </article>)}
+      </div>
+    </section>
+  </details>;
 }
 
 export default function FinancialPage() {
+  const pathname = usePathname();
   const [data, setData] = useState(null);
   const [ledger, setLedger] = useState(null);
   const [startDate, setStartDate] = useState('');
@@ -923,13 +935,14 @@ export default function FinancialPage() {
   const chartDescription = (label) => `${label} ${trendLabel} no período selecionado`;
   const knownLiquidity = Boolean(liquidity);
   const pillarIndicators = data && liquidity && ledger ? buildPillarIndicators(data, liquidity, ledger) : null;
+  const financialScreen = pathname === '/erp/financeiro' ? 'home' : pathname.split('/').filter(Boolean).at(-1);
 
   return <div className="erp-page financial-page">
     <header className="financial-header">
       <div>
         <span className="eyebrow">Gestão financeira</span>
-        <h1>Financeiro</h1>
-        <p>Visão gerencial organizada em três pilares, com dados de vendas, custos registrados e contas a pagar.</p>
+        <h1>{financialScreenLabels[financialScreen] || 'Financeiro'}</h1>
+        <p>{financialScreen === 'home' ? 'Visão geral dos resultados e acesso às áreas financeiras.' : financialScreen === 'mostradores-contador' ? 'Origem e compliance contábil nos três pilares de decisão.' : financialScreen === 'mostradores-financeiro' ? 'Aplicação e rotina financeira nos três pilares de decisão.' : 'Dados financeiros do período selecionado.'}</p>
       </div>
       <div className="financial-header-actions">
         <Link href="/erp/orders">Pedidos</Link>
@@ -962,8 +975,16 @@ export default function FinancialPage() {
     {refundSyncWarning && <div className="financial-data-notice" role="status"><p>Alguns estornos não puderam ser confirmados agora. Os valores do período podem estar temporariamente desatualizados; atualize novamente em instantes.</p></div>}
     {!data && !loading && !error && <EmptyState>Nenhum dado financeiro disponível.</EmptyState>}
     {data && ledger && <>
-      <div className="financial-period-summary">
-        <CalendarDays size={15} aria-hidden="true" />
+    <nav className="financial-section-nav" aria-label="Navegação do Financeiro">
+      <Link href="/erp/financeiro" aria-current={financialScreen === 'home' ? 'page' : undefined}>Início</Link>
+      <Link href="/erp/financeiro/dre" aria-current={financialScreen === 'dre' ? 'page' : undefined}>DRE</Link>
+      <Link href="/erp/financeiro/fluxo-de-caixa" aria-current={financialScreen === 'fluxo-de-caixa' ? 'page' : undefined}>Fluxo de Caixa</Link>
+      <Link href="/erp/financeiro/despesas" aria-current={financialScreen === 'despesas' ? 'page' : undefined}>Despesas, contas e vencimentos</Link>
+      <Link href="/erp/financeiro/mostradores-financeiro" aria-current={financialScreen === 'mostradores-financeiro' ? 'page' : undefined}>Mostradores Financeiro</Link>
+      <Link href="/erp/financeiro/mostradores-contador" aria-current={financialScreen === 'mostradores-contador' ? 'page' : undefined}>Mostradores Contador</Link>
+    </nav>
+    <div className="financial-period-summary" id="financial-home">
+      <CalendarDays size={15} aria-hidden="true" />
         <span>{periodLabel}</span>
         <strong>{data.dre.orders.toLocaleString('pt-BR')} pedido(s) financeiros · {data.period.orders.toLocaleString('pt-BR')} operacionais</strong>
       </div>
@@ -979,15 +1000,7 @@ export default function FinancialPage() {
         {data.dre.cancelledOrders > 0 && <p>{data.dre.cancelledOrders} pedido(s) cancelado(s) com atividade financeira entram no DRE e nos estornos, mas não nas análises operacionais de vendas. Quando houver saldo após estorno, o CMV fica sem apuração até confirmar o destino do estoque.</p>}
       </div>}
 
-      <nav className="financial-pillar-nav" aria-label="Navegação pelos pilares financeiros">
-        <a href="#financial-operational">1 · Eficiência operacional</a>
-        <a href="#financial-liquidity">2 · Liquidez e tesouraria</a>
-        <a href="#financial-value">3 · Valor e rentabilidade</a>
-        <a href="#financial-indicators-operational">Mostradores contábeis e financeiros</a>
-        <a href="#financial-records">Despesas e vencimentos</a>
-      </nav>
-
-      <section className="financial-metrics" aria-label="Indicadores principais; gráficos mostram a evolução no período selecionado">
+      {financialScreen === 'home' && <section className="financial-metrics" aria-label="Indicadores principais; gráficos mostram a evolução no período selecionado">
         <MetricCard icon={Banknote} label="Faturamento líquido" value={money(data.dre.netRevenue)} detail="Vendas registradas menos estornos confirmados" chartValues={chartValues('revenue')} chartLabel={chartDescription('Faturamento líquido')} emphasis />
         <MetricCard icon={CircleDollarSign} label="Lucro bruto" value={money(data.totals.grossProfit)} detail="Receita líquida menos CMV; antes das despesas" chartValues={chartValues('grossProfit')} chartLabel={chartDescription('Lucro bruto')} />
         <MetricCard icon={TrendingUp} label="Margem bruta real" value={percent(data.totals.grossMargin)} detail="Após descontos, estornos e custo por item vendido" chartValues={chartValues('grossMargin')} chartLabel={chartDescription('Margem bruta')} />
@@ -995,11 +1008,9 @@ export default function FinancialPage() {
         <MetricCard icon={Tag} label="Descontos registrados" value={money(data.totals.discounts)} detail="Descontos em itens e no pedido" chartValues={chartValues('discounts')} chartLabel={chartDescription('Descontos registrados')} />
         <MetricCard icon={ShoppingBag} label="Ticket médio" value={money(data.dre.orders ? data.dre.netRevenue / data.dre.orders : 0)} detail={`${data.dre.orders.toLocaleString('pt-BR')} pedido(s) financeiros no período`} chartValues={chartValues('averageTicket')} chartLabel={chartDescription('Ticket médio')} />
         <MetricCard icon={TrendingDown} label="Despesas cadastradas" value={money(data.expenses.total)} detail={`${data.expenses.count} lançamento(s) por competência; pagamentos em aberto: ${money(data.expenses.openAmount)}`} chartValues={chartValues('operatingExpenses')} chartLabel={chartDescription('Despesas cadastradas')} />
-      </section>
+      </section>}
 
-      <FinancialRecords ledger={ledger} onSaved={() => setRefreshToken((token) => token + 1)} />
-
-      <section className="financial-panel" id="financial-operational" aria-labelledby="financial-dre-title">
+      {financialScreen === 'dre' && <section className="financial-panel" id="financial-dre" aria-labelledby="financial-dre-title">
         <div className="financial-section-heading">
           <div><span className="eyebrow">Pilar 1 · Eficiência, giro e margem</span><h2 id="financial-dre-title">Demonstração do Resultado (DRE)</h2></div>
           <div className="financial-mode-switch" role="group" aria-label="Modelo da demonstração de resultado">
@@ -1041,15 +1052,15 @@ export default function FinancialPage() {
           <p>O plano de contas e os lançamentos gerenciais podem ser cadastrados no ERP, mas ainda não há escrituração em partidas dobradas, regime fiscal/contábil completo, tributos apurados, folha, depreciação, juros ou encerramento contábil. O painel não produz nem substitui uma demonstração oficial assinada por profissional habilitado.</p>
           <Link href="/erp/suppliers/invoices">Consultar notas fiscais e contas a pagar registradas</Link>
         </div>}
-      </section>
-      {pillarIndicators && <PillarIndicatorTable id="financial-indicators-operational" title="1 · Eficiência, giro e margem" rows={pillarIndicators.operational} />}
+      </section>}
 
+      {financialScreen === 'fluxo-de-caixa' && <>
       <section className="financial-panel" id="financial-liquidity" aria-labelledby="financial-liquidity-title">
         <div className="financial-section-heading">
-          <div><span className="eyebrow">Pilar 2 · Fôlego, caixa e tesouraria</span><h2 id="financial-liquidity-title">Liquidez registrada no ERP</h2></div>
+          <div><span className="eyebrow">Pilar 2 · Fôlego, caixa e tesouraria</span><h2 id="financial-liquidity-title">Obrigações e liquidez registradas</h2></div>
           <Link href="/erp/suppliers/invoices">Notas fiscais e parcelas a pagar</Link>
         </div>
-        <p className="financial-explainer">Visão das parcelas de NF-e já lançadas. Não representa saldo bancário nem fluxo de caixa completo: recebimentos de adquirentes e extratos ainda não são conciliados automaticamente.</p>
+        <p className="financial-explainer">Visão das parcelas de NF-e já lançadas e do faturamento registrado. Vendas não equivalem a entradas de caixa; recebimentos de adquirentes, despesas pagas e extratos ainda não estão conciliados para gerar um fluxo de caixa completo.</p>
         {knownLiquidity ? <div className="financial-liquidity-grid">
           <article><span>Contas a pagar em aberto</span><strong>{money(liquidity.outstanding)}</strong><small>{liquidity.openCount} parcela(s) de NF-e lançada(s)</small><MetricChart values={[liquidity.openByDueDate.overdue, liquidity.openByDueDate.dueNext30Days, liquidity.openByDueDate.dueLaterOrUnscheduled]} label="Distribuição do saldo em aberto por faixa de vencimento" color="blue" /></article>
           <article><span>Parcelas vencidas</span><strong>{money(liquidity.overdue)}</strong><small>Saldo vencido sem baixa registrada</small><div className="financial-liquidity-breakdown" role="img" aria-label={`Saldo vencido ${money(liquidity.overdue)}, próximos 30 dias ${money(liquidity.dueNext30Days)}, depois ou sem vencimento ${money(liquidity.dueLaterOrUnscheduled)}`}>
@@ -1062,17 +1073,38 @@ export default function FinancialPage() {
           <article><span>Pagamentos a fornecedores neste mês</span><strong>{money(liquidity.paidThisMonth)}</strong><small>{liquidity.paidCountThisMonth} parcela(s) marcada(s) como paga(s)</small><MetricChart values={liquidity.paidTrend.map((entry) => entry.paid)} label="Pagamentos registrados a fornecedores nos últimos seis meses" color="blue" /></article>
         </div> : <EmptyState>Resumo de contas a pagar indisponível.</EmptyState>}
       </section>
-      {pillarIndicators && <PillarIndicatorTable id="financial-indicators-liquidity" title="2 · Liquidez, fôlego e tesouraria" rows={pillarIndicators.liquidity} />}
-
       <section className="financial-panel" aria-labelledby="financial-trend-title">
         <div className="financial-section-heading">
-          <div><span className="eyebrow">Vendas</span><h2 id="financial-trend-title">Evolução do faturamento</h2></div>
+          <div><span className="eyebrow">Vendas registradas · não é entrada de caixa conciliada</span><h2 id="financial-trend-title">Evolução do faturamento</h2></div>
           <span>{data.trendGranularity === 'day' ? 'Por dia' : 'Por mês'}</span>
         </div>
         <FinancialTrend trend={data.trend} granularity={data.trendGranularity} />
       </section>
-      {pillarIndicators && <PillarIndicatorTable id="financial-indicators-value" title="3 · Patrimônio, retorno e estratégia" rows={pillarIndicators.value} />}
+      </>}
+      {financialScreen === 'despesas' && <FinancialRecords ledger={ledger} onSaved={() => setRefreshToken((token) => token + 1)} />}
 
+      {pillarIndicators && financialScreen === 'mostradores-financeiro' && <section className="financial-indicators-screen" aria-labelledby="financial-indicators-financial-title">
+        <h2 id="financial-indicators-financial-title">Mostradores Financeiro</h2>
+        <p>Aplicação e rotina financeira, distribuídas pelos três pilares de decisão.</p>
+        <div className="financial-indicator-groups">
+          <PillarIndicatorGroup id="financial-finance-operational" title="1 · Eficiência, giro e margem" rows={pillarIndicators.operational} perspective="financial" />
+          <PillarIndicatorGroup id="financial-finance-liquidity" title="2 · Liquidez, fôlego e tesouraria" rows={pillarIndicators.liquidity} perspective="financial" />
+          <PillarIndicatorGroup id="financial-finance-value" title="3 · Patrimônio, retorno e estratégia" rows={pillarIndicators.value} perspective="financial" />
+        </div>
+      </section>}
+      {pillarIndicators && financialScreen === 'mostradores-contador' && <section className="financial-indicators-screen" aria-labelledby="financial-indicators-accounting-title">
+        <h2 id="financial-indicators-accounting-title">Mostradores Contador</h2>
+        <p>Origem e compliance contábil, distribuídos pelos três pilares de decisão.</p>
+        <div className="financial-indicator-groups">
+          <PillarIndicatorGroup id="financial-accounting-operational" title="1 · Eficiência, giro e margem" rows={pillarIndicators.operational} perspective="accounting" />
+          <PillarIndicatorGroup id="financial-accounting-liquidity" title="2 · Liquidez, fôlego e tesouraria" rows={pillarIndicators.liquidity} perspective="accounting" />
+          <PillarIndicatorGroup id="financial-accounting-value" title="3 · Patrimônio, retorno e estratégia" rows={pillarIndicators.value} perspective="accounting" />
+        </div>
+      </section>}
+
+      {financialScreen === 'home' && <details className="financial-analysis-disclosure">
+        <summary>Análises detalhadas de vendas e promoções <small>Evolução, descontos, produtos e cupons</small></summary>
+        <div className="financial-analysis-content">
       <section className="financial-panel" aria-labelledby="financial-promotions-title">
         <div className="financial-section-heading">
           <div><span className="eyebrow">Promoções</span><h2 id="financial-promotions-title">Qual tipo vende mais?</h2></div>
@@ -1225,6 +1257,8 @@ export default function FinancialPage() {
         </div> : <EmptyState>Nenhum pedido com cupom registrado no período.</EmptyState>}
         <p className="financial-explainer">“1ª compra registrada” e “já compravam” são uma aproximação baseada no histórico do banco. Sem grupo de controle, a métrica não prova que o cupom trouxe o cliente novo nem que o cliente recorrente compraria sem desconto.</p>
       </section>
+        </div>
+      </details>}
 
       <footer className="financial-disclaimer">
         <TrendingDown size={16} aria-hidden="true" />

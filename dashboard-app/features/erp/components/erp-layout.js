@@ -40,7 +40,14 @@ const erpNavigationGroups = [
   },
   {
     label: 'Financeiro',
-    items: [{ label: 'Financeiro', href: '/erp/financeiro', icon: CircleDollarSign }],
+    items: [
+      { label: 'Início', href: '/erp/financeiro', icon: CircleDollarSign },
+      { label: 'DRE', href: '/erp/financeiro/dre', icon: FileText },
+      { label: 'Fluxo de Caixa', href: '/erp/financeiro/fluxo-de-caixa', icon: TrendingUp },
+      { label: 'Despesas e vencimentos', href: '/erp/financeiro/despesas', icon: CalendarDays },
+      { label: 'Mostradores Financeiro', href: '/erp/financeiro/mostradores-financeiro', icon: BarChart3 },
+      { label: 'Mostradores Contador', href: '/erp/financeiro/mostradores-contador', icon: ReceiptText },
+    ],
   },
   {
     label: 'Operação',
@@ -92,7 +99,7 @@ export default function ERPLayout({ children }) {
             <span className="erp-nav-group-label">{group.label}</span>
             <div className="erp-nav-group-items">
               {group.items.map(({ label, href, icon: Icon }) => {
-                const active = pathname === href || (href !== '/erp' && pathname.startsWith(href));
+                const active = pathname === href || (href === '/erp/financeiro' && pathname.startsWith('/erp/financeiro/')) || (href !== '/erp' && href !== '/erp/financeiro' && pathname.startsWith(href));
                 const content = <><Icon size={17} aria-hidden="true" /><span>{label}</span>{label === 'Pedidos' && newOrders > 0 && <><span className="erp-nav-badge" aria-hidden="true">{newOrders}</span><span className="visually-hidden">{newOrders} novos pedidos</span></>}</>;
                 const className = `erp-nav-item ${active ? 'active' : ''}`;
                 return <Link key={label} href={href} className={className} aria-current={active ? 'page' : undefined}>{content}</Link>;
