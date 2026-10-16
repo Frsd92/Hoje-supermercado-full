@@ -28,7 +28,6 @@ import {
   ChevronDown,
   CircleDollarSign,
   CreditCard,
-  QrCode,
   Home,
   MapPin,
   Settings,
@@ -1391,56 +1390,46 @@ export default function DashboardLayout({ children }) {
                   : <>Nenhum endereço cadastrado. <Link href="/dashboard/addresses">Adicionar endereço</Link></>}
               </small>
             ) : null}
-            <fieldset className="checkout-payment-method-list">
-              <legend>Escolha como pagar</legend>
-              {PAYMENT_METHODS.map((method) => {
-                const Icon = method.value === 'pix' ? QrCode : CreditCard;
-                const unavailable = method.value === 'pix'
-                  ? !pagarmeConfig.pixAvailable
-                  : method.voucher
-                    ? !pagarmeConfig.voucherAvailable
-                    : !pagarmeConfig.savedCardAvailable;
-                const description = method.voucher && !pagarmeConfig.voucherAvailable
-                  ? 'VA/VR ainda não habilitados para pagamento online'
-                  : method.value === 'pix' && !pagarmeConfig.pixAvailable
-                    ? 'Indisponível no momento'
-                    : !method.voucher && method.value !== 'pix' && !pagarmeConfig.savedCardAvailable
-                      ? 'Cartões temporariamente indisponíveis'
-                      : method.description;
-                return (
-                  <label className={`checkout-payment-method-choice checkout-payment-method-choice-${method.value}`} key={method.value}>
-                    <input
-                      className="checkout-payment-method-radio"
-                      type="radio"
-                      name="checkout-payment-method"
-                      value={method.value}
-                      checked={paymentMethod === method.value}
-                      disabled={unavailable}
-                      onChange={() => {
-                        try {
-                          savePaymentMethod(session?.user?.email, method.value);
-                          setPaymentMethod(method.value);
-                          setCheckoutStatus('');
-                        } catch (error) {
-                          setCheckoutStatus(`Não foi possível selecionar a forma de pagamento: ${error.message}`);
-                        }
-                      }}
-                    />
-                    <span className="checkout-payment-method-card">
-                      <span className="checkout-payment-method-icon" aria-hidden="true"><Icon size={18} /></span>
-                      <span className="checkout-payment-method-copy">
-                        <span className="checkout-payment-method-title">
-                          <strong>{method.label}</strong>
-                          {method.recommended && <span className="checkout-payment-method-recommended">Recomendado</span>}
-                        </span>
-                        <small>{description}</small>
-                      </span>
-                      <span className="checkout-payment-method-selection" aria-hidden="true" />
-                    </span>
-                  </label>
-                );
-              })}
-            </fieldset>
+            <label className="delivery-address-field" htmlFor="checkout-payment-method">
+              Forma de pagamento
+              <select
+                id="checkout-payment-method"
+                required
+                value={paymentMethod || ''}
+                onChange={(event) => {
+                  const selectedMethod = event.target.value;
+                  try {
+                    savePaymentMethod(session?.user?.email, selectedMethod);
+                    setPaymentMethod(selectedMethod);
+                    setCheckoutStatus('');
+                  } catch (error) {
+                    setCheckoutStatus(`Não foi possível selecionar a forma de pagamento: ${error.message}`);
+                  }
+                }}
+              >
+                <option value="" disabled>Selecione sua forma de pagamento</option>
+                {PAYMENT_METHODS.map((method) => {
+                  const unavailable = pagarmeConfigReady && (
+                    method.value === 'pix'
+                      ? !pagarmeConfig.pixAvailable
+                      : method.voucher
+                        ? !pagarmeConfig.voucherAvailable
+                        : !pagarmeConfig.savedCardAvailable
+                  );
+                  const label = method.value === 'pix'
+                    ? `Pix${method.recommended ? ' · recomendado' : ''}`
+                    : method.label;
+                  const unavailableReason = method.voucher
+                    ? ' · VA/VR não habilitados'
+                    : ' · indisponível';
+                  return (
+                    <option value={method.value} key={method.value} disabled={unavailable}>
+                      {label}{unavailable ? unavailableReason : ''}
+                    </option>
+                  );
+                })}
+              </select>
+            </label>
             {(paymentMethod === 'pix' || isCardPaymentMethod(paymentMethod)) && <div className="checkout-field-hint" role="status">
               <p>Pagamento online exige CPF e celular com DDD.</p>
               {profileCpf.replace(/\D/g, '').length !== 11 || ![10, 11].includes(profilePhone.replace(/\D/g, '').replace(/^55(?=\d{10,11}$)/, '').length)
@@ -1481,40 +1470,6 @@ export default function DashboardLayout({ children }) {
                   ))}
                 </select>
               </label>
-              <section
-              className="checkout-saved-card"
-              aria-labelledby="checkout-saved-card-title"
-              aria-describedby="checkout-saved-card-note"
-            >
-              <div className="checkout-saved-card-overview">
-                <span className="checkout-saved-card-icon" aria-hidden="true"><CreditCard size={20} /></span>
-                <div className="checkout-saved-card-details">
-                  <div className="checkout-saved-card-heading">
-                    <h3 id="checkout-saved-card-title">
-                      {paymentMethod === 'cartao_debito'
-                        ? 'Cartão de débito selecionado'
-                        : paymentMethod === 'vale_alimentacao'
-                          ? 'Cartão de vale-alimentação selecionado'
-                          : paymentMethod === 'vale_refeicao'
-                            ? 'Cartão de vale-refeição selecionado'
-                            : 'Cartão de crédito selecionado'}
-                    </h3>
-                    <span className="checkout-saved-card-status">Pronto para usar</span>
-                  </div>
-                  <p className="checkout-saved-card-number">
-                    <strong>{selectedSavedCard.brand || 'Cartão'}</strong>
-                    <span aria-label={`terminado em ${selectedSavedCard.lastFourDigits}`}>•••• {selectedSavedCard.lastFourDigits}</span>
-                  </p>
-                  <p className="checkout-saved-card-expiry">
-                    Validade {String(selectedSavedCard.expMonth).padStart(2, '0')}/{selectedSavedCard.expYear}
-                  </p>
-                </div>
-              </div>
-              <div className="checkout-saved-card-footer">
-                <p id="checkout-saved-card-note">Você confere o valor e confirma o pedido antes da cobrança.</p>
-                <Link href="/dashboard/payment-methods">Gerenciar cartão</Link>
-              </div>
-              </section>
             </>}
             {checkoutStatus && <p className={`coupon-feedback ${checkoutOrderId || checkoutStatus.includes('sucesso') ? 'success' : 'error'}`} role="status" aria-live="polite">
               {checkoutStatus}
