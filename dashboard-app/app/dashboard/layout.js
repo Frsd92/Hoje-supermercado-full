@@ -1018,13 +1018,15 @@ export default function DashboardLayout({ children }) {
       <aside className="sidebar" aria-label="Painel do cliente">
         <div>
           <div className="brand-wrap">
-            <div className="brand-mark">
-              <img src="/logo-hj.webp" alt="" />
-            </div>
-            <div>
-              <p className="brand-kicker">Cliente</p>
-              <h2>Hoje Supermercado</h2>
-            </div>
+            <a className="brand-home-link" href="/" aria-label="Hoje Supermercado — voltar para a loja">
+              <div className="brand-mark">
+                <img src="/logo-hj.webp" alt="" />
+              </div>
+              <div>
+                <p className="brand-kicker">Cliente</p>
+                <h2>Hoje Supermercado</h2>
+              </div>
+            </a>
             <button
               type="button"
               className="sidebar-menu-toggle"
@@ -1049,16 +1051,15 @@ export default function DashboardLayout({ children }) {
                     const active = pathname === href || (href !== '/dashboard' && pathname.startsWith(href));
 
                     return (
-                      <Link
+                      <a
                         key={itemLabel}
                         href={href}
                         className={`sidebar-item ${active ? 'active' : ''}`}
                         aria-current={active ? 'page' : undefined}
-                        onClick={() => setMobileNavOpen(false)}
                       >
                         <Icon size={18} aria-hidden="true" />
                         <span>{itemLabel}</span>
-                      </Link>
+                      </a>
                     );
                   })}
                 </div>
