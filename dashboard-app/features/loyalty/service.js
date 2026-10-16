@@ -331,6 +331,7 @@ export async function getCustomerLoyaltySnapshot(transaction, customerEmail, now
       description: reward.description,
       pointsCost: reward.pointsCost,
       discountPercent: reward.discountPercent,
+      benefitType: reward.benefitType || 'PERCENTAGE',
       minimumOrderAmount: Number(reward.minimumOrderAmount),
       validityDays: reward.validityDays,
       redemptions: reward._count.redemptions,
@@ -428,7 +429,7 @@ export async function redeemLoyaltyReward(transaction, { customerEmail, rewardId
   const email = normalizeEmail(customerEmail);
   const existing = await transaction.loyaltyRewardRedemption.findUnique({
     where: { requestId },
-    include: { couponCampaign: { select: { code: true, discountPercent: true, minimumOrderAmount: true, expiresAt: true } } },
+    include: { couponCampaign: { select: { code: true, discountPercent: true, benefitType: true, minimumOrderAmount: true, expiresAt: true } } },
   });
   if (existing) {
     if (normalizeEmail(existing.customerEmail) !== email || existing.rewardId !== rewardId) {
@@ -438,6 +439,7 @@ export async function redeemLoyaltyReward(transaction, { customerEmail, rewardId
       redemption: {
         code: existing.couponCampaign.code,
         discountPercent: existing.couponCampaign.discountPercent,
+        benefitType: existing.couponCampaign.benefitType || 'PERCENTAGE',
         minimumOrderAmount: Number(existing.couponCampaign.minimumOrderAmount),
         expiresAt: existing.couponCampaign.expiresAt.toISOString(),
         pointsCost: existing.pointsCost,
@@ -469,12 +471,19 @@ export async function redeemLoyaltyReward(transaction, { customerEmail, rewardId
   const minOrderCopy = minimumOrderAmount > 0
     ? ` Pedido mínimo: R$ ${minimumOrderAmount.toFixed(2).replace('.', ',')}.`
     : '';
-  const couponMessage = `Recompensa resgatada: ${reward.name}. Use ${code} para obter ${reward.discountPercent}% de desconto.${minOrderCopy}`;
+  const benefitType = reward.benefitType || 'PERCENTAGE';
+  const benefitLabel = benefitType === 'FREE_DELIVERY'
+    ? 'entrega grátis'
+    : benefitType === 'FREE_SERVICE_FEE'
+      ? 'taxa de serviço zero'
+      : `${reward.discountPercent}% de desconto`;
+  const couponMessage = `Recompensa resgatada: ${reward.name}. Use ${code} para obter ${benefitLabel}.${minOrderCopy}`;
   const campaign = await transaction.couponCampaign.create({
     data: {
       id: campaignId,
       code,
       discountPercent: reward.discountPercent,
+      benefitType,
       minimumOrderAmount: reward.minimumOrderAmount,
       message: couponMessage,
       expiresAt,
@@ -513,6 +522,7 @@ export async function redeemLoyaltyReward(transaction, { customerEmail, rewardId
     redemption: {
       code: campaign.code,
       discountPercent: campaign.discountPercent,
+      benefitType,
       minimumOrderAmount: Number(campaign.minimumOrderAmount),
       expiresAt: campaign.expiresAt.toISOString(),
       pointsCost: reward.pointsCost,

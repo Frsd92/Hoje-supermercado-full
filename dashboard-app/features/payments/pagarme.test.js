@@ -48,6 +48,74 @@ test('builds Pagar.me Pix orders using checked item totals and customer details'
   });
 });
 
+test('adds configured delivery and service fees as distinct payable items', () => {
+  const payload = buildPagarmeOrderPayload({
+    orderId: 'PED-FEES',
+    items: [{ name: 'Arroz', price: 'R$ 100,00', quantity: 1, productCode: '789' }],
+    total: 'R$ 108,00',
+    deliveryFee: 5,
+    serviceFee: 3,
+    customer: {
+      name: 'Cliente Hoje',
+      email: 'cliente@example.com',
+      cpf: '52998224725',
+      phone: '(11) 98765-4321',
+    },
+    paymentMethod: 'pix',
+  });
+
+  assert.deepEqual(payload.items.map(({ code, amount }) => [code, amount]), [
+    ['789', 10000],
+    ['DELIVERY-FEE', 500],
+    ['SERVICE-FEE', 300],
+  ]);
+});
+
+test('keeps percentage discounts on products separate from delivery and service fees', () => {
+  const payload = buildPagarmeOrderPayload({
+    orderId: 'PED-PERCENT-FEES',
+    items: [{ name: 'Arroz', price: 'R$ 100,00', quantity: 1, productCode: '789' }],
+    total: 'R$ 98,00',
+    deliveryFee: 5,
+    serviceFee: 3,
+    customer: {
+      name: 'Cliente Hoje',
+      email: 'cliente@example.com',
+      cpf: '52998224725',
+      phone: '(11) 98765-4321',
+    },
+    paymentMethod: 'pix',
+  });
+
+  assert.deepEqual(payload.items.map(({ code, amount }) => [code, amount]), [
+    ['789', 9000],
+    ['DELIVERY-FEE', 500],
+    ['SERVICE-FEE', 300],
+  ]);
+});
+
+test('keeps zeroed fee coupons from charging the waived fee in Pagar.me', () => {
+  const payload = buildPagarmeOrderPayload({
+    orderId: 'PED-FREE-DELIVERY',
+    items: [{ name: 'Arroz', price: 'R$ 100,00', quantity: 1, productCode: '789' }],
+    total: 'R$ 103,00',
+    deliveryFee: 0,
+    serviceFee: 3,
+    customer: {
+      name: 'Cliente Hoje',
+      email: 'cliente@example.com',
+      cpf: '52998224725',
+      phone: '(11) 98765-4321',
+    },
+    paymentMethod: 'pix',
+  });
+
+  assert.deepEqual(payload.items.map(({ code, amount }) => [code, amount]), [
+    ['789', 10000],
+    ['SERVICE-FEE', 300],
+  ]);
+});
+
 test('requires the Pagar.me card token and billing address without accepting raw card data', () => {
   const base = {
     orderId: 'PED-123',

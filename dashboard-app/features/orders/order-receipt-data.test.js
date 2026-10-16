@@ -24,6 +24,48 @@ test('rounds each order line before calculating coupon and payable totals', () =
   assert.equal(totals.total, 1.97);
 });
 
+test('waives configured delivery or service fees for the matching coupon benefit', () => {
+  const items = [{ name: 'Compra', price: 'R$ 50,00', quantity: 1 }];
+  const freeDelivery = calculateOrderTotals(items, {
+    benefitType: 'FREE_DELIVERY',
+    deliveryFee: 6,
+    serviceFee: 2,
+  });
+  const freeService = calculateOrderTotals(items, {
+    benefitType: 'FREE_SERVICE_FEE',
+    deliveryFee: 6,
+    serviceFee: 2,
+  });
+
+  assert.equal(freeDelivery.deliveryFee, 0);
+  assert.equal(freeDelivery.serviceFee, 2);
+  assert.equal(freeDelivery.couponFeeSavings, 6);
+  assert.equal(freeDelivery.total, 52);
+  assert.equal(freeService.deliveryFee, 6);
+  assert.equal(freeService.serviceFee, 0);
+  assert.equal(freeService.couponFeeSavings, 2);
+  assert.equal(freeService.total, 56);
+});
+
+test('includes the persisted fee benefit in the receipt without double-charging', () => {
+  const receipt = buildOrderReceiptData({
+    id: 'PED-FREE-DELIVERY',
+    subtotal: 50,
+    total: 'R$ 52,00',
+    couponCode: 'ENTREGAZERO',
+    couponBenefitType: 'FREE_DELIVERY',
+    couponFeeSavings: 6,
+    deliveryFee: 0,
+    serviceFee: 2,
+    items: [{ name: 'Compra', price: 'R$ 50,00', quantity: 1 }],
+  });
+
+  assert.equal(receipt.deliveryFee, 0);
+  assert.equal(receipt.serviceFee, 2);
+  assert.equal(receipt.couponFeeSavings, 6);
+  assert.equal(receipt.total, 52);
+});
+
 test('builds a traceable receipt from persisted order totals and coupon data', () => {
   const receipt = buildOrderReceiptData({
     id: 'PED-trace-001',

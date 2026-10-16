@@ -136,3 +136,29 @@ test('marks an unredeemed campaign expired and a current campaign fully redeemed
   assert.equal(fullyRedeemed.status, 'fully_redeemed');
   assert.equal(fullyRedeemed.availableCount, 0);
 });
+
+test('counts waived delivery and service fees as benefits given by the campaign', () => {
+  const campaign = {
+    id: 'CPN-FEE',
+    code: 'TAXAZERO',
+    benefitType: 'FREE_SERVICE_FEE',
+    discountPercent: 0,
+    expiresAt: new Date('2026-10-12T12:00:00.000Z'),
+    recipients: [{ email: 'cliente@example.com' }],
+    redemptions: [{ email: 'cliente@example.com', orderId: 'PED-FEE', createdAt: now }],
+  };
+  const report = summarizeCouponCampaign(campaign, [{
+    id: 'PED-FEE',
+    couponCode: 'TAXAZERO',
+    customerEmail: 'cliente@example.com',
+    total: 100,
+    couponDiscountAmount: 0,
+    couponFeeSavings: 5,
+    paymentStatus: 'paid',
+    status: 'Concluido',
+    createdAt: now,
+  }], now);
+
+  assert.equal(report.benefitType, 'FREE_SERVICE_FEE');
+  assert.equal(report.discountGiven, 5);
+});

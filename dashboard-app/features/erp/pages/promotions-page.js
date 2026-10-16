@@ -3,6 +3,7 @@
 import { Bell, CheckCheck, CheckSquare, CircleDollarSign, RefreshCw, Search, Send, TicketPercent, TrendingUp, Users } from 'lucide-react';
 import { useEffect, useMemo, useState } from 'react';
 import { consumeErpRecipientHandoff } from '@/features/erp/customer-recipient-handoff';
+import { couponBenefitOptions, getCouponBenefitLabel } from '@/features/coupons/coupon-benefits.js';
 
 const currencyFormatter = new Intl.NumberFormat('pt-BR', { style: 'currency', currency: 'BRL' });
 
@@ -49,13 +50,16 @@ export default function PromotionsPage() {
   const [selectedEmails, setSelectedEmails] = useState([]);
   const [search, setSearch] = useState('');
   const [code, setCode] = useState('');
+  const [benefitType, setBenefitType] = useState('PERCENTAGE');
   const [discountPercent, setDiscountPercent] = useState('10');
+  const [checkoutFees, setCheckoutFees] = useState({ deliveryFee: '0', serviceFee: '0' });
   const [durationDays, setDurationDays] = useState('7');
   const [message, setMessage] = useState('');
   const [campaignFilter, setCampaignFilter] = useState('all');
   const [loading, setLoading] = useState(true);
   const [refreshingCampaigns, setRefreshingCampaigns] = useState(false);
   const [sending, setSending] = useState(false);
+  const [savingFees, setSavingFees] = useState(false);
   const [feedback, setFeedback] = useState('');
   const [feedbackError, setFeedbackError] = useState(false);
 
@@ -77,12 +81,22 @@ export default function PromotionsPage() {
         return data;
       }),
       loadCouponCampaigns(),
+      fetch('/api/erp/checkout-fees', { cache: 'no-store' }).then(async (response) => {
+        const data = await response.json();
+        if (!response.ok) throw new Error(data.error || 'Não foi possível carregar as taxas do checkout.');
+        if (!data.fees) throw new Error('A resposta das taxas do checkout está em formato inválido.');
+        return data.fees;
+      }),
     ])
-      .then(([customerData, nextCampaigns]) => {
+      .then(([customerData, nextCampaigns, nextFees]) => {
         if (active) {
           const nextCustomers = Array.isArray(customerData.customers) ? customerData.customers : [];
           setCustomers(nextCustomers);
           setCampaigns(nextCampaigns);
+          setCheckoutFees({
+            deliveryFee: String(nextFees.deliveryFee),
+            serviceFee: String(nextFees.serviceFee),
+          });
           if (recipientHandoffEmail) {
             const recipient = nextCustomers.find((customer) => customer.email.toLowerCase() === recipientHandoffEmail);
             if (recipient) {
@@ -140,14 +154,18 @@ export default function PromotionsPage() {
     setCode(nextCode);
     const campaign = campaigns.find((item) => item.code === nextCode && new Date(item.expiresAt).getTime() > Date.now());
     if (campaign) {
+      setBenefitType(campaign.benefitType || 'PERCENTAGE');
       setDiscountPercent(String(campaign.discountPercent));
       setDurationDays(String(Math.max(1, Math.ceil((new Date(campaign.expiresAt).getTime() - Date.now()) / 86400000))));
       setMessage('');
+    } else {
+      setBenefitType('PERCENTAGE');
     }
   };
 
   const reuseCampaign = (campaign) => {
     setCode(campaign.code);
+    setBenefitType(campaign.benefitType || 'PERCENTAGE');
     setDiscountPercent(String(campaign.discountPercent));
     setDurationDays(String(Math.max(1, Math.ceil((new Date(campaign.expiresAt).getTime() - Date.now()) / 86400000))));
     setMessage('');
@@ -194,6 +212,7 @@ export default function PromotionsPage() {
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
           code,
+          benefitType,
           discountPercent: Number(discountPercent),
           durationDays: Number(durationDays),
           recipients: selectedEmails,
@@ -205,6 +224,7 @@ export default function PromotionsPage() {
       const refreshError = await refreshCampaignList();
       setSelectedEmails([]);
       setCode('');
+      setBenefitType('PERCENTAGE');
       setMessage('');
       setDiscountPercent('10');
       setDurationDays('7');
@@ -223,23 +243,61 @@ export default function PromotionsPage() {
     }
   };
 
+  const saveCheckoutFees = async (event) => {
+    event.preventDefault();
+    setSavingFees(true);
+    setFeedback('');
+    try {
+      const response = await fetch('/api/erp/checkout-fees', {
+        method: 'PATCH',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          deliveryFee: checkoutFees.deliveryFee,
+          serviceFee: checkoutFees.serviceFee,
+        }),
+      });
+      const data = await response.json();
+      if (!response.ok) throw new Error(data.error || 'Não foi possível salvar as taxas do checkout.');
+      setCheckoutFees({
+        deliveryFee: String(data.fees.deliveryFee),
+        serviceFee: String(data.fees.serviceFee),
+      });
+      setFeedback('Taxas do checkout atualizadas. Os novos valores serão usados nos próximos pedidos.');
+      setFeedbackError(false);
+    } catch (error) {
+      setFeedback(error.message || 'Não foi possível salvar as taxas do checkout.');
+      setFeedbackError(true);
+    } finally {
+      setSavingFees(false);
+    }
+  };
+
   return <div className="erp-module-page">
     <div className="erp-customer-header"><div><span className="eyebrow">Relacionamento com clientes</span><h1>Cupons direcionados</h1><p>Crie ofertas personalizadas, acompanhe resgates e confira o resultado de cada campanha.</p></div></div>
     <div className="coupon-delivery-note"><Bell size={18} aria-hidden="true" /><span>O cliente encontra o cupom no Dashboard. Cada código é vinculado aos destinatários, vale uma vez por cliente até o vencimento e pode ser usado junto a promoções de produtos; apenas um cupom pode ser aplicado em cada pedido.</span></div>
+    <form className="notification-composer checkout-fee-settings" onSubmit={saveCheckoutFees}>
+      <div className="notification-composer-heading"><span className="notification-composer-icon"><CircleDollarSign size={19} aria-hidden="true" /></span><div><h2>Taxas do checkout</h2><p>Configure os valores fixos aplicados aos próximos pedidos. O cupom correspondente zera a taxa selecionada.</p></div></div>
+      <div className="coupon-form-row">
+        <label>Taxa de entrega (R$)<input type="number" min="0" max="100000" step="0.01" value={checkoutFees.deliveryFee} onChange={(event) => setCheckoutFees((current) => ({ ...current, deliveryFee: event.target.value }))} required /><small>Aplicada aos pedidos com entrega, conforme o fluxo atual de endereços.</small></label>
+        <label>Taxa de serviço (R$)<input type="number" min="0" max="100000" step="0.01" value={checkoutFees.serviceFee} onChange={(event) => setCheckoutFees((current) => ({ ...current, serviceFee: event.target.value }))} required /><small>Aplicada a todos os pedidos.</small></label>
+      </div>
+      <button className="primary-cta" type="submit" disabled={loading || savingFees}>{savingFees ? 'Salvando taxas...' : 'Salvar taxas'}</button>
+    </form>
     <section className="coupon-management-summary" aria-label="Indicadores gerais de cupons">
       <div><TicketPercent size={18} aria-hidden="true" /><span>Campanhas vigentes</span><strong>{campaignSummary.active}</strong></div>
       <div><Users size={18} aria-hidden="true" /><span>Cupons enviados</span><strong>{campaignSummary.recipients}</strong></div>
       <div><CheckCheck size={18} aria-hidden="true" /><span>Resgates · conversão</span><strong>{campaignSummary.redeemed} · {campaignSummary.redemptionRate.toLocaleString('pt-BR')}%</strong></div>
       <div><TrendingUp size={18} aria-hidden="true" /><span>Pedidos não cancelados</span><strong>{campaignSummary.orders}</strong></div>
       <div><CircleDollarSign size={18} aria-hidden="true" /><span>Venda líquida associada</span><strong>{money(campaignSummary.revenue)}</strong></div>
-      <div><TicketPercent size={18} aria-hidden="true" /><span>Descontos concedidos</span><strong>{money(campaignSummary.discount)}</strong></div>
+      <div><TicketPercent size={18} aria-hidden="true" /><span>Benefícios concedidos</span><strong>{money(campaignSummary.discount)}</strong></div>
     </section>
     <div className="coupon-manager-grid">
       <form className="notification-composer coupon-composer" onSubmit={sendCoupon}>
         <div className="notification-composer-heading"><span className="notification-composer-icon"><TicketPercent size={19} /></span><div><h2>{selectedCampaign ? `Adicionar clientes ao ${selectedCampaign.code}` : 'Criar e enviar cupom'}</h2><p>{selectedCampaign ? 'O desconto e a validade existentes serão mantidos.' : 'Defina o desconto, a validade e o público.'}</p></div></div>
         <div className="coupon-form-row">
         <label>Código do cupom<input value={code} onChange={(event) => updateCode(event.target.value)} placeholder="Ex.: CLIENTE15" minLength="3" maxLength="24" required /><small>{selectedCampaign ? 'Cupom existente: os novos destinatários terão o mesmo desconto e vencimento.' : 'Digite um código novo ou selecione um cupom enviado abaixo.'}</small></label>
-        <label>Desconto (%)<input type="number" min="1" max="90" step="1" value={discountPercent} onChange={(event) => setDiscountPercent(event.target.value)} disabled={Boolean(selectedCampaign)} required /></label>
+        <label>Benefício<select value={benefitType} onChange={(event) => setBenefitType(event.target.value)} disabled={Boolean(selectedCampaign)}>{couponBenefitOptions.map((option) => <option key={option.value} value={option.value}>{option.label}</option>)}</select><small>Os cupons de taxa zeram o valor configurado acima.</small></label>
+        {benefitType === 'PERCENTAGE' && <label>Desconto (%)<input type="number" min="1" max="90" step="1" value={discountPercent} onChange={(event) => setDiscountPercent(event.target.value)} disabled={Boolean(selectedCampaign)} required /></label>}
         <label>Validade (dias)<input type="number" min="1" max="365" step="1" value={durationDays} onChange={(event) => setDurationDays(event.target.value)} disabled={Boolean(selectedCampaign)} required /></label>
         </div>
         <label>Mensagem opcional<textarea value={message} onChange={(event) => setMessage(event.target.value)} placeholder="Ex.: Aproveite para fazer suas compras da semana." rows="3" maxLength="300" /><small>A mensagem será exibida junto ao código no Dashboard do cliente.</small></label>
@@ -284,7 +342,7 @@ export default function PromotionsPage() {
         {visibleCampaigns.length ? <div className="coupon-campaign-list">
           {visibleCampaigns.map((campaign) => <article className="coupon-campaign-card" key={campaign.id}>
             <div className="coupon-campaign-card-heading">
-              <div><strong>{campaign.code}</strong><span>{campaign.discountPercent}% de desconto</span></div>
+              <div><strong>{campaign.code}</strong><span>{getCouponBenefitLabel(campaign.benefitType, campaign.discountPercent)}</span></div>
               <span className={`coupon-campaign-status status-${campaign.status}`}>{campaignStatusLabels[campaign.status] || 'Situação não identificada'}</span>
             </div>
             <p>{campaign.message || 'Cupom direcionado aos clientes selecionados.'}</p>
@@ -295,7 +353,7 @@ export default function PromotionsPage() {
               <div><strong>{campaign.ordersCount}</strong><span>pedido(s) não cancelado(s)</span></div>
               <div><strong>{campaign.cancelledOrdersCount}</strong><span>pedido(s) cancelado(s)</span></div>
               <div><strong>{money(campaign.revenue)}</strong><span>venda líquida associada</span></div>
-              <div><strong>{money(campaign.discountGiven)}</strong><span>desconto concedido</span></div>
+              <div><strong>{money(campaign.discountGiven)}</strong><span>benefício concedido</span></div>
             </div>
             <details className="coupon-recipient-tracking">
               <summary>Rastrear destinatários ({campaign.recipientStatuses.length})</summary>

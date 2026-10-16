@@ -1,0 +1,21 @@
+CREATE TABLE "CheckoutFeeSettings" (
+    "id" TEXT NOT NULL DEFAULT 'default',
+    "deliveryFee" DECIMAL(12,2) NOT NULL DEFAULT 0,
+    "serviceFee" DECIMAL(12,2) NOT NULL DEFAULT 0,
+    "updatedBy" TEXT,
+    "updatedAt" TIMESTAMP(3) NOT NULL,
+    CONSTRAINT "CheckoutFeeSettings_pkey" PRIMARY KEY ("id")
+);
+ALTER TABLE "CheckoutFeeSettings" ENABLE ROW LEVEL SECURITY;
+
+ALTER TABLE "CouponCampaign"
+ADD COLUMN "benefitType" TEXT NOT NULL DEFAULT 'PERCENTAGE';
+
+ALTER TABLE "LoyaltyReward"
+ADD COLUMN "benefitType" TEXT NOT NULL DEFAULT 'PERCENTAGE';
+
+ALTER TABLE "Order"
+ADD COLUMN "couponBenefitType" TEXT,
+ADD COLUMN "couponFeeSavings" DECIMAL(12,2) NOT NULL DEFAULT 0,
+ADD COLUMN "deliveryFee" DECIMAL(12,2) NOT NULL DEFAULT 0,
+ADD COLUMN "serviceFee" DECIMAL(12,2) NOT NULL DEFAULT 0;

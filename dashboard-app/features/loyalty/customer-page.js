@@ -5,6 +5,7 @@ import { ArrowRight, BookOpen, Check, Clock3, Copy, Gift, RefreshCw, Sparkles, S
 import { useCallback, useEffect, useState } from 'react';
 import CustomerMissionCard from './customer-mission-card';
 import { currencyFormatter, formatDate, getPointsProgressToNextReward } from './customer-mission-display';
+import { getCouponBenefitLabel } from '@/features/coupons/coupon-benefits';
 
 function historyDescription(entry) {
   const date = formatDate(entry.createdAt);
@@ -217,9 +218,9 @@ export default function CustomerLoyaltyPage() {
           {rewards.map((reward) => {
             const canRedeem = balance >= reward.pointsCost;
             return <article className="customer-coupon-card loyalty-reward-card" key={reward.id}>
-              <div className="customer-coupon-card-heading"><span><Gift size={16} aria-hidden="true" />Cupom de desconto</span><strong>{reward.discountPercent}% OFF</strong></div>
+              <div className="customer-coupon-card-heading"><span><Gift size={16} aria-hidden="true" />Cupom de recompensa</span><strong>{getCouponBenefitLabel(reward.benefitType, reward.discountPercent)}</strong></div>
               <h3>{reward.name}</h3>
-              <p className="customer-coupon-card-message">{reward.description || `Cupom de ${reward.discountPercent}% de desconto.`}</p>
+              <p className="customer-coupon-card-message">{reward.description || `Cupom de ${getCouponBenefitLabel(reward.benefitType, reward.discountPercent)}.`}</p>
               <dl className="customer-coupon-dates">
                 <div><dt>Custo</dt><dd>{reward.pointsCost.toLocaleString('pt-BR')} pontos</dd></div>
                 <div><dt>Pedido mínimo</dt><dd>{currencyFormatter.format(Number(reward.minimumOrderAmount))}</dd></div>

@@ -1,7 +1,7 @@
 'use client';
 
 import Link from 'next/link';
-import { Award, BookOpen, CheckCheck, Gift, ImagePlus, Pencil, RefreshCw, Save, Target, Users, X } from 'lucide-react';
+import { Award, BookOpen, CheckCheck, Gift, ImagePlus, Pencil, RefreshCw, Save, Target, Trash2, Users, X } from 'lucide-react';
 import { useCallback, useEffect, useState } from 'react';
 import { loadImage, MAX_IMAGE_UPLOAD_BYTES, prepareImageData, readImageFile } from '@/lib/image-upload.js';
 import {
@@ -9,6 +9,7 @@ import {
   loyaltyPointExpiryOptions,
 } from '@/features/loyalty/mission-rules.js';
 import { loyaltyMissionDestinationOptions } from '@/features/loyalty/mission-destinations.js';
+import { couponBenefitOptions, getCouponBenefitLabel } from '@/features/coupons/coupon-benefits.js';
 
 const currencyFormatter = new Intl.NumberFormat('pt-BR', { style: 'currency', currency: 'BRL' });
 const MAX_MISSION_IMAGE_ENCODED_LENGTH = 600_000;
@@ -47,6 +48,7 @@ const initialRewardForm = {
   name: '',
   description: '',
   pointsCost: '100',
+  benefitType: 'PERCENTAGE',
   discountPercent: '10',
   minimumOrderAmount: '0',
   validityDays: '30',
@@ -80,6 +82,7 @@ export default function LoyaltyPage() {
   const [editingRewardId, setEditingRewardId] = useState('');
   const [loading, setLoading] = useState(true);
   const [savingMission, setSavingMission] = useState(false);
+  const [deletingMissionId, setDeletingMissionId] = useState('');
   const [savingReward, setSavingReward] = useState(false);
   const [refreshing, setRefreshing] = useState(false);
   const [feedback, setFeedback] = useState('');
@@ -159,7 +162,8 @@ export default function LoyaltyPage() {
       name: reward.name,
       description: reward.description || '',
       pointsCost: String(reward.pointsCost),
-      discountPercent: String(reward.discountPercent),
+      benefitType: reward.benefitType || 'PERCENTAGE',
+      discountPercent: String(Number(reward.discountPercent) || 10),
       minimumOrderAmount: String(Number(reward.minimumOrderAmount) || 0),
       validityDays: String(reward.validityDays),
       active: reward.active,
@@ -279,6 +283,32 @@ export default function LoyaltyPage() {
     }
   };
 
+  const deleteMission = async (mission) => {
+    const confirmed = window.confirm(
+      `Excluir a missão “${mission.name}”? O progresso e as participações serão removidos. Os pontos já concedidos permanecem no histórico dos clientes.`,
+    );
+    if (!confirmed) return;
+
+    setDeletingMissionId(mission.id);
+    setFeedback('');
+    try {
+      await requestData('/api/erp/loyalty', {
+        method: 'DELETE',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ type: 'mission', id: mission.id }),
+      });
+      if (editingMissionId === mission.id) cancelMissionEdit();
+      setFeedback(`Missão “${mission.name}” excluída. Os pontos concedidos foram preservados.`);
+      setFeedbackError(false);
+      await loadSnapshot(false);
+    } catch (error) {
+      setFeedback(error.message || 'Não foi possível excluir a missão.');
+      setFeedbackError(true);
+    } finally {
+      setDeletingMissionId('');
+    }
+  };
+
   const missions = snapshot.missions || [];
   const rewards = snapshot.rewards || [];
   const totalParticipants = missions.reduce((sum, mission) => sum + mission.participants, 0);
@@ -356,7 +386,8 @@ export default function LoyaltyPage() {
           <div className="loyalty-form-grid">
             <div className="loyalty-form-section-heading"><strong>Resgate em pontos</strong><span>O custo é descontado do saldo de pontos do cliente.</span></div>
             <label>Custo em pontos<input type="number" min="1" max="1000000" step="1" value={rewardForm.pointsCost} onChange={(event) => setRewardForm((current) => ({ ...current, pointsCost: event.target.value }))} required /></label>
-            <label>Desconto (%)<input type="number" min="1" max="90" step="1" value={rewardForm.discountPercent} onChange={(event) => setRewardForm((current) => ({ ...current, discountPercent: event.target.value }))} required /></label>
+            <label>Tipo de cupom<select value={rewardForm.benefitType} onChange={(event) => setRewardForm((current) => ({ ...current, benefitType: event.target.value }))}>{couponBenefitOptions.map((option) => <option key={option.value} value={option.value}>{option.label}</option>)}</select></label>
+            {rewardForm.benefitType === 'PERCENTAGE' && <label>Desconto (%)<input type="number" min="1" max="90" step="1" value={rewardForm.discountPercent} onChange={(event) => setRewardForm((current) => ({ ...current, discountPercent: event.target.value }))} required /></label>}
             <div className="loyalty-form-section-heading"><strong>Valor mínimo do pedido</strong><span>Este requisito é em reais e não representa pontos.</span></div>
             <label>Pedido mínimo da compra<div className="loyalty-currency-input"><span aria-hidden="true">R$</span><input type="number" min="0" max="100000000" step="0.01" inputMode="decimal" value={rewardForm.minimumOrderAmount} onChange={(event) => setRewardForm((current) => ({ ...current, minimumOrderAmount: event.target.value }))} required /></div></label>
             <label>Validade do cupom (dias)<input type="number" min="1" max="365" step="1" value={rewardForm.validityDays} onChange={(event) => setRewardForm((current) => ({ ...current, validityDays: event.target.value }))} required /></label>
@@ -382,7 +413,10 @@ export default function LoyaltyPage() {
                 </div>
                 <div className="loyalty-admin-mission-copy"><span className={statusClass(mission.status)}>{missionStatusLabels[mission.status] || mission.status}</span><h3>{mission.name}</h3><p>{mission.description || loyaltyMissionRuleOptions.find((item) => item.value === mission.ruleType)?.label}</p></div>
               </div>
-              <button className="editor-ghost" type="button" onClick={() => startMissionEdit(mission)} aria-label={`Editar missão ${mission.name}`}><Pencil size={15} aria-hidden="true" />Editar</button>
+              <div className="loyalty-form-actions">
+                <button className="editor-ghost" type="button" onClick={() => startMissionEdit(mission)} aria-label={`Editar missão ${mission.name}`}><Pencil size={15} aria-hidden="true" />Editar</button>
+                <button className="editor-ghost" type="button" onClick={() => void deleteMission(mission)} disabled={Boolean(deletingMissionId)} aria-label={`Excluir missão ${mission.name}`}><Trash2 size={15} aria-hidden="true" />{deletingMissionId === mission.id ? 'Excluindo...' : 'Excluir'}</button>
+              </div>
             </div>
             <div className="loyalty-admin-mission-reward"><Gift size={16} aria-hidden="true" /><span><small>Recompensa ao concluir</small><strong>+{mission.pointsReward.toLocaleString('pt-BR')} pontos</strong></span></div>
             <div className="loyalty-admin-card-stats">
@@ -401,12 +435,12 @@ export default function LoyaltyPage() {
         {rewards.length ? <div className="loyalty-admin-list">
           {rewards.map((reward) => <article className="loyalty-admin-card loyalty-admin-reward" key={reward.id}>
             <div className="loyalty-admin-card-main">
-              <div><span className={statusClass(reward.active ? 'active' : 'paused')}>{reward.active ? 'Disponível' : 'Indisponível'}</span><h3>{reward.name}</h3><p>{reward.description || `${reward.discountPercent}% de desconto`}</p></div>
+              <div><span className={statusClass(reward.active ? 'active' : 'paused')}>{reward.active ? 'Disponível' : 'Indisponível'}</span><h3>{reward.name}</h3><p>{reward.description || getCouponBenefitLabel(reward.benefitType, reward.discountPercent)}</p></div>
               <button className="editor-ghost" type="button" onClick={() => startRewardEdit(reward)} aria-label={`Editar recompensa ${reward.name}`}><Pencil size={15} aria-hidden="true" />Editar</button>
             </div>
             <div className="loyalty-admin-card-stats">
               <span><strong>{reward.pointsCost.toLocaleString('pt-BR')}</strong> pontos</span>
-              <span><strong>{reward.discountPercent}%</strong> desconto</span>
+              <span><strong>{getCouponBenefitLabel(reward.benefitType, reward.discountPercent)}</strong></span>
               <span><strong>{currencyFormatter.format(reward.minimumOrderAmount)}</strong> pedido mínimo</span>
               <span><strong>{reward.redemptions}</strong> resgates</span>
             </div>

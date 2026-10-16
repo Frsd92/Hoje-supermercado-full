@@ -117,7 +117,10 @@ export default function DashboardLayout({ children }) {
   const [cpfNoteDialogOpen, setCpfNoteDialogOpen] = useState(false);
   const [coupon, setCoupon] = useState('');
   const [couponDiscountPercent, setCouponDiscountPercent] = useState(0);
+  const [couponBenefitType, setCouponBenefitType] = useState('');
   const [couponMinimumOrderAmount, setCouponMinimumOrderAmount] = useState(0);
+  const [checkoutFees, setCheckoutFees] = useState(null);
+  const [checkoutFeesError, setCheckoutFeesError] = useState('');
   const [appliedCouponCode, setAppliedCouponCode] = useState('');
   const [couponStatus, setCouponStatus] = useState('');
   const normalizedCoupon = coupon.trim().toUpperCase();
@@ -133,8 +136,13 @@ export default function DashboardLayout({ children }) {
     ? couponDiscountPercent
     : 0;
   const cartTotals = useMemo(
-    () => calculateOrderTotals(cartItems, activeCouponDiscountPercent),
-    [cartItems, activeCouponDiscountPercent],
+    () => calculateOrderTotals(cartItems, {
+      discountPercent: activeCouponDiscountPercent,
+      benefitType: appliedCouponCode === normalizedCoupon ? couponBenefitType : null,
+      deliveryFee: checkoutFees?.deliveryFee || 0,
+      serviceFee: checkoutFees?.serviceFee || 0,
+    }),
+    [cartItems, activeCouponDiscountPercent, appliedCouponCode, normalizedCoupon, couponBenefitType, checkoutFees],
   );
   const activeSavedCards = savedCards.filter((card) => card.status === 'active');
   const compatibleSavedCards = activeSavedCards.filter((card) => isCardTypeCompatible(card.type, paymentMethod));
@@ -184,6 +192,7 @@ export default function DashboardLayout({ children }) {
       }
       setCoupon(code);
       setCouponDiscountPercent(0);
+      setCouponBenefitType('');
       setCouponMinimumOrderAmount(0);
       setAppliedCouponCode('');
       setCouponStatus('');
@@ -194,6 +203,33 @@ export default function DashboardLayout({ children }) {
     window.addEventListener('dashboard-use-coupon', handleCouponRequest);
     return () => window.removeEventListener('dashboard-use-coupon', handleCouponRequest);
   }, [openCart]);
+
+  useEffect(() => {
+    if (!session?.user?.email) return undefined;
+    let active = true;
+    fetch('/api/checkout/fees', { cache: 'no-store' })
+      .then(async (response) => {
+        const data = await response.json();
+        if (!response.ok) throw new Error(data.error || 'Não foi possível carregar as taxas do pedido.');
+        if (!data.fees
+          || !Number.isFinite(Number(data.fees.deliveryFee))
+          || !Number.isFinite(Number(data.fees.serviceFee))) {
+          throw new Error('As taxas do pedido foram recebidas em formato inválido.');
+        }
+        if (active) {
+          setCheckoutFees({
+            deliveryFee: Number(data.fees.deliveryFee),
+            serviceFee: Number(data.fees.serviceFee),
+          });
+          setCheckoutFeesError('');
+        }
+      })
+      .catch((error) => {
+        console.error('Não foi possível carregar as taxas do pedido:', error);
+        if (active) setCheckoutFeesError(error.message || 'Não foi possível carregar as taxas do pedido.');
+      });
+    return () => { active = false; };
+  }, [session?.user?.email]);
 
   useEffect(() => {
     const dialog = cpfNoteDialogRef.current;
@@ -756,14 +792,20 @@ export default function DashboardLayout({ children }) {
         throw new Error('Cupom inválido, expirado ou não disponível para sua conta.');
       }
       setCouponDiscountPercent(assignedCoupon.discountPercent);
+      setCouponBenefitType(assignedCoupon.benefitType || 'PERCENTAGE');
       const minimumOrderAmount = Number(assignedCoupon.minimumOrderAmount) || 0;
       setCouponMinimumOrderAmount(minimumOrderAmount);
       setAppliedCouponCode(code);
       setCouponStatus(cartSubtotal < minimumOrderAmount
         ? `O cupom ${code} exige um pedido mínimo de R$ ${minimumOrderAmount.toFixed(2).replace('.', ',')}.`
-        : `Cupom ${code} aplicado: ${assignedCoupon.discountPercent}% de desconto.`);
+        : `Cupom ${code} aplicado com sucesso: ${assignedCoupon.benefitType === 'FREE_DELIVERY'
+          ? 'entrega grátis.'
+          : assignedCoupon.benefitType === 'FREE_SERVICE_FEE'
+            ? 'taxa de serviço zerada.'
+            : `${assignedCoupon.discountPercent}% de desconto.`}`);
     } catch (error) {
       setCouponDiscountPercent(0);
+      setCouponBenefitType('');
       setCouponMinimumOrderAmount(0);
       setAppliedCouponCode('');
       setCouponStatus(error.message);
@@ -773,6 +815,8 @@ export default function DashboardLayout({ children }) {
     event.preventDefault();
     if (!cartItems.length) return setCheckoutStatus('Adicione produtos antes de finalizar.');
     if (!session?.user?.email) return setCheckoutStatus('É necessário estar autenticado para finalizar a compra.');
+    if (checkoutFeesError) return setCheckoutStatus(`Não foi possível confirmar as taxas do pedido: ${checkoutFeesError}`);
+    if (!checkoutFees) return setCheckoutStatus('Estamos carregando as taxas do pedido. Aguarde um instante.');
     if (appliedCouponCode === normalizedCoupon && normalizedCoupon && couponMinimumNotMet) {
       return setCheckoutStatus(`Este cupom exige compras a partir de R$ ${couponMinimumOrderAmount.toFixed(2).replace('.', ',')}.`);
     }
@@ -845,10 +889,19 @@ export default function DashboardLayout({ children }) {
           savedCardId: chargeSavedCard ? selectedSavedCard?.id : undefined,
           includeCpfOnReceipt,
           couponCode: coupon.trim().toUpperCase(),
+          expectedFees: checkoutFees,
           total: `R$ ${total.toFixed(2).replace('.', ',')}`,
         }),
       });
       const data = await response.json();
+      if (data.fees
+        && Number.isFinite(Number(data.fees.deliveryFee))
+        && Number.isFinite(Number(data.fees.serviceFee))) {
+        setCheckoutFees({
+          deliveryFee: Number(data.fees.deliveryFee),
+          serviceFee: Number(data.fees.serviceFee),
+        });
+      }
       if (!response.ok) {
         if (response.status < 500) checkoutRequestIdRef.current = null;
         throw new Error(data.error || 'Não foi possível finalizar a compra.');
@@ -856,6 +909,7 @@ export default function DashboardLayout({ children }) {
       await saveCart([]);
       setCoupon('');
       setCouponDiscountPercent(0);
+      setCouponBenefitType('');
       setCouponMinimumOrderAmount(0);
       setAppliedCouponCode('');
       setCouponStatus('');
@@ -1246,7 +1300,8 @@ export default function DashboardLayout({ children }) {
                 <span>Descontos</span>
                 <strong>R$ {cartTotals.couponDiscountAmount.toFixed(2).replace('.', ',')}</strong>
               </div>
-              <div className="summary-row"><span>Frete</span><strong>R$ 0,00</strong></div>
+              <div className="summary-row"><span>Entrega{couponBenefitType === 'FREE_DELIVERY' && appliedCouponCode === normalizedCoupon ? ' · grátis' : ''}</span><strong>R$ {cartTotals.deliveryFee.toFixed(2).replace('.', ',')}</strong></div>
+              <div className="summary-row"><span>Taxa de serviço{couponBenefitType === 'FREE_SERVICE_FEE' && appliedCouponCode === normalizedCoupon ? ' · zerada' : ''}</span><strong>R$ {cartTotals.serviceFee.toFixed(2).replace('.', ',')}</strong></div>
               <div className="summary-row total">
                 <span>Total</span>
                 <strong>R$ {cartTotals.total.toFixed(2).replace('.', ',')}</strong>
@@ -1256,7 +1311,7 @@ export default function DashboardLayout({ children }) {
               <input
                 id="cart-coupon-code"
                 value={coupon}
-                onChange={(event) => { setCoupon(event.target.value); setCouponDiscountPercent(0); setCouponMinimumOrderAmount(0); setAppliedCouponCode(''); setCouponStatus(''); }}
+                onChange={(event) => { setCoupon(event.target.value); setCouponDiscountPercent(0); setCouponBenefitType(''); setCouponMinimumOrderAmount(0); setAppliedCouponCode(''); setCouponStatus(''); }}
                 placeholder="Insira seu Cupom"
                 maxLength={24}
                 aria-label="Código do cupom"

@@ -97,6 +97,17 @@ test('validates reward discounts, point costs, and minimum-order amounts', () =>
   assert.equal(reward.minimumOrderAmount, 80.5);
   assert.equal(reward.pointsCost, 250);
   assert.equal(reward.validityDays, 14);
+  assert.equal(reward.benefitType, 'PERCENTAGE');
+  const freeDeliveryReward = validateLoyaltyRewardPayload({
+    name: 'Entrega por pontos',
+    benefitType: 'FREE_DELIVERY',
+    pointsCost: 300,
+    minimumOrderAmount: 0,
+    validityDays: 14,
+    active: true,
+  });
+  assert.equal(freeDeliveryReward.discountPercent, 0);
+  assert.equal(freeDeliveryReward.benefitType, 'FREE_DELIVERY');
   assert.throws(() => validateLoyaltyRewardPayload({
     name: 'Desconto inválido',
     pointsCost: 100,

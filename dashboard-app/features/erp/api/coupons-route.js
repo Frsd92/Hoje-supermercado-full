@@ -4,6 +4,9 @@ import { authOptions } from '@/auth';
 import { erpActorLabel, hasErpAccess } from '@/features/erp/access';
 import { prisma } from '@/lib/prisma';
 import { summarizeCouponCampaign } from '@/features/coupons/coupon-reporting';
+import { couponBenefitOptions, getCouponBenefitLabel } from '@/features/coupons/coupon-benefits';
+
+const supportedBenefitTypes = new Set(couponBenefitOptions.map((option) => option.value));
 
 export async function GET() {
   const session = await getServerSession(authOptions);
@@ -17,6 +20,7 @@ export async function GET() {
         id: true,
         code: true,
         discountPercent: true,
+        benefitType: true,
         minimumOrderAmount: true,
         expiresAt: true,
         createdAt: true,
@@ -37,6 +41,7 @@ export async function GET() {
           customerEmail: true,
           total: true,
           couponDiscountAmount: true,
+          couponFeeSavings: true,
           status: true,
           paymentStatus: true,
           refundedAmount: true,
@@ -63,6 +68,7 @@ export async function POST(request) {
 
   const body = await request.json();
   const code = String(body?.code || '').trim().toUpperCase();
+  const benefitType = String(body?.benefitType || 'PERCENTAGE');
   const discountPercent = Number(body?.discountPercent);
   const durationDays = Number(body?.durationDays);
   const message = String(body?.message || '').trim();
@@ -71,10 +77,11 @@ export async function POST(request) {
     : [];
 
   if (!/^[A-Z0-9_-]{3,24}$/.test(code)
-    || !Number.isInteger(discountPercent) || discountPercent < 1 || discountPercent > 90
+    || !supportedBenefitTypes.has(benefitType)
+    || (benefitType === 'PERCENTAGE' && (!Number.isInteger(discountPercent) || discountPercent < 1 || discountPercent > 90))
     || !Number.isInteger(durationDays) || durationDays < 1 || durationDays > 365
     || !recipients.length || message.length > 300) {
-    return Response.json({ error: 'Informe um código válido, desconto entre 1% e 90%, validade entre 1 e 365 dias e ao menos um cliente.' }, { status: 400 });
+    return Response.json({ error: 'Informe um código e benefício válidos, validade entre 1 e 365 dias e ao menos um cliente.' }, { status: 400 });
   }
 
   try {
@@ -87,8 +94,9 @@ export async function POST(request) {
       if (existingCampaign.expiresAt.getTime() <= Date.now()) {
         return Response.json({ error: 'Este cupom já expirou. Crie um novo código para enviar descontos.' }, { status: 409 });
       }
-      if (existingCampaign.discountPercent !== discountPercent) {
-        return Response.json({ error: `O cupom ${code} já existe com ${existingCampaign.discountPercent}% de desconto. Para manter o mesmo cupom, use esse percentual.` }, { status: 409 });
+      if (existingCampaign.benefitType !== benefitType
+        || (benefitType === 'PERCENTAGE' && existingCampaign.discountPercent !== discountPercent)) {
+        return Response.json({ error: `O cupom ${code} já existe como ${getCouponBenefitLabel(existingCampaign.benefitType, existingCampaign.discountPercent)}. Para manter o código, use o mesmo benefício.` }, { status: 409 });
       }
 
       const addedRecipients = await prisma.couponRecipient.createMany({
@@ -107,6 +115,7 @@ export async function POST(request) {
           id: existingCampaign.id,
           code: existingCampaign.code,
           discountPercent: existingCampaign.discountPercent,
+          benefitType: existingCampaign.benefitType,
           expiresAt: existingCampaign.expiresAt,
           createdAt: existingCampaign.createdAt,
           recipientsCount: existingCampaign.recipients.length + addedRecipients.count,
@@ -120,12 +129,14 @@ export async function POST(request) {
     const createdAt = new Date();
     const expiresAt = new Date(createdAt.getTime() + durationDays * 86400000).toISOString();
     const campaignId = `CPN-${randomUUID()}`;
-    const couponMessage = [`Você recebeu ${discountPercent}% de desconto!`, `Use o cupom ${code} na finalização da compra.`, message, `Válido até ${new Date(expiresAt).toLocaleDateString('pt-BR')}.`].filter(Boolean).join(' ');
+    const appliedDiscountPercent = benefitType === 'PERCENTAGE' ? discountPercent : 0;
+    const couponMessage = [`Você recebeu ${getCouponBenefitLabel(benefitType, appliedDiscountPercent)}!`, `Use o cupom ${code} na finalização da compra.`, message, `Válido até ${new Date(expiresAt).toLocaleDateString('pt-BR')}.`].filter(Boolean).join(' ');
     await prisma.couponCampaign.create({
       data: {
         id: campaignId,
         code,
-        discountPercent,
+        discountPercent: appliedDiscountPercent,
+        benefitType,
         message: couponMessage,
         expiresAt: new Date(expiresAt),
         createdBy: erpActorLabel(session.user),
@@ -137,7 +148,7 @@ export async function POST(request) {
         },
       },
     });
-    return Response.json({ campaign: { id: campaignId, code, discountPercent, expiresAt, createdAt: createdAt.toISOString(), recipientsCount: recipients.length, addedRecipientsCount: recipients.length, recipientEmails: recipients, message: couponMessage } }, { status: 201 });
+    return Response.json({ campaign: { id: campaignId, code, discountPercent: appliedDiscountPercent, benefitType, expiresAt, createdAt: createdAt.toISOString(), recipientsCount: recipients.length, addedRecipientsCount: recipients.length, recipientEmails: recipients, message: couponMessage } }, { status: 201 });
   } catch (error) {
     if (error.code === 'P2002') return Response.json({ error: 'Este cupom já foi atualizado por outra operação. Atualize a tela e tente novamente.' }, { status: 409 });
     console.error('Não foi possível enviar o cupom:', error);

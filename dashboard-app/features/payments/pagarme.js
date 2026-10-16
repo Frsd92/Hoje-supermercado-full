@@ -68,6 +68,8 @@ export function buildPagarmeOrderPayload({
   orderId,
   items,
   total,
+  deliveryFee = 0,
+  serviceFee = 0,
   customer,
   paymentMethod,
   cardToken,
@@ -101,21 +103,38 @@ export function buildPagarmeOrderPayload({
       code: String(item.productCode || item.productId || `ITEM-${index + 1}`).slice(0, 52),
     };
   });
+  const feeItems = [
+    ['Taxa de entrega', 'DELIVERY-FEE', deliveryFee],
+    ['Taxa de serviço', 'SERVICE-FEE', serviceFee],
+  ].flatMap(([description, code, value]) => {
+    let normalized = String(value ?? '').trim().replace(/^R\$\s*/i, '').replace(/\s/g, '');
+    if (normalized.includes(',')) normalized = normalized.replace(/\./g, '').replace(',', '.');
+    const parsedAmount = Number(normalized);
+    if (!Number.isFinite(parsedAmount) || parsedAmount < 0) throw new Error('O pedido contém uma taxa inválida para pagamento.');
+    const amount = Math.round(parsedAmount * 100);
+    if (!Number.isSafeInteger(amount)) throw new Error('O pedido contém uma taxa inválida para pagamento.');
+    return amount > 0 ? [{ amount, description, quantity: 1, code }] : [];
+  });
   const totalCents = Math.round(parseAmount(total) * 100);
-  const subtotalCents = rawItems.reduce((sum, item) => sum + item.amount, 0);
-  if (totalCents > subtotalCents) {
+  const productSubtotalCents = rawItems.reduce((sum, item) => sum + item.amount, 0);
+  const feesCents = feeItems.reduce((sum, item) => sum + item.amount, 0);
+  const payableProductsCents = totalCents - feesCents;
+  if (totalCents > productSubtotalCents + feesCents
+    || payableProductsCents < 0
+    || payableProductsCents > productSubtotalCents) {
     throw new Error('O total do pedido não confere com os itens. Atualize o carrinho e tente novamente.');
   }
-  let remainingCents = totalCents;
-  const pagarmeItems = rawItems
+  let remainingCents = payableProductsCents;
+  const payableItems = rawItems
     .map((item, index) => {
       const amount = index === rawItems.length - 1
         ? remainingCents
-        : Math.floor(item.amount * totalCents / subtotalCents);
+        : Math.floor(item.amount * payableProductsCents / productSubtotalCents);
       remainingCents -= amount;
       return { ...item, amount };
     })
     .filter((item) => item.amount > 0);
+  const pagarmeItems = [...payableItems, ...feeItems];
 
   const cardPayment = isCardPaymentMethod(paymentMethod);
   const debitCard = paymentMethod === 'cartao_debito';

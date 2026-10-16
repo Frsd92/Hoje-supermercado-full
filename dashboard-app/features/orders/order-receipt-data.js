@@ -14,7 +14,7 @@ export function parseReceiptAmount(value) {
   return Number.isFinite(amount) ? amount : 0;
 }
 
-export function calculateOrderTotals(items, couponDiscountPercent = 0) {
+export function calculateOrderTotals(items, couponOptions = 0) {
   const lines = (Array.isArray(items) ? items : []).map((item) => {
     const quantityValue = Number(item?.quantity);
     const quantity = Number.isFinite(quantityValue) && quantityValue > 0 ? quantityValue : 1;
@@ -31,17 +31,32 @@ export function calculateOrderTotals(items, couponDiscountPercent = 0) {
     };
   });
   const subtotal = roundMoney(lines.reduce((sum, line) => sum + line.lineTotal, 0));
-  const rawDiscountPercent = Number(couponDiscountPercent);
+  const options = typeof couponOptions === 'number'
+    ? { discountPercent: couponOptions }
+    : couponOptions || {};
+  const rawDiscountPercent = Number(options.discountPercent);
   const discountPercent = Number.isFinite(rawDiscountPercent)
     ? Math.min(90, Math.max(0, rawDiscountPercent))
     : 0;
   const couponDiscountAmount = roundMoney(subtotal * discountPercent / 100);
+  const deliveryFee = roundMoney(Math.max(0, parseReceiptAmount(options.deliveryFee)));
+  const serviceFee = roundMoney(Math.max(0, parseReceiptAmount(options.serviceFee)));
+  const chargedDeliveryFee = options.benefitType === 'FREE_DELIVERY' ? 0 : deliveryFee;
+  const chargedServiceFee = options.benefitType === 'FREE_SERVICE_FEE' ? 0 : serviceFee;
+  const couponFeeSavings = roundMoney(
+    (options.benefitType === 'FREE_DELIVERY' ? deliveryFee : 0)
+    + (options.benefitType === 'FREE_SERVICE_FEE' ? serviceFee : 0),
+  );
 
   return {
     lines,
     subtotal,
     couponDiscountAmount,
-    total: roundMoney(subtotal - couponDiscountAmount),
+    couponBenefitType: options.benefitType || (discountPercent ? 'PERCENTAGE' : null),
+    couponFeeSavings,
+    deliveryFee: chargedDeliveryFee,
+    serviceFee: chargedServiceFee,
+    total: roundMoney(subtotal - couponDiscountAmount + chargedDeliveryFee + chargedServiceFee),
   };
 }
 
@@ -67,8 +82,11 @@ export function buildOrderReceiptData(order = {}) {
     : hasCoupon && savedTotal !== null
       ? roundMoney(Math.max(0, subtotal - savedTotal))
       : 0;
+  const deliveryFee = roundMoney(Math.max(0, parseReceiptAmount(order.deliveryFee)));
+  const serviceFee = roundMoney(Math.max(0, parseReceiptAmount(order.serviceFee)));
+  const couponFeeSavings = roundMoney(Math.max(0, parseReceiptAmount(order.couponFeeSavings)));
   const total = savedTotal === null
-    ? roundMoney(Math.max(0, subtotal - couponDiscountAmount))
+    ? roundMoney(Math.max(0, subtotal - couponDiscountAmount + deliveryFee + serviceFee))
     : savedTotal;
 
   return {
@@ -80,6 +98,8 @@ export function buildOrderReceiptData(order = {}) {
     invoiceCpf: invoiceCpf.length === 11 ? invoiceCpf : '',
     couponCode,
     couponDiscountPercent: Number.isFinite(rawDiscountPercent) ? rawDiscountPercent : 0,
+    couponBenefitType: String(order.couponBenefitType || ''),
+    couponFeeSavings,
     items: calculated.lines,
     itemLineCount: calculated.lines.length,
     totalUnitQuantity: roundMoney(calculated.lines
@@ -93,6 +113,8 @@ export function buildOrderReceiptData(order = {}) {
     subtotal,
     subtotalAdjustment: roundMoney(subtotal - calculated.subtotal),
     couponDiscountAmount,
+    deliveryFee,
+    serviceFee,
     total,
     totalAdjustment: roundMoney(total - (subtotal - couponDiscountAmount)),
   };

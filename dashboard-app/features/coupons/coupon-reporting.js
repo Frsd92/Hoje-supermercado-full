@@ -113,7 +113,9 @@ export function summarizeCouponCampaign(campaign, sourceOrders = [], now = new D
     order.status === 'Cancelado' || ['failed', 'canceled'].includes(String(order.paymentStatus || '').toLowerCase())
   ));
   const revenue = activeOrders.reduce((sum, order) => sum + getNetRevenue(order), 0);
-  const discountGiven = activeOrders.reduce((sum, order) => sum + parseMoney(order.couponDiscountAmount), 0);
+  const discountGiven = activeOrders.reduce((sum, order) => (
+    sum + parseMoney(order.couponDiscountAmount) + parseMoney(order.couponFeeSavings)
+  ), 0);
   const campaignStatus = expiresAt.getTime() <= now.getTime()
     ? 'expired'
     : recipientsCount > 0 && availableCount === 0 && processingCount === 0
@@ -124,6 +126,7 @@ export function summarizeCouponCampaign(campaign, sourceOrders = [], now = new D
     id: campaign.id,
     code,
     discountPercent: Number(campaign.discountPercent),
+    benefitType: campaign.benefitType || 'PERCENTAGE',
     minimumOrderAmount: roundMoney(Math.max(0, parseMoney(campaign.minimumOrderAmount))),
     message: campaign.message,
     createdAt: campaign.createdAt,

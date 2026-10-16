@@ -390,6 +390,30 @@ export async function POST(request) {
     }
   }
   const appliedDiscountPercent = campaignCoupon?.discountPercent || 0;
+  const appliedBenefitType = campaignCoupon?.benefitType || null;
+  let checkoutFees;
+  try {
+    const settings = await prisma.checkoutFeeSettings.findUnique({ where: { id: 'default' } });
+    checkoutFees = {
+      deliveryFee: Number(settings?.deliveryFee || 0),
+      serviceFee: Number(settings?.serviceFee || 0),
+    };
+  } catch (error) {
+    console.error('Não foi possível carregar as taxas atuais para calcular o pedido:', error);
+    return Response.json({ error: 'Não foi possível calcular as taxas do pedido agora.' }, { status: 500, headers: corsHeaders(request) });
+  }
+  if (body.expectedFees !== undefined) {
+    const expectedDeliveryFee = Number(body.expectedFees?.deliveryFee);
+    const expectedServiceFee = Number(body.expectedFees?.serviceFee);
+    if (!Number.isFinite(expectedDeliveryFee) || !Number.isFinite(expectedServiceFee)
+      || Math.round(expectedDeliveryFee * 100) !== Math.round(checkoutFees.deliveryFee * 100)
+      || Math.round(expectedServiceFee * 100) !== Math.round(checkoutFees.serviceFee * 100)) {
+      return Response.json({
+        error: 'As taxas do pedido foram atualizadas. Confira os novos valores no carrinho e tente novamente.',
+        fees: checkoutFees,
+      }, { status: 409, headers: corsHeaders(request) });
+    }
+  }
   let currentProducts;
   try {
     currentProducts = await loadProductsForOrder(body.items);
@@ -437,7 +461,18 @@ export async function POST(request) {
       productCode: String(product.barcode || product.sku || '').trim() || null,
     });
   }
-  const { subtotal, couponDiscountAmount, total } = calculateOrderTotals(orderItems, appliedDiscountPercent);
+  const {
+    subtotal,
+    couponDiscountAmount,
+    deliveryFee,
+    serviceFee,
+    couponFeeSavings,
+    total,
+  } = calculateOrderTotals(orderItems, {
+    discountPercent: appliedDiscountPercent,
+    benefitType: appliedBenefitType,
+    ...checkoutFees,
+  });
   if (campaignCoupon && subtotal < Number(campaignCoupon.minimumOrderAmount)) {
     const minimumOrderAmount = Number(campaignCoupon.minimumOrderAmount);
     return Response.json({
@@ -453,6 +488,8 @@ export async function POST(request) {
         orderId,
         items: orderItems,
         total,
+        deliveryFee,
+        serviceFee,
         customer: {
           name: customerProfile?.fullName || session.user.name || 'Cliente',
           email,
@@ -507,6 +544,10 @@ export async function POST(request) {
           couponCode: campaignCoupon ? couponCode : null,
           couponDiscountPercent: campaignCoupon ? appliedDiscountPercent : null,
           couponDiscountAmount,
+          couponBenefitType: appliedBenefitType,
+          couponFeeSavings,
+          deliveryFee,
+          serviceFee,
           status: 'Recebido',
           items: { create: orderItems },
         },

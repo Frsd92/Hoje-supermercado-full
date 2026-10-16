@@ -1,6 +1,7 @@
 import { formatCartQuantity } from '@/app/dashboard/cart-utils';
 import { buildOrderReceiptData } from './order-receipt-data';
 import { receiptIssuer } from './receipt-issuer';
+import { getCouponBenefitLabel } from '@/features/coupons/coupon-benefits';
 
 const currencyFormatter = new Intl.NumberFormat('pt-BR', { style: 'currency', currency: 'BRL' });
 
@@ -108,9 +109,17 @@ export default function OrderReceipt({ order }) {
       <div><dt>Subtotal após promoções</dt><dd>{money(receipt.subtotal)}</dd></div>
       {Math.abs(receipt.subtotalAdjustment) >= 0.01 && <div><dt>Ajuste entre itens e subtotal registrado</dt><dd>{money(receipt.subtotalAdjustment)}</dd></div>}
       {(receipt.couponCode || receipt.couponDiscountAmount > 0) && <div className="order-receipt-discount">
-        <dt>Cupom aplicado {receipt.couponCode && <span>({receipt.couponCode})</span>}{receipt.couponDiscountPercent > 0 && <span> · {receipt.couponDiscountPercent}%</span>}</dt>
-        <dd>−{money(receipt.couponDiscountAmount)}</dd>
+        <dt>Cupom aplicado {receipt.couponCode && <span>({receipt.couponCode})</span>}{receipt.couponBenefitType === 'FREE_DELIVERY' || receipt.couponBenefitType === 'FREE_SERVICE_FEE'
+          ? <span> · {getCouponBenefitLabel(receipt.couponBenefitType, receipt.couponDiscountPercent)}</span>
+          : receipt.couponDiscountPercent > 0 && <span> · {receipt.couponDiscountPercent}%</span>}</dt>
+        {receipt.couponBenefitType === 'FREE_DELIVERY' || receipt.couponBenefitType === 'FREE_SERVICE_FEE'
+          ? <dd>Taxa zerada{receipt.couponFeeSavings > 0 ? ` · economia ${money(receipt.couponFeeSavings)}` : ''}</dd>
+          : <dd>−{money(receipt.couponDiscountAmount)}</dd>}
       </div>}
+      {receipt.couponBenefitType === 'FREE_DELIVERY' && <div><dt>Entrega · cupom aplicado</dt><dd>{money(receipt.deliveryFee)}</dd></div>}
+      {receipt.couponBenefitType === 'FREE_SERVICE_FEE' && <div><dt>Taxa de serviço · cupom aplicado</dt><dd>{money(receipt.serviceFee)}</dd></div>}
+      {receipt.couponBenefitType !== 'FREE_DELIVERY' && <div><dt>Entrega</dt><dd>{money(receipt.deliveryFee)}</dd></div>}
+      {receipt.couponBenefitType !== 'FREE_SERVICE_FEE' && <div><dt>Taxa de serviço</dt><dd>{money(receipt.serviceFee)}</dd></div>}
       {Math.abs(receipt.totalAdjustment) >= 0.01 && <div><dt>Ajuste registrado</dt><dd>{money(receipt.totalAdjustment)}</dd></div>}
       <div className="order-receipt-final-total"><dt>Valor total da compra</dt><dd>{money(receipt.total)}</dd></div>
     </dl>

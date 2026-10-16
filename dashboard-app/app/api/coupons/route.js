@@ -52,6 +52,7 @@ export async function POST(request) {
         id: true,
         code: true,
         discountPercent: true,
+        benefitType: true,
         minimumOrderAmount: true,
         expiresAt: true,
         redemptions: {
@@ -99,6 +100,7 @@ export async function POST(request) {
       coupon: {
         code: campaign.code,
         discountPercent: campaign.discountPercent,
+        benefitType: campaign.benefitType || 'PERCENTAGE',
         minimumOrderAmount: Number(campaign.minimumOrderAmount),
         expiresAt: campaign.expiresAt,
       },

@@ -172,3 +172,35 @@ export async function PATCH(request) {
     return Response.json({ error: 'Não foi possível atualizar o item do programa de fidelidade.' }, { status: 500 });
   }
 }
+
+export async function DELETE(request) {
+  const session = await getServerSession(authOptions);
+  if (!hasErpAccess(session?.user)) return Response.json({ error: 'Acesso negado.' }, { status: 403 });
+  const body = await readBody(request);
+  const id = String(body?.id || '').trim();
+  if (!id || body?.type !== 'mission') {
+    return Response.json({ error: 'Informe a missão que deseja excluir.' }, { status: 400 });
+  }
+
+  try {
+    const result = await prisma.$transaction(async (transaction) => {
+      const mission = await transaction.loyaltyMission.findUnique({
+        where: { id },
+        select: { id: true, name: true },
+      });
+      if (!mission) return { error: 'A missão não foi encontrada.', status: 404 };
+
+      await transaction.loyaltyMissionContribution.deleteMany({ where: { missionId: id } });
+      await transaction.loyaltyMission.delete({ where: { id } });
+      return { mission };
+    }, { isolationLevel: 'Serializable' });
+    if (result.error) return Response.json({ error: result.error }, { status: result.status });
+    return Response.json({ deleted: true, mission: result.mission });
+  } catch (error) {
+    if (error?.code === 'P2034' || error?.code === 'P2003') {
+      return Response.json({ error: 'A missão está sendo atualizada. Atualize a tela e tente excluir novamente.' }, { status: 409 });
+    }
+    console.error('Não foi possível excluir a missão do programa de fidelidade:', error);
+    return Response.json({ error: 'Não foi possível excluir a missão.' }, { status: 500 });
+  }
+}

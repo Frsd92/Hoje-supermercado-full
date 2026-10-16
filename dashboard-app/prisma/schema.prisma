@@ -290,6 +290,14 @@ model StoreLayoutSlideSettings {
   updatedAt      DateTime @updatedAt
 }
 
+model CheckoutFeeSettings {
+  id          String   @id @default("default")
+  deliveryFee Decimal  @default(0) @db.Decimal(12, 2)
+  serviceFee  Decimal  @default(0) @db.Decimal(12, 2)
+  updatedBy   String?
+  updatedAt   DateTime @updatedAt
+}
+
 model Supplier {
   id                String             @id @default(cuid())
   identityName      String             @unique
@@ -613,6 +621,10 @@ model Order {
   couponCode                  String?
   couponDiscountPercent       Int?
   couponDiscountAmount        Decimal                      @default(0) @db.Decimal(12, 2)
+  couponBenefitType            String?
+  couponFeeSavings              Decimal                      @default(0) @db.Decimal(12, 2)
+  deliveryFee                 Decimal                      @default(0) @db.Decimal(12, 2)
+  serviceFee                  Decimal                      @default(0) @db.Decimal(12, 2)
   status                      String                       @default("Recebido")
   updatedBy                   String?
   createdAt                   DateTime                     @default(now())
@@ -759,6 +771,7 @@ model CouponCampaign {
   id                 String                   @id
   code               String                   @unique
   discountPercent    Int
+  benefitType        String                   @default("PERCENTAGE")
   minimumOrderAmount Decimal                  @default(0) @db.Decimal(12, 2)
   message            String                   @default("")
   expiresAt          DateTime
@@ -869,6 +882,7 @@ model LoyaltyReward {
   description        String                    @default("")
   pointsCost         Int
   discountPercent    Int
+  benefitType        String                    @default("PERCENTAGE")
   minimumOrderAmount Decimal                   @default(0) @db.Decimal(12, 2)
   validityDays       Int
   active             Boolean                   @default(true)
