@@ -5,6 +5,12 @@ import { getDeliveryLocation } from '@/lib/delivery-location';
 import { prisma } from '@/lib/prisma';
 import { buildInvoiceCpfAnalytics } from './invoice-cpf-analytics.js';
 import { summarizeProfitability } from './analytics-metrics.js';
+import {
+  aggregateAnalyticsPayments,
+  getAnalyticsPaymentLabel,
+  isKnownAnalyticsPaymentMethod,
+  normalizeAnalyticsPaymentMethod,
+} from './payment-method-analytics.js';
 import { abandonedCartIdleThresholdHours, summarizeAbandonedCarts } from './abandoned-carts.js';
 import { getFlashOfferStatus } from './product-pricing.js';
 
@@ -353,35 +359,20 @@ export async function GET(request) {
     profit: item.missingCostItems ? null : item.revenue - item.cost,
     margin: item.missingCostItems || !item.revenue ? null : ((item.revenue - item.cost) / item.revenue) * 100,
   })).sort((a, b) => b.revenue - a.revenue);
-  const paymentLabels = {
-    pix: 'Pix',
-    cartao: 'Cartão',
-    cartao_credito: 'Cartão de crédito',
-    cartao_debito: 'Cartão de débito',
-    vale_alimentacao: 'Vale-alimentação',
-    vale_refeicao: 'Vale-refeição',
-    dinheiro: 'Dinheiro',
-    outro: 'Outro',
-    nao_informado: 'Não informado',
-  };
-  const paymentStats = new Map();
-  filteredDateOrders.forEach(({ order }) => {
-    const method = String(order.paymentMethod || 'nao_informado').toLowerCase();
-    const current = paymentStats.get(method) || { method, label: paymentLabels[method] || 'Não informado', orders: 0, value: 0 };
-    current.orders += 1;
-    current.value += money(order.total);
-    paymentStats.set(method, current);
-  });
+  const paymentStats = aggregateAnalyticsPayments(filteredDateOrders.map(({ order }) => ({
+    method: order.paymentMethod,
+    value: money(order.total),
+  })));
   const ordersWithPaymentMethod = filteredDateOrders.filter(({ order }) => (
-    ['pix', 'cartao', 'cartao_credito', 'cartao_debito', 'vale_alimentacao', 'vale_refeicao', 'dinheiro', 'outro'].includes(String(order.paymentMethod || '').toLowerCase())
+    isKnownAnalyticsPaymentMethod(order.paymentMethod)
   )).length;
   const purchaseDetails = filteredDateOrders.map(({ order, date }) => ({
     id: order.id,
     date: order.createdAt,
     sortDate: date.getTime(),
     customer: order.customerName || order.customerEmail || 'Cliente não identificado',
-    paymentMethod: String(order.paymentMethod || 'nao_informado').toLowerCase(),
-    paymentLabel: paymentLabels[String(order.paymentMethod || 'nao_informado').toLowerCase()] || 'Não informado',
+    paymentMethod: normalizeAnalyticsPaymentMethod(order.paymentMethod),
+    paymentLabel: getAnalyticsPaymentLabel(order.paymentMethod),
     value: money(order.total),
     items: (order.items || []).reduce((total, item) => total + (Number(item.quantity) || 0), 0),
   })).sort((first, second) => second.sortDate - first.sortDate);
@@ -641,7 +632,7 @@ export async function GET(request) {
       hourly: seriesFromMap(hourly),
       weekdays: seriesFromMap(weekdays),
       products: productStats,
-      payments: [...paymentStats.values()],
+      payments: paymentStats,
       paymentCoverage: {
         informedOrders: ordersWithPaymentMethod,
         unknownOrders: filteredDateOrders.length - ordersWithPaymentMethod,

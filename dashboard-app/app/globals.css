@@ -8048,6 +8048,18 @@ button.metric-mini:focus-visible {
 .analytics-progress { height: 8px; background: #eef2f1; border-radius: 99px; overflow: hidden; }
 .analytics-progress i { display: block; height: 100%; background: linear-gradient(90deg, #2f7656, #d4a94f); border-radius: inherit; }
 .analytics-source-note { margin-top: 14px; color: #73807e; font-size: .78rem; }
+.payment-method-leader { display: grid; gap: 5px; margin-bottom: 20px; padding: 15px; border: 1px solid #c9e4d1; border-radius: 12px; background: linear-gradient(125deg, #f0f9f2, #fff); }
+.payment-method-leader > span { color: #557061; font-size: .7rem; font-weight: 750; text-transform: uppercase; letter-spacing: .06em; }
+.payment-method-leader > strong { color: #175b37; font-size: 1.25rem; }
+.payment-method-leader > small { color: #64746a; line-height: 1.45; }
+.payment-method-chart { display: grid; gap: 15px; }
+.payment-method-chart-row { display: grid; gap: 7px; }
+.payment-method-chart-heading { display: flex; justify-content: space-between; align-items: baseline; gap: 10px; }
+.payment-method-chart-heading strong { color: #26343d; font-size: .8rem; }
+.payment-method-chart-heading span { color: #66756f; font-size: .72rem; text-align: right; }
+.payment-method-chart-track { height: 9px; overflow: hidden; border-radius: 99px; background: #eef2f1; }
+.payment-method-chart-track i { display: block; height: 100%; border-radius: inherit; background: linear-gradient(90deg, #2f7656, #d4a94f); }
+.payment-method-data-note { margin: 17px 0 0; color: #73807e; font-size: .72rem; line-height: 1.55; }
 .financial-page { display: flex; flex-direction: column; gap: 16px; max-width: 1480px; }
 .financial-header { display: flex; align-items: center; justify-content: space-between; gap: 20px; }
 .financial-header h1 { margin: 3px 0 0; color: #1e3428; font-size: clamp(1.8rem, 3vw, 2.4rem); letter-spacing: -.04em; }
