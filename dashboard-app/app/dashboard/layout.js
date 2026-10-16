@@ -1346,6 +1346,7 @@ export default function DashboardLayout({ children }) {
             );
           }) : <div className="cart-empty"><ShoppingCart size={28} /><strong>Seu carrinho está vazio</strong></div>}</div>
           <form className="cart-panel-footer" onSubmit={finishPurchase}>
+            <div className="cart-panel-footer-content">
             <div className="cart-summary-box">
               <div className="summary-row">
                 <span>Subtotal ({cartCount} itens)</span>
@@ -1471,6 +1472,12 @@ export default function DashboardLayout({ children }) {
               </div>
               </section>
             </>}
+            {checkoutStatus && <p className={`coupon-feedback ${checkoutOrderId || checkoutStatus.includes('sucesso') ? 'success' : 'error'}`} role="status" aria-live="polite">
+              {checkoutStatus}
+              {checkoutOrderId && <Link className="checkout-receipt-link" href="/dashboard/orders" onClick={() => { setCartOpen(false); setCheckoutStatus(''); }}>Ver pedido e pagamento · {checkoutOrderId}</Link>}
+            </p>}
+            </div>
+            <div className="cart-panel-actions">
             <button
               className="btn-finalizar"
               type="submit"
@@ -1481,10 +1488,7 @@ export default function DashboardLayout({ children }) {
               {checkoutLoading ? 'Finalizando...' : 'Finalizar Pedido'}
             </button>
             <button type="button" className="btn-limpar" onClick={() => saveCart([])}>Limpar Carrinho</button>
-            {checkoutStatus && <p className={`coupon-feedback ${checkoutOrderId || checkoutStatus.includes('sucesso') ? 'success' : 'error'}`} role="status" aria-live="polite">
-              {checkoutStatus}
-              {checkoutOrderId && <Link className="checkout-receipt-link" href="/dashboard/orders" onClick={() => { setCartOpen(false); setCheckoutStatus(''); }}>Ver pedido e pagamento · {checkoutOrderId}</Link>}
-            </p>}
+            </div>
             <dialog
               ref={cpfNoteDialogRef}
               className="cpf-note-dialog"

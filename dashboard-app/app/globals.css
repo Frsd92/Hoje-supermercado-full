@@ -2228,7 +2228,9 @@ body {
 .cart-item-remove { display: flex; align-items: center; justify-content: center; width: 26px; height: 26px; padding: 0; border: 1px solid rgba(239,68,68,0.14); border-radius: 8px; color: #ef4444; background: #fff; cursor: pointer; }
 .cart-empty { display: flex; flex-direction: column; align-items: center; justify-content: center; min-height: 180px; gap: 9px; color: #6b7280; text-align: center; }
 .cart-empty strong { color: #1f2937; font-size: 15px; }
-.cart-panel-footer { flex: 0 1 auto; min-height: 0; max-height: 56%; overflow-y: auto; margin-top: 18px; padding-top: 16px; border-top: 1px solid #e4e4e4; overscroll-behavior-y: contain; }
+.cart-panel-footer { display: flex; flex: 0 1 auto; flex-direction: column; min-height: 0; max-height: 56%; overflow: hidden; margin-top: 18px; padding-top: 16px; border-top: 1px solid #e4e4e4; }
+.cart-panel-footer-content { flex: 1 1 auto; min-height: 0; overflow-y: auto; padding-right: 2px; overscroll-behavior-y: contain; }
+.cart-panel-actions { flex: 0 0 auto; padding-top: 8px; background: linear-gradient(180deg, rgba(244,247,245,0.92), #f4f7f5 35%); }
 .cart-summary-box { margin-bottom: 16px; padding: 16px; border: 1px solid rgba(26,122,60,0.12); border-radius: 20px; background: linear-gradient(180deg, #ecf9f0, #f6faf7); box-shadow: inset 0 1px 0 rgba(255,255,255,0.7), 0 18px 30px rgba(26,122,60,0.08); }
 .cart-summary-box .summary-row { display: flex; justify-content: space-between; margin-bottom: 8px; color: #1f2937; font-size: 13px; }
 .cart-summary-box .summary-row:last-child { margin-bottom: 0; }
@@ -2241,7 +2243,7 @@ body {
 .coupon-feedback { min-height: 18px; margin: 0 0 12px; color: #6b7280; font-size: 12px; }
 .coupon-feedback.success { color: #166534; }
 .coupon-feedback.error { color: #b91c1c; }
-.cart-panel-footer > .checkout-field-hint { margin: -8px 0 8px; }
+.cart-panel-footer-content > .checkout-field-hint { margin: -8px 0 8px; }
 
 @media (max-width: 640px) {
   .cart-items {
@@ -2254,6 +2256,9 @@ body {
     margin-top: 10px;
     padding-top: 12px;
     padding-bottom: max(4px, env(safe-area-inset-bottom));
+  }
+
+  .cart-panel-footer-content {
     -webkit-overflow-scrolling: touch;
   }
 }
