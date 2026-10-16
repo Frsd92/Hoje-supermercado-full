@@ -227,6 +227,38 @@ test('builds debit-card orders with the selected saved card', () => {
   assert.equal(Object.hasOwn(payload.payments[0].debit_card, 'card_token'), false);
 });
 
+test('builds VA and VR orders with saved-card references and the required holder document', () => {
+  for (const paymentMethod of ['vale_alimentacao', 'vale_refeicao']) {
+    const order = {
+      orderId: `PED-${paymentMethod}`,
+      items: [{ name: 'Leite', price: 'R$ 8,00', quantity: 1, productCode: 'LEITE' }],
+      total: 'R$ 8,00',
+      customer: {
+        name: 'Cliente Hoje',
+        email: 'cliente@example.com',
+        cpf: '52998224725',
+        phone: '11987654321',
+      },
+      paymentMethod,
+    };
+    const savedCardPayload = buildPagarmeOrderPayload({
+      ...order,
+      savedCard: { customerId: 'cus_customer123', cardId: 'card_saved123' },
+    });
+    assert.equal(savedCardPayload.payments[0].payment_method, 'voucher');
+    assert.deepEqual(savedCardPayload.payments[0].voucher.card, {
+      card_id: 'card_saved123',
+      holder_document: '52998224725',
+    });
+
+    const newCardPayload = buildPagarmeOrderPayload({ ...order, cardToken: 'token_abc123' });
+    assert.deepEqual(newCardPayload.payments[0].voucher.card, {
+      card_token: 'token_abc123',
+      holder_document: '52998224725',
+    });
+  }
+});
+
 test('saves a customer card using only the Pagar.me token', async () => {
   let request;
   const card = await createPagarmeCustomerCard(

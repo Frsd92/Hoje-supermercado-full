@@ -30,6 +30,7 @@ import {
   getSavedCardType,
   isCardPaymentMethod,
   isCardTypeCompatible,
+  isVoucherPaymentMethod,
 } from '@/features/payments/card-methods';
 
 const productsFile = path.join(process.cwd(), 'data', 'products.json');
@@ -186,8 +187,16 @@ export async function POST(request) {
     return Response.json({ error: 'Itens e endereço de entrega são obrigatórios.' }, { status: 400, headers: corsHeaders(request) });
   }
   const cardPayment = isCardPaymentMethod(body.paymentMethod);
+  const voucherPayment = isVoucherPaymentMethod(body.paymentMethod);
   if (body.paymentMethod !== 'pix' && !cardPayment) {
     return Response.json({ error: 'Selecione uma forma de pagamento válida antes de finalizar.' }, { status: 400, headers: corsHeaders(request) });
+  }
+  if (voucherPayment && (
+    !process.env.PAGARME_SECRET_KEY
+    || !process.env.PAGARME_PUBLIC_KEY
+    || process.env.PAGARME_VOUCHER_ENABLED !== 'true'
+  )) {
+    return Response.json({ error: 'Pagamento com vale-alimentação/refeição indisponível. A modalidade Voucher ainda não foi habilitada na Pagar.me.' }, { status: 503, headers: corsHeaders(request) });
   }
   if (body.useSavedCard !== undefined && typeof body.useSavedCard !== 'boolean') {
     return Response.json({ error: 'A seleção do cartão salvo é inválida.' }, { status: 400, headers: corsHeaders(request) });
@@ -673,7 +682,7 @@ export async function PATCH(request) {
     });
     if (!record || record.status !== status) return Response.json({ error: 'Pedido não está no status esperado.' }, { status: 409, headers: corsHeaders(request) });
     if (status === 'Recebido'
-      && ['pix', 'cartao'].includes(record.paymentMethod)
+      && (record.paymentMethod === 'pix' || isCardPaymentMethod(record.paymentMethod))
       && record.paymentStatus !== 'manual'
       && !['paid', 'partially_refunded'].includes(record.paymentStatus)) {
       return Response.json({ error: 'A separação só pode começar depois da confirmação do pagamento pela Pagar.me.' }, { status: 409, headers: corsHeaders(request) });

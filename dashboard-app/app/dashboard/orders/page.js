@@ -7,6 +7,7 @@ import { getOrderStatus, orderStages } from '../order-status';
 import { sortOrdersNewestFirst } from '@/lib/order-sort';
 import OrderReceipt from '@/features/orders/order-receipt';
 import { refundRequestStatusLabels } from '@/features/orders/order-refund-utils';
+import { isCardPaymentMethod } from '@/features/payments/card-methods';
 import {
   canRequestOrderService,
   hasOpenOrderServiceRequest,
@@ -205,7 +206,7 @@ export default function OrdersPage() {
       if (!active || paymentPollingInProgressRef.current || document.visibilityState !== 'visible') return;
       const pendingOrders = orders.filter((order) => (
         order.paymentStatus === 'pending'
-        && ['pix', 'cartao'].includes(order.paymentMethod)
+        && (order.paymentMethod === 'pix' || isCardPaymentMethod(order.paymentMethod))
         && order.pagarmeOrderId
       ));
       if (!pendingOrders.length) return;
@@ -409,7 +410,7 @@ export default function OrdersPage() {
                       </button>
                       {paymentCheckFeedback[order.id] && <small role={paymentCheckFeedback[order.id].error ? 'alert' : 'status'}>{paymentCheckFeedback[order.id].message}</small>}
                     </span>}
-                    {order.paymentStatus === 'pending' && ['pix', 'cartao'].includes(order.paymentMethod) && !order.paymentDetails?.pixQrCode && <span className="customer-pix-payment" role="status">
+                    {order.paymentStatus === 'pending' && (order.paymentMethod === 'pix' || isCardPaymentMethod(order.paymentMethod)) && !order.paymentDetails?.pixQrCode && <span className="customer-pix-payment" role="status">
                       <strong>Pagamento aguardando confirmação</strong>
                       <small>A confirmação é verificada automaticamente enquanto esta tela estiver aberta. Não tente pagar novamente.</small>
                       <button type="button" disabled={Boolean(checkingPaymentOrderId)} onClick={() => verifyPayment(order)}>

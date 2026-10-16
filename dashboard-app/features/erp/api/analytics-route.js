@@ -353,7 +353,17 @@ export async function GET(request) {
     profit: item.missingCostItems ? null : item.revenue - item.cost,
     margin: item.missingCostItems || !item.revenue ? null : ((item.revenue - item.cost) / item.revenue) * 100,
   })).sort((a, b) => b.revenue - a.revenue);
-  const paymentLabels = { pix: 'Pix', cartao: 'Cartão', dinheiro: 'Dinheiro', outro: 'Outro', nao_informado: 'Não informado' };
+  const paymentLabels = {
+    pix: 'Pix',
+    cartao: 'Cartão',
+    cartao_credito: 'Cartão de crédito',
+    cartao_debito: 'Cartão de débito',
+    vale_alimentacao: 'Vale-alimentação',
+    vale_refeicao: 'Vale-refeição',
+    dinheiro: 'Dinheiro',
+    outro: 'Outro',
+    nao_informado: 'Não informado',
+  };
   const paymentStats = new Map();
   filteredDateOrders.forEach(({ order }) => {
     const method = String(order.paymentMethod || 'nao_informado').toLowerCase();
@@ -363,7 +373,7 @@ export async function GET(request) {
     paymentStats.set(method, current);
   });
   const ordersWithPaymentMethod = filteredDateOrders.filter(({ order }) => (
-    ['pix', 'cartao', 'dinheiro', 'outro'].includes(String(order.paymentMethod || '').toLowerCase())
+    ['pix', 'cartao', 'cartao_credito', 'cartao_debito', 'vale_alimentacao', 'vale_refeicao', 'dinheiro', 'outro'].includes(String(order.paymentMethod || '').toLowerCase())
   )).length;
   const purchaseDetails = filteredDateOrders.map(({ order, date }) => ({
     id: order.id,
@@ -582,7 +592,8 @@ export async function GET(request) {
     },
   };
   const ordersWithKnownPayment = orders.filter((order) => (
-    ['pix', 'cartao', 'dinheiro', 'outro'].includes(String(order.paymentMethod || '').toLowerCase())
+    ['pix', 'cartao', 'cartao_credito', 'cartao_debito', 'vale_alimentacao', 'vale_refeicao', 'dinheiro', 'outro']
+      .includes(String(order.paymentMethod || '').toLowerCase())
   )).length;
   const categoryRanking = [...categoryStats.values()].map((item) => ({
     label: item.label,

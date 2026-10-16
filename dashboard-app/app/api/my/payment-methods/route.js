@@ -131,7 +131,10 @@ export async function POST(request) {
     return Response.json({ error: 'Envie somente o código seguro do cartão; nunca os dados completos.' }, { status: 400 });
   }
   if (!SAVED_CARD_TYPES.includes(String(body.cardType || ''))) {
-    return Response.json({ error: 'Selecione se o cartão é de crédito ou débito.' }, { status: 400 });
+    return Response.json({ error: 'Selecione o tipo do cartão ou vale.' }, { status: 400 });
+  }
+  if (['food_voucher', 'meal_voucher'].includes(String(body.cardType)) && process.env.PAGARME_VOUCHER_ENABLED !== 'true') {
+    return Response.json({ error: 'Cadastro de vale-alimentação/refeição indisponível. A modalidade Voucher ainda não foi habilitada na Pagar.me.' }, { status: 503 });
   }
   if (!cardTokenPattern.test(String(body.cardToken || ''))) {
     return Response.json({ error: 'O cartão precisa ser validado antes de ser salvo.' }, { status: 400 });

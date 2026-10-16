@@ -14,7 +14,16 @@ import {
 } from '@/features/orders/order-refund-utils';
 
 const statuses = ['Todos', 'Recebido', 'Separacao', 'Expedicao', 'Em transito', 'Concluido', 'Cancelado'];
-const paymentLabels = { pix: 'Pix', cartao: 'Cartão', dinheiro: 'Dinheiro', outro: 'Outro / combinar' };
+const paymentLabels = {
+  pix: 'Pix',
+  cartao: 'Cartão',
+  cartao_credito: 'Cartão de crédito',
+  cartao_debito: 'Cartão de débito',
+  vale_alimentacao: 'Vale-alimentação',
+  vale_refeicao: 'Vale-refeição',
+  dinheiro: 'Dinheiro',
+  outro: 'Outro / combinar',
+};
 const paymentStatusLabels = {
   pending: 'Aguardando pagamento',
   paid: 'Pago',

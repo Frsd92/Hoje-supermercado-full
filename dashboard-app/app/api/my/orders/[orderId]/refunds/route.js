@@ -4,6 +4,7 @@ import { authOptions } from '@/auth';
 import { prisma } from '@/lib/prisma';
 import { serializeRefundRequest } from '@/features/erp/api/order-serialization';
 import { refundRequestStatus, validateRefundAmount } from '@/features/orders/order-refund-utils';
+import { isCardPaymentMethod } from '@/features/payments/card-methods';
 
 export async function POST(request, { params }) {
   const session = await getServerSession(authOptions);
@@ -42,7 +43,7 @@ export async function POST(request, { params }) {
         },
       });
       if (!order) return { error: 'O pedido não foi encontrado na sua conta.', status: 404 };
-      if (['pix', 'cartao'].includes(order.paymentMethod)
+      if ((order.paymentMethod === 'pix' || isCardPaymentMethod(order.paymentMethod))
         && order.paymentStatus !== 'manual'
         && !['paid', 'partially_refunded'].includes(order.paymentStatus)) {
         return { error: 'Só é possível solicitar estorno depois que o pagamento estiver confirmado.', status: 409 };

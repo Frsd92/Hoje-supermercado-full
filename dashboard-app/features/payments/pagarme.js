@@ -1,4 +1,4 @@
-import { getSavedCardTypeLabel, isCardPaymentMethod } from './card-methods.js';
+import { getSavedCardTypeLabel, isCardPaymentMethod, isVoucherPaymentMethod } from './card-methods.js';
 
 const pagarmeApiUrl = 'https://api.pagar.me/core/v5';
 
@@ -138,6 +138,7 @@ export function buildPagarmeOrderPayload({
 
   const cardPayment = isCardPaymentMethod(paymentMethod);
   const debitCard = paymentMethod === 'cartao_debito';
+  const voucherPayment = isVoucherPaymentMethod(paymentMethod);
   const validCardToken = /^token_[A-Za-z0-9]+$/.test(String(cardToken || ''));
   const savedCustomerId = String(savedCard?.customerId || '');
   const savedCardId = String(savedCard?.cardId || '');
@@ -154,7 +155,18 @@ export function buildPagarmeOrderPayload({
   }
 
   const cardReference = validSavedCard ? { card_id: savedCardId } : { card_token: cardToken };
-  const payment = cardPayment
+  const payment = voucherPayment
+    ? {
+      payment_method: 'voucher',
+      voucher: {
+        statement_descriptor: 'HOJE SUPERM',
+        card: {
+          ...cardReference,
+          holder_document: document,
+        },
+      },
+    }
+    : cardPayment
     ? debitCard
       ? {
         payment_method: 'debit_card',

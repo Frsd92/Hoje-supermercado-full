@@ -6,6 +6,7 @@ export async function GET() {
     pixAvailable: secretConfigured,
     cardAvailable: secretConfigured && Boolean(publicKey),
     savedCardAvailable: secretConfigured,
+    voucherAvailable: secretConfigured && Boolean(publicKey) && process.env.PAGARME_VOUCHER_ENABLED === 'true',
     publicKey: secretConfigured ? publicKey : '',
   }, {
     headers: { 'Cache-Control': 'no-store' },

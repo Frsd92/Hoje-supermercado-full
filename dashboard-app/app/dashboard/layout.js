@@ -20,6 +20,7 @@ import {
   isCardPaymentMethod,
   isCardTypeCompatible,
   isKnownCardType,
+  isVoucherPaymentMethod,
 } from '@/features/payments/card-methods';
 import {
   Bell,
@@ -107,7 +108,8 @@ export default function DashboardLayout({ children }) {
   const [selectedAddressId, setSelectedAddressId] = useState('');
   const [deliveryAddressOpen, setDeliveryAddressOpen] = useState(false);
   const [paymentMethod, setPaymentMethod] = useState(null);
-  const [pagarmeConfig, setPagarmeConfig] = useState({ pixAvailable: false, cardAvailable: false, savedCardAvailable: false, publicKey: '' });
+  const [pagarmeConfig, setPagarmeConfig] = useState({ pixAvailable: false, cardAvailable: false, savedCardAvailable: false, voucherAvailable: false, publicKey: '' });
+  const [pagarmeConfigReady, setPagarmeConfigReady] = useState(false);
   const [savedCards, setSavedCards] = useState([]);
   const [selectedSavedCardId, setSelectedSavedCardId] = useState('');
   const [savedCardLoading, setSavedCardLoading] = useState(true);
@@ -410,16 +412,32 @@ export default function DashboardLayout({ children }) {
         return data;
       })
       .then((config) => {
-        if (active) setPagarmeConfig(config);
+        if (active) {
+          setPagarmeConfig(config);
+          setPagarmeConfigReady(true);
+        }
       })
       .catch((error) => {
         console.error('Não foi possível verificar a configuração do pagamento online:', error);
-        if (active) setPagarmeConfig({ pixAvailable: false, cardAvailable: false, savedCardAvailable: false, publicKey: '' });
+        if (active) {
+          setPagarmeConfig({ pixAvailable: false, cardAvailable: false, savedCardAvailable: false, voucherAvailable: false, publicKey: '' });
+          setPagarmeConfigReady(true);
+        }
       });
     return () => {
       active = false;
     };
   }, []);
+
+  useEffect(() => {
+    if (!pagarmeConfigReady || pagarmeConfig.voucherAvailable || !isVoucherPaymentMethod(paymentMethod)) return;
+    try {
+      savePaymentMethod(session?.user?.email, 'pix');
+      setPaymentMethod('pix');
+    } catch (error) {
+      console.error('Não foi possível atualizar a forma de pagamento enquanto Voucher está indisponível:', error);
+    }
+  }, [pagarmeConfigReady, pagarmeConfig.voucherAvailable, paymentMethod, session?.user?.email]);
 
   useEffect(() => {
     let active = true;
@@ -824,6 +842,9 @@ export default function DashboardLayout({ children }) {
     if (addressLoadError) return setCheckoutStatus(`Não foi possível confirmar seus endereços: ${addressLoadError}`);
     if (!selectedDeliveryAddress) return setCheckoutStatus('Cadastre um endereço no painel do cliente antes de concluir a compra.');
     if (!isPaymentMethod(paymentMethod)) return setCheckoutStatus('Selecione uma forma no campo Forma de pagamento; você também pode defini-la na aba Formas de pagamento.');
+    if (isVoucherPaymentMethod(paymentMethod) && !pagarmeConfig.voucherAvailable) {
+      return setCheckoutStatus('VA/VR ainda não estão habilitados para pagamento online. A modalidade Voucher precisa ser ativada na Pagar.me Gateway.');
+    }
     const cardPaymentSelected = isCardPaymentMethod(paymentMethod);
     if (paymentMethod === 'pix' && !pagarmeConfig.pixAvailable) {
       return setCheckoutStatus('O Pix está temporariamente indisponível. Escolha outra forma de pagamento ou tente mais tarde.');
@@ -835,7 +856,13 @@ export default function DashboardLayout({ children }) {
       return setCheckoutStatus('Não foi possível verificar seus cartões salvos. Tente novamente antes de finalizar.');
     }
     if (cardPaymentSelected && !selectedSavedCard) {
-      const typeLabel = paymentMethod === 'cartao_debito' ? 'débito' : 'crédito';
+      const typeLabel = paymentMethod === 'cartao_debito'
+        ? 'débito'
+        : paymentMethod === 'vale_alimentacao'
+          ? 'vale-alimentação'
+          : paymentMethod === 'vale_refeicao'
+            ? 'vale-refeição'
+            : 'crédito';
       return setCheckoutStatus(activeSavedCards.length
         ? `Não há cartão de ${typeLabel} compatível na sua carteira. Cadastre um cartão desse tipo em Formas de pagamento.`
         : 'Salve um cartão em Formas de pagamento antes de finalizar.');
@@ -847,7 +874,7 @@ export default function DashboardLayout({ children }) {
       const cpf = String(profileCpf).replace(/\D/g, '');
       const phone = String(profilePhone).replace(/\D/g, '').replace(/^55(?=\d{10,11}$)/, '');
       if (cpf.length !== 11 || ![10, 11].includes(phone.length)) {
-        return setCheckoutStatus('Para pagar com Pix ou cartão, complete seu CPF e celular com DDD no perfil. Isso não define se o CPF será impresso no comprovante.');
+        return setCheckoutStatus('Para pagar online, complete seu CPF e celular com DDD no perfil. Isso não define se o CPF será impresso no comprovante.');
       }
     }
 
@@ -1337,9 +1364,10 @@ export default function DashboardLayout({ children }) {
             ) : null}
             <fieldset className="checkout-payment-method-list">
               <legend>Forma de pagamento</legend>
-              {PAYMENT_METHODS.map(({ value, label, recommended, description }) => {
+              {PAYMENT_METHODS.map(({ value, label, recommended, description, voucher }) => {
                 const PaymentIcon = value === 'pix' ? QrCode : CreditCard;
                 const selected = paymentMethod === value;
+                const disabledVoucher = voucher && !pagarmeConfig.voucherAvailable;
 
                 return (
                   <label className={`checkout-payment-method-choice checkout-payment-method-choice-${value}`} key={value}>
@@ -1350,6 +1378,7 @@ export default function DashboardLayout({ children }) {
                       value={value}
                       required
                       checked={selected}
+                      disabled={disabledVoucher}
                       onChange={(event) => {
                         checkoutRequestIdRef.current = null;
                         setCheckoutOrderId('');
@@ -1368,7 +1397,7 @@ export default function DashboardLayout({ children }) {
                           <strong>{label}</strong>
                           {recommended && <span className="checkout-payment-method-recommended">Recomendado</span>}
                         </span>
-                        <small>{description}</small>
+                        <small>{disabledVoucher ? 'Requer habilitação da modalidade Voucher na Pagar.me Gateway.' : description}</small>
                       </span>
                       <span className="checkout-payment-method-selection" aria-hidden="true">{selected && <Check size={15} />}</span>
                     </span>
@@ -1380,7 +1409,7 @@ export default function DashboardLayout({ children }) {
               <Link href="/dashboard/payment-methods">Editar preferência de pagamento</Link>
             </small>
             {(paymentMethod === 'pix' || isCardPaymentMethod(paymentMethod)) && <div className="checkout-field-hint" role="status">
-              <p>Para concluir com Pix ou cartão, precisamos do seu CPF e celular com DDD no perfil. Esses dados são usados no processamento do pagamento; a inclusão do CPF no comprovante é uma escolha separada.</p>
+              <p>Para concluir com pagamento online, precisamos do seu CPF e celular com DDD no perfil. Esses dados são usados no processamento do pagamento; a inclusão do CPF no comprovante é uma escolha separada.</p>
               {profileCpf.replace(/\D/g, '').length !== 11 || ![10, 11].includes(profilePhone.replace(/\D/g, '').replace(/^55(?=\d{10,11}$)/, '').length)
                 ? <Link href="/dashboard/profile">Completar dados do perfil</Link>
                 : <span>Dados necessários já estão no perfil.</span>}
@@ -1398,13 +1427,19 @@ export default function DashboardLayout({ children }) {
               {activeSavedCards.length && hasUnclassifiedActiveSavedCards
                 ? 'O tipo de um cartão salvo não foi identificado; ele não pode ser usado para evitar misturar crédito e débito. '
                 : activeSavedCards.length
-                  ? `Sua carteira não tem um cartão de ${paymentMethod === 'cartao_debito' ? 'débito' : 'crédito'} ativo. `
+                  ? `Sua carteira não tem um cartão de ${paymentMethod === 'cartao_debito' ? 'débito' : paymentMethod === 'vale_alimentacao' ? 'vale-alimentação' : paymentMethod === 'vale_refeicao' ? 'vale-refeição' : 'crédito'} ativo. `
                   : 'Salve um cartão para continuar. '}
               <Link href="/dashboard/payment-methods">Gerenciar cartões</Link>
             </p>}
             {isCardPaymentMethod(paymentMethod) && !savedCardLoading && !savedCardError && selectedSavedCard && <>
               <label className="delivery-address-field checkout-saved-card-select">
-                {paymentMethod === 'cartao_debito' ? 'Cartão de débito salvo' : 'Cartão de crédito salvo'}
+                {paymentMethod === 'cartao_debito'
+                  ? 'Cartão de débito salvo'
+                  : paymentMethod === 'vale_alimentacao'
+                    ? 'Cartão de vale-alimentação salvo'
+                    : paymentMethod === 'vale_refeicao'
+                      ? 'Cartão de vale-refeição salvo'
+                      : 'Cartão de crédito salvo'}
                 <select value={selectedSavedCard.id} onChange={(event) => setSelectedSavedCardId(event.target.value)}>
                   {compatibleSavedCards.map((card) => (
                     <option value={card.id} key={card.id}>
@@ -1423,7 +1458,13 @@ export default function DashboardLayout({ children }) {
                 <div className="checkout-saved-card-details">
                   <div className="checkout-saved-card-heading">
                     <h3 id="checkout-saved-card-title">
-                      {paymentMethod === 'cartao_debito' ? 'Cartão de débito selecionado' : 'Cartão de crédito selecionado'}
+                      {paymentMethod === 'cartao_debito'
+                        ? 'Cartão de débito selecionado'
+                        : paymentMethod === 'vale_alimentacao'
+                          ? 'Cartão de vale-alimentação selecionado'
+                          : paymentMethod === 'vale_refeicao'
+                            ? 'Cartão de vale-refeição selecionado'
+                            : 'Cartão de crédito selecionado'}
                     </h3>
                     <span className="checkout-saved-card-status">Pronto para usar</span>
                   </div>

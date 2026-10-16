@@ -12,12 +12,20 @@ import {
   readPaymentMethod,
   savePaymentMethod,
 } from '../payment-methods';
-import { isKnownCardType, MAX_SAVED_CARDS, SAVED_CARD_TYPES } from '@/features/payments/card-methods';
+import {
+  getExpectedCardType,
+  isKnownCardType,
+  isVoucherPaymentMethod,
+  MAX_SAVED_CARDS,
+  SAVED_CARD_TYPES,
+} from '@/features/payments/card-methods';
 
 const paymentMethodIcons = {
   pix: QrCode,
   cartao_credito: CreditCard,
   cartao_debito: CreditCard,
+  vale_alimentacao: CreditCard,
+  vale_refeicao: CreditCard,
 };
 
 export default function PaymentMethodsPage() {
@@ -29,6 +37,7 @@ export default function PaymentMethodsPage() {
   const [cardReady, setCardReady] = useState(false);
   const [cardLoadError, setCardLoadError] = useState('');
   const [cardAvailable, setCardAvailable] = useState(false);
+  const [voucherAvailable, setVoucherAvailable] = useState(false);
   const [cardConfigReady, setCardConfigReady] = useState(false);
   const [cardConfigError, setCardConfigError] = useState('');
   const [cardRetryCount, setCardRetryCount] = useState(0);
@@ -65,6 +74,16 @@ export default function PaymentMethodsPage() {
     window.addEventListener(PAYMENT_METHOD_UPDATED_EVENT, handlePaymentMethodUpdate);
     return () => window.removeEventListener(PAYMENT_METHOD_UPDATED_EVENT, handlePaymentMethodUpdate);
   }, [session?.user?.email]);
+
+  useEffect(() => {
+    if (!cardConfigReady || voucherAvailable || !isVoucherPaymentMethod(paymentMethod)) return;
+    try {
+      savePaymentMethod(session?.user?.email, 'pix');
+      setPaymentMethod('pix');
+    } catch (error) {
+      setFeedback({ type: 'error', message: `Não foi possível atualizar a preferência de pagamento: ${error.message}` });
+    }
+  }, [cardConfigReady, voucherAvailable, paymentMethod, session?.user?.email]);
 
   useEffect(() => {
     if (cardFormOpen) {
@@ -123,11 +142,13 @@ export default function PaymentMethodsPage() {
         if (!response.ok) throw new Error(data.error || 'Não foi possível verificar a disponibilidade do cadastro.');
         if (active) {
           setCardAvailable(Boolean(data.cardAvailable && data.publicKey));
+          setVoucherAvailable(Boolean(data.voucherAvailable));
           setCardConfigError('');
         }
       } catch (error) {
         if (active) {
           setCardAvailable(false);
+          setVoucherAvailable(false);
           setCardConfigError('Não foi possível verificar a disponibilidade do cadastro de cartão.');
           console.error('Não foi possível verificar a disponibilidade do cadastro de cartão:', error);
         }
@@ -161,7 +182,10 @@ export default function PaymentMethodsPage() {
     try {
       const cardType = fields?.closest('form')?.querySelector('input[name="cardType"]:checked')?.value;
       if (!SAVED_CARD_TYPES.includes(cardType)) {
-        throw new Error('Selecione se o cartão é de crédito ou débito.');
+        throw new Error('Selecione o tipo do cartão ou vale.');
+      }
+      if (['food_voucher', 'meal_voucher'].includes(cardType) && !voucherAvailable) {
+        throw new Error('O cadastro de vale ainda não está habilitado pela Pagar.me.');
       }
       const readField = (name) => fields?.querySelector(`[name="${name}"]`)?.value || '';
       const number = readField('cardNumber').replace(/\D/g, '');
@@ -277,6 +301,17 @@ export default function PaymentMethodsPage() {
     setCardFormOpen(false);
     setCardFeedback(null);
   };
+  const savedCardGroups = [
+    { type: 'credit', label: 'Cartões de crédito', cards: savedCards.filter((card) => card.type === 'credit') },
+    { type: 'debit', label: 'Cartões de débito', cards: savedCards.filter((card) => card.type === 'debit') },
+    { type: 'food_voucher', label: 'Vale-alimentação (VA)', cards: savedCards.filter((card) => card.type === 'food_voucher') },
+    { type: 'meal_voucher', label: 'Vale-refeição (VR)', cards: savedCards.filter((card) => card.type === 'meal_voucher') },
+    { type: 'unknown', label: 'Tipo não identificado', cards: savedCards.filter((card) => !isKnownCardType(card.type)) },
+  ];
+  const selectedCardType = getExpectedCardType(paymentMethod);
+  const visibleSavedCardGroups = selectedCardType
+    ? savedCardGroups.filter(({ type }) => type === selectedCardType)
+    : savedCardGroups;
 
   return (
     <div className="section-shell settings-page payment-methods-page">
@@ -298,6 +333,7 @@ export default function PaymentMethodsPage() {
           {PAYMENT_METHODS.map((method) => {
             const Icon = paymentMethodIcons[method.value];
             const selected = paymentMethod === method.value;
+            const disabledVoucher = method.voucher && !voucherAvailable;
 
             return (
               <label className={`payment-method-choice payment-method-choice-${method.value}`} key={method.value}>
@@ -307,6 +343,7 @@ export default function PaymentMethodsPage() {
                   name="preferred-payment-method"
                   value={method.value}
                   checked={selected}
+                  disabled={disabledVoucher}
                   onChange={() => choosePaymentMethod(method.value)}
                 />
                 <span className="payment-method-card">
@@ -316,7 +353,7 @@ export default function PaymentMethodsPage() {
                       <strong>{method.label}</strong>
                       {method.recommended && <span className="payment-method-recommended">Recomendado</span>}
                     </span>
-                    <small>{method.description}</small>
+                    <small>{disabledVoucher ? 'Requer habilitação da modalidade Voucher na Pagar.me Gateway.' : method.description}</small>
                   </span>
                   <span className="payment-method-selection" aria-hidden="true">{selected && <Check size={15} />}</span>
                 </span>
@@ -365,15 +402,11 @@ export default function PaymentMethodsPage() {
           <div className="saved-card-wallet">
             {savedCards.length ? (
               <div className="saved-card-groups">
-                {[
-                  { type: 'credit', label: 'Cartões de crédito', cards: savedCards.filter((card) => card.type === 'credit') },
-                  { type: 'debit', label: 'Cartões de débito', cards: savedCards.filter((card) => card.type === 'debit') },
-                  { type: 'unknown', label: 'Tipo não identificado', cards: savedCards.filter((card) => !isKnownCardType(card.type)) },
-                ].filter(({ cards }) => cards.length > 0).map((group) => (
+                {visibleSavedCardGroups.filter(({ cards }) => cards.length > 0).map((group) => (
                   <section className={`saved-card-group saved-card-group-${group.type}`} key={group.type} aria-labelledby={`saved-card-group-${group.type}`}>
                     <h3 className="saved-card-group-title" id={`saved-card-group-${group.type}`}>{group.label}</h3>
                     {group.type === 'unknown' && <p className="saved-card-type-note">
-                      Esses cartões não podem ser usados até o processador identificar se são de crédito ou débito.
+                      Esses cartões não podem ser usados até que o processador identifique o tipo.
                     </p>}
                     <div className="saved-card-list" role="list" aria-label={group.label}>
                       {group.cards.map((card) => (
@@ -385,7 +418,7 @@ export default function PaymentMethodsPage() {
                         >
                           <div className="saved-card-card-top">
                             <div className="saved-card-card-heading">
-                              <span className="saved-card-label">{group.type === 'unknown' ? 'Cartão salvo' : group.type === 'debit' ? 'Débito' : 'Crédito'}</span>
+                              <span className="saved-card-label">{group.type === 'unknown' ? 'Cartão salvo' : group.label.replace(/^Cartões? de /, '')}</span>
                               <strong className="saved-card-brand">{card.brand}</strong>
                             </div>
                             <span className="saved-card-icon" aria-hidden="true"><CreditCard size={21} /></span>
@@ -421,7 +454,7 @@ export default function PaymentMethodsPage() {
                 <span className="saved-card-empty-icon" aria-hidden="true"><CreditCard size={19} /></span>
                 <div>
                   <strong>Nenhum cartão salvo</strong>
-                  <p>Adicione cartões de crédito e débito para usá-los no checkout.</p>
+                  <p>Adicione cartões de crédito, débito, VA ou VR para usá-los no checkout.</p>
                   <Link className="saved-card-inline-link" href="/dashboard/profile">Revisar perfil</Link>
                 </div>
               </div>
@@ -463,12 +496,18 @@ export default function PaymentMethodsPage() {
                   <div className="saved-card-type-options">
                     <label><input type="radio" name="cardType" value="credit" required /> Crédito</label>
                     <label><input type="radio" name="cardType" value="debit" required /> Débito</label>
+                    <label title={!voucherAvailable ? 'Requer habilitação da modalidade Voucher na Pagar.me Gateway.' : undefined}>
+                      <input type="radio" name="cardType" value="food_voucher" required disabled={!voucherAvailable} /> VA
+                    </label>
+                    <label title={!voucherAvailable ? 'Requer habilitação da modalidade Voucher na Pagar.me Gateway.' : undefined}>
+                      <input type="radio" name="cardType" value="meal_voucher" required disabled={!voucherAvailable} /> VR
+                    </label>
                   </div>
                 </fieldset>
                 <fieldset className="checkout-card-fields" ref={cardFieldsRef} disabled={cardSaving} aria-describedby="saved-card-form-help">
                   <legend>Dados do cartão</legend>
                   <p className="saved-card-form-help" id="saved-card-form-help">
-                    Escolha o tipo correto. A carteira manterá crédito e débito separados, e o checkout usará a forma correspondente. Seus dados completos não são armazenados.
+                    Escolha o tipo correto. Crédito, débito, VA e VR ficam separados; o checkout usa somente cartões compatíveis com a forma escolhida. Seus dados completos não são armazenados.
                   </p>
                   <label className="delivery-address-field">Número do cartão
                     <input name="cardNumber" type="text" inputMode="numeric" autoComplete="cc-number" maxLength={23} required />

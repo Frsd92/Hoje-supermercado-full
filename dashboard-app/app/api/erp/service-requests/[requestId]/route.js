@@ -81,7 +81,6 @@ export async function PATCH(request, { params }) {
         : orderServiceRequestStatus.rejected;
       let refundRequestId = '';
       const onlinePayment = current.order.paymentMethod === 'pix'
-        || current.order.paymentMethod === 'cartao'
         || isCardPaymentMethod(current.order.paymentMethod);
 
       const cancellation = (action === 'approve' || refundOnly)

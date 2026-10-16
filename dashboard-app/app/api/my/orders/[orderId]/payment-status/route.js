@@ -9,6 +9,7 @@ import {
   PagarmeApiError,
 } from '@/features/payments/pagarme';
 import { prisma } from '@/lib/prisma';
+import { isCardPaymentMethod } from '@/features/payments/card-methods';
 
 const statusMessages = {
   paid: 'Pagamento confirmado.',
@@ -45,7 +46,7 @@ export async function POST(_request, { params }) {
       },
     });
     if (!order) return Response.json({ error: 'Pedido não encontrado na sua conta.' }, { status: 404 });
-    if (!['pix', 'cartao'].includes(order.paymentMethod) || !order.pagarmeOrderId) {
+    if ((order.paymentMethod !== 'pix' && !isCardPaymentMethod(order.paymentMethod)) || !order.pagarmeOrderId) {
       return Response.json({ error: 'Este pedido não possui uma cobrança online para consultar.' }, { status: 409 });
     }
     if (order.paymentStatus !== 'pending') {
