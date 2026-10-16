@@ -6,7 +6,7 @@ import { usePathname, useRouter } from 'next/navigation';
 import { signOut, useSession } from 'next-auth/react';
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { adjustCartQuantity, formatCartQuantity, getCartItemCount, normalizeCartItems } from './cart-utils';
-import { calculateOrderTotals } from '@/features/orders/order-receipt-data';
+import { calculateOrderTotals, parseReceiptAmount } from '@/features/orders/order-receipt-data';
 import contentModeration from '@/lib/content-moderation.js';
 import {
   PAYMENT_METHODS,
@@ -47,6 +47,8 @@ import {
   Menu,
   TicketPercent,
 } from 'lucide-react';
+
+const cartCurrencyFormatter = new Intl.NumberFormat('pt-BR', { style: 'currency', currency: 'BRL' });
 
 const navigationGroups = [
   {
@@ -1316,7 +1318,33 @@ export default function DashboardLayout({ children }) {
         <aside ref={cartPanelRef} tabIndex="-1" className="cart-panel open" role="dialog" aria-modal="true" aria-labelledby="cart-panel-title" onMouseDown={(event) => event.stopPropagation()}>
           <div className="cart-panel-header"><div className="cart-panel-title-wrap"><span className="cart-panel-icon"><ShoppingCart size={18} /></span><h3 id="cart-panel-title">Meu Carrinho ({cartCount} {cartCount === 1 ? 'item' : 'itens'})</h3></div><button type="button" className="cart-close" aria-label="Fechar carrinho" onClick={closeCart}>×</button></div>
           <p className="cart-subtitle">Revise seus itens antes de finalizar</p>
-          <div className="cart-items">{cartItems.length ? cartItems.map((item) => <div className="cart-item" key={item.productId || item.name}><div className="cart-item-thumb">{item.image ? <img src={item.image} alt={item.name} /> : <div className="cart-thumb-placeholder" />}</div><div className="cart-item-info"><div className="cart-item-name">{item.name}</div><div className="cart-item-category">{item.category || 'Produtos'}</div><div className="cart-item-price">{item.saleUnit === 'Quilograma' && !String(item.price || '').includes('/kg') ? `${item.price} / kg` : item.price}</div></div><div className="cart-item-controls"><button type="button" aria-label={`Diminuir ${item.saleUnit === 'Quilograma' ? '100 gramas' : 'quantidade'} de ${item.name}`} onClick={() => changeCartQuantity(item, -1)}><Minus size={16} /></button><span className="cart-item-qty">{formatCartQuantity(item)}</span><button type="button" aria-label={`Aumentar ${item.saleUnit === 'Quilograma' ? '100 gramas' : 'quantidade'} de ${item.name}`} onClick={() => changeCartQuantity(item, 1)}><Plus size={16} /></button></div><button type="button" className="cart-item-remove" aria-label={`Remover ${item.name}`} onClick={() => removeCartItem(item)}><Trash2 size={16} /></button></div>) : <div className="cart-empty"><ShoppingCart size={28} /><strong>Seu carrinho está vazio</strong></div>}</div>
+          <div className="cart-items">{cartItems.length ? cartItems.map((item) => {
+            const quantity = Number(item.quantity) || 1;
+            const unitPrice = parseReceiptAmount(item.price);
+            const isWeightedItem = item.saleUnit === 'Quilograma' || item.unit === 'kg';
+            return (
+              <article className="cart-item" key={item.productId || item.name}>
+                <div className="cart-item-thumb">
+                  {item.image ? <img src={item.image} alt="" /> : <div className="cart-thumb-placeholder" />}
+                </div>
+                <div className="cart-item-info">
+                  <div className="cart-item-name">{item.name}</div>
+                  <div className="cart-item-unit-price">
+                    {cartCurrencyFormatter.format(unitPrice)} por {isWeightedItem ? 'kg' : 'unidade'}
+                  </div>
+                  <div className="cart-item-price">
+                    {cartCurrencyFormatter.format(Math.round((unitPrice * quantity + Number.EPSILON) * 100) / 100)}
+                  </div>
+                </div>
+                <div className="cart-item-controls" aria-label={`Quantidade de ${item.name}`}>
+                  <button type="button" aria-label={`Diminuir ${isWeightedItem ? '100 gramas' : 'quantidade'} de ${item.name}`} onClick={() => changeCartQuantity(item, -1)}><Minus size={14} /></button>
+                  <span className="cart-item-qty">{formatCartQuantity(item)}</span>
+                  <button type="button" aria-label={`Aumentar ${isWeightedItem ? '100 gramas' : 'quantidade'} de ${item.name}`} onClick={() => changeCartQuantity(item, 1)}><Plus size={14} /></button>
+                </div>
+                <button type="button" className="cart-item-remove" aria-label={`Remover ${item.name}`} onClick={() => removeCartItem(item)}><Trash2 size={15} /></button>
+              </article>
+            );
+          }) : <div className="cart-empty"><ShoppingCart size={28} /><strong>Seu carrinho está vazio</strong></div>}</div>
           <form className="cart-panel-footer" onSubmit={finishPurchase}>
             <div className="cart-summary-box">
               <div className="summary-row">
