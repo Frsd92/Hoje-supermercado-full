@@ -2259,24 +2259,25 @@ body {
 }
 .delivery-address-field { display: flex; flex-direction: column; gap: 6px; margin: 14px 0; color: #6b7280; font-size: 12px; font-weight: 700; }
 .delivery-address-field select { width: 100%; padding: 10px 12px; border: 1px solid rgba(148,163,184,0.24); border-radius: 10px; color: #101826; background: #fff; outline: none; }
-.checkout-payment-method-list { display: grid; gap: 9px; min-width: 0; margin: 14px 0 10px; padding: 0; border: 0; }
-.checkout-payment-method-list legend { margin-bottom: 8px; color: #e2e8f0; font-size: 12px; font-weight: 800; }
+.checkout-payment-method-list { display: grid; gap: 6px; min-width: 0; margin: 10px 0 8px; padding: 0; border: 0; }
+.checkout-payment-method-list legend { margin-bottom: 5px; color: #e2e8f0; font-size: 12px; font-weight: 800; }
 .checkout-payment-method-choice { position: relative; display: block; min-width: 0; cursor: pointer; }
 .checkout-payment-method-radio { position: absolute; width: 1px; height: 1px; margin: -1px; overflow: hidden; clip: rect(0 0 0 0); clip-path: inset(50%); white-space: nowrap; }
-.checkout-payment-method-card { display: flex; align-items: center; gap: 11px; min-height: 76px; padding: 12px; border: 1px solid rgba(148,163,184,0.28); border-radius: 12px; color: #e2e8f0; background: rgba(255,255,255,0.06); transition: border-color .18s ease, background .18s ease, box-shadow .18s ease; }
-.checkout-payment-method-choice-pix .checkout-payment-method-card { min-height: 80px; border: 2px solid #4ade80; color: #f0fdf4; background: linear-gradient(120deg, #14532d, #168144); }
+.checkout-payment-method-card { display: flex; align-items: center; gap: 9px; min-height: 48px; padding: 7px 10px; border: 1px solid rgba(148,163,184,0.28); border-radius: 10px; color: #e2e8f0; background: rgba(255,255,255,0.06); transition: border-color .18s ease, background .18s ease, box-shadow .18s ease; }
+.checkout-payment-method-choice-pix .checkout-payment-method-card { min-height: 48px; border: 1px solid #4ade80; color: #f0fdf4; background: linear-gradient(120deg, #14532d, #168144); }
 .checkout-payment-method-choice:hover .checkout-payment-method-card { border-color: #86efac; }
 .checkout-payment-method-radio:checked + .checkout-payment-method-card { border-color: #22c55e; background: rgba(22,101,52,0.24); box-shadow: 0 0 0 2px rgba(34,197,94,0.13); }
 .checkout-payment-method-radio:focus-visible + .checkout-payment-method-card { outline: 3px solid rgba(134,239,172,0.72); outline-offset: 2px; }
-.checkout-payment-method-icon { display: grid; place-items: center; width: 42px; height: 42px; flex: 0 0 auto; border-radius: 12px; color: #86efac; background: rgba(34,197,94,0.15); }
-.checkout-payment-method-choice-pix .checkout-payment-method-icon { width: 46px; height: 46px; color: #14532d; background: #d9f99d; }
-.checkout-payment-method-copy { display: grid; gap: 4px; min-width: 0; flex: 1; }
+.checkout-payment-method-radio:disabled + .checkout-payment-method-card { cursor: not-allowed; opacity: .55; }
+.checkout-payment-method-icon { display: grid; place-items: center; width: 32px; height: 32px; flex: 0 0 auto; border-radius: 9px; color: #86efac; background: rgba(34,197,94,0.15); }
+.checkout-payment-method-choice-pix .checkout-payment-method-icon { width: 32px; height: 32px; color: #14532d; background: #d9f99d; }
+.checkout-payment-method-copy { display: flex; align-items: center; gap: 7px; min-width: 0; flex: 1; }
 .checkout-payment-method-title { display: flex; align-items: center; flex-wrap: wrap; gap: 7px; }
-.checkout-payment-method-title strong { color: inherit; font-size: 13px; }
-.checkout-payment-method-copy small { color: #b9c8bd; font-size: 11px; font-weight: 500; line-height: 1.45; }
+.checkout-payment-method-title strong { color: inherit; font-size: 12px; }
+.checkout-payment-method-copy small { color: #b9c8bd; font-size: 10px; font-weight: 500; line-height: 1.25; }
 .checkout-payment-method-choice-pix .checkout-payment-method-copy small { color: #dcfce7; }
-.checkout-payment-method-recommended { padding: 3px 7px; border-radius: 999px; color: #14532d; background: #bbf7d0; font-size: 9px; font-weight: 900; line-height: 1.2; }
-.checkout-payment-method-selection { display: grid; place-items: center; width: 23px; height: 23px; flex: 0 0 auto; border: 1px solid rgba(226,232,240,0.5); border-radius: 50%; color: #052e16; }
+.checkout-payment-method-recommended { padding: 2px 6px; border-radius: 999px; color: #14532d; background: #bbf7d0; font-size: 8px; font-weight: 900; line-height: 1.2; }
+.checkout-payment-method-selection { display: grid; place-items: center; width: 18px; height: 18px; flex: 0 0 auto; border: 1px solid rgba(226,232,240,0.5); border-radius: 50%; color: #052e16; }
 .checkout-payment-method-radio:checked + .checkout-payment-method-card .checkout-payment-method-selection { border-color: #86efac; background: #86efac; }
 .checkout-payment-method-choice-pix .checkout-payment-method-radio:checked + .checkout-payment-method-card .checkout-payment-method-selection { border-color: #d9f99d; background: #d9f99d; color: #14532d; }
 .checkout-saved-card-select { margin-bottom: 10px; }
@@ -2284,7 +2285,8 @@ body {
 .checkout-saved-card-select select:focus-visible { border-color: #16803d; box-shadow: 0 0 0 3px rgba(22,128,61,0.14); }
 .delivery-address-field input { width: 100%; padding: 10px 12px; border: 1px solid rgba(148,163,184,0.24); border-radius: 10px; color: #101826; background: #fff; outline: none; }
 .delivery-address-field input:focus-visible { border-color: #16803d; box-shadow: 0 0 0 3px rgba(22,128,61,0.14); }
-.checkout-field-hint { display: block; margin: -8px 0 8px; color: #718177; font-size: 11px; font-weight: 500; line-height: 1.45; }
+.checkout-field-hint { display: flex; align-items: center; flex-wrap: wrap; gap: 4px; margin: -6px 0 7px; color: #718177; font-size: 10px; font-weight: 500; line-height: 1.35; }
+.checkout-field-hint p { margin: 0; }
 .checkout-field-hint a { color: #15803d; font-weight: 800; text-decoration: underline; text-underline-offset: 2px; }
 .checkout-field-hint a:focus-visible { outline: 2px solid #15803d; outline-offset: 2px; border-radius: 2px; }
 .checkout-card-fields { margin: 10px 0 14px; padding: 10px 13px; border: 1px solid #cfe3d4; border-radius: 12px; background: #f7fbf8; }

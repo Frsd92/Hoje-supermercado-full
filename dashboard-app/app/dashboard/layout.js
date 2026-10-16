@@ -1365,7 +1365,7 @@ export default function DashboardLayout({ children }) {
             ) : null}
             <fieldset className="checkout-payment-method-list">
               <legend>Forma de pagamento</legend>
-              {PAYMENT_METHODS.map(({ value, label, recommended, description, voucher }) => {
+              {PAYMENT_METHODS.map(({ value, label, recommended, voucher }) => {
                 const PaymentIcon = value === 'pix' ? QrCode : CreditCard;
                 const selected = paymentMethod === value;
                 const disabledVoucher = voucher && !pagarmeConfig.voucherAvailable;
@@ -1398,7 +1398,7 @@ export default function DashboardLayout({ children }) {
                           <strong>{label}</strong>
                           {recommended && <span className="checkout-payment-method-recommended">Recomendado</span>}
                         </span>
-                        <small>{disabledVoucher ? 'Requer habilitação da modalidade Voucher na Pagar.me Gateway.' : description}</small>
+                        {disabledVoucher && <small>Indisponível no momento</small>}
                       </span>
                       <span className="checkout-payment-method-selection" aria-hidden="true">{selected && <Check size={15} />}</span>
                     </span>
@@ -1410,10 +1410,10 @@ export default function DashboardLayout({ children }) {
               <Link href="/dashboard/payment-methods">Editar preferência de pagamento</Link>
             </small>
             {(paymentMethod === 'pix' || isCardPaymentMethod(paymentMethod)) && <div className="checkout-field-hint" role="status">
-              <p>Para concluir com pagamento online, precisamos do seu CPF e celular com DDD no perfil. Esses dados são usados no processamento do pagamento; a inclusão do CPF no comprovante é uma escolha separada.</p>
+              <p>Pagamento online exige CPF e celular com DDD.</p>
               {profileCpf.replace(/\D/g, '').length !== 11 || ![10, 11].includes(profilePhone.replace(/\D/g, '').replace(/^55(?=\d{10,11}$)/, '').length)
-                ? <Link href="/dashboard/profile">Completar dados do perfil</Link>
-                : <span>Dados necessários já estão no perfil.</span>}
+                ? <Link href="/dashboard/profile">Completar perfil</Link>
+                : <span>Dados do perfil completos</span>}
             </div>}
             {paymentMethod === 'pix' && !pagarmeConfig.pixAvailable && <p className="checkout-field-hint" role="alert">O Pix está temporariamente indisponível. Escolha outra forma ou tente mais tarde.</p>}
             {isCardPaymentMethod(paymentMethod) && savedCardLoading && <p className="checkout-field-hint" role="status">Verificando cartões salvos...</p>}
