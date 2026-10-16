@@ -25,7 +25,6 @@ import {
 import {
   Bell,
   Award,
-  Check,
   ChevronDown,
   CircleDollarSign,
   CreditCard,
@@ -46,7 +45,6 @@ import {
   LogOut,
   X,
   Menu,
-  QrCode,
   TicketPercent,
 } from 'lucide-react';
 
@@ -842,7 +840,7 @@ export default function DashboardLayout({ children }) {
     if (addressesLoading) return setCheckoutStatus('Estamos verificando seus endereços. Aguarde um instante.');
     if (addressLoadError) return setCheckoutStatus(`Não foi possível confirmar seus endereços: ${addressLoadError}`);
     if (!selectedDeliveryAddress) return setCheckoutStatus('Cadastre um endereço no painel do cliente antes de concluir a compra.');
-    if (!isPaymentMethod(paymentMethod)) return setCheckoutStatus('Selecione uma forma no campo Forma de pagamento; você também pode defini-la na aba Formas de pagamento.');
+    if (!isPaymentMethod(paymentMethod)) return setCheckoutStatus('Defina uma forma de pagamento em Formas de pagamento antes de finalizar.');
     if (isVoucherPaymentMethod(paymentMethod) && !pagarmeConfig.voucherAvailable) {
       return setCheckoutStatus('VA/VR ainda não estão habilitados para pagamento online. A modalidade Voucher precisa ser ativada na Pagar.me Gateway.');
     }
@@ -1363,52 +1361,13 @@ export default function DashboardLayout({ children }) {
                   : <>Nenhum endereço cadastrado. <Link href="/dashboard/addresses">Adicionar endereço</Link></>}
               </small>
             ) : null}
-            <fieldset className="checkout-payment-method-list">
-              <legend>Forma de pagamento</legend>
-              {PAYMENT_METHODS.map(({ value, label, recommended, voucher }) => {
-                const PaymentIcon = value === 'pix' ? QrCode : CreditCard;
-                const selected = paymentMethod === value;
-                const disabledVoucher = voucher && !pagarmeConfig.voucherAvailable;
-
-                return (
-                  <label className={`checkout-payment-method-choice checkout-payment-method-choice-${value}`} key={value}>
-                    <input
-                      className="checkout-payment-method-radio"
-                      type="radio"
-                      name="checkout-payment-method"
-                      value={value}
-                      required
-                      checked={selected}
-                      disabled={disabledVoucher}
-                      onChange={(event) => {
-                        checkoutRequestIdRef.current = null;
-                        setCheckoutOrderId('');
-                        try {
-                          savePaymentMethod(session?.user?.email, event.target.value);
-                          setCheckoutStatus('');
-                        } catch (error) {
-                          setCheckoutStatus(`Não foi possível salvar a preferência de pagamento: ${error.message}`);
-                        }
-                      }}
-                    />
-                    <span className="checkout-payment-method-card">
-                      <span className="checkout-payment-method-icon" aria-hidden="true"><PaymentIcon size={20} /></span>
-                      <span className="checkout-payment-method-copy">
-                        <span className="checkout-payment-method-title">
-                          <strong>{label}</strong>
-                          {recommended && <span className="checkout-payment-method-recommended">Recomendado</span>}
-                        </span>
-                        {disabledVoucher && <small>Indisponível no momento</small>}
-                      </span>
-                      <span className="checkout-payment-method-selection" aria-hidden="true">{selected && <Check size={15} />}</span>
-                    </span>
-                  </label>
-                );
-              })}
-            </fieldset>
-            <small className="checkout-field-hint">
-              <Link href="/dashboard/payment-methods">Editar preferência de pagamento</Link>
-            </small>
+            <div className="checkout-preferred-payment">
+              <span>
+                Pagamento:{' '}
+                <strong>{PAYMENT_METHODS.find(({ value }) => value === paymentMethod)?.label || 'Não definido'}</strong>
+              </span>
+              <Link href="/dashboard/payment-methods">Alterar</Link>
+            </div>
             {(paymentMethod === 'pix' || isCardPaymentMethod(paymentMethod)) && <div className="checkout-field-hint" role="status">
               <p>Pagamento online exige CPF e celular com DDD.</p>
               {profileCpf.replace(/\D/g, '').length !== 11 || ![10, 11].includes(profilePhone.replace(/\D/g, '').replace(/^55(?=\d{10,11}$)/, '').length)

@@ -2259,6 +2259,10 @@ body {
 }
 .delivery-address-field { display: flex; flex-direction: column; gap: 6px; margin: 14px 0; color: #6b7280; font-size: 12px; font-weight: 700; }
 .delivery-address-field select { width: 100%; padding: 10px 12px; border: 1px solid rgba(148,163,184,0.24); border-radius: 10px; color: #101826; background: #fff; outline: none; }
+.checkout-preferred-payment { display: flex; align-items: center; justify-content: space-between; gap: 8px; margin: 8px 0; color: #d1d9d3; font-size: 11px; }
+.checkout-preferred-payment strong { color: #fff; }
+.checkout-preferred-payment a { color: #86efac; font-weight: 700; text-decoration: underline; text-underline-offset: 2px; }
+.checkout-preferred-payment a:focus-visible { outline: 2px solid #86efac; outline-offset: 2px; border-radius: 2px; }
 .checkout-payment-method-list { display: grid; gap: 6px; min-width: 0; margin: 10px 0 8px; padding: 0; border: 0; }
 .checkout-payment-method-list legend { margin-bottom: 5px; color: #e2e8f0; font-size: 12px; font-weight: 800; }
 .checkout-payment-method-choice { position: relative; display: block; min-width: 0; cursor: pointer; }
