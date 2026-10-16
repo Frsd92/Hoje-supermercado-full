@@ -28,6 +28,7 @@ import {
   ChevronDown,
   CircleDollarSign,
   CreditCard,
+  QrCode,
   Home,
   MapPin,
   Settings,
@@ -1390,13 +1391,56 @@ export default function DashboardLayout({ children }) {
                   : <>Nenhum endereço cadastrado. <Link href="/dashboard/addresses">Adicionar endereço</Link></>}
               </small>
             ) : null}
-            <div className="checkout-preferred-payment">
-              <span>
-                Pagamento:{' '}
-                <strong>{PAYMENT_METHODS.find(({ value }) => value === paymentMethod)?.label || 'Não definido'}</strong>
-              </span>
-              <Link href="/dashboard/payment-methods">Alterar</Link>
-            </div>
+            <fieldset className="checkout-payment-method-list">
+              <legend>Escolha como pagar</legend>
+              {PAYMENT_METHODS.map((method) => {
+                const Icon = method.value === 'pix' ? QrCode : CreditCard;
+                const unavailable = method.value === 'pix'
+                  ? !pagarmeConfig.pixAvailable
+                  : method.voucher
+                    ? !pagarmeConfig.voucherAvailable
+                    : !pagarmeConfig.savedCardAvailable;
+                const description = method.voucher && !pagarmeConfig.voucherAvailable
+                  ? 'VA/VR ainda não habilitados para pagamento online'
+                  : method.value === 'pix' && !pagarmeConfig.pixAvailable
+                    ? 'Indisponível no momento'
+                    : !method.voucher && method.value !== 'pix' && !pagarmeConfig.savedCardAvailable
+                      ? 'Cartões temporariamente indisponíveis'
+                      : method.description;
+                return (
+                  <label className={`checkout-payment-method-choice checkout-payment-method-choice-${method.value}`} key={method.value}>
+                    <input
+                      className="checkout-payment-method-radio"
+                      type="radio"
+                      name="checkout-payment-method"
+                      value={method.value}
+                      checked={paymentMethod === method.value}
+                      disabled={unavailable}
+                      onChange={() => {
+                        try {
+                          savePaymentMethod(session?.user?.email, method.value);
+                          setPaymentMethod(method.value);
+                          setCheckoutStatus('');
+                        } catch (error) {
+                          setCheckoutStatus(`Não foi possível selecionar a forma de pagamento: ${error.message}`);
+                        }
+                      }}
+                    />
+                    <span className="checkout-payment-method-card">
+                      <span className="checkout-payment-method-icon" aria-hidden="true"><Icon size={18} /></span>
+                      <span className="checkout-payment-method-copy">
+                        <span className="checkout-payment-method-title">
+                          <strong>{method.label}</strong>
+                          {method.recommended && <span className="checkout-payment-method-recommended">Recomendado</span>}
+                        </span>
+                        <small>{description}</small>
+                      </span>
+                      <span className="checkout-payment-method-selection" aria-hidden="true" />
+                    </span>
+                  </label>
+                );
+              })}
+            </fieldset>
             {(paymentMethod === 'pix' || isCardPaymentMethod(paymentMethod)) && <div className="checkout-field-hint" role="status">
               <p>Pagamento online exige CPF e celular com DDD.</p>
               {profileCpf.replace(/\D/g, '').length !== 11 || ![10, 11].includes(profilePhone.replace(/\D/g, '').replace(/^55(?=\d{10,11}$)/, '').length)

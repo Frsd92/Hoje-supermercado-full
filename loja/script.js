@@ -84,14 +84,24 @@ const FAVORITES_API = '/api/favorites';
 const CART_API = '/api/cart';
 const SESSION_API = '/api/store-session';
 const ADDRESSES_API = '/api/addresses';
-const PAYMENT_METHODS = ['pix', 'cartao'];
+const PAYMENT_METHODS = ['pix', 'cartao_credito', 'cartao_debito', 'vale_alimentacao', 'vale_refeicao'];
+const CARD_PAYMENT_METHODS = ['cartao_credito', 'cartao_debito', 'vale_alimentacao', 'vale_refeicao'];
+const PAYMENT_METHOD_CARD_TYPES = {
+  cartao_credito: 'credit',
+  cartao_debito: 'debit',
+  vale_alimentacao: 'food_voucher',
+  vale_refeicao: 'meal_voucher',
+};
 let sessaoLoja = { authenticated: false, user: null };
 let checkoutLojaEmAndamento = false;
-let cartaoSalvoLoja = null;
+let cartoesSalvosLoja = [];
+let cartaoSelecionadoLojaId = '';
 let cartaoSalvoLojaEmail = '';
 let estadoCartaoSalvoLoja = 'idle';
 let erroCartaoSalvoLoja = '';
 let promessaCartaoSalvoLoja = null;
+let configPagamentoLoja = { pixAvailable: false, savedCardAvailable: false, voucherAvailable: false };
+let configPagamentoLojaReady = false;
 let carrinhoHidratado = false;
 let carrinhoAtualizando = false;
 let carrinhoRevision = 0;
@@ -157,7 +167,10 @@ function garantirSeletorPagamento(finalizeButton) {
   [
     ['', 'Selecione sua forma de pagamento'],
     ['pix', 'Pix'],
-    ['cartao', 'Cartão'],
+    ['cartao_credito', 'Cartão de crédito'],
+    ['cartao_debito', 'Cartão de débito'],
+    ['vale_alimentacao', 'VA · Vale-alimentação'],
+    ['vale_refeicao', 'VR · Vale-refeição'],
   ].forEach(([value, labelText]) => {
     const option = document.createElement('option');
     option.value = value;
@@ -169,7 +182,8 @@ function garantirSeletorPagamento(finalizeButton) {
     const hint = document.createElement('small');
     hint.className = 'checkout-field-hint';
     hint.textContent = 'Obrigatória para concluir o pedido.';
-    const checkoutPanel = finalizeButton.parentElement;
+    const checkoutPanel = finalizeButton.closest('.cart-panel')?.querySelector('.cart-panel-footer-content')
+      || finalizeButton.parentElement;
     checkoutPanel.insertBefore(label, finalizeButton);
     checkoutPanel.insertBefore(hint, finalizeButton);
     return select;
@@ -195,34 +209,142 @@ function garantirAvisoCartaoSalvoLoja(paymentSelect) {
   return hint;
 }
 
+function garantirSeletorCartaoSalvoLoja(paymentSelect) {
+  const existing = document.getElementById('saved-card-select');
+  if (existing) return existing;
+  const paymentLabel = paymentSelect?.closest('label');
+  if (!paymentLabel) return null;
+  const paymentHint = paymentLabel.nextElementSibling;
+  const label = document.createElement('label');
+  label.id = 'saved-card-select-label';
+  label.className = 'delivery-address-field checkout-saved-card-select';
+  label.htmlFor = 'saved-card-select';
+  label.textContent = 'Selecione o cartão';
+  label.hidden = true;
+  const select = document.createElement('select');
+  select.id = 'saved-card-select';
+  select.addEventListener('change', () => {
+    cartaoSelecionadoLojaId = select.value;
+    atualizarAvisoCartaoSalvoLoja();
+  });
+  label.append(select);
+  (paymentHint?.classList.contains('checkout-field-hint') ? paymentHint : paymentLabel)
+    .insertAdjacentElement('afterend', label);
+  return select;
+}
+
+function cartoesCompativeisComPagamentoLoja() {
+  const expectedType = PAYMENT_METHOD_CARD_TYPES[document.getElementById('payment-method')?.value];
+  if (!expectedType) return [];
+  return cartoesSalvosLoja.filter((card) => card.status === 'active' && card.type === expectedType);
+}
+
 function atualizarAvisoCartaoSalvoLoja() {
   const hint = document.getElementById('saved-card-payment-hint');
   const paymentSelect = document.getElementById('payment-method');
+  const cardSelect = document.getElementById('saved-card-select');
+  const cardSelectLabel = document.getElementById('saved-card-select-label');
   if (!hint) return;
-  if (paymentSelect?.value !== 'cartao' || !sessaoLoja.authenticated) {
+  const paymentMethod = paymentSelect?.value || '';
+  const requiresCard = CARD_PAYMENT_METHODS.includes(paymentMethod);
+  if (cardSelectLabel) cardSelectLabel.hidden = !requiresCard || !sessaoLoja.authenticated;
+  if (!requiresCard || !sessaoLoja.authenticated) {
     hint.hidden = true;
     return;
   }
 
+  const compatibleCards = cartoesCompativeisComPagamentoLoja();
+  if (cardSelect) {
+    const selectedId = compatibleCards.some((card) => card.id === cartaoSelecionadoLojaId)
+      ? cartaoSelecionadoLojaId
+      : compatibleCards[0]?.id || '';
+    cartaoSelecionadoLojaId = selectedId;
+    cardSelect.replaceChildren();
+    compatibleCards.forEach((card) => {
+      const option = document.createElement('option');
+      option.value = card.id;
+      option.textContent = `${card.brand} •••• ${card.lastFourDigits} · ${String(card.expMonth).padStart(2, '0')}/${card.expYear}`;
+      option.selected = card.id === selectedId;
+      cardSelect.append(option);
+    });
+    cardSelect.disabled = estadoCartaoSalvoLoja === 'loading' || !compatibleCards.length;
+    if (!compatibleCards.length) {
+      const option = document.createElement('option');
+      option.value = '';
+      option.textContent = estadoCartaoSalvoLoja === 'loading' ? 'Verificando cartões...' : 'Nenhum cartão deste tipo salvo';
+      option.selected = true;
+      cardSelect.append(option);
+    }
+  }
   hint.hidden = false;
   if (estadoCartaoSalvoLoja === 'loading' || estadoCartaoSalvoLoja === 'idle') {
-    hint.textContent = 'Verificando o cartão salvo no Dashboard...';
+    hint.textContent = 'Verificando cartões salvos no Dashboard...';
     return;
   }
   if (estadoCartaoSalvoLoja === 'error') {
     hint.textContent = erroCartaoSalvoLoja || 'Não foi possível verificar o cartão salvo. Tente novamente.';
     return;
   }
-  if (cartaoSalvoLoja) {
-    hint.textContent = `Cartão salvo: ${cartaoSalvoLoja.brand} terminado em ${cartaoSalvoLoja.lastFourDigits}, validade ${String(cartaoSalvoLoja.expMonth).padStart(2, '0')}/${cartaoSalvoLoja.expYear}.`;
+  if (compatibleCards.length) {
+    hint.hidden = true;
     return;
   }
 
-  hint.replaceChildren(document.createTextNode('Para pagar com cartão, cadastre primeiro um cartão no '));
+  const paymentLabel = paymentSelect.selectedOptions[0]?.textContent || 'esta forma de pagamento';
+  hint.replaceChildren(document.createTextNode(`Nenhum ${paymentLabel} salvo. Cadastre um cartão compatível em `));
   const link = document.createElement('a');
   link.href = '/dashboard/payment-methods';
   link.textContent = 'Dashboard → Formas de pagamento';
   hint.append(link, '.');
+}
+
+async function carregarConfigPagamentoLoja() {
+  if (configPagamentoLojaReady) return configPagamentoLoja;
+  try {
+    const response = await fetch('/api/pagarme/config', { cache: 'no-store' });
+    const config = await response.json();
+    if (!response.ok) throw new Error(config.error || 'Não foi possível confirmar as formas de pagamento.');
+    configPagamentoLoja = {
+      pixAvailable: Boolean(config.pixAvailable),
+      savedCardAvailable: Boolean(config.savedCardAvailable),
+      voucherAvailable: Boolean(config.voucherAvailable),
+    };
+  } catch (error) {
+    console.error('Não foi possível verificar as formas de pagamento:', error);
+    const feedback = document.getElementById('coupon-feedback');
+    if (feedback) {
+      feedback.textContent = error.message || 'Não foi possível verificar as formas de pagamento.';
+      feedback.className = 'coupon-feedback error';
+    }
+  } finally {
+    configPagamentoLojaReady = true;
+    atualizarDisponibilidadePagamentoLoja();
+  }
+  return configPagamentoLoja;
+}
+
+function atualizarDisponibilidadePagamentoLoja() {
+  const paymentSelect = document.getElementById('payment-method');
+  if (!paymentSelect) return;
+  const options = [...paymentSelect.options];
+  options.forEach((option) => {
+    if (option.value === 'pix') {
+      option.disabled = configPagamentoLojaReady && !configPagamentoLoja.pixAvailable;
+      option.textContent = option.disabled ? 'Pix · indisponível no momento' : 'Pix · recomendado';
+    } else if (option.value === 'cartao_credito' || option.value === 'cartao_debito') {
+      option.disabled = configPagamentoLojaReady && !configPagamentoLoja.savedCardAvailable;
+      option.textContent = option.disabled
+        ? `${option.value === 'cartao_credito' ? 'Cartão de crédito' : 'Cartão de débito'} · indisponível`
+        : option.value === 'cartao_credito' ? 'Cartão de crédito' : 'Cartão de débito';
+    } else if (option.value === 'vale_alimentacao' || option.value === 'vale_refeicao') {
+      option.disabled = configPagamentoLojaReady && !configPagamentoLoja.voucherAvailable;
+      option.textContent = option.disabled
+        ? `${option.value === 'vale_alimentacao' ? 'VA · Vale-alimentação' : 'VR · Vale-refeição'} · não habilitado`
+        : option.value === 'vale_alimentacao' ? 'VA · Vale-alimentação' : 'VR · Vale-refeição';
+    }
+  });
+  if (paymentSelect.selectedOptions[0]?.disabled) paymentSelect.value = '';
+  atualizarAvisoCartaoSalvoLoja();
 }
 
 async function carregarCartaoSalvoLoja(force = false) {
@@ -230,13 +352,14 @@ async function carregarCartaoSalvoLoja(force = false) {
   if (!sessaoLoja.authenticated || !email) return null;
   if (cartaoSalvoLojaEmail !== email) {
     cartaoSalvoLojaEmail = email;
-    cartaoSalvoLoja = null;
+    cartoesSalvosLoja = [];
+    cartaoSelecionadoLojaId = '';
     estadoCartaoSalvoLoja = 'idle';
     erroCartaoSalvoLoja = '';
     promessaCartaoSalvoLoja = null;
   }
   if (promessaCartaoSalvoLoja) return promessaCartaoSalvoLoja;
-  if (!force && ['loaded', 'error'].includes(estadoCartaoSalvoLoja)) return cartaoSalvoLoja;
+  if (!force && ['loaded', 'error'].includes(estadoCartaoSalvoLoja)) return cartoesSalvosLoja;
 
   estadoCartaoSalvoLoja = 'loading';
   atualizarAvisoCartaoSalvoLoja();
@@ -246,15 +369,16 @@ async function carregarCartaoSalvoLoja(force = false) {
   }).then(async (response) => {
     const data = await response.json();
     if (!response.ok) throw new Error(data.error || 'Não foi possível verificar o cartão salvo.');
-    cartaoSalvoLoja = data.card || null;
+    if (!Array.isArray(data.cards)) throw new Error('A resposta de cartões salvos está inválida.');
+    cartoesSalvosLoja = data.cards;
     estadoCartaoSalvoLoja = 'loaded';
     erroCartaoSalvoLoja = '';
-    return cartaoSalvoLoja;
+    return cartoesSalvosLoja;
   }).catch((error) => {
-    cartaoSalvoLoja = null;
+    cartoesSalvosLoja = [];
     estadoCartaoSalvoLoja = 'error';
     erroCartaoSalvoLoja = error.message || 'Não foi possível verificar o cartão salvo.';
-    return null;
+    return cartoesSalvosLoja;
   }).finally(() => {
     promessaCartaoSalvoLoja = null;
     atualizarAvisoCartaoSalvoLoja();
@@ -277,7 +401,8 @@ function atualizarPreferenciaPagamentoLoja() {
   const email = sessaoLoja.user?.email || 'guest';
   try {
     const method = localStorage.getItem(`hoje-dashboard-payment-method-${email}`);
-    select.value = PAYMENT_METHODS.includes(method) ? method : '';
+    const normalizedMethod = method === 'cartao' ? 'cartao_credito' : method;
+    select.value = PAYMENT_METHODS.includes(normalizedMethod) ? normalizedMethod : '';
   } catch (error) {
     console.error('Não foi possível carregar a forma de pagamento preferida:', error);
     const feedback = document.getElementById('coupon-feedback');
@@ -1461,14 +1586,17 @@ function inicializarCarrinho() {
   const finalizeButton = document.getElementById('finalizar-compra');
   const paymentSelect = garantirSeletorPagamento(finalizeButton);
   garantirAvisoCartaoSalvoLoja(paymentSelect);
+  garantirSeletorCartaoSalvoLoja(paymentSelect);
   const checkoutRetryButton = document.getElementById('checkout-retry');
 
   if (paymentSelect) {
+    void carregarConfigPagamentoLoja();
     atualizarAvisoCartaoSalvoLoja();
     paymentSelect.addEventListener('change', () => {
+      cartaoSelecionadoLojaId = '';
       atualizarAvisoCartaoSalvoLoja();
       if (!sessaoLoja.authenticated || !PAYMENT_METHODS.includes(paymentSelect.value)) return;
-      if (paymentSelect.value === 'cartao') void carregarCartaoSalvoLoja();
+      if (CARD_PAYMENT_METHODS.includes(paymentSelect.value)) void carregarCartaoSalvoLoja();
       const email = sessaoLoja.user?.email || 'guest';
       try {
         localStorage.setItem(`hoje-dashboard-payment-method-${email}`, paymentSelect.value);
@@ -1568,20 +1696,49 @@ function inicializarCarrinho() {
         paymentSelect?.focus();
         return;
       }
-      if (paymentSelect.value === 'cartao') {
+      const paymentMethod = paymentSelect.value;
+      let cardForCheckout = null;
+      if (!configPagamentoLojaReady) await carregarConfigPagamentoLoja();
+      if (paymentMethod === 'pix' && !configPagamentoLoja.pixAvailable) {
+        if (feedback) {
+          feedback.textContent = 'O Pix está temporariamente indisponível. Escolha outra forma de pagamento.';
+          feedback.className = 'coupon-feedback error';
+        }
+        return;
+      }
+      if (CARD_PAYMENT_METHODS.includes(paymentMethod) && paymentMethod.startsWith('vale_') && !configPagamentoLoja.voucherAvailable) {
+        if (feedback) {
+          feedback.textContent = 'VA/VR ainda não estão habilitados para pagamento online. A modalidade Voucher precisa ser ativada na Pagar.me Gateway.';
+          feedback.className = 'coupon-feedback error';
+        }
+        return;
+      }
+      if (CARD_PAYMENT_METHODS.includes(paymentMethod) && !configPagamentoLoja.savedCardAvailable) {
+        if (feedback) {
+          feedback.textContent = 'O pagamento com cartão está temporariamente indisponível.';
+          feedback.className = 'coupon-feedback error';
+        }
+        return;
+      }
+      if (CARD_PAYMENT_METHODS.includes(paymentMethod)) {
         await carregarCartaoSalvoLoja(true);
         if (checkoutLojaEmAndamento) return;
-        if (!cartaoSalvoLoja) {
+        const selectedCard = cartoesCompativeisComPagamentoLoja()
+          .find((card) => card.id === document.getElementById('saved-card-select')?.value);
+        if (!selectedCard) {
           atualizarAvisoCartaoSalvoLoja();
-          document.getElementById('saved-card-payment-hint')?.focus();
+          const cardSelect = document.getElementById('saved-card-select');
+          (cardSelect && !cardSelect.disabled ? cardSelect : document.getElementById('saved-card-payment-hint'))?.focus();
           if (feedback) {
             feedback.textContent = estadoCartaoSalvoLoja === 'error'
               ? erroCartaoSalvoLoja
-              : 'Cadastre um cartão em Dashboard > Formas de pagamento antes de finalizar pelo cartão.';
+              : 'Cadastre um cartão compatível em Dashboard > Formas de pagamento antes de finalizar.';
             feedback.className = 'coupon-feedback error';
           }
           return;
         }
+        cartaoSelecionadoLojaId = selectedCard.id;
+        cardForCheckout = selectedCard;
       }
 
       const items = carrinhoItens.map((item) => ({
@@ -1606,7 +1763,6 @@ function inicializarCarrinho() {
       const subtotal = carrinhoItens.reduce((sum, item) => sum + item.preco * item.qty, 0);
       const desconto = cupomAplicado.codigo === couponCode ? subtotal * cupomAplicado.percentual / 100 : 0;
       const total = Math.max(0, subtotal - desconto);
-      const paymentMethod = paymentSelect.value;
       checkoutLojaEmAndamento = true;
       atualizarBotaoFinalizarCompra();
       try {
@@ -1614,7 +1770,10 @@ function inicializarCarrinho() {
         if (includeCpfOnReceipt === null) return;
       const paymentMethodLabels = {
         pix: 'Pix',
-        cartao: 'Cartão',
+        cartao_credito: 'Cartão de crédito',
+        cartao_debito: 'Cartão de débito',
+        vale_alimentacao: 'VA · Vale-alimentação',
+        vale_refeicao: 'VR · Vale-refeição',
       };
       const itensResumo = carrinhoItens.map((item) => {
         const unidade = item.saleUnit === 'Quilograma' ? 'kg' : 'un.';
@@ -1631,6 +1790,7 @@ function inicializarCarrinho() {
         `Total: ${formatarPreco(total)}`,
         `Endereço: ${selectedAddressText}`,
         `Pagamento: ${paymentMethodLabels[paymentMethod]}`,
+        ...(cardForCheckout ? [`Cartão: ${cardForCheckout.brand} •••• ${cardForCheckout.lastFourDigits}`] : []),
         `CPF na nota: ${includeCpfOnReceipt ? 'Sim' : 'Não'}`,
         '',
         'Ao continuar, você confirma os itens e as condições exibidas. Deseja enviar o pedido?',
@@ -1644,6 +1804,9 @@ function inicializarCarrinho() {
           paymentMethod,
           includeCpfOnReceipt,
           couponCode,
+          ...(CARD_PAYMENT_METHODS.includes(paymentMethod)
+            ? { useSavedCard: true, savedCardId: cartaoSelecionadoLojaId }
+            : {}),
         };
         const requestSignature = JSON.stringify(requestData);
         if (!tentativaCheckoutId || assinaturaTentativaCheckout !== requestSignature) {
@@ -1655,7 +1818,7 @@ function inicializarCarrinho() {
         }
 
         if (feedback) {
-          feedback.textContent = paymentMethod === 'cartao'
+          feedback.textContent = CARD_PAYMENT_METHODS.includes(paymentMethod)
             ? 'Enviando o pedido com seu cartão salvo...'
             : 'Enviando seu pedido...';
           feedback.className = 'coupon-feedback';
@@ -1664,11 +1827,10 @@ function inicializarCarrinho() {
           method: 'POST',
           credentials: 'include',
           headers: { 'Content-Type': 'text/plain' },
-          body: JSON.stringify({
-            ...requestData,
-            checkoutRequestId: tentativaCheckoutId,
-            ...(paymentMethod === 'cartao' ? { useSavedCard: true } : {}),
-          }),
+            body: JSON.stringify({
+              ...requestData,
+              checkoutRequestId: tentativaCheckoutId,
+            }),
         });
         const data = await response.json();
         if (!response.ok) {
