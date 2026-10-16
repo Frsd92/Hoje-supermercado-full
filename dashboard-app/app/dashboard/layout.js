@@ -25,6 +25,7 @@ import {
 import {
   Bell,
   Award,
+  Check,
   ChevronDown,
   CircleDollarSign,
   CreditCard,
