@@ -2233,10 +2233,25 @@ body {
 .cart-panel-actions { flex: 0 0 auto; padding-top: 8px; background: linear-gradient(180deg, rgba(244,247,245,0.92), #f4f7f5 35%); }
 .cart-summary-box { margin-bottom: 16px; padding: 16px; border: 1px solid rgba(26,122,60,0.12); border-radius: 20px; background: linear-gradient(180deg, #ecf9f0, #f6faf7); box-shadow: inset 0 1px 0 rgba(255,255,255,0.7), 0 18px 30px rgba(26,122,60,0.08); }
 .cart-summary-box .summary-row { display: flex; justify-content: space-between; margin-bottom: 8px; color: #1f2937; font-size: 13px; }
+.cart-summary-box .summary-row-label { display: inline-flex; align-items: center; gap: 5px; }
 .cart-summary-box .summary-row:last-child { margin-bottom: 0; }
 .cart-summary-box .summary-row strong { color: #111827; }
 .cart-summary-box .summary-row.total { margin-top: 10px; padding-top: 10px; border-top: 1px solid #dfeee5; font-size: 16px; font-weight: 800; }
 .cart-summary-box .summary-row.total strong { color: #1a7a3c; }
+.checkout-fee-info { position: relative; display: inline-flex; align-items: center; }
+.checkout-fee-info > summary { display: inline-flex; width: 17px; height: 17px; align-items: center; justify-content: center; border: 1px solid #8aa998; border-radius: 50%; color: #356749; cursor: pointer; list-style: none; }
+.checkout-fee-info > summary::-webkit-details-marker { display: none; }
+.checkout-fee-info > summary:focus-visible { outline: 2px solid #1a7a3c; outline-offset: 2px; }
+.checkout-fee-info > p { position: absolute; right: 0; bottom: calc(100% + 8px); z-index: 20; width: min(270px, 72vw); margin: 0; padding: 11px 12px; border: 1px solid #cfe2d5; border-radius: 11px; background: #fff; color: #334155; box-shadow: 0 10px 28px rgba(15,23,42,.16); font-size: .76rem; font-weight: 500; line-height: 1.5; white-space: normal; }
+.checkout-mission-progress { margin-bottom: 12px; padding: 12px 14px; border: 1px solid #cce7d4; border-radius: 14px; background: linear-gradient(135deg, #f0fbf3, #fff); color: #234d34; }
+.checkout-mission-heading, .checkout-mission-progress-label { display: flex; align-items: center; gap: 7px; }
+.checkout-mission-heading { margin-bottom: 10px; color: #166534; font-size: .82rem; }
+.checkout-mission-progress-label { justify-content: space-between; font-size: .7rem; }
+.checkout-mission-progress-track { height: 7px; overflow: hidden; margin-top: 6px; border-radius: 999px; background: #dcebe0; }
+.checkout-mission-progress-track > span { display: block; height: 100%; border-radius: inherit; background: linear-gradient(90deg, #36a45b, #147a3c); transition: width .2s ease; }
+.checkout-mission-progress > p { margin: 8px 0 0; color: #4b6352; font-size: .7rem; line-height: 1.45; }
+.checkout-fee-explanations-toggle { display: flex; align-items: center; gap: 9px; margin: 8px 0 14px; color: var(--erp-text); font-size: .8rem; font-weight: 650; }
+.checkout-fee-explanations-toggle input { width: 17px; height: 17px; accent-color: #1a7a3c; }
 .cart-coupon { display: grid; grid-template-columns: 1fr auto; gap: 8px; margin-bottom: 8px; }
 .cart-coupon input { width: 100%; padding: 10px 12px; border: 1px solid rgba(148,163,184,0.35); border-radius: 12px; color: #111827; background: rgba(255,255,255,0.8); outline: none; }
 .btn-coupon { padding: 10px 12px; border: 0; border-radius: 12px; color: #fff; background: linear-gradient(135deg, #1a7a3c, #155f34); font-weight: 700; cursor: pointer; }

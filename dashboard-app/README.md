@@ -97,6 +97,8 @@ O cliente acompanha missões, saldo, validade e histórico em `/dashboard/fideli
 
 Pontos só são creditados quando uma missão é concluída por pedidos elegíveis concluídos. Estornos reduzem proporcionalmente os créditos associados aos pedidos; pontos já usados podem gerar saldo negativo, compensado por ganhos futuros, sem cancelar cupons já emitidos. O ERP define a expiração dos pontos por missão. O resgate debita pontos ao emitir um cupom pessoal, de uso único, com desconto, validade e pedido mínimo definidos na recompensa; esse débito não é devolvido se o cupom expirar sem uso.
 
+Os checkouts da Loja e do Dashboard exibem a missão disponível com maior progresso e a recompensa que os pontos permitirão resgatar. As taxas de entrega e serviço são configuradas em **ERP → Comercial → Cupons → Taxas do checkout**; a mesma tela permite ocultar as explicações informativas exibidas ao lado das taxas. A preferência é armazenada em `CheckoutFeeSettings` e a migração `20261017010000_checkout_fee_explanations` é aplicada automaticamente nas builds de produção da Vercel.
+
 Antes de publicar o programa em um banco existente, aplique as migrações pendentes com `npx prisma migrate deploy` e gere o cliente com `npm run db:generate`, a partir de `dashboard-app`. A migração `20261008172000_loyalty_mission_thumbnails` adiciona miniaturas opcionais às missões. Em produção, execute a migração no banco de produção antes de publicar a versão que utiliza esses campos.
 
 ## Recebimento de NF-e/DANFE e contas a pagar

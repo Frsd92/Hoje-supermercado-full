@@ -36,6 +36,13 @@ export function missionProgress(mission) {
   };
 }
 
+export function getClosestAvailableMission(missions) {
+  return (Array.isArray(missions) ? missions : [])
+    .filter((mission) => !mission.completedAt && !mission.soldOut)
+    .map((mission) => ({ mission, progress: missionProgress(mission) }))
+    .sort((first, second) => second.progress.percent - first.progress.percent)[0] || null;
+}
+
 export function getPointsProgressToNextReward(balanceValue, rewards) {
   const parsedBalance = Number(balanceValue);
   const balance = Number.isFinite(parsedBalance) ? parsedBalance : 0;

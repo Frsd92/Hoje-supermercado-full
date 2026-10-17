@@ -119,6 +119,133 @@ let erroEnderecosDaApi = '';
 let enderecosDaLoja = [];
 let favoritosLoja = new Set();
 let toastCarrinhoTimer;
+let checkoutFeeSettings = null;
+let checkoutFeeLoadError = '';
+let checkoutMissionSnapshot = null;
+let checkoutMissionEmail = null;
+let couponMinimumOrderAmount = 0;
+const deliveryFeeExplanation = 'Pense na taxa de entrega como economia: você não gasta com combustível, estacionamento ou trânsito, e ainda ganha tempo livre enquanto nós fazemos o trabalho pesado por você.';
+const serviceFeeExplanation = "Nossa taxa de serviço é destinada aos nossos separadores especializados. Eles funcionam como seus 'olhos' na loja, escolhendo a dedo as frutas mais frescas, as melhores carnes e os produtos com maior validade, embalando tudo com o máximo de cuidado.";
+const checkoutCurrencyFormatter = new Intl.NumberFormat('pt-BR', { style: 'currency', currency: 'BRL' });
+
+async function carregarTaxasCheckoutLoja() {
+  checkoutFeeLoadError = '';
+  try {
+    const response = await fetch('/api/checkout/fees', { credentials: 'include', cache: 'no-store' });
+    const data = await response.json();
+    if (!response.ok) throw new Error(data.error || 'Não foi possível carregar as taxas do checkout.');
+    if (!data.fees
+      || !Number.isFinite(Number(data.fees.deliveryFee))
+      || !Number.isFinite(Number(data.fees.serviceFee))
+      || typeof data.fees.showFeeExplanations !== 'boolean') {
+      throw new Error('As taxas do checkout foram recebidas em formato inválido.');
+    }
+    checkoutFeeSettings = {
+      deliveryFee: Number(data.fees.deliveryFee),
+      serviceFee: Number(data.fees.serviceFee),
+      showFeeExplanations: data.fees.showFeeExplanations,
+    };
+  } catch (error) {
+    checkoutFeeLoadError = error.message || 'Não foi possível carregar as taxas do checkout.';
+    console.error('Não foi possível carregar as taxas para o carrinho da Loja:', error);
+  }
+  renderizarCarrinho(false);
+}
+
+async function carregarMissaoCheckoutLoja() {
+  const requestedEmail = sessaoLoja.user?.email?.toLowerCase() || '';
+  if (!sessaoLoja.authenticated) {
+    checkoutMissionSnapshot = null;
+    renderizarCarrinho(false);
+    return;
+  }
+  try {
+    const response = await fetch('/api/loyalty', { credentials: 'include', cache: 'no-store' });
+    const data = await response.json();
+    if (!response.ok) throw new Error(data.error || 'Não foi possível carregar o progresso das missões.');
+    if (!Array.isArray(data.missions) || !Array.isArray(data.rewards)) {
+      throw new Error('O progresso das missões foi recebido em formato inválido.');
+    }
+    if (checkoutMissionEmail !== requestedEmail) return;
+    checkoutMissionSnapshot = data;
+  } catch (error) {
+    if (checkoutMissionEmail !== requestedEmail) return;
+    checkoutMissionSnapshot = null;
+    console.error('Não foi possível carregar a missão para o checkout da Loja:', error);
+  }
+  renderizarCarrinho(false);
+}
+
+function getClosestStoreMission() {
+  const missions = Array.isArray(checkoutMissionSnapshot?.missions) ? checkoutMissionSnapshot.missions : [];
+  return missions
+    .filter((mission) => !mission.completedAt && !mission.soldOut)
+    .map((mission) => {
+      const spendsMission = ['MINIMUM_SPEND', 'CATEGORY_SPEND'].includes(mission.ruleType);
+      const current = Number(spendsMission ? mission.progressAmount : mission.progressCount) || 0;
+      const target = Number(spendsMission ? mission.targetAmount : mission.targetCount) || (spendsMission ? 0 : 1);
+      const percent = target > 0 ? Math.min(100, current / target * 100) : 0;
+      return { mission, percent };
+    })
+    .sort((first, second) => second.percent - first.percent)[0] || null;
+}
+
+function renderStoreMissionProgress() {
+  const selected = getClosestStoreMission();
+  if (!selected) return '';
+  const { mission, percent } = selected;
+  const projectedPoints = (Number(checkoutMissionSnapshot?.balance) || 0) + (Number(mission.pointsReward) || 0);
+  const rewards = (Array.isArray(checkoutMissionSnapshot?.rewards) ? checkoutMissionSnapshot.rewards : [])
+    .map((reward) => ({ ...reward, pointsCost: Number(reward.pointsCost) }))
+    .filter((reward) => Number.isFinite(reward.pointsCost) && reward.pointsCost > 0)
+    .sort((first, second) => first.pointsCost - second.pointsCost);
+  const nextReward = rewards.find((reward) => reward.pointsCost > projectedPoints) || rewards[rewards.length - 1] || null;
+  let rewardMessage = 'Os pontos podem ser trocados por cupons na área Missões e pontos.';
+  if (nextReward) {
+    const pointsNeeded = Math.max(0, nextReward.pointsCost - projectedPoints);
+    const benefit = nextReward.benefitType === 'FREE_DELIVERY'
+      ? 'entrega grátis'
+      : nextReward.benefitType === 'FREE_SERVICE_FEE'
+        ? 'taxa de serviço zero'
+        : `${Number(nextReward.discountPercent) || 0}% de desconto`;
+    rewardMessage = pointsNeeded
+      ? `Após a missão, faltarão ${pointsNeeded.toLocaleString('pt-BR')} pontos para resgatar ${nextReward.name} (${benefit}).`
+      : `Depois, poderá resgatar ${nextReward.name} (${benefit}).`;
+  }
+  const missionName = escapeStoreHtml(mission.name);
+  return `<section class="checkout-mission-progress" aria-label="Progresso da missão mais próxima">
+    <div class="checkout-mission-heading"><i data-lucide="award" aria-hidden="true"></i><strong>${missionName}</strong></div>
+    <div class="checkout-mission-progress-label"><span>Progresso da missão</span><strong>${Math.round(percent)}%</strong></div>
+    <div class="checkout-mission-progress-track" role="progressbar" aria-label="Progresso da missão ${missionName}" aria-valuemin="0" aria-valuemax="100" aria-valuenow="${Math.round(percent)}"><span style="width:${percent}%"></span></div>
+    <p>Ao concluir, você recebe <strong>+${(Number(mission.pointsReward) || 0).toLocaleString('pt-BR')} pontos</strong>. ${escapeStoreHtml(rewardMessage)}</p>
+  </section>`;
+}
+
+function renderStoreFeeInfo(label, explanation) {
+  if (!checkoutFeeSettings?.showFeeExplanations) return '';
+  return `<details class="checkout-fee-info"><summary aria-label="Informações sobre ${label}"><i data-lucide="info" aria-hidden="true"></i></summary><p>${explanation}</p></details>`;
+}
+
+function getStoreCheckoutTotals(subtotal) {
+  const couponMatches = cupomAplicado.codigo
+    && cupomAplicado.codigo === (document.getElementById('coupon-input')?.value || '').trim().toUpperCase();
+  const minimumMet = !couponMinimumOrderAmount || subtotal >= couponMinimumOrderAmount;
+  const activeCoupon = couponMatches && minimumMet;
+  const discount = activeCoupon && (!cupomAplicado.benefitType || cupomAplicado.benefitType === 'PERCENTAGE')
+    ? subtotal * (Number(cupomAplicado.percentual) || 0) / 100
+    : 0;
+  const baseDeliveryFee = Number(checkoutFeeSettings?.deliveryFee) || 0;
+  const baseServiceFee = Number(checkoutFeeSettings?.serviceFee) || 0;
+  const deliveryFee = activeCoupon && cupomAplicado.benefitType === 'FREE_DELIVERY' ? 0 : baseDeliveryFee;
+  const serviceFee = activeCoupon && cupomAplicado.benefitType === 'FREE_SERVICE_FEE' ? 0 : baseServiceFee;
+  return {
+    discount,
+    deliveryFee,
+    serviceFee,
+    total: Math.max(0, subtotal - discount + deliveryFee + serviceFee),
+    couponBenefitType: activeCoupon ? cupomAplicado.benefitType : '',
+  };
+}
 
 function chaveEnderecoEntregaDashboard() {
   return `hoje-dashboard-delivery-address-${sessaoLoja.user?.email || 'guest'}`;
@@ -761,6 +888,12 @@ async function carregarSessaoDaLoja() {
     if (!data || typeof data.authenticated !== 'boolean') throw new Error('Resposta inválida ao verificar a sessão.');
     erroSessaoDaLoja = '';
     sessaoLoja = data;
+    const missionEmail = data.authenticated ? data.user?.email?.toLowerCase() || '' : '';
+    if (missionEmail !== checkoutMissionEmail) {
+      checkoutMissionEmail = missionEmail;
+      checkoutMissionSnapshot = null;
+      void carregarMissaoCheckoutLoja();
+    }
     atualizarPreferenciaPagamentoLoja();
     atualizarBotaoFinalizarCompra();
 
@@ -803,6 +936,8 @@ async function carregarSessaoDaLoja() {
   } catch (error) {
     erroSessaoDaLoja = error.message || 'Sessão indisponível.';
     sessaoLoja = { authenticated: false, user: null };
+    checkoutMissionEmail = '';
+    checkoutMissionSnapshot = null;
     atualizarPreferenciaPagamentoLoja();
     atualizarBotaoFinalizarCompra();
     console.warn('Não foi possível verificar o login:', error.message);
@@ -1167,8 +1302,6 @@ function renderizarCarrinho(persistir = true) {
   const badge = document.getElementById('cart-badge');
   const totalEl = document.getElementById('cart-total');
   const couponInput = document.getElementById('coupon-input');
-  const couponValue = (couponInput?.value || '').trim().toUpperCase();
-  const descontoPercentual = cupomAplicado.codigo === couponValue ? cupomAplicado.percentual / 100 : 0;
 
   const itensPorProduto = new Map();
   carrinhoItens.forEach((rawItem) => {
@@ -1194,20 +1327,27 @@ function renderizarCarrinho(persistir = true) {
   }
 
   const summaryEl = document.querySelector('.cart-summary-box');
+  const missionProgressEl = document.getElementById('checkout-mission-progress');
+  if (missionProgressEl) missionProgressEl.innerHTML = renderStoreMissionProgress();
 
-  const desconto = totalPreco * descontoPercentual;
-  const totalComDesconto = Math.max(0, totalPreco - desconto);
-  if (totalEl) totalEl.textContent = formatarPreco(totalComDesconto);
-  if (cartPanelTotal) cartPanelTotal.textContent = formatarPreco(totalComDesconto);
+  const totals = getStoreCheckoutTotals(totalPreco);
+  const totalComDesconto = totals.total;
+  const totalDisplay = checkoutFeeSettings
+    ? formatarPreco(totalComDesconto)
+    : checkoutFeeLoadError ? 'Indisponível' : 'Calculando...';
+  if (totalEl) totalEl.textContent = totalDisplay;
+  if (cartPanelTotal) cartPanelTotal.textContent = totalDisplay;
 
   if (!itens.length) {
     if (cartItems) cartItems.innerHTML = '<div class="cart-empty">Seu carrinho está vazio.</div>';
     if (summaryEl) summaryEl.innerHTML = `
       <div class="summary-row"><span>Subtotal (0 itens)</span><strong>R$ 0,00</strong></div>
       <div class="summary-row"><span>Descontos</span><strong>R$ 0,00</strong></div>
-      <div class="summary-row"><span>Frete</span><strong>R$ 0,00</strong></div>
-      <div class="summary-row total"><span>Total</span><strong>R$ 0,00</strong></div>
+      <div class="summary-row"><div class="summary-row-label">Entrega${totals.couponBenefitType === 'FREE_DELIVERY' ? ' · grátis' : ''}${renderStoreFeeInfo('taxa de entrega', deliveryFeeExplanation)}</div><strong>${checkoutFeeSettings ? formatarPreco(totals.deliveryFee) : checkoutFeeLoadError ? 'Indisponível' : 'Calculando...'}</strong></div>
+      <div class="summary-row"><div class="summary-row-label">Taxa de serviço${totals.couponBenefitType === 'FREE_SERVICE_FEE' ? ' · zerada' : ''}${renderStoreFeeInfo('taxa de serviço', serviceFeeExplanation)}</div><strong>${checkoutFeeSettings ? formatarPreco(totals.serviceFee) : checkoutFeeLoadError ? 'Indisponível' : 'Calculando...'}</strong></div>
+      <div class="summary-row total"><span>Total</span><strong>${totalDisplay}</strong></div>
     `;
+    if (window.lucide) window.lucide.createIcons();
     atualizarOrientacaoCheckout();
     if (persistir) sincronizarCarrinhoApi([]);
     return;
@@ -1241,12 +1381,12 @@ function renderizarCarrinho(persistir = true) {
   if (summaryEl) {
     summaryEl.innerHTML = `
       <div class="summary-row"><span>Subtotal (${totalItens} itens)</span><strong>${formatarPreco(totalPreco)}</strong></div>
-      <div class="summary-row"><span>Descontos</span><strong>${formatarPreco(desconto)}</strong></div>
-      <div class="summary-row"><span>Frete</span><strong>R$ 0,00</strong></div>
-      <div class="summary-row total"><span>Total</span><strong>${formatarPreco(totalComDesconto)}</strong></div>
+      <div class="summary-row"><span>Descontos</span><strong>${formatarPreco(totals.discount)}</strong></div>
+      <div class="summary-row"><div class="summary-row-label">Entrega${totals.couponBenefitType === 'FREE_DELIVERY' ? ' · grátis' : ''}${renderStoreFeeInfo('taxa de entrega', deliveryFeeExplanation)}</div><strong>${checkoutFeeSettings ? formatarPreco(totals.deliveryFee) : checkoutFeeLoadError ? 'Indisponível' : 'Calculando...'}</strong></div>
+      <div class="summary-row"><div class="summary-row-label">Taxa de serviço${totals.couponBenefitType === 'FREE_SERVICE_FEE' ? ' · zerada' : ''}${renderStoreFeeInfo('taxa de serviço', serviceFeeExplanation)}</div><strong>${checkoutFeeSettings ? formatarPreco(totals.serviceFee) : checkoutFeeLoadError ? 'Indisponível' : 'Calculando...'}</strong></div>
+      <div class="summary-row total"><span>Total</span><strong>${totalDisplay}</strong></div>
     `;
   }
-
   if (cartPanelTotal) {
     cartPanelTotal.textContent = formatarPreco(totalComDesconto);
   }
@@ -1267,6 +1407,7 @@ function limparCarrinho() {
 
   if (couponInput) couponInput.value = '';
   cupomAplicado = { codigo: '', percentual: 0 };
+  couponMinimumOrderAmount = 0;
   if (feedback) {
     feedback.textContent = '';
     feedback.className = 'coupon-feedback';
@@ -1761,8 +1902,25 @@ function inicializarCarrinho() {
       }
 
       const subtotal = carrinhoItens.reduce((sum, item) => sum + item.preco * item.qty, 0);
-      const desconto = cupomAplicado.codigo === couponCode ? subtotal * cupomAplicado.percentual / 100 : 0;
-      const total = Math.max(0, subtotal - desconto);
+      if (!checkoutFeeSettings) {
+        await carregarTaxasCheckoutLoja();
+        if (!checkoutFeeSettings) {
+          if (feedback) {
+            feedback.textContent = checkoutFeeLoadError || 'Não foi possível confirmar as taxas do pedido. Tente novamente.';
+            feedback.className = 'coupon-feedback error';
+          }
+          return;
+        }
+      }
+      if (couponCode && subtotal < couponMinimumOrderAmount) {
+        if (feedback) {
+          feedback.textContent = `Este cupom exige compras a partir de ${formatarPreco(couponMinimumOrderAmount)}.`;
+          feedback.className = 'coupon-feedback error';
+        }
+        return;
+      }
+      const totals = getStoreCheckoutTotals(subtotal);
+      const { discount, deliveryFee, serviceFee, total } = totals;
       checkoutLojaEmAndamento = true;
       atualizarBotaoFinalizarCompra();
       try {
@@ -1785,8 +1943,9 @@ function inicializarCarrinho() {
         ...itensResumo,
         '',
         `Subtotal: ${formatarPreco(subtotal)}`,
-        `Desconto: ${formatarPreco(desconto)}`,
-        'Frete: R$ 0,00',
+        `Desconto: ${formatarPreco(discount)}`,
+        `Entrega: ${formatarPreco(deliveryFee)}`,
+        `Taxa de serviço: ${formatarPreco(serviceFee)}`,
         `Total: ${formatarPreco(total)}`,
         `Endereço: ${selectedAddressText}`,
         `Pagamento: ${paymentMethodLabels[paymentMethod]}`,
@@ -1804,6 +1963,10 @@ function inicializarCarrinho() {
           paymentMethod,
           includeCpfOnReceipt,
           couponCode,
+          expectedFees: {
+            deliveryFee: checkoutFeeSettings.deliveryFee,
+            serviceFee: checkoutFeeSettings.serviceFee,
+          },
           ...(CARD_PAYMENT_METHODS.includes(paymentMethod)
             ? { useSavedCard: true, savedCardId: cartaoSelecionadoLojaId }
             : {}),
@@ -1838,11 +2001,15 @@ function inicializarCarrinho() {
             tentativaCheckoutId = '';
             assinaturaTentativaCheckout = '';
           }
+          if (response.status === 409 && data.error?.includes('taxas do pedido foram atualizadas')) {
+            await carregarTaxasCheckoutLoja();
+          }
           throw new Error(data.error || 'Não foi possível registrar o pedido.');
         }
         tentativaCheckoutId = '';
         assinaturaTentativaCheckout = '';
         limparCarrinho();
+        void carregarMissaoCheckoutLoja();
         const paymentPending = data.order?.paymentStatus === 'pending';
         const pendingPix = paymentPending && data.order?.paymentMethod === 'pix';
         if (feedback) {
@@ -1924,6 +2091,7 @@ function inicializarCarrinho() {
     applyCouponBtn.addEventListener('click', async () => {
       const valor = couponInput.value.trim().toUpperCase();
       cupomAplicado = { codigo: '', percentual: 0 };
+      couponMinimumOrderAmount = 0;
       if (!valor) {
         if (feedback) {
           feedback.textContent = 'Informe o código de um cupom enviado para sua conta.';
@@ -1958,9 +2126,19 @@ function inicializarCarrinho() {
           throw new Error('Cupom inválido, expirado ou não enviado para sua conta.');
         }
 
-        cupomAplicado = { codigo: valor, percentual: assignedCoupon.discountPercent };
+        cupomAplicado = {
+          codigo: valor,
+          percentual: Number(assignedCoupon.discountPercent) || 0,
+          benefitType: assignedCoupon.benefitType || 'PERCENTAGE',
+        };
+        couponMinimumOrderAmount = Number(assignedCoupon.minimumOrderAmount) || 0;
         if (feedback) {
-          feedback.textContent = `Cupom ${valor} aplicado: ${assignedCoupon.discountPercent}% de desconto.`;
+          const benefitLabel = assignedCoupon.benefitType === 'FREE_DELIVERY'
+            ? 'entrega grátis'
+            : assignedCoupon.benefitType === 'FREE_SERVICE_FEE'
+              ? 'taxa de serviço zerada'
+              : `${assignedCoupon.discountPercent}% de desconto`;
+          feedback.textContent = `Cupom ${valor} aplicado: ${benefitLabel}.${couponMinimumOrderAmount > 0 ? ` Pedido mínimo: ${formatarPreco(couponMinimumOrderAmount)}.` : ''}`;
           feedback.className = 'coupon-feedback success';
         }
       } catch (error) {
@@ -1977,6 +2155,7 @@ function inicializarCarrinho() {
     couponInput.addEventListener('input', () => {
       if (couponInput.value.trim().toUpperCase() !== cupomAplicado.codigo) {
         cupomAplicado = { codigo: '', percentual: 0 };
+        couponMinimumOrderAmount = 0;
         if (feedback) {
           feedback.textContent = '';
           feedback.className = 'coupon-feedback';
@@ -2398,6 +2577,7 @@ async function carregarLayoutGerenciado() {
 }
 
 window.addEventListener('DOMContentLoaded', () => {
+  void carregarTaxasCheckoutLoja();
   inicializarCarrinho();
   carregarLayoutGerenciado();
   adicionarBotoesFavorito();

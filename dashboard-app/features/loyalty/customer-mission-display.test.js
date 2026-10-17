@@ -1,6 +1,11 @@
 import assert from 'node:assert/strict';
 import test from 'node:test';
-import { describeMission, getPointsProgressToNextReward, missionProgress } from './customer-mission-display.js';
+import {
+  describeMission,
+  getClosestAvailableMission,
+  getPointsProgressToNextReward,
+  missionProgress,
+} from './customer-mission-display.js';
 
 test('formats spending mission progress as currency', () => {
   const progress = missionProgress({
@@ -19,6 +24,19 @@ test('caps purchase-count progress at the goal', () => {
     missionProgress({ ruleType: 'PURCHASE_FREQUENCY', progressCount: 3, targetCount: 2 }),
     { current: '3', target: '2', percent: 100 },
   );
+});
+
+test('chooses only the closest available mission for compact checkout progress', () => {
+  const selected = getClosestAvailableMission([
+    { id: 'early', name: 'Mais próxima', ruleType: 'PURCHASE_FREQUENCY', progressCount: 3, targetCount: 4 },
+    { id: 'late', name: 'Mais distante', ruleType: 'MINIMUM_SPEND', progressAmount: 10, targetAmount: 100 },
+    { id: 'complete', name: 'Concluída', ruleType: 'PURCHASE_FREQUENCY', progressCount: 2, targetCount: 2, completedAt: '2026-10-01' },
+    { id: 'sold-out', name: 'Esgotada', ruleType: 'PURCHASE_FREQUENCY', progressCount: 4, targetCount: 5, soldOut: true },
+  ]);
+
+  assert.equal(selected.mission.id, 'early');
+  assert.equal(selected.progress.percent, 75);
+  assert.equal(getClosestAvailableMission([]), null);
 });
 
 test('describes weekly purchase missions', () => {

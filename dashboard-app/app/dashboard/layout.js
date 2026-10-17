@@ -7,6 +7,12 @@ import { signOut, useSession } from 'next-auth/react';
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { adjustCartQuantity, formatCartQuantity, getCartItemCount, normalizeCartItems } from './cart-utils';
 import { calculateOrderTotals, parseReceiptAmount } from '@/features/orders/order-receipt-data';
+import { getCouponBenefitLabel } from '@/features/coupons/coupon-benefits';
+import {
+  getClosestAvailableMission,
+  getPointsProgressToNextReward,
+  missionProgress,
+} from '@/features/loyalty/customer-mission-display';
 import contentModeration from '@/lib/content-moderation.js';
 import {
   PAYMENT_METHODS,
@@ -41,6 +47,7 @@ import {
   Sun,
   Moon,
   Star,
+  Info,
   UserRound,
   LogOut,
   X,
@@ -49,6 +56,15 @@ import {
 } from 'lucide-react';
 
 const cartCurrencyFormatter = new Intl.NumberFormat('pt-BR', { style: 'currency', currency: 'BRL' });
+const deliveryFeeExplanation = 'Pense na taxa de entrega como economia: você não gasta com combustível, estacionamento ou trânsito, e ainda ganha tempo livre enquanto nós fazemos o trabalho pesado por você.';
+const serviceFeeExplanation = "Nossa taxa de serviço é destinada aos nossos separadores especializados. Eles funcionam como seus 'olhos' na loja, escolhendo a dedo as frutas mais frescas, as melhores carnes e os produtos com maior validade, embalando tudo com o máximo de cuidado.";
+
+function CheckoutFeeInfo({ label, explanation }) {
+  return <details className="checkout-fee-info">
+    <summary aria-label={`Informações sobre ${label}`}><Info size={13} aria-hidden="true" /></summary>
+    <p>{explanation}</p>
+  </details>;
+}
 
 const navigationGroups = [
   {
@@ -124,6 +140,7 @@ export default function DashboardLayout({ children }) {
   const [couponMinimumOrderAmount, setCouponMinimumOrderAmount] = useState(0);
   const [checkoutFees, setCheckoutFees] = useState(null);
   const [checkoutFeesError, setCheckoutFeesError] = useState('');
+  const [checkoutMission, setCheckoutMission] = useState(null);
   const [appliedCouponCode, setAppliedCouponCode] = useState('');
   const [couponStatus, setCouponStatus] = useState('');
   const normalizedCoupon = coupon.trim().toUpperCase();
@@ -147,6 +164,15 @@ export default function DashboardLayout({ children }) {
     }),
     [cartItems, activeCouponDiscountPercent, appliedCouponCode, normalizedCoupon, couponBenefitType, checkoutFees],
   );
+  const closestCheckoutMission = useMemo(() => {
+    const selected = getClosestAvailableMission(checkoutMission?.missions);
+    if (!selected) return null;
+    const projectedReward = getPointsProgressToNextReward(
+      (Number(checkoutMission?.balance) || 0) + (Number(selected.mission.pointsReward) || 0),
+      checkoutMission?.rewards,
+    );
+    return { ...selected, projectedReward };
+  }, [checkoutMission]);
   const activeSavedCards = savedCards.filter((card) => card.status === 'active');
   const compatibleSavedCards = activeSavedCards.filter((card) => isCardTypeCompatible(card.type, paymentMethod));
   const selectedSavedCard = compatibleSavedCards.find((card) => card.id === selectedSavedCardId)
@@ -216,13 +242,15 @@ export default function DashboardLayout({ children }) {
         if (!response.ok) throw new Error(data.error || 'Não foi possível carregar as taxas do pedido.');
         if (!data.fees
           || !Number.isFinite(Number(data.fees.deliveryFee))
-          || !Number.isFinite(Number(data.fees.serviceFee))) {
+          || !Number.isFinite(Number(data.fees.serviceFee))
+          || typeof data.fees.showFeeExplanations !== 'boolean') {
           throw new Error('As taxas do pedido foram recebidas em formato inválido.');
         }
         if (active) {
           setCheckoutFees({
             deliveryFee: Number(data.fees.deliveryFee),
             serviceFee: Number(data.fees.serviceFee),
+            showFeeExplanations: data.fees.showFeeExplanations,
           });
           setCheckoutFeesError('');
         }
@@ -230,6 +258,28 @@ export default function DashboardLayout({ children }) {
       .catch((error) => {
         console.error('Não foi possível carregar as taxas do pedido:', error);
         if (active) setCheckoutFeesError(error.message || 'Não foi possível carregar as taxas do pedido.');
+      });
+    return () => { active = false; };
+  }, [session?.user?.email]);
+
+  useEffect(() => {
+    if (!session?.user?.email) {
+      setCheckoutMission(null);
+      return undefined;
+    }
+    let active = true;
+    fetch('/api/loyalty', { cache: 'no-store' })
+      .then(async (response) => {
+        const data = await response.json();
+        if (!response.ok) throw new Error(data.error || 'Não foi possível carregar o progresso das missões.');
+        if (!Array.isArray(data.missions) || !Array.isArray(data.rewards)) {
+          throw new Error('O progresso das missões foi recebido em formato inválido.');
+        }
+        if (active) setCheckoutMission(data);
+      })
+      .catch((error) => {
+        console.error('Não foi possível carregar a missão para o checkout:', error);
+        if (active) setCheckoutMission(null);
       });
     return () => { active = false; };
   }, [session?.user?.email]);
@@ -1347,6 +1397,31 @@ export default function DashboardLayout({ children }) {
           }) : <div className="cart-empty"><ShoppingCart size={28} /><strong>Seu carrinho está vazio</strong></div>}</div>
           <form className="cart-panel-footer" onSubmit={finishPurchase}>
             <div className="cart-panel-footer-content">
+            {closestCheckoutMission && <section className="checkout-mission-progress" aria-label="Progresso da missão mais próxima">
+              <div className="checkout-mission-heading"><Award size={16} aria-hidden="true" /><strong>{closestCheckoutMission.mission.name}</strong></div>
+              <div className="checkout-mission-progress-label">
+                <span>Progresso da missão</span>
+                <strong>{Math.round(closestCheckoutMission.progress.percent)}%</strong>
+              </div>
+              <div
+                className="checkout-mission-progress-track"
+                role="progressbar"
+                aria-label={`Progresso da missão ${closestCheckoutMission.mission.name}`}
+                aria-valuemin="0"
+                aria-valuemax="100"
+                aria-valuenow={Math.round(closestCheckoutMission.progress.percent)}
+              >
+                <span style={{ width: `${closestCheckoutMission.progress.percent}%` }} />
+              </div>
+              <p>
+                Ao concluir, você recebe <strong>+{Number(closestCheckoutMission.mission.pointsReward).toLocaleString('pt-BR')} pontos</strong>.
+                {closestCheckoutMission.projectedReward
+                  ? closestCheckoutMission.projectedReward.complete
+                    ? <> Depois, poderá resgatar <strong>{closestCheckoutMission.projectedReward.reward.name}</strong> ({getCouponBenefitLabel(closestCheckoutMission.projectedReward.reward.benefitType, closestCheckoutMission.projectedReward.reward.discountPercent)}).</>
+                    : <> Após a missão, faltarão <strong>{closestCheckoutMission.projectedReward.pointsNeeded.toLocaleString('pt-BR')} pontos</strong> para resgatar <strong>{closestCheckoutMission.projectedReward.reward.name}</strong> ({getCouponBenefitLabel(closestCheckoutMission.projectedReward.reward.benefitType, closestCheckoutMission.projectedReward.reward.discountPercent)}).</>
+                  : ' Os pontos podem ser trocados por cupons na área Missões e pontos.'}
+              </p>
+            </section>}
             <div className="cart-summary-box">
               <div className="summary-row">
                 <span>Subtotal ({cartCount} itens)</span>
@@ -1356,8 +1431,18 @@ export default function DashboardLayout({ children }) {
                 <span>Descontos</span>
                 <strong>R$ {cartTotals.couponDiscountAmount.toFixed(2).replace('.', ',')}</strong>
               </div>
-              <div className="summary-row"><span>Entrega{couponBenefitType === 'FREE_DELIVERY' && appliedCouponCode === normalizedCoupon ? ' · grátis' : ''}</span><strong>R$ {cartTotals.deliveryFee.toFixed(2).replace('.', ',')}</strong></div>
-              <div className="summary-row"><span>Taxa de serviço{couponBenefitType === 'FREE_SERVICE_FEE' && appliedCouponCode === normalizedCoupon ? ' · zerada' : ''}</span><strong>R$ {cartTotals.serviceFee.toFixed(2).replace('.', ',')}</strong></div>
+              <div className="summary-row">
+                <span className="summary-row-label">Entrega{couponBenefitType === 'FREE_DELIVERY' && appliedCouponCode === normalizedCoupon ? ' · grátis' : ''}
+                  {checkoutFees?.showFeeExplanations && <CheckoutFeeInfo label="taxa de entrega" explanation={deliveryFeeExplanation} />}
+                </span>
+                <strong>R$ {cartTotals.deliveryFee.toFixed(2).replace('.', ',')}</strong>
+              </div>
+              <div className="summary-row">
+                <span className="summary-row-label">Taxa de serviço{couponBenefitType === 'FREE_SERVICE_FEE' && appliedCouponCode === normalizedCoupon ? ' · zerada' : ''}
+                  {checkoutFees?.showFeeExplanations && <CheckoutFeeInfo label="taxa de serviço" explanation={serviceFeeExplanation} />}
+                </span>
+                <strong>R$ {cartTotals.serviceFee.toFixed(2).replace('.', ',')}</strong>
+              </div>
               <div className="summary-row total">
                 <span>Total</span>
                 <strong>R$ {cartTotals.total.toFixed(2).replace('.', ',')}</strong>

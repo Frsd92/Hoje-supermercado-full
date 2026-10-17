@@ -294,6 +294,7 @@ model CheckoutFeeSettings {
   id          String   @id @default("default")
   deliveryFee Decimal  @default(0) @db.Decimal(12, 2)
   serviceFee  Decimal  @default(0) @db.Decimal(12, 2)
+  showFeeExplanations Boolean @default(true)
   updatedBy   String?
   updatedAt   DateTime @updatedAt
 }

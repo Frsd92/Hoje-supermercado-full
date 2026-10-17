@@ -4,7 +4,7 @@ import { erpActorLabel, hasErpAccess } from '@/features/erp/access';
 import { prisma } from '@/lib/prisma';
 
 const headers = { 'Cache-Control': 'private, no-store, max-age=0' };
-const defaults = { deliveryFee: 0, serviceFee: 0 };
+const defaults = { deliveryFee: 0, serviceFee: 0, showFeeExplanations: true };
 
 function parseFee(value, label) {
   const amount = Number(String(value ?? '').trim().replace(',', '.'));
@@ -21,7 +21,11 @@ export async function GET() {
     const settings = await prisma.checkoutFeeSettings.findUnique({ where: { id: 'default' } });
     return Response.json({
       fees: settings
-        ? { deliveryFee: Number(settings.deliveryFee), serviceFee: Number(settings.serviceFee) }
+        ? {
+          deliveryFee: Number(settings.deliveryFee),
+          serviceFee: Number(settings.serviceFee),
+          showFeeExplanations: settings.showFeeExplanations,
+        }
         : defaults,
     }, { headers });
   } catch (error) {
@@ -46,7 +50,13 @@ export async function PATCH(request) {
     fees = {
       deliveryFee: parseFee(body?.deliveryFee, 'A taxa de entrega'),
       serviceFee: parseFee(body?.serviceFee, 'A taxa de serviço'),
+      showFeeExplanations: body?.showFeeExplanations === undefined
+        ? true
+        : body.showFeeExplanations,
     };
+    if (typeof fees.showFeeExplanations !== 'boolean') {
+      throw new TypeError('Escolha se as explicações das taxas devem aparecer no checkout.');
+    }
   } catch (error) {
     return Response.json({ error: error.message }, { status: 400, headers });
   }
@@ -58,7 +68,11 @@ export async function PATCH(request) {
       update: { ...fees, updatedBy: erpActorLabel(session.user) },
     });
     return Response.json({
-      fees: { deliveryFee: Number(settings.deliveryFee), serviceFee: Number(settings.serviceFee) },
+      fees: {
+        deliveryFee: Number(settings.deliveryFee),
+        serviceFee: Number(settings.serviceFee),
+        showFeeExplanations: settings.showFeeExplanations,
+      },
     }, { headers });
   } catch (error) {
     console.error('Não foi possível salvar as taxas do checkout:', error);

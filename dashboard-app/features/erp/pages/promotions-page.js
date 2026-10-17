@@ -52,7 +52,7 @@ export default function PromotionsPage() {
   const [code, setCode] = useState('');
   const [benefitType, setBenefitType] = useState('PERCENTAGE');
   const [discountPercent, setDiscountPercent] = useState('10');
-  const [checkoutFees, setCheckoutFees] = useState({ deliveryFee: '0', serviceFee: '0' });
+  const [checkoutFees, setCheckoutFees] = useState({ deliveryFee: '0', serviceFee: '0', showFeeExplanations: true });
   const [durationDays, setDurationDays] = useState('7');
   const [message, setMessage] = useState('');
   const [campaignFilter, setCampaignFilter] = useState('all');
@@ -96,6 +96,7 @@ export default function PromotionsPage() {
           setCheckoutFees({
             deliveryFee: String(nextFees.deliveryFee),
             serviceFee: String(nextFees.serviceFee),
+            showFeeExplanations: nextFees.showFeeExplanations !== false,
           });
           if (recipientHandoffEmail) {
             const recipient = nextCustomers.find((customer) => customer.email.toLowerCase() === recipientHandoffEmail);
@@ -254,6 +255,7 @@ export default function PromotionsPage() {
         body: JSON.stringify({
           deliveryFee: checkoutFees.deliveryFee,
           serviceFee: checkoutFees.serviceFee,
+          showFeeExplanations: checkoutFees.showFeeExplanations,
         }),
       });
       const data = await response.json();
@@ -261,6 +263,7 @@ export default function PromotionsPage() {
       setCheckoutFees({
         deliveryFee: String(data.fees.deliveryFee),
         serviceFee: String(data.fees.serviceFee),
+        showFeeExplanations: data.fees.showFeeExplanations !== false,
       });
       setFeedback('Taxas do checkout atualizadas. Os novos valores serão usados nos próximos pedidos.');
       setFeedbackError(false);
@@ -281,6 +284,7 @@ export default function PromotionsPage() {
         <label>Taxa de entrega (R$)<input type="number" min="0" max="100000" step="0.01" value={checkoutFees.deliveryFee} onChange={(event) => setCheckoutFees((current) => ({ ...current, deliveryFee: event.target.value }))} required /><small>Aplicada aos pedidos com entrega, conforme o fluxo atual de endereços.</small></label>
         <label>Taxa de serviço (R$)<input type="number" min="0" max="100000" step="0.01" value={checkoutFees.serviceFee} onChange={(event) => setCheckoutFees((current) => ({ ...current, serviceFee: event.target.value }))} required /><small>Aplicada a todos os pedidos.</small></label>
       </div>
+      <label className="checkout-fee-explanations-toggle"><input type="checkbox" checked={checkoutFees.showFeeExplanations} onChange={(event) => setCheckoutFees((current) => ({ ...current, showFeeExplanations: event.target.checked }))} /> Exibir explicações das taxas nos checkouts da Loja e do Dashboard</label>
       <button className="primary-cta" type="submit" disabled={loading || savingFees}>{savingFees ? 'Salvando taxas...' : 'Salvar taxas'}</button>
     </form>
     <section className="coupon-management-summary" aria-label="Indicadores gerais de cupons">
