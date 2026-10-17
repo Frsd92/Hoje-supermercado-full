@@ -1,4 +1,3 @@
-import Link from 'next/link';
 import { ShoppingBag } from 'lucide-react';
 
 export default function CustomerCouponsPage() {
@@ -23,10 +22,10 @@ export default function CustomerCouponsPage() {
         <li>Digite um único código no campo de cupom e pressione “Aplicar”.</li>
         <li>A validade, o vínculo com sua conta e o pedido mínimo são confirmados pelo servidor.</li>
       </ul>
-      <Link href="/index.html" className="secondary-cta">
+      <a href="/" className="secondary-cta">
         <ShoppingBag size={16} aria-hidden="true" />
         Ir para a loja
-      </Link>
+      </a>
     </div>
   </div>;
 }

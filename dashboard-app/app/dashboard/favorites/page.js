@@ -324,7 +324,7 @@ export default function FavoritesPage() {
           <div>
             <span><Heart size={14} fill="currentColor" aria-hidden="true" /> Sua lista, sempre à mão</span>
             <small>Salve produtos para voltar a eles quando for preparar seu próximo pedido.</small>
-            <Link href="/">Explorar a loja <ArrowRight size={13} aria-hidden="true" /></Link>
+            <a href="/">Explorar a loja <ArrowRight size={13} aria-hidden="true" /></a>
           </div>
           <span className="favorites-promo-orbit" aria-hidden="true"><ShoppingCart size={33} /></span>
         </aside>
@@ -348,7 +348,7 @@ export default function FavoritesPage() {
           <div className="empty-state-box"><Heart size={32} aria-hidden="true" /></div>
           <h3>Nenhum favorito por enquanto</h3>
           <p>Toque no coração de um produto na loja para salvá-lo nesta lista.</p>
-          <Link href="/" className="primary-cta">Encontrar produtos</Link>
+          <a href="/" className="primary-cta">Encontrar produtos</a>
         </div>
       ) : (
         <>

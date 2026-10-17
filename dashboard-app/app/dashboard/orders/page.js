@@ -276,7 +276,7 @@ export default function OrdersPage() {
     ? (
       <>
         <p>Seus pedidos aparecerão aqui depois que você concluir uma compra.</p>
-        <Link href="/" className="primary-cta">Ir para a loja</Link>
+        <a href="/" className="primary-cta">Ir para a loja</a>
       </>
     )
     : (

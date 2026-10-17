@@ -276,7 +276,7 @@ export default function DashboardHomePage() {
         </div>
         <div className="panel-box">
           <div className="panel-header compact"><h3>Últimos pedidos</h3><Link href="/dashboard/orders" className="dashboard-panel-link">Ver todos</Link></div>
-          {orders.length ? <ul className="mini-list">{orders.slice(0, 4).map((order) => { const info = getOrderStatus(order.status); return <li key={order.id}><span>{order.id}</span><strong className={`mini-order-status ${info.tone}`}><span className="order-status-light" />{info.label}</strong><em>{order.total}</em></li>; })}</ul> : <div className="dashboard-home-empty"><span>{dashboardLoading ? 'Carregando seus pedidos…' : dashboardError ? 'Pedidos indisponíveis no momento.' : 'Você ainda não fez um pedido.'}</span>{!dashboardLoading && !dashboardError && <Link href="/">Escolher produtos</Link>}</div>}
+          {orders.length ? <ul className="mini-list">{orders.slice(0, 4).map((order) => { const info = getOrderStatus(order.status); return <li key={order.id}><span>{order.id}</span><strong className={`mini-order-status ${info.tone}`}><span className="order-status-light" />{info.label}</strong><em>{order.total}</em></li>; })}</ul> : <div className="dashboard-home-empty"><span>{dashboardLoading ? 'Carregando seus pedidos…' : dashboardError ? 'Pedidos indisponíveis no momento.' : 'Você ainda não fez um pedido.'}</span>{!dashboardLoading && !dashboardError && <a href="/">Escolher produtos</a>}</div>}
         </div>
       </div>
 
