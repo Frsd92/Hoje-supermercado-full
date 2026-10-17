@@ -703,9 +703,10 @@
 .checkout-fee-info p {
   position: absolute;
   z-index: 20;
-  right: 0;
+  left: 0;
+  right: auto;
   bottom: calc(100% + 8px);
-  width: min(280px, 72vw);
+  width: min(280px, calc(100vw - 32px));
   margin: 0;
   padding: 10px 12px;
   border: 1px solid #d8e8dc;
