@@ -9,7 +9,7 @@ Aplicação Next.js que reúne o dashboard do cliente e o ERP interno.
 - `features/erp/pages`: páginas funcionais do ERP.
 - `features/erp/components`: componentes compartilhados dentro do ERP.
 - `app/api`: pontos de entrada das APIs; os handlers exclusivos do ERP ficam em `features/erp/api`.
-- `../loja`: arquivos-fonte da loja estática. Os comandos `npm run dev` e `npm run build` copiam esses arquivos para `public`; não edite as cópias geradas manualmente.
+- `../loja`: arquivos-fonte da loja estática. Os comandos `npm run dev` e `npm run build` copiam esses arquivos para `public`; não edite as cópias geradas manualmente. Como o Root Directory do Vercel é `dashboard-app`, os assets já preparados em `public` são versionados, e `vercel-build` gera o Prisma Client, aplica migrações de produção e compila sem depender da pasta-fonte externa.
 
 ## Acesso ao ERP
 
