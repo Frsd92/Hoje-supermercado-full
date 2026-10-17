@@ -110,6 +110,7 @@ export default function ERPCustomersPage() {
       if (!response.ok) throw new Error(data.error || 'Não foi possível atualizar a solicitação.');
       setServiceRequestNotes((current) => ({ ...current, [serviceRequest.id]: '' }));
       setServiceRequestActionNotice(data.message || 'Solicitação atualizada.');
+      window.dispatchEvent(new Event('erp-customer-actions-updated'));
     } catch (error) {
       setServiceRequestActionError(error.message || 'Não foi possível atualizar a solicitação.');
     } finally {

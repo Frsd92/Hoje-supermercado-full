@@ -7122,7 +7122,7 @@ button.metric-mini:focus-visible {
 .erp-nav-item:hover:not(.active) { background: var(--erp-surface-soft); }
 .erp-nav-item.active { border-color: var(--erp-primary-border); background: var(--erp-primary-soft); color: var(--erp-primary-strong); box-shadow: inset 3px 0 var(--erp-primary); font-weight: 750; }
 .erp-nav-item svg { flex: 0 0 auto; }
-.erp-nav-badge { margin-left: auto; min-width: 18px; height: 18px; display: grid; place-items: center; padding: 0 5px; border-radius: 999px; background: #ef4444; color: #fff; font-size: .65rem; }
+.erp-nav-badge { margin-left: auto; min-width: 18px; height: 18px; display: grid; place-items: center; padding: 0 5px; border-radius: 999px; background: #dc2626; color: #fff; font-size: .65rem; font-weight: 800; box-shadow: 0 0 0 2px var(--erp-surface); }
 .erp-invoice-cpf-requested { display: inline-flex; min-height: 23px; align-items: center; padding: 2px 8px; border-radius: 999px; color: #166534; background: #dcfce7; font-size: .72rem; font-weight: 800; }
 .erp-order-invoice-cpf > span { display: grid; gap: 4px; }
 .erp-order-invoice-cpf small { color: #64748b; }

@@ -137,6 +137,7 @@ export default function ERPOrdersPage() {
       const { order: updated } = data;
       setOrders((current) => current.map((item) => item.id === updated.id ? updated : item));
       setSelected(updated);
+      window.dispatchEvent(new Event('erp-orders-updated'));
     } catch (error) {
       setActionError(error.message || 'Não foi possível atualizar o pedido.');
     } finally {
@@ -165,6 +166,7 @@ export default function ERPOrdersPage() {
       if (data.request) {
         setOrders((current) => current.map((order) => order.id === selected?.id ? replaceRequest(order) : order));
         setSelected((current) => current?.id === selected?.id ? replaceRequest(current) : current);
+        window.dispatchEvent(new Event('erp-customer-actions-updated'));
       }
       if (!response.ok || data.error) throw new Error(data.error || 'Não foi possível atualizar a solicitação.');
       setRefundDecisionNotes((current) => ({ ...current, [refundRequest.id]: '' }));
@@ -199,6 +201,7 @@ export default function ERPOrdersPage() {
       setInternalRefundAmount('');
       setInternalRefundReason('');
       setRefundActionNotice(data.message || 'Estorno parcial registrado para análise.');
+      window.dispatchEvent(new Event('erp-customer-actions-updated'));
     } catch (error) {
       setRefundActionError(error.message || 'Não foi possível registrar o estorno parcial.');
     } finally {

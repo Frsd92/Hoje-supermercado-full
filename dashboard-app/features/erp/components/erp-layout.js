@@ -4,6 +4,7 @@ import Link from 'next/link';
 import { usePathname } from 'next/navigation';
 import { Activity, Award, BarChart3, Bell, CalendarDays, ChevronDown, CircleDollarSign, ClipboardList, FileText, History, LayoutDashboard, LayoutTemplate, MapPin, Package, Plus, ReceiptText, ShoppingCart, TicketPercent, TrendingUp, Truck, Users, Zap } from 'lucide-react';
 import { useEffect, useState } from 'react';
+import { getErpActionCounts } from '../action-notifications.js';
 
 const erpNavigationGroups = [
   {
@@ -70,7 +71,7 @@ const erpNavigationGroups = [
 
 export default function ERPLayout({ children }) {
   const pathname = usePathname();
-  const [newOrders, setNewOrders] = useState(0);
+  const [actionCounts, setActionCounts] = useState({ customers: 0, orders: 0 });
   const [financeExpanded, setFinanceExpanded] = useState(() => pathname.startsWith('/erp/financeiro'));
 
   useEffect(() => {
@@ -80,13 +81,31 @@ export default function ERPLayout({ children }) {
   useEffect(() => {
     if (pathname === '/erp/login') return undefined;
 
-    const loadNewOrders = () => fetch('/api/erp/orders').then((response) => response.json()).then(({ orders = [] }) => {
-      const acknowledged = JSON.parse(localStorage.getItem('erp-acknowledged-orders') || '[]');
-      setNewOrders(orders.filter((order) => order.status === 'Recebido' && !acknowledged.includes(order.id)).length);
-    }).catch(() => setNewOrders(0));
-    loadNewOrders();
-    window.addEventListener('erp-orders-updated', loadNewOrders);
-    return () => window.removeEventListener('erp-orders-updated', loadNewOrders);
+    let active = true;
+    const loadActionCounts = async () => {
+      try {
+        const response = await fetch('/api/erp/orders', { cache: 'no-store' });
+        const data = await response.json();
+        if (!response.ok) throw new Error(data.error || 'Não foi possível carregar os indicadores de ações pendentes.');
+        if (!Array.isArray(data.orders)) throw new Error('A resposta de pedidos para os indicadores está inválida.');
+        const storedAcknowledged = JSON.parse(localStorage.getItem('erp-acknowledged-orders') || '[]');
+        const acknowledged = Array.isArray(storedAcknowledged) ? storedAcknowledged : [];
+        if (active) setActionCounts(getErpActionCounts(data.orders, acknowledged));
+      } catch (error) {
+        console.error('Não foi possível atualizar os indicadores de ações pendentes do ERP:', error);
+      }
+    };
+    void loadActionCounts();
+    const refresh = () => { void loadActionCounts(); };
+    const interval = window.setInterval(refresh, 30_000);
+    window.addEventListener('erp-orders-updated', refresh);
+    window.addEventListener('erp-customer-actions-updated', refresh);
+    return () => {
+      active = false;
+      window.clearInterval(interval);
+      window.removeEventListener('erp-orders-updated', refresh);
+      window.removeEventListener('erp-customer-actions-updated', refresh);
+    };
   }, [pathname]);
 
   if (pathname === '/erp/login') return children;
@@ -112,7 +131,11 @@ export default function ERPLayout({ children }) {
             {expanded && <div className="erp-nav-group-items" id={isFinance ? 'erp-finance-nav-items' : undefined}>
               {group.items.map(({ label, href, icon: Icon }) => {
                 const active = pathname === href || (href !== '/erp' && href !== '/erp/financeiro' && pathname.startsWith(href));
-                const content = <><Icon size={17} aria-hidden="true" /><span>{label}</span>{label === 'Pedidos' && newOrders > 0 && <><span className="erp-nav-badge" aria-hidden="true">{newOrders}</span><span className="visually-hidden">{newOrders} novos pedidos</span></>}</>;
+                const pendingActions = label === 'Pedidos' ? actionCounts.orders : label === 'Clientes' ? actionCounts.customers : 0;
+                const actionLabel = label === 'Pedidos'
+                  ? `${pendingActions} pedido(s) ou ação(ões) aguardando atendimento`
+                  : `${pendingActions} solicitação(ões) de cliente aguardando atendimento`;
+                const content = <><Icon size={17} aria-hidden="true" /><span>{label}</span>{pendingActions > 0 && <><span className="erp-nav-badge" aria-hidden="true">{pendingActions}</span><span className="visually-hidden">{actionLabel}</span></>}</>;
                 const className = `erp-nav-item ${active ? 'active' : ''}`;
                 return <Link key={label} href={href} className={className} aria-current={active ? 'page' : undefined}>{content}</Link>;
               })}
