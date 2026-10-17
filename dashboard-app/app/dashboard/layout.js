@@ -1129,15 +1129,16 @@ export default function DashboardLayout({ children }) {
                     const active = pathname === href || (href !== '/dashboard' && pathname.startsWith(href));
 
                     return (
-                      <a
+                      <Link
                         key={itemLabel}
                         href={href}
                         className={`sidebar-item ${active ? 'active' : ''}`}
                         aria-current={active ? 'page' : undefined}
+                        onClick={() => setMobileNavOpen(false)}
                       >
                         <Icon size={18} aria-hidden="true" />
                         <span>{itemLabel}</span>
-                      </a>
+                      </Link>
                     );
                   })}
                 </div>
