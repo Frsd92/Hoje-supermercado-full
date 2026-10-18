@@ -9,21 +9,26 @@ function moveCarousel(botao, direcao) {
 }
 
 function configurarDicaDeDeslizeDosCarrosseis() {
-  const storageKey = 'hoje-mobile-highlight-carousel-swipe-hint-v3';
+  const storageKey = 'hoje-mobile-highlight-carousel-swipe-hint-v4';
   if (!window.matchMedia('(max-width: 640px)').matches
     || window.matchMedia('(prefers-reduced-motion: reduce)').matches
     || !('IntersectionObserver' in window)) return;
-
-  try {
-    if (localStorage.getItem(storageKey) === 'dismissed') return;
-  } catch (error) {
-    console.warn('Não foi possível verificar se a dica dos carrosséis já foi dispensada:', error.message);
-  }
 
   const sections = [...document.querySelectorAll(
     '#hortifruti.highlight-banner, #store-mercearia.highlight-banner, #store-cleaning.highlight-banner',
   )];
   if (!sections.length) return;
+
+  const dismissedSections = new Set();
+  try {
+    sections.forEach((section) => {
+      if (localStorage.getItem(`${storageKey}:${section.id}`) === 'dismissed') {
+        dismissedSections.add(section);
+      }
+    });
+  } catch (error) {
+    console.warn('Não foi possível verificar quais dicas dos carrosséis já foram dispensadas:', error.message);
+  }
 
   let hint;
   let activeSection;
@@ -33,17 +38,17 @@ function configurarDicaDeDeslizeDosCarrosseis() {
     hint = null;
     activeSection = null;
   };
-  const dismissHint = () => {
-    observer.disconnect();
-    removeHint();
+  const dismissHint = (section) => {
+    dismissedSections.add(section);
+    if (activeSection === section) removeHint();
     try {
-      localStorage.setItem(storageKey, 'dismissed');
+      localStorage.setItem(`${storageKey}:${section.id}`, 'dismissed');
     } catch (error) {
-      console.warn('Não foi possível salvar que a dica dos carrosséis foi dispensada:', error.message);
+      console.warn('Não foi possível salvar que a dica do carrossel foi dispensada:', error.message);
     }
   };
   const showHint = (section) => {
-    if (section === activeSection) return;
+    if (section === activeSection || dismissedSections.has(section)) return;
     removeHint();
     const banner = section.querySelector('.highlight-side');
     if (!banner) return;
@@ -59,15 +64,16 @@ function configurarDicaDeDeslizeDosCarrosseis() {
   sections.forEach((section) => {
     section.addEventListener('pointerdown', (event) => {
       if (event.pointerType !== 'touch' && event.pointerType !== 'pen') return;
-      pointerStart = { id: event.pointerId, x: event.clientX, y: event.clientY };
+      pointerStart = { id: event.pointerId, section, x: event.clientX, y: event.clientY };
     }, { passive: true });
   });
   window.addEventListener('pointerup', (event) => {
     if (!pointerStart || event.pointerId !== pointerStart.id) return;
     const deltaX = event.clientX - pointerStart.x;
     const deltaY = event.clientY - pointerStart.y;
+    const { section } = pointerStart;
     pointerStart = null;
-    if (Math.abs(deltaX) >= 24 && Math.abs(deltaX) > Math.abs(deltaY)) dismissHint();
+    if (Math.abs(deltaX) >= 24 && Math.abs(deltaX) > Math.abs(deltaY)) dismissHint(section);
   }, { passive: true });
   window.addEventListener('pointercancel', () => {
     pointerStart = null;
@@ -82,7 +88,9 @@ function configurarDicaDeDeslizeDosCarrosseis() {
         return { section, visibleRatio: visibleHeight / bounds.height };
       })
       .filter(({ section, visibleRatio }) => (
-        visibleRatio >= 0.4 && section.scrollWidth > section.clientWidth
+        visibleRatio >= 0.4
+        && section.scrollWidth > section.clientWidth
+        && !dismissedSections.has(section)
       ))
       .sort((first, second) => sections.indexOf(first.section) - sections.indexOf(second.section))[0]?.section;
     if (visibleSection) showHint(visibleSection);
