@@ -230,7 +230,6 @@ export default function ERPProductsPage() {
       effectivePrice: formatBRL(pricing.effectivePrice),
       profitMarginPercent: pricing.profitMarginPercent.toFixed(2),
       profitMarginValue: formatBRL(pricing.profitValue),
-      markupPercent: String(current.markupPercent || '').trim() === '' ? '' : pricing.markupPercent.toFixed(2),
     }));
   }, [product.cost, product.price, product.promotionalPrice, product.discount]);
   useEffect(() => {

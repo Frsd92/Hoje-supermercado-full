@@ -41,7 +41,8 @@ function isAlcoholic(productName) {
 }
 
 function categoryKey(category) {
-  return normalizeCategory(category).replaceAll(' ', '-');
+  const key = normalizeCategory(category).replaceAll(' ', '-');
+  return key === 'bebidas-alcoolicas' ? 'alcoolicas' : key;
 }
 
 function getTimestamp(value) {
