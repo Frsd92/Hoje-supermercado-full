@@ -8,6 +8,56 @@ function moveCarousel(botao, direcao) {
   });
 }
 
+function configurarDicaDeDeslizeDosCarrosseis() {
+  const storageKey = 'hoje-mobile-highlight-carousel-swipe-hint-v2';
+  if (!window.matchMedia('(max-width: 640px)').matches
+    || window.matchMedia('(prefers-reduced-motion: reduce)').matches
+    || !('IntersectionObserver' in window)) return;
+
+  try {
+    if (localStorage.getItem(storageKey) === 'shown') return;
+  } catch (error) {
+    console.warn('Não foi possível verificar se a dica dos carrosséis já foi exibida:', error.message);
+  }
+
+  const sections = [...document.querySelectorAll(
+    '#hortifruti.highlight-banner, #store-mercearia.highlight-banner, #store-cleaning.highlight-banner',
+  )];
+  if (!sections.length) return;
+
+  const observer = new IntersectionObserver((entries) => {
+    const visibleSection = entries
+      .filter((entry) => entry.isIntersecting && entry.target.scrollWidth > entry.target.clientWidth)
+      .sort((first, second) => sections.indexOf(first.target) - sections.indexOf(second.target))[0]?.target;
+    if (!visibleSection) return;
+
+    observer.disconnect();
+    try {
+      localStorage.setItem(storageKey, 'shown');
+    } catch (error) {
+      console.warn('Não foi possível salvar que a dica dos carrosséis já foi exibida:', error.message);
+    }
+
+    const banner = visibleSection.querySelector('.highlight-side');
+    if (!banner) return;
+
+    const hint = document.createElement('span');
+    hint.className = 'carousel-swipe-hint';
+    hint.setAttribute('aria-hidden', 'true');
+    hint.innerHTML = '<span class="carousel-swipe-hint-indicator"></span>';
+    hint.addEventListener('animationend', (event) => {
+      if (event.target === hint) hint.remove();
+    });
+    window.setTimeout(() => {
+      if (banner.isConnected && window.matchMedia('(max-width: 640px)').matches) {
+        banner.append(hint);
+      }
+    }, 450);
+  }, { threshold: 0.45 });
+
+  sections.forEach((section) => observer.observe(section));
+}
+
 function configurarSlidesBannerPrincipal(slides) {
   const banner = document.querySelector('.banner[data-store-layout="main-hero"]');
   const dots = banner?.querySelector('.banner-dots');
@@ -2578,6 +2628,7 @@ async function carregarLayoutGerenciado() {
 
 window.addEventListener('DOMContentLoaded', () => {
   void carregarTaxasCheckoutLoja();
+  configurarDicaDeDeslizeDosCarrosseis();
   inicializarCarrinho();
   carregarLayoutGerenciado();
   adicionarBotoesFavorito();

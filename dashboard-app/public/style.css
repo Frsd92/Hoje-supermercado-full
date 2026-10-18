@@ -4406,6 +4406,68 @@ body {
     scroll-snap-stop: always;
   }
 
+  .carousel-swipe-hint {
+    position: absolute;
+    z-index: 5;
+    bottom: 16px;
+    left: 50%;
+    width: 76px;
+    height: 32px;
+    color: rgba(255, 255, 255, 0.78);
+    opacity: 0;
+    pointer-events: none;
+    transform: translateX(-50%);
+    animation: carouselSwipeHintFade 1.25s ease-out 1 both;
+  }
+
+  .carousel-swipe-hint::before {
+    position: absolute;
+    top: 50%;
+    right: 8px;
+    left: 8px;
+    border-top: 1px dashed currentColor;
+    content: '';
+    transform: translateY(-50%);
+  }
+
+  .carousel-swipe-hint::after {
+    position: absolute;
+    top: 50%;
+    left: 6px;
+    width: 7px;
+    height: 7px;
+    border-bottom: 1px solid currentColor;
+    border-left: 1px solid currentColor;
+    content: '';
+    transform: translateY(-50%) rotate(45deg);
+  }
+
+  .carousel-swipe-hint-indicator {
+    position: absolute;
+    z-index: 1;
+    top: 50%;
+    left: 50%;
+    width: 25px;
+    height: 25px;
+    border: 2px solid rgba(255, 255, 255, 0.88);
+    border-radius: 50%;
+    background: rgba(255, 255, 255, 0.16);
+    box-shadow: 0 0 0 3px rgba(255, 255, 255, 0.14);
+    transform: translate(-50%, -50%) translateX(25px);
+    animation: carouselSwipeHintSlide 1.25s cubic-bezier(0.22, 1, 0.36, 1) 1 both;
+  }
+
+  @keyframes carouselSwipeHintFade {
+    0% { opacity: 0; }
+    14%, 72% { opacity: 1; }
+    100% { opacity: 0; }
+  }
+
+  @keyframes carouselSwipeHintSlide {
+    0% { transform: translate(-50%, -50%) translateX(25px); }
+    76%, 100% { transform: translate(-50%, -50%) translateX(-25px); }
+  }
+
   .highlight-products,
   .offers-grid,
   .carousel-track {
