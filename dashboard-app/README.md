@@ -55,6 +55,8 @@ Na pasta `dashboard-app`, execute `npm run dev`. O launcher reinicia o servidor 
 
 Para testar a versão compilada, use `npm run start:stable`. Ela executa o build e inicia o servidor sem hot reload.
 
+Para validar o código antes de publicar, execute `npm run lint` e `npm test`.
+
 ## Identidade e auditoria de produtos
 
 O catálogo impede cadastros repetidos por nome normalizado (sem diferença de caixa, acentos ou espaços), SKU e cada código de barras. As verificações da aplicação dão uma mensagem com o produto existente; índices e códigos únicos no PostgreSQL também impedem duplicatas em gravações concorrentes. Para editar um produto, abra o cadastro existente no ERP.

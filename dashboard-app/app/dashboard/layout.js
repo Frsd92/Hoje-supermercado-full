@@ -11,7 +11,6 @@ import { getCouponBenefitLabel } from '@/features/coupons/coupon-benefits';
 import {
   getClosestAvailableMission,
   getPointsProgressToNextReward,
-  missionProgress,
 } from '@/features/loyalty/customer-mission-display';
 import contentModeration from '@/lib/content-moderation.js';
 import {
@@ -1063,16 +1062,6 @@ export default function DashboardLayout({ children }) {
     document.addEventListener('visibilitychange', refreshWhenVisible);
     return () => { active = false; window.clearInterval(interval); window.removeEventListener('dashboard-settings-updated', loadNotifications); window.removeEventListener('dashboard-notifications-updated', loadNotifications); document.removeEventListener('visibilitychange', refreshWhenVisible); };
   }, [session?.user?.email]);
-
-  const enableNotifications = async () => {
-    if (!('Notification' in window)) return;
-    const permission = await Notification.requestPermission();
-    if (permission === 'granted') {
-      const preferences = JSON.parse(localStorage.getItem('dashboard-settings') || '{}');
-      localStorage.setItem('dashboard-settings', JSON.stringify({ ...preferences, pushNotifications: true }));
-      window.dispatchEvent(new Event('dashboard-settings-updated'));
-    }
-  };
 
   const markNotificationRead = (notificationId) => {
     if (!session?.user?.email) return;

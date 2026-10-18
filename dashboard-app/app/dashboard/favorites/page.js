@@ -1,6 +1,5 @@
 'use client';
 
-import Link from 'next/link';
 import { useSession } from 'next-auth/react';
 import { ArrowRight, ChevronLeft, ChevronRight, Heart, Package, Plus, ShoppingCart, Tag, Trash2 } from 'lucide-react';
 import { useCallback, useEffect, useRef, useState } from 'react';

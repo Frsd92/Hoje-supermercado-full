@@ -1095,10 +1095,6 @@ export default function FinancialPage() {
         || (second.previous?.amount || 0) - (first.previous?.amount || 0)
       ));
   })();
-  const dreShare = (amount) => data?.dre.netRevenue > 0
-    ? percent(amount / data.dre.netRevenue * 100)
-    : '—';
-
   return <div className="erp-page financial-page">
     <header className="financial-header">
       <div>

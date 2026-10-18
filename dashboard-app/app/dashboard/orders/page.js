@@ -1,6 +1,5 @@
 'use client';
 
-import Link from 'next/link';
 import { FileText, PackageOpen, Printer, X } from 'lucide-react';
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { getOrderStatus, orderStages } from '../order-status';
@@ -11,7 +10,6 @@ import { isCardPaymentMethod } from '@/features/payments/card-methods';
 import {
   canRequestOrderService,
   hasOpenOrderServiceRequest,
-  orderServiceRequestStatus,
   orderServiceRequestStatusLabels,
   orderServiceRequestType,
   orderServiceRequestTypeLabels,

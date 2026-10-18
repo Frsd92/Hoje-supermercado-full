@@ -241,6 +241,8 @@ export function validateMainHeroSlideSettings(value) {
   if (!allowedButtonPositions.has(buttonPosition)) return null;
 
   const href = buttonHref.trim();
+  // Reject control characters and backslashes before validating the local path.
+  // eslint-disable-next-line no-control-regex
   if (!href || /[\u0000-\u0020\\]/.test(href) || /^[a-z][a-z\d+.-]*:/i.test(href) || href.startsWith('//')) return null;
   if (!href.startsWith('/') && !href.startsWith('#')) return null;
 

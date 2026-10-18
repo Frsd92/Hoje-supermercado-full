@@ -194,7 +194,7 @@ export async function GET() {
     ]));
     const userIdsByEmail = new Map(users.map((user) => [user.email.trim().toLowerCase(), user.id]));
     const userCreatedAtByEmail = new Map(users.map((user) => [user.email.trim().toLowerCase(), user.createdAt]));
-    const customers = [...customerEmails].map((email, index) => {
+    const customers = [...customerEmails].map((email) => {
       const profile = profilesByEmail.get(email);
       const favorites = favoritesByUser.get(email) || [];
       const cart = cartsByEmail.get(email) || [];

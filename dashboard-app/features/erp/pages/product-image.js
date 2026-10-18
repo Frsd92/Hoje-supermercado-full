@@ -10,7 +10,7 @@ export function encodeProductImage(canvas, context, maximumLength = 1_600_000) {
   let currentCanvas = canvas;
   let encodedImage;
 
-  do {
+  for (;;) {
     if (transparent) {
       encodedImage = currentCanvas.toDataURL('image/png');
     } else {
@@ -31,7 +31,7 @@ export function encodeProductImage(canvas, context, maximumLength = 1_600_000) {
     if (!resizedContext) throw new Error('Não foi possível redimensionar a imagem para salvar.');
     resizedContext.drawImage(currentCanvas, 0, 0, resizedCanvas.width, resizedCanvas.height);
     currentCanvas = resizedCanvas;
-  } while (true);
+  }
 
   throw new Error('A imagem não pôde ser reduzida o suficiente. Escolha uma imagem menor.');
 }

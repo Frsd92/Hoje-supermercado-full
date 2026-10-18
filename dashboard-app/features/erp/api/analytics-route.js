@@ -280,7 +280,6 @@ export async function GET(request) {
     lineItems,
     revenue,
   });
-  const { available: profitabilityAvailable, missingCostItems } = profitabilitySummary;
   const searchParams = new URL(request.url).searchParams;
   const startDate = searchParams.get('startDate') || '';
   const endDate = searchParams.get('endDate') || '';
@@ -439,7 +438,6 @@ export async function GET(request) {
       lots,
     };
   });
-  const stockById = new Map(stock.map((product) => [product.id, product]));
   const nearExpiryLots = stock.flatMap((product) => product.lots
     .filter((lot) => lot.days >= 0 && lot.days <= 30)
     .map((lot) => ({ ...lot, product: product.title })));

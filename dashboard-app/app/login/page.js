@@ -3,7 +3,6 @@
 import { Apple, ArrowLeft, Check, CircleUserRound, ShieldCheck, Sparkles, Star, Truck } from 'lucide-react';
 import Script from 'next/script';
 import { getProviders, signIn } from 'next-auth/react';
-import { useRouter } from 'next/navigation';
 import { useEffect, useState } from 'react';
 
 const featureList = [
@@ -14,7 +13,6 @@ const featureList = [
 ];
 
 export default function LoginPage() {
-  const router = useRouter();
   const [authError, setAuthError] = useState('');
   const [availableProviders, setAvailableProviders] = useState({});
   const [submittingProvider, setSubmittingProvider] = useState('');
