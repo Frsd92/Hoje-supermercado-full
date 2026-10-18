@@ -12,7 +12,7 @@
     img { width: 156px; height: 48px; object-fit: contain; }
     h1 { margin: 18px 0 10px; font-size: 1.6rem; }
     p { margin: 0; color: #51655a; line-height: 1.6; }
-    button { margin-top: 24px; min-height: 48px; padding: 0 22px; border: 0; border-radius: 14px; background: #145c32; color: #fff; font: inherit; font-weight: 700; cursor: pointer; }
+    .retry-link { display: inline-flex; align-items: center; justify-content: center; margin-top: 24px; min-height: 48px; padding: 0 22px; border-radius: 14px; background: #145c32; color: #fff; font: inherit; font-weight: 700; text-decoration: none; }
   </style>
 </head>
 <body>
@@ -20,7 +20,7 @@
     <img src="/imagens/logo/logo-hoje.webp" alt="Hoje Supermercado">
     <h1>Você está sem conexão</h1>
     <p>Conecte-se à internet para consultar os produtos, atualizar o carrinho e finalizar seu pedido.</p>
-    <button type="button" onclick="window.location.reload()">Tentar novamente</button>
+    <a class="retry-link" href="/">Tentar novamente</a>
   </main>
 </body>
 </html>

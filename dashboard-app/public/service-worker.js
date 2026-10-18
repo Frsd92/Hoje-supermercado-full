@@ -1,4 +1,4 @@
-const CACHE_NAME = 'hoje-store-shell-v3';
+const CACHE_NAME = 'hoje-store-shell-v4';
 const PRECACHE_URLS = [
   '/index.html',
   '/categoria.html',
@@ -20,6 +20,7 @@ const PRECACHE_URLS = [
   '/imagens/logo/app-icon-maskable-512.png',
 ];
 const STORE_PAGE_PATHS = new Set([
+  '/',
   '/index.html',
   '/categoria.html',
   '/politica-de-privacidade.html',
