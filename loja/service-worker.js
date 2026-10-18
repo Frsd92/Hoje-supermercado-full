@@ -1,4 +1,4 @@
-const CACHE_NAME = 'hoje-store-shell-v2';
+const CACHE_NAME = 'hoje-store-shell-v3';
 const PRECACHE_URLS = [
   '/index.html',
   '/categoria.html',
@@ -13,6 +13,7 @@ const PRECACHE_URLS = [
   '/analytics-consent.js',
   '/content-moderation.js',
   '/pwa-register.js',
+  '/imagens/logo/logo-hoje.webp',
   '/imagens/logo/app-icon-180.png',
   '/imagens/logo/app-icon-192.png',
   '/imagens/logo/app-icon-512.png',
