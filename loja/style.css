@@ -4417,7 +4417,7 @@ body {
     opacity: 0;
     pointer-events: none;
     transform: translateX(-50%);
-    animation: carouselSwipeHintFade 1.25s ease-out 1 both;
+    animation: carouselSwipeHintFade 1.25s ease-out infinite;
   }
 
   .carousel-swipe-hint::before {
@@ -4454,7 +4454,7 @@ body {
     background: rgba(255, 255, 255, 0.16);
     box-shadow: 0 0 0 3px rgba(255, 255, 255, 0.14);
     transform: translate(-50%, -50%) translateX(25px);
-    animation: carouselSwipeHintSlide 1.25s cubic-bezier(0.22, 1, 0.36, 1) 1 both;
+    animation: carouselSwipeHintSlide 1.25s cubic-bezier(0.22, 1, 0.36, 1) infinite;
   }
 
   @keyframes carouselSwipeHintFade {

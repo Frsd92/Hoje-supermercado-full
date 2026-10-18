@@ -9,15 +9,15 @@ function moveCarousel(botao, direcao) {
 }
 
 function configurarDicaDeDeslizeDosCarrosseis() {
-  const storageKey = 'hoje-mobile-highlight-carousel-swipe-hint-v2';
+  const storageKey = 'hoje-mobile-highlight-carousel-swipe-hint-v3';
   if (!window.matchMedia('(max-width: 640px)').matches
     || window.matchMedia('(prefers-reduced-motion: reduce)').matches
     || !('IntersectionObserver' in window)) return;
 
   try {
-    if (localStorage.getItem(storageKey) === 'shown') return;
+    if (localStorage.getItem(storageKey) === 'dismissed') return;
   } catch (error) {
-    console.warn('Não foi possível verificar se a dica dos carrosséis já foi exibida:', error.message);
+    console.warn('Não foi possível verificar se a dica dos carrosséis já foi dispensada:', error.message);
   }
 
   const sections = [...document.querySelectorAll(
@@ -25,34 +25,68 @@ function configurarDicaDeDeslizeDosCarrosseis() {
   )];
   if (!sections.length) return;
 
-  const observer = new IntersectionObserver((entries) => {
-    const visibleSection = entries
-      .filter((entry) => entry.isIntersecting && entry.target.scrollWidth > entry.target.clientWidth)
-      .sort((first, second) => sections.indexOf(first.target) - sections.indexOf(second.target))[0]?.target;
-    if (!visibleSection) return;
-
+  let hint;
+  let activeSection;
+  let pointerStart;
+  const removeHint = () => {
+    hint?.remove();
+    hint = null;
+    activeSection = null;
+  };
+  const dismissHint = () => {
     observer.disconnect();
+    removeHint();
     try {
-      localStorage.setItem(storageKey, 'shown');
+      localStorage.setItem(storageKey, 'dismissed');
     } catch (error) {
-      console.warn('Não foi possível salvar que a dica dos carrosséis já foi exibida:', error.message);
+      console.warn('Não foi possível salvar que a dica dos carrosséis foi dispensada:', error.message);
     }
-
-    const banner = visibleSection.querySelector('.highlight-side');
+  };
+  const showHint = (section) => {
+    if (section === activeSection) return;
+    removeHint();
+    const banner = section.querySelector('.highlight-side');
     if (!banner) return;
 
-    const hint = document.createElement('span');
+    hint = document.createElement('span');
     hint.className = 'carousel-swipe-hint';
     hint.setAttribute('aria-hidden', 'true');
     hint.innerHTML = '<span class="carousel-swipe-hint-indicator"></span>';
-    hint.addEventListener('animationend', (event) => {
-      if (event.target === hint) hint.remove();
-    });
-    window.setTimeout(() => {
-      if (banner.isConnected && window.matchMedia('(max-width: 640px)').matches) {
-        banner.append(hint);
-      }
-    }, 450);
+    activeSection = section;
+    banner.append(hint);
+  };
+
+  sections.forEach((section) => {
+    section.addEventListener('pointerdown', (event) => {
+      if (event.pointerType !== 'touch' && event.pointerType !== 'pen') return;
+      pointerStart = { id: event.pointerId, x: event.clientX, y: event.clientY };
+    }, { passive: true });
+  });
+  window.addEventListener('pointerup', (event) => {
+    if (!pointerStart || event.pointerId !== pointerStart.id) return;
+    const deltaX = event.clientX - pointerStart.x;
+    const deltaY = event.clientY - pointerStart.y;
+    pointerStart = null;
+    if (Math.abs(deltaX) >= 24 && Math.abs(deltaX) > Math.abs(deltaY)) dismissHint();
+  }, { passive: true });
+  window.addEventListener('pointercancel', () => {
+    pointerStart = null;
+  }, { passive: true });
+
+  const observer = new IntersectionObserver((entries) => {
+    if (!entries.some((entry) => entry.isIntersecting)) return;
+    const visibleSection = sections
+      .map((section) => {
+        const bounds = section.getBoundingClientRect();
+        const visibleHeight = Math.max(0, Math.min(bounds.bottom, window.innerHeight) - Math.max(bounds.top, 0));
+        return { section, visibleRatio: visibleHeight / bounds.height };
+      })
+      .filter(({ section, visibleRatio }) => (
+        visibleRatio >= 0.4 && section.scrollWidth > section.clientWidth
+      ))
+      .sort((first, second) => sections.indexOf(first.section) - sections.indexOf(second.section))[0]?.section;
+    if (visibleSection) showHint(visibleSection);
+    else removeHint();
   }, { threshold: 0.45 });
 
   sections.forEach((section) => observer.observe(section));
