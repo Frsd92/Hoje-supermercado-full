@@ -1712,7 +1712,7 @@ body {
 
 /* Banner principal: foto de fundo + texto + selo + bolinhas */
 .banner {
-  background-image: linear-gradient(90deg, rgba(7, 23, 15, 0.86), rgba(9, 34, 22, 0.58), rgba(10, 26, 18, 0.22)), url('imagens/tudo_o_que_vc_precisa.webp');
+  background-image: none;
   background-size: cover;
   background-position: center;
   background-repeat: no-repeat;

@@ -7,7 +7,7 @@ export const STORE_LAYOUT_SLOTS = [
     placement: 'Topo da página inicial',
     recommendedWidth: 1644,
     recommendedHeight: 760,
-    fallbackImage: '/imagens/tudo_o_que_vc_precisa.webp',
+    fallbackImage: '',
     group: 'main',
   },
   {

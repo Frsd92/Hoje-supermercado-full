@@ -32,7 +32,7 @@ test('defines uniquely identified store banners and brand logos with recommended
     .every(({ recommendedWidth, recommendedHeight }) => recommendedWidth === 1400 && recommendedHeight === 360));
   assert.equal(getStoreLayoutSlot('main-hero')?.recommendedWidth, 1644);
   assert.equal(getStoreLayoutSlot('main-hero')?.recommendedHeight, 760);
-  assert.equal(getStoreLayoutSlot('main-hero')?.fallbackImage, '/imagens/tudo_o_que_vc_precisa.webp');
+  assert.equal(getStoreLayoutSlot('main-hero')?.fallbackImage, '');
   assert.equal(getStoreLayoutSlot('main-hero-slide-02')?.label, 'Banner principal 2');
   assert.equal(getStoreLayoutSlot('main-hero-slide-02')?.recommendedWidth, 1644);
   assert.equal(getStoreLayoutSlot('main-hero-slide-02')?.recommendedHeight, 760);
@@ -48,7 +48,7 @@ test('defines uniquely identified store banners and brand logos with recommended
   assert.equal(getMainHeroSlideOrder('main-hero-slide-12'), 12);
   assert.deepEqual(getMainHeroBanners([]), [{
     key: 'main-hero',
-    imageUrl: '/imagens/tudo_o_que_vc_precisa.webp',
+    imageUrl: '',
     settings: getDefaultMainHeroSlideSettings('main-hero'),
   }]);
   const updatedAt = new Date('2026-10-09T12:00:00Z');
@@ -57,7 +57,7 @@ test('defines uniquely identified store banners and brand logos with recommended
   ]), [
     {
       key: 'main-hero',
-      imageUrl: '/imagens/tudo_o_que_vc_precisa.webp',
+      imageUrl: '',
       settings: getDefaultMainHeroSlideSettings('main-hero'),
     },
     {

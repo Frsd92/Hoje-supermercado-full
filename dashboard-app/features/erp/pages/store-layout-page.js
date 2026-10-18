@@ -281,7 +281,7 @@ export default function StoreLayoutPage() {
           }} />
           : <div className="store-layout-preview-empty"><ImagePlus size={26} /><span>Nenhuma imagem personalizada</span></div>}
       </div>
-      <div className="store-layout-dimensions"><span>{isBrandLogo ? 'Logo recomendada' : 'Arte recomendada'}</span><strong>{slot.recommendedWidth} × {slot.recommendedHeight} px</strong><small>{actualSizes[slot.key] ? `Imagem atual: ${actualSizes[slot.key]}` : isBrandLogo ? 'Preserve a proporção e prefira fundo transparente' : slot.group === 'wide-banners' ? 'A faixa ajusta à proporção da arte; no celular, textos ficam abaixo dela' : slot.group === 'main' ? 'Preenche toda a área; bordas podem ser recortadas em outras proporções' : 'Imagem exibida por inteiro, sem recortes'}</small></div>
+      <div className="store-layout-dimensions"><span>{isBrandLogo ? 'Logo recomendada' : 'Arte recomendada'}</span><strong>{slot.recommendedWidth} × {slot.recommendedHeight} px</strong><small>{actualSizes[slot.key] ? `Imagem atual: ${actualSizes[slot.key]}` : isBrandLogo ? 'Preserve a proporção e prefira fundo transparente' : slot.group === 'wide-banners' ? 'A faixa ajusta à proporção da arte; no celular, textos ficam abaixo dela' : slot.group === 'main' ? 'Use uma arte de 1644 × 760 px para o banner padrão; outras proporções podem ser cortadas' : 'Imagem exibida por inteiro, sem recortes'}</small></div>
       {slideSettings && <fieldset className="store-layout-slide-options">
         <legend>Elementos deste slide</legend>
         <label className="store-layout-slide-toggle"><input type="checkbox" checked={slideSettings.showLogo} onChange={(event) => updateSlideSettings(slot, { showLogo: event.target.checked })} /> Exibir logo Hoje</label>
