@@ -11,8 +11,7 @@ function moveCarousel(botao, direcao) {
 function configurarDicaDeDeslizeDosCarrosseis() {
   const storageKey = 'hoje-mobile-highlight-carousel-swipe-hint-v4';
   if (!window.matchMedia('(max-width: 640px)').matches
-    || window.matchMedia('(prefers-reduced-motion: reduce)').matches
-    || !('IntersectionObserver' in window)) return;
+    || window.matchMedia('(prefers-reduced-motion: reduce)').matches) return;
 
   const sections = [...document.querySelectorAll(
     '#hortifruti.highlight-banner, #store-mercearia.highlight-banner, #store-cleaning.highlight-banner',
@@ -33,6 +32,7 @@ function configurarDicaDeDeslizeDosCarrosseis() {
   let hint;
   let activeSection;
   let pointerStart;
+  let touchStart;
   const removeHint = () => {
     hint?.remove();
     hint = null;
@@ -66,6 +66,30 @@ function configurarDicaDeDeslizeDosCarrosseis() {
       if (event.pointerType !== 'touch' && event.pointerType !== 'pen') return;
       pointerStart = { id: event.pointerId, section, x: event.clientX, y: event.clientY };
     }, { passive: true });
+    section.addEventListener('touchstart', (event) => {
+      const touch = event.changedTouches[0];
+      if (!touch) return;
+      touchStart = { id: touch.identifier, section, x: touch.clientX, y: touch.clientY };
+    }, { passive: true });
+    section.addEventListener('touchmove', (event) => {
+      if (!touchStart || touchStart.section !== section) return;
+      const touch = [...event.changedTouches].find(({ identifier }) => identifier === touchStart.id);
+      if (!touch) return;
+      const deltaX = touch.clientX - touchStart.x;
+      const deltaY = touch.clientY - touchStart.y;
+      if (Math.abs(deltaX) < 24 || Math.abs(deltaX) <= Math.abs(deltaY)) return;
+
+      const { section: swipedSection } = touchStart;
+      touchStart = null;
+      dismissHint(swipedSection);
+    }, { passive: true });
+    const clearTouchStart = (event) => {
+      if ([...event.changedTouches].some(({ identifier }) => identifier === touchStart?.id)) {
+        touchStart = null;
+      }
+    };
+    section.addEventListener('touchend', clearTouchStart, { passive: true });
+    section.addEventListener('touchcancel', clearTouchStart, { passive: true });
   });
   const handleHorizontalSwipe = (event) => {
     if (!pointerStart || event.pointerId !== pointerStart.id) return false;
@@ -86,8 +110,13 @@ function configurarDicaDeDeslizeDosCarrosseis() {
     if (!handleHorizontalSwipe(event)) pointerStart = null;
   }, { passive: true });
 
-  const observer = new IntersectionObserver((entries) => {
-    if (!entries.some((entry) => entry.isIntersecting)) return;
+  let updateScheduled = false;
+  const updateHint = () => {
+    updateScheduled = false;
+    if (!window.matchMedia('(max-width: 640px)').matches) {
+      removeHint();
+      return;
+    }
     const visibleSection = sections
       .map((section) => {
         const bounds = section.getBoundingClientRect();
@@ -99,12 +128,22 @@ function configurarDicaDeDeslizeDosCarrosseis() {
         && section.scrollWidth > section.clientWidth
         && !dismissedSections.has(section)
       ))
-      .sort((first, second) => sections.indexOf(first.section) - sections.indexOf(second.section))[0]?.section;
+      .sort((first, second) => second.visibleRatio - first.visibleRatio
+        || sections.indexOf(first.section) - sections.indexOf(second.section))[0]?.section;
     if (visibleSection) showHint(visibleSection);
     else removeHint();
-  }, { threshold: 0.45 });
+  };
+  const scheduleHintUpdate = () => {
+    if (updateScheduled) return;
+    updateScheduled = true;
+    window.requestAnimationFrame(updateHint);
+  };
 
-  sections.forEach((section) => observer.observe(section));
+  window.addEventListener('scroll', scheduleHintUpdate, { passive: true });
+  window.addEventListener('resize', scheduleHintUpdate, { passive: true });
+  window.visualViewport?.addEventListener('scroll', scheduleHintUpdate, { passive: true });
+  window.visualViewport?.addEventListener('resize', scheduleHintUpdate, { passive: true });
+  scheduleHintUpdate();
 }
 
 function configurarSlidesBannerPrincipal(slides) {
