@@ -67,16 +67,23 @@ function configurarDicaDeDeslizeDosCarrosseis() {
       pointerStart = { id: event.pointerId, section, x: event.clientX, y: event.clientY };
     }, { passive: true });
   });
-  window.addEventListener('pointerup', (event) => {
-    if (!pointerStart || event.pointerId !== pointerStart.id) return;
+  const handleHorizontalSwipe = (event) => {
+    if (!pointerStart || event.pointerId !== pointerStart.id) return false;
     const deltaX = event.clientX - pointerStart.x;
     const deltaY = event.clientY - pointerStart.y;
+    if (Math.abs(deltaX) < 24 || Math.abs(deltaX) <= Math.abs(deltaY)) return false;
+
     const { section } = pointerStart;
     pointerStart = null;
-    if (Math.abs(deltaX) >= 24 && Math.abs(deltaX) > Math.abs(deltaY)) dismissHint(section);
+    dismissHint(section);
+    return true;
+  };
+  window.addEventListener('pointermove', handleHorizontalSwipe, { passive: true });
+  window.addEventListener('pointerup', (event) => {
+    if (!handleHorizontalSwipe(event)) pointerStart = null;
   }, { passive: true });
-  window.addEventListener('pointercancel', () => {
-    pointerStart = null;
+  window.addEventListener('pointercancel', (event) => {
+    if (!handleHorizontalSwipe(event)) pointerStart = null;
   }, { passive: true });
 
   const observer = new IntersectionObserver((entries) => {
