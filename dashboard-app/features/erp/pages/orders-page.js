@@ -1,6 +1,6 @@
 'use client';
 
-import { AlertCircle, Ban, CheckCircle2, ClipboardList, Clock3, CreditCard, FileText, MapPin, PackageCheck, Printer, RotateCcw, Search, ShoppingBag, Truck, UserRound, X } from 'lucide-react';
+import { AlertCircle, Ban, CheckCircle2, ClipboardList, Clock3, CreditCard, FileText, MapPin, PackageCheck, Printer, RotateCcw, Search, ShoppingBag, Truck, UserRound, X, Upload } from 'lucide-react';
 import { useEffect, useMemo, useRef, useState } from 'react';
 import { sortOrdersNewestFirst } from '@/lib/order-sort';
 import { formatCartQuantity } from '@/app/dashboard/cart-utils';
@@ -72,6 +72,12 @@ export default function ERPOrdersPage() {
   const [internalRefundAmount, setInternalRefundAmount] = useState('');
   const [internalRefundReason, setInternalRefundReason] = useState('');
   const [internalRefundBusy, setInternalRefundBusy] = useState(false);
+  const [blingBusy, setBlingBusy] = useState(false);
+  const [blingError, setBlingError] = useState('');
+  const [blingNotice, setBlingNotice] = useState('');
+  const [nfceBusy, setNfceBusy] = useState(false);
+  const [nfceError, setNfceError] = useState('');
+  const [nfceNotice, setNfceNotice] = useState('');
 
   useEffect(() => {
     let active = true;
@@ -91,6 +97,9 @@ export default function ERPOrdersPage() {
         if (!Array.isArray(data.orders)) throw new Error('A resposta de pedidos está inválida.');
         if (active) {
           setOrders(data.orders);
+          setSelected((current) => current
+            ? data.orders.find((order) => order.id === current.id) || current
+            : current);
           setOrdersLoaded(true);
           setLoadError('');
           setRefundSyncWarning(syncWarning);
@@ -114,6 +123,10 @@ export default function ERPOrdersPage() {
   useEffect(() => {
     setInternalRefundAmount('');
     setInternalRefundReason('');
+    setBlingError('');
+    setBlingNotice('');
+    setNfceError('');
+    setNfceNotice('');
   }, [selected?.id]);
 
   const newOrders = orders.filter((order) => order.status === 'Recebido' && !acknowledged.includes(order.id));
@@ -135,13 +148,105 @@ export default function ERPOrdersPage() {
       const data = await response.json();
       if (!response.ok) throw new Error(data.error || 'Não foi possível atualizar o pedido.');
       const { order: updated } = data;
-      setOrders((current) => current.map((item) => item.id === updated.id ? updated : item));
-      setSelected(updated);
+      const withBlingFields = (item) => ({
+        ...updated,
+        blingSalesOrderId: item.blingSalesOrderId,
+        blingSalesOrderNumber: item.blingSalesOrderNumber,
+        blingSyncedAt: item.blingSyncedAt,
+        blingSyncStatus: item.blingSyncStatus,
+        blingSyncError: item.blingSyncError,
+        blingSyncStartedAt: item.blingSyncStartedAt,
+      });
+      setOrders((current) => current.map((item) => item.id === updated.id ? withBlingFields(item) : item));
+      setSelected((current) => current?.id === updated.id ? withBlingFields(current) : current);
       window.dispatchEvent(new Event('erp-orders-updated'));
     } catch (error) {
       setActionError(error.message || 'Não foi possível atualizar o pedido.');
     } finally {
       setBusy(false);
+    }
+  };
+
+  const sendOrderToBling = async (order) => {
+    const uncertain = order.blingSyncStatus === 'uncertain';
+    const confirmation = uncertain
+      ? `Antes de continuar, confira no Bling se existe um pedido com a referência HOJE-${order.id}.\n\nSó confirme se verificou que ele NÃO existe. Um pedido criado anteriormente pode resultar em duplicidade.\n\nVocê verificou e deseja tentar de novo?`
+      : `Este envio transmitirá nome/e-mail, endereço de entrega, produtos, quantidades e valores ao Bling. O CPF só será incluído se foi solicitado para o documento fiscal do pedido.\n\nSerá criado apenas um pedido de venda; nenhuma NF-e será emitida. Deseja continuar?`;
+    if (!window.confirm(confirmation)) return;
+
+    setBlingBusy(true);
+    setBlingError('');
+    setBlingNotice('');
+    try {
+      const response = await fetch(`/api/erp/bling/orders/${encodeURIComponent(order.id)}`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ confirmNoOrderFound: uncertain }),
+      });
+      const data = await response.json();
+      if (!response.ok) throw new Error(data.error || 'Não foi possível enviar o pedido ao Bling.');
+      const update = (current) => ({
+        ...current,
+        blingSalesOrderId: data.order.blingSalesOrderId,
+        blingSalesOrderNumber: data.order.blingSalesOrderNumber,
+        blingSyncedAt: data.order.blingSyncedAt,
+        blingSyncStatus: 'sent',
+        blingSyncError: null,
+        blingSyncStartedAt: null,
+      });
+      setOrders((current) => current.map((item) => item.id === order.id ? update(item) : item));
+      setSelected((current) => current?.id === order.id ? update(current) : current);
+      setBlingNotice(data.message || 'Pedido de venda criado no Bling.');
+      window.dispatchEvent(new Event('erp-orders-updated'));
+    } catch (error) {
+      setBlingError(error.message || 'Não foi possível enviar o pedido ao Bling.');
+      setReloadToken((value) => value + 1);
+    } finally {
+      setBlingBusy(false);
+    }
+  };
+
+  const updateNfce = async (order, action) => {
+    const uncertainWithoutId = order.blingNfceStatus === 'uncertain' && !order.blingNfceId;
+    const needsConfirmation = action !== 'refresh';
+    const confirmation = uncertainWithoutId
+      ? `Confira no Bling se existe um pedido ou uma NFC-e para a referência HOJE-${order.id}.\n\nSó continue se verificou que não existe nenhum. Uma emissão anterior pode gerar uma nota duplicada.\n\nDeseja tentar novamente?`
+      : action === 'issue'
+        ? 'O pagamento online foi confirmado. O sistema criará e enviará a NFC-e ao Bling para autorização da SEFAZ. Deseja iniciar agora?'
+        : 'Deseja tentar novamente a emissão da NFC-e? Confira primeiro se a configuração fiscal ou os dados foram corrigidos no Bling.';
+    if (needsConfirmation && !window.confirm(confirmation)) return;
+
+    setNfceBusy(true);
+    setNfceError('');
+    setNfceNotice('');
+    try {
+      const response = await fetch(`/api/erp/bling/nfce/${encodeURIComponent(order.id)}`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          action,
+          confirmNoInvoiceFound: uncertainWithoutId,
+        }),
+      });
+      const data = await response.json();
+      if (!response.ok) throw new Error(data.error || 'Não foi possível atualizar a NFC-e.');
+      if (data.invoice) {
+        const update = (current) => ({
+          ...current,
+          ...data.invoice,
+          blingNfceAuthorizedAt: data.invoice.blingNfceAuthorizedAt,
+        });
+        setOrders((current) => current.map((item) => item.id === order.id ? update(item) : item));
+        setSelected((current) => current?.id === order.id ? update(current) : current);
+      } else {
+        setReloadToken((value) => value + 1);
+      }
+      setNfceNotice(data.message || 'Status da NFC-e atualizado.');
+    } catch (error) {
+      setNfceError(error.message || 'Não foi possível atualizar a NFC-e.');
+      setReloadToken((value) => value + 1);
+    } finally {
+      setNfceBusy(false);
     }
   };
 
@@ -269,7 +374,7 @@ export default function ERPOrdersPage() {
       </div>
       <div className="erp-receipt-integration-note" role="note">
         <FileText size={18} aria-hidden="true" />
-        <span><strong>Comprovantes e situação fiscal</strong><span>O código PED do pedido identifica o comprovante interno e serve para localizar solicitações de estorno. Este sistema ainda não registra número/série, chave, protocolo, QR Code ou tributos de uma NFC-e autorizada. A forma de pagamento é apenas a informada no pedido; não há confirmação de valor recebido.</span></span>
+        <span><strong>NFC-e automática</strong><span>Quando a Pagar.me confirma o pagamento online, o sistema envia o pedido ao Bling e solicita a emissão da NFC-e. A autorização depende da SEFAZ e da configuração fiscal no Bling; confira o status e eventuais rejeições no detalhe do pedido.</span></span>
       </div>
       {loadError && <p className="erp-budget-warning" role="alert">{loadError}<button type="button" onClick={() => setReloadToken((value) => value + 1)}>Tentar novamente</button></p>}
       {refundSyncWarning && <p className="erp-budget-warning" role="status">Alguns estornos não puderam ser confirmados agora. Os indicadores podem estar desatualizados; atualize a página para tentar novamente.</p>}
@@ -366,10 +471,60 @@ export default function ERPOrdersPage() {
             </span>
           </div>
           <div className="erp-order-fiscal-control">
-            <span className="erp-order-fiscal-state">Sem registro de autorização fiscal</span>
-            <strong>Documento fiscal oficial (NFC-e/NF-e)</strong>
-            <p>Número, série, chave de 44 dígitos, protocolo, QR Code, tributos aproximados e XML só poderão ser exibidos após uma emissão fiscal autorizada e integrada.</p>
+            <span className="erp-order-fiscal-state">{selected.blingNfceStatus === 'authorized' ? 'NFC-e autorizada' : 'Aguardando autorização fiscal'}</span>
+            <strong>Documento fiscal oficial (NFC-e)</strong>
+            <p>{selected.blingNfceStatus === 'authorized'
+              ? `Nota ${selected.blingNfceNumber || ''}${selected.blingNfceAccessKey ? ` · chave ${selected.blingNfceAccessKey}` : ''} · ${formatDateTime(selected.blingNfceAuthorizedAt)}.`
+              : 'A situação fiscal será atualizada após retorno do Bling e da SEFAZ.'}</p>
           </div>
+          <section className="erp-bling-order-panel" aria-labelledby="erp-bling-order-title">
+            <div className="erp-bling-order-heading"><h4 id="erp-bling-order-title">Pedido no Bling</h4><span className={`erp-bling-order-status ${selected.blingSyncStatus || 'not_sent'}`}>
+              {selected.blingSyncStatus === 'sent' ? 'Enviado' : selected.blingSyncStatus === 'sending' ? 'Enviando' : selected.blingSyncStatus === 'uncertain' ? 'Verificação necessária' : selected.blingSyncStatus === 'failed' ? 'Falha no envio' : 'Não enviado'}
+            </span></div>
+            {selected.blingSyncStatus === 'sent'
+              ? <p>Pedido criado no Bling{selected.blingSalesOrderNumber ? ` · nº ${selected.blingSalesOrderNumber}` : ''} · ID {selected.blingSalesOrderId}. Enviado em {formatDateTime(selected.blingSyncedAt)}.</p>
+              : selected.blingSyncStatus === 'sending'
+                ? <p>Há uma tentativa de envio em andamento. Aguarde alguns minutos antes de verificar o estado.</p>
+                : selected.blingSyncStatus === 'uncertain'
+                  ? <p role="alert">O resultado da tentativa anterior não foi confirmado. Procure no Bling pela referência HOJE-{selected.id} antes de liberar outra tentativa.</p>
+                  : <p>O certificado A1 permanece somente no Bling. Pedidos online pagos seguem para emissão automática da NFC-e após confirmação da Pagar.me.</p>}
+            {selected.blingSyncError && selected.blingSyncStatus === 'failed' && <p className="erp-bling-order-error" role="alert">{selected.blingSyncError}</p>}
+            {blingError && <p className="erp-bling-order-error" role="alert"><AlertCircle size={15} />{blingError}</p>}
+            {blingNotice && <p className="erp-bling-order-notice" role="status"><CheckCircle2 size={15} />{blingNotice}</p>}
+            {selected.blingSyncStatus !== 'sent' && selected.blingSyncStatus !== 'sending' && selected.paymentStatus !== 'pending' && !(selected.paymentStatus === 'paid' && selected.pagarmeOrderId) && selected.status !== 'Cancelado' && !['failed', 'canceled', 'partially_refunded', 'refunded'].includes(selected.paymentStatus) && <button
+              type="button"
+              className="secondary-cta erp-bling-send-button"
+              disabled={blingBusy}
+              onClick={() => void sendOrderToBling(selected)}
+            >
+              <Upload size={16} aria-hidden="true" />{blingBusy ? 'Enviando ao Bling...' : selected.blingSyncStatus === 'uncertain' ? 'Conferi no Bling; tentar novamente' : selected.blingSyncStatus === 'failed' ? 'Tentar enviar novamente' : 'Enviar pedido ao Bling'}
+            </button>}
+            {selected.paymentStatus === 'pending' && <p className="erp-order-fefo-note">O pedido só pode ser enviado após a confirmação do pagamento.</p>}
+          </section>
+          <section className="erp-nfce-order-panel" aria-labelledby="erp-nfce-order-title">
+            <div className="erp-bling-order-heading"><h4 id="erp-nfce-order-title">NFC-e automática</h4><span className={`erp-bling-order-status ${selected.blingNfceStatus || 'not_issued'}`}>
+              {selected.blingNfceStatus === 'authorized' ? 'Autorizada' : selected.blingNfceStatus === 'issuing' ? 'Emitindo' : selected.blingNfceStatus === 'processing' ? 'Processando' : selected.blingNfceStatus === 'uncertain' ? 'Verificação necessária' : selected.blingNfceStatus === 'failed' ? 'Rejeitada / falha' : 'Aguardando pagamento'}
+            </span></div>
+            {selected.blingNfceStatus === 'authorized'
+              ? <p>NFC-e autorizada{selected.blingNfceNumber ? ` · nº ${selected.blingNfceNumber}` : ''}{selected.blingNfceAccessKey ? ` · chave ${selected.blingNfceAccessKey}` : ''} · {formatDateTime(selected.blingNfceAuthorizedAt)}.</p>
+              : selected.blingNfceStatus === 'issuing'
+                ? <p>A emissão foi iniciada após a confirmação do pagamento. Aguarde a resposta da SEFAZ.</p>
+                : selected.blingNfceStatus === 'processing'
+                  ? <p>O Bling ainda aguarda o processamento da SEFAZ. Atualize a situação antes de tentar novamente.</p>
+                  : selected.blingNfceStatus === 'uncertain'
+                    ? <p role="alert">Não foi possível confirmar o resultado. Confira a situação no Bling antes de qualquer nova tentativa.</p>
+                    : selected.blingNfceStatus === 'failed'
+                      ? <p role="alert">{selected.blingNfceError || 'A emissão falhou. Revise a configuração fiscal no Bling.'}</p>
+                      : <p>A NFC-e será gerada e enviada para autorização após a confirmação do pagamento online pela Pagar.me.</p>}
+            {nfceError && <p className="erp-bling-order-error" role="alert"><AlertCircle size={15} />{nfceError}</p>}
+            {nfceNotice && <p className="erp-bling-order-notice" role="status"><CheckCircle2 size={15} />{nfceNotice}</p>}
+            {selected.blingNfceStatus === 'authorized' && selected.blingNfcePdfUrl && <a className="erp-nfce-document-link" href={selected.blingNfcePdfUrl} target="_blank" rel="noreferrer">Abrir DANFE NFC-e</a>}
+            {['processing', 'uncertain'].includes(selected.blingNfceStatus) && selected.blingNfceId && <button type="button" className="erp-bling-send-button" disabled={nfceBusy} onClick={() => void updateNfce(selected, 'refresh')}>{nfceBusy ? 'Consultando Bling...' : 'Atualizar situação da NFC-e'}</button>}
+            {selected.blingNfceStatus === 'processing' && selected.paymentStatus === 'paid' && <button type="button" className="erp-bling-send-button" disabled={nfceBusy} onClick={() => void updateNfce(selected, 'retry')}>{nfceBusy ? 'Enviando para autorização...' : 'Revisei no Bling; tentar envio novamente'}</button>}
+            {selected.paymentStatus === 'paid' && selected.pagarmeOrderId && !['authorized', 'issuing', 'processing'].includes(selected.blingNfceStatus) && <button type="button" className="erp-bling-send-button" disabled={nfceBusy} onClick={() => void updateNfce(selected, selected.blingNfceStatus === 'not_issued' ? 'issue' : 'retry')}>
+              {nfceBusy ? 'Enviando para autorização...' : selected.blingNfceStatus === 'not_issued' ? 'Emitir NFC-e agora' : selected.blingNfceStatus === 'uncertain' ? 'Conferi no Bling; tentar novamente' : 'Tentar emitir NFC-e novamente'}
+            </button>}
+          </section>
           <div className="erp-order-document-actions" aria-label="Impressões do pedido">
             <button type="button" className="secondary-cta erp-order-receipt-button" aria-haspopup="dialog" onClick={() => setPrintDocument({ type: 'receipt', order: selected })}>
               <FileText size={16} aria-hidden="true" />Comprovante do pedido (não fiscal)

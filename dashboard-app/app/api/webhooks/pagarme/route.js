@@ -1,6 +1,7 @@
 import { getPagarmeOrder, getPagarmePaymentSnapshot, getPagarmeRefundedCents, PagarmeApiError } from '@/features/payments/pagarme';
 import { amountToCents, refundRequestStatus } from '@/features/orders/order-refund-utils';
 import { prisma } from '@/lib/prisma';
+import { issueBlingNfceForPaidOrder } from '@/features/erp/api/bling-nfce';
 
 const maximumWebhookBytes = 64 * 1024;
 
@@ -136,6 +137,13 @@ export async function POST(request) {
 
       return { duplicate: false };
     });
+    if (!result.duplicate && paymentStatus === 'paid' && localOrder.paymentStatus !== 'paid') {
+      try {
+        await issueBlingNfceForPaidOrder(localOrder.id);
+      } catch (error) {
+        console.error('Não foi possível iniciar a emissão automática da NFC-e após a confirmação do pagamento:', error);
+      }
+    }
     return Response.json({ received: true, duplicate: result.duplicate });
   } catch (error) {
     if (error?.code === 'P2002' && error.meta?.modelName === 'PagarmeWebhookEvent') {

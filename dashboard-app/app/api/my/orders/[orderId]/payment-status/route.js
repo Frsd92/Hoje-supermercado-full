@@ -10,6 +10,7 @@ import {
 } from '@/features/payments/pagarme';
 import { prisma } from '@/lib/prisma';
 import { isCardPaymentMethod } from '@/features/payments/card-methods';
+import { issueBlingNfceForPaidOrder } from '@/features/erp/api/bling-nfce';
 
 const statusMessages = {
   paid: 'Pagamento confirmado.',
@@ -130,6 +131,13 @@ export async function POST(_request, { params }) {
     }, { isolationLevel: 'Serializable' });
 
     if (result.error) return Response.json({ error: result.error }, { status: result.status });
+    if (result.updated && result.paymentStatus === 'paid') {
+      try {
+        await issueBlingNfceForPaidOrder(order.id);
+      } catch (error) {
+        console.error('Não foi possível iniciar a emissão automática da NFC-e após a consulta do pagamento:', error);
+      }
+    }
     return Response.json({
       paymentStatus: result.paymentStatus,
       updated: result.updated,

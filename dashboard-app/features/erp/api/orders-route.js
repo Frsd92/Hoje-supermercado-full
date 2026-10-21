@@ -32,6 +32,7 @@ import {
   isCardTypeCompatible,
   isVoucherPaymentMethod,
 } from '@/features/payments/card-methods';
+import { issueBlingNfceForPaidOrder } from './bling-nfce.js';
 
 const productsFile = path.join(process.cwd(), 'data', 'products.json');
 const allowedOrigins = new Set(['http://localhost:8010', 'http://localhost:5500', 'http://127.0.0.1:5500', 'null']);
@@ -148,7 +149,7 @@ export async function GET(request) {
       },
       orderBy: { createdAt: 'desc' },
     });
-    return Response.json({ orders: sortOrdersNewestFirst(serializeOrders(orders)) }, { headers: corsHeaders(request) });
+    return Response.json({ orders: sortOrdersNewestFirst(serializeOrders(orders, { includeBling: true })) }, { headers: corsHeaders(request) });
   } catch (error) {
     console.error('Não foi possível carregar os pedidos do banco de dados:', error);
     return Response.json({ error: 'Não foi possível carregar os pedidos agora.' }, { status: 500, headers: corsHeaders(request) });
@@ -584,6 +585,13 @@ export async function POST(request) {
         }
         return savedOrder;
       });
+      if (paymentSnapshot.paymentStatus === 'paid') {
+        try {
+          await issueBlingNfceForPaidOrder(orderId);
+        } catch (error) {
+          console.error('Não foi possível iniciar a emissão automática da NFC-e após o pagamento no checkout:', error);
+        }
+      }
       if (['failed', 'canceled'].includes(paymentSnapshot.paymentStatus)) {
         return Response.json({
           error: 'O pagamento não foi aprovado. Confira os dados e tente outra forma de pagamento.',

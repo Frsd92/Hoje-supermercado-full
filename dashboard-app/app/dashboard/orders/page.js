@@ -300,7 +300,7 @@ export default function OrdersPage() {
 
       <div className="customer-receipt-intro" role="note">
         <FileText size={17} aria-hidden="true" />
-        <span>O comprovante informativo mostra os itens e o código interno do pedido; ele não substitui NFC-e/NF-e autorizada. Por aqui você pode solicitar cancelamento ou troca. Estornos, quando cabíveis, são analisados e processados pela loja.</span>
+        <span>O comprovante informativo mostra os itens e o código interno do pedido. Quando a NFC-e for autorizada, o link para abrir o documento fiscal aparecerá junto ao pedido. Por aqui você pode solicitar cancelamento ou troca; estornos são analisados e processados pela loja.</span>
       </div>
       {refundSyncWarning && <div className="dashboard-data-alert" role="status">Não foi possível confirmar alguns estornos com a Pagar.me agora. O status pode estar temporariamente desatualizado; tente atualizar a página em instantes.</div>}
       {serviceRequestNotice && <div className="customer-service-notice" role="status">{serviceRequestNotice}</div>}
@@ -373,6 +373,11 @@ export default function OrdersPage() {
                     <button type="button" className="customer-order-receipt-link" aria-label={`Ver comprovante informativo do pedido ${order.id}`} aria-haspopup="dialog" onClick={() => setReceiptOrder(order)}>
                       <FileText size={14} aria-hidden="true" />Comprovante
                     </button>
+                    {order.fiscalInvoice && <div className="customer-order-nfce" role="status">
+                      <strong>NFC-e autorizada{order.fiscalInvoice.number ? ` · nº ${order.fiscalInvoice.number}` : ''}</strong>
+                      {order.fiscalInvoice.pdfUrl && <a href={order.fiscalInvoice.pdfUrl} target="_blank" rel="noreferrer">Abrir DANFE NFC-e</a>}
+                      {order.fiscalInvoice.accessKey && <small>Chave de acesso: {order.fiscalInvoice.accessKey}</small>}
+                    </div>}
                     <div className="customer-order-service-actions">
                       {canRequestOrderService(order, orderServiceRequestType.cancellation) && !hasOpenOrderServiceRequest(serviceRequests, orderServiceRequestType.cancellation) && <button type="button" onClick={() => openServiceRequestDialog(order, orderServiceRequestType.cancellation)}>Solicitar cancelamento</button>}
                       {canRequestOrderService(order, orderServiceRequestType.exchange) && order.items?.length > 0 && !hasOpenOrderServiceRequest(serviceRequests, orderServiceRequestType.exchange) && <button type="button" onClick={() => openServiceRequestDialog(order, orderServiceRequestType.exchange)}>Solicitar troca</button>}

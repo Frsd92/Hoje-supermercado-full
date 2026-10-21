@@ -18,7 +18,7 @@ export async function GET() {
       },
       orderBy: { createdAt: 'desc' },
     });
-    return Response.json({ orders: sortOrdersNewestFirst(serializeOrders(orders)) });
+    return Response.json({ orders: sortOrdersNewestFirst(serializeOrders(orders, { includeFiscal: true })) });
   } catch (error) {
     console.error('Não foi possível carregar o histórico de pedidos do cliente:', error);
     return Response.json({ error: 'Não foi possível carregar seus pedidos agora.' }, { status: 500 });

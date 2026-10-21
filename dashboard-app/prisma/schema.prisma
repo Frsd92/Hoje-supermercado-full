@@ -299,6 +299,15 @@ model CheckoutFeeSettings {
   updatedAt   DateTime @updatedAt
 }
 
+model BlingConnection {
+  id                      String   @id @default("default")
+  encryptedAccessToken    String   @db.Text
+  encryptedRefreshToken   String   @db.Text
+  accessTokenExpiresAt    DateTime
+  connectedAt             DateTime @default(now())
+  updatedAt               DateTime @updatedAt
+}
+
 model Supplier {
   id                String             @id @default(cuid())
   identityName      String             @unique
@@ -617,6 +626,20 @@ model Order {
   pagarmeChargeId             String?                      @unique
   paymentDetails              Json?
   refundedAmount              Decimal                      @default(0) @db.Decimal(12, 2)
+  blingSalesOrderId           String?                      @unique
+  blingSalesOrderNumber       String?
+  blingSyncedAt               DateTime?
+  blingSyncStatus             String                       @default("not_sent")
+  blingSyncError              String?
+  blingSyncStartedAt          DateTime?
+  blingNfceId                 String?                      @unique
+  blingNfceNumber             String?
+  blingNfceAccessKey          String?
+  blingNfceStatus             String                       @default("not_issued")
+  blingNfceAuthorizedAt       DateTime?
+  blingNfcePdfUrl             String?
+  blingNfceError              String?
+  blingNfceStartedAt           DateTime?
   includeCpfOnReceipt         Boolean                      @default(false)
   invoiceCpf                  String?
   couponCode                  String?

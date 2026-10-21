@@ -79,3 +79,52 @@ test('formats a non-string total for API responses', () => {
   assert.equal(serialized.total, 'R$ 12,50');
   assert.deepEqual(serialized.items, []);
 });
+
+test('keeps Bling integration metadata private unless requested by the ERP serializer', () => {
+  const order = {
+    id: 'PED-test',
+    total: 'R$ 12,50',
+    items: [],
+    blingSalesOrderId: '998877',
+    blingSalesOrderNumber: '123',
+    blingSyncedAt: new Date('2026-10-19T12:00:00.000Z'),
+    blingSyncStatus: 'failed',
+    blingSyncError: 'Erro interno do Bling',
+  };
+
+  const publicOrder = serializeOrder(order);
+  const erpOrder = serializeOrder(order, { includeBling: true });
+
+  assert.equal('blingSalesOrderId' in publicOrder, false);
+  assert.equal('blingSyncError' in publicOrder, false);
+  assert.equal(erpOrder.blingSalesOrderId, '998877');
+  assert.equal(erpOrder.blingSyncStatus, 'failed');
+  assert.equal(erpOrder.blingSyncError, 'Erro interno do Bling');
+  assert.equal(erpOrder.blingSyncedAt, '2026-10-19T12:00:00.000Z');
+});
+
+test('exposes only an authorized NFC-e to the authenticated customer order response', () => {
+  const order = {
+    id: 'PED-fiscal',
+    items: [],
+    blingNfceId: '123',
+    blingNfceNumber: '42',
+    blingNfceAccessKey: 'access-key',
+    blingNfceStatus: 'authorized',
+    blingNfceAuthorizedAt: new Date('2026-10-21T12:00:00.000Z'),
+    blingNfcePdfUrl: 'https://example.com/nfce.pdf',
+    blingNfceError: null,
+  };
+
+  const serialized = serializeOrder(order, { includeFiscal: true });
+
+  assert.deepEqual(serialized.fiscalInvoice, {
+    number: '42',
+    accessKey: 'access-key',
+    pdfUrl: 'https://example.com/nfce.pdf',
+    authorizedAt: '2026-10-21T12:00:00.000Z',
+  });
+  assert.equal('blingNfceId' in serialized, false);
+  assert.equal('blingNfceError' in serialized, false);
+  assert.equal('fiscalInvoice' in serializeOrder({ ...order, blingNfceStatus: 'processing' }, { includeFiscal: true }), false);
+});

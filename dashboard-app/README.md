@@ -43,6 +43,18 @@ VA (vale-alimentação) e VR (vale-refeição) usam o método Voucher da Core AP
 
 Ao aprovar no ERP uma solicitação de cancelamento de um pedido já pago pela Pagar.me, o sistema registra e envia automaticamente o estorno do saldo ainda não devolvido. Cancelamentos aprovados antes dessa integração podem ter o estorno iniciado em **ERP → Clientes**, quando elegíveis. O status fica aguardando confirmação enquanto a Pagar.me processa a devolução; o webhook atualiza o pedido e o histórico quando ela é confirmada. Pedidos pagos fora da Pagar.me continuam exigindo devolução manual.
 
+## Integração e emissão automática de NFC-e pelo Bling
+
+Em **ERP → Integrações → Bling**, conecte a conta pelo OAuth 2.0. No aplicativo privado do Bling, cadastre como URL de retorno o valor de `BLING_REDIRECT_URI`; em produção, use `https://www.hojesupermercado.com.br/api/erp/bling/callback`. Configure `BLING_CLIENT_ID`, `BLING_CLIENT_SECRET`, `BLING_REDIRECT_URI` e `BLING_TOKEN_ENCRYPTION_KEY` no servidor. A chave de criptografia deve ter 32 bytes (64 caracteres hexadecimais); nunca a compartilhe ou versione. Os tokens OAuth são criptografados no banco e renovados pelo servidor.
+
+Antes de usar em um banco já existente, aplique a migração Bling com `npx prisma migrate deploy` e gere o cliente com `npm run db:generate`, na pasta `dashboard-app`. No Vercel, configure as quatro variáveis e publique uma nova versão para aplicar o fluxo.
+
+Quando a Pagar.me confirma o pagamento online, o sistema cria ou reutiliza o pedido de venda no Bling, solicita a geração da NFC-e e chama a operação de envio da nota para autorização da SEFAZ. O processamento é idempotente por pedido e os estados (em emissão, processando, autorizada, falha ou resultado incerto) ficam registrados. Pagamentos manuais ou não confirmados pela Pagar.me não disparam a emissão automática. A NFC-e autorizada e o link do DANFE aparecem no histórico do pedido do cliente quando disponibilizados pelo Bling. Pedidos pagos antes da ativação podem ser emitidos pelo detalhe do pedido no ERP.
+
+Se uma tentativa terminar sem confirmação, confira o pedido de venda e a NFC-e no Bling usando a referência `HOJE-<código do pedido>` antes de autorizar uma nova tentativa. Notas rejeitadas devem ter os dados/configurações fiscais corrigidos no Bling antes de repetir. O cancelamento/estorno financeiro não cancela automaticamente uma NFC-e já autorizada; faça o procedimento fiscal aplicável no Bling e com o contador.
+
+Cadastre o certificado digital A1 diretamente na conta Bling, em **Todas as configurações → Certificado Digital → Configurações de certificado digital → A1 – Servidor**. Mantenha também a natureza de operação, série NFC-e, regras fiscais e cadastro fiscal dos produtos configurados e validados com o contador no Bling. O ERP Hoje usa o código de produto (SKU/código de barras) para identificar os itens; esse código deve corresponder aos produtos fiscais cadastrados no Bling. O arquivo A1 e sua senha nunca devem ser enviados ou salvos no ERP Hoje.
+
 ## App para Android e iPhone
 
 A loja pode ser instalada como PWA pelo navegador. O manifest e os ícones são mantidos em `../loja`; `npm run build` e `npm run dev` os copiam para `public`. O service worker mantém páginas, scripts, estilos e imagens estáticas em cache para abrir a loja sem conexão; respostas de API, login, dashboard e ERP nunca são armazenadas. A loja continua exigindo conexão para consultar catálogo atualizado, conta, carrinho sincronizado e finalizar pedidos.

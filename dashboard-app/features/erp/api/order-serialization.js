@@ -42,11 +42,56 @@ export function serializeServiceRequest(serviceRequest) {
   };
 }
 
-export function serializeOrder(order) {
-  const { items = [], refundRequests = [], serviceRequests = [], ...orderFields } = order;
+export function serializeOrder(order, { includeBling = false, includeFiscal = false } = {}) {
+  const {
+    items = [],
+    refundRequests = [],
+    serviceRequests = [],
+    blingSalesOrderId,
+    blingSalesOrderNumber,
+    blingSyncedAt,
+    blingSyncStatus,
+    blingSyncError,
+    blingSyncStartedAt,
+    blingNfceId,
+    blingNfceNumber,
+    blingNfceAccessKey,
+    blingNfceStatus,
+    blingNfceAuthorizedAt,
+    blingNfcePdfUrl,
+    blingNfceError,
+    blingNfceStartedAt,
+    ...orderFields
+  } = order;
 
   return {
     ...orderFields,
+    ...(includeBling ? {
+      blingSalesOrderId,
+      blingSalesOrderNumber,
+      blingSyncedAt: dateToIso(blingSyncedAt),
+      blingSyncStatus,
+      blingSyncError,
+      blingSyncStartedAt: dateToIso(blingSyncStartedAt),
+      blingNfceId,
+      blingNfceNumber,
+      blingNfceAccessKey,
+      blingNfceStatus,
+      blingNfceAuthorizedAt: dateToIso(blingNfceAuthorizedAt),
+      blingNfcePdfUrl,
+      blingNfceError,
+      blingNfceStartedAt: dateToIso(blingNfceStartedAt),
+    } : {}),
+    ...(includeFiscal && blingNfceStatus === 'authorized' ? {
+      fiscalInvoice: {
+        number: blingNfceNumber,
+        accessKey: blingNfceAccessKey,
+        pdfUrl: typeof blingNfcePdfUrl === 'string' && /^https:\/\//i.test(blingNfcePdfUrl)
+          ? blingNfcePdfUrl
+          : null,
+        authorizedAt: dateToIso(blingNfceAuthorizedAt),
+      },
+    } : {}),
     createdAt: displayDate(order.createdAt),
     createdAtIso: dateToIso(order.createdAt),
     updatedAt: displayDate(order.updatedAt),
@@ -67,6 +112,6 @@ export function serializeOrder(order) {
   };
 }
 
-export function serializeOrders(orders) {
-  return orders.map(serializeOrder);
+export function serializeOrders(orders, options) {
+  return orders.map((order) => serializeOrder(order, options));
 }
