@@ -148,6 +148,11 @@ model Product {
   categories           String[]
   metadata             Json                  @default("{}")
   createdBy            String?
+  blingProductId       String?               @unique
+  blingSyncStatus      String                @default("not_synced")
+  blingSyncError       String?
+  blingSyncedAt        DateTime?
+  blingSyncStartedAt   DateTime?
   createdAt            DateTime              @default(now())
   updatedAt            DateTime              @updatedAt
   favorites            Favorite[]

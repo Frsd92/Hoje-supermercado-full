@@ -7380,6 +7380,11 @@ button.metric-mini:focus-visible {
 .editor-tab-empty h2 { margin: 0; color: #101826; }
 .editor-tab-empty p { max-width: 420px; }
 .editor-saved { position: fixed; right: 24px; bottom: 24px; padding: 12px 16px; border-radius: 9px; background: #166534; color: #fff; font-size: .78rem; box-shadow: 0 10px 20px rgba(22,101,52,.2); }
+.editor-saved.error { background: #991b1b; }
+.editor-saved a { display: inline-block; margin-left: 12px; color: #fff; font-weight: 700; text-decoration: underline; }
+.product-bling-sync-status { display: flex; flex-direction: column; align-items: flex-start; gap: 8px; padding: 12px; border: 1px solid #d1d5db; border-radius: 8px; }
+.product-bling-sync-status.synced { border-color: #86efac; background: #f0fdf4; }
+.product-bling-sync-status.partial, .product-bling-sync-status.failed, .product-bling-sync-status.uncertain { border-color: #fca5a5; background: #fef2f2; }
 .erp-customers-page { max-width: 1320px; margin: 0 auto; }
 .erp-customer-header { display: flex; justify-content: space-between; align-items: flex-end; gap: 16px; margin-bottom: 18px; }
 .erp-customer-header h1 { margin: 7px 0 4px; }

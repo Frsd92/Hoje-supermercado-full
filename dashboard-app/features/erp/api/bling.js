@@ -175,6 +175,7 @@ export async function blingRequest(path, options = {}) {
   const isUncertainMutation = isPost && (
     path === '/pedidos/vendas'
     || path === '/contatos'
+    || path === '/produtos'
     || /^\/pedidos\/vendas\/\d+\/gerar-nfce$/.test(path)
     || /^\/nfce\/\d+\/enviar$/.test(path)
   );

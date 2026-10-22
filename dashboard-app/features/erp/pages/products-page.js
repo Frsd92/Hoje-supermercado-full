@@ -1,7 +1,7 @@
 'use client';
 
 import Link from 'next/link';
-import { ArrowLeft, ArrowRight, BadgeCheck, CalendarClock, Check, FileUp, ImagePlus, Plus, Save, Search, Trash2 } from 'lucide-react';
+import { AlertCircle, ArrowLeft, ArrowRight, BadgeCheck, CalendarClock, Check, FileUp, ImagePlus, Plus, Save, Search, Trash2 } from 'lucide-react';
 import { useCallback, useEffect, useRef, useState } from 'react';
 import { formatAuditValue } from '../api/product-audit.js';
 import { normalizeProductBarcode } from '../api/product-barcode-lookup.js';
@@ -22,6 +22,9 @@ export default function ERPProductsPage() {
   const [editId, setEditId] = useState('');
   const [product, setProduct] = useState(emptyProduct);
   const [feedback, setFeedback] = useState('');
+  const [blingSync, setBlingSync] = useState({ status: 'not_synced', error: '' });
+  const [retryingBling, setRetryingBling] = useState(false);
+  const [createdProductReference, setCreatedProductReference] = useState('');
   const [activeTab, setActiveTab] = useState('Geral');
   const [newBarcode, setNewBarcode] = useState('');
   const [barcodeSearch, setBarcodeSearch] = useState('');
@@ -328,6 +331,7 @@ export default function ERPProductsPage() {
           ? savedProduct.productType || ''
           : savedProduct.subcategory || '';
         setProduct({ ...emptyProduct, ...savedProduct, subcategory, saleUnit, fractionalSale: saleUnit === 'Quilograma', price: formatBRL(savedPrice), cost: formatBRL(savedCost), promotionalPrice: savedProduct.promotionalPrice ? formatBRL(savedProduct.promotionalPrice) : '', markupPercent: savedMarkup === '' ? '' : Number(savedMarkup).toFixed(2), discount: String(savedProduct.discount ?? 0), quantity: String(savedProduct.quantity ?? 0), categories: savedProduct.categories || [], barcodes: savedProduct.barcodes || (savedProduct.barcode ? [savedProduct.barcode] : []), featuredPriceTypes: savedProduct.featuredPriceTypes || [], tags: savedProduct.tags || [], suppliers: savedProduct.suppliers || [] });
+        setBlingSync({ status: savedProduct.blingSyncStatus || 'not_synced', error: savedProduct.blingSyncError || '' });
       })
       .catch(() => setFeedback('Não foi possível carregar o produto.'));
   }, [editId]);
@@ -386,10 +390,23 @@ export default function ERPProductsPage() {
       const response = await fetch('/api/products', { method: isEditing ? 'PUT' : 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ ...product, fractionalSale: product.saleUnit === 'Quilograma', price, cost, promotionalPrice, profitMarginPercent: effectivePrice > 0 ? Number(((profitMarginValue / effectivePrice) * 100).toFixed(2)) : 0, profitMarginValue, markupPercent, barcodes: productBarcodes, barcode: productBarcodes[0] || '', discount, quantity: isEditing ? Number(product.quantity || 0) : 0 }) });
       const data = await response.json();
       if (!response.ok) throw new Error(data.error || 'Não foi possível salvar o produto.');
+      const sync = data.product?.blingSync || {
+        status: data.product?.blingSyncStatus || 'not_synced',
+        error: data.product?.blingSyncError || '',
+      };
+      setBlingSync(sync);
       if (!isEditing) {
         const productReference = String(data.product?.id || '').trim();
         if (productReference) {
-          window.location.assign(`/erp/registrar-lote?productId=${encodeURIComponent(productReference)}`);
+          if (sync.status === 'synced') {
+            window.location.assign(`/erp/registrar-lote?productId=${encodeURIComponent(productReference)}`);
+            return;
+          }
+          setCreatedProductReference(productReference);
+          setProduct(emptyProduct);
+          setFeedback(sync.error
+            ? `Produto cadastrado no Hoje, mas a sincronização com o Bling não foi concluída: ${sync.error}`
+            : 'Produto cadastrado no Hoje. A sincronização com o Bling ainda não foi confirmada.');
           return;
         }
         setProduct(emptyProduct);
@@ -398,11 +415,36 @@ export default function ERPProductsPage() {
       }
       setProduct((current) => ({ ...current, ...data.product, price: formatBRL(data.product.price), cost: formatBRL(data.product.cost), promotionalPrice: formatBRL(data.product.promotionalPrice ?? data.product.price) }));
       setAuditRefresh((current) => current + 1);
-      setFeedback('Produto atualizado com sucesso.');
+      setFeedback(['synced', 'partial'].includes(sync.status)
+        ? sync.error
+          ? `Produto atualizado. Sincronização parcial com o Bling: ${sync.error}`
+          : 'Produto atualizado e sincronizado com o Bling.'
+        : `Produto atualizado no Hoje, mas a sincronização com o Bling não foi concluída: ${sync.error || 'verifique o status e tente novamente.'}`);
     } catch (error) {
       setFeedback(error.message || 'Não foi possível salvar o produto.');
     } finally {
       setSaving(false);
+    }
+  };
+  const retryBlingSync = async () => {
+    if (!editId) return;
+    setRetryingBling(true);
+    setFeedback('');
+    try {
+      const response = await fetch(`/api/erp/bling/products/${encodeURIComponent(editId)}`, { method: 'POST' });
+      const data = await response.json();
+      if (!response.ok && !data.sync) throw new Error(data.error || 'Não foi possível sincronizar o produto.');
+      const sync = data.sync;
+      setBlingSync(sync);
+      setFeedback(['synced', 'partial'].includes(sync.status)
+        ? sync.error
+          ? `Sincronização parcial concluída: ${sync.error}`
+          : 'Produto sincronizado com o Bling.'
+        : `Sincronização não concluída: ${sync.error || 'tente novamente.'}`);
+    } catch (error) {
+      setFeedback(error.message || 'Não foi possível sincronizar o produto.');
+    } finally {
+      setRetryingBling(false);
     }
   };
 
@@ -558,6 +600,18 @@ export default function ERPProductsPage() {
         </div>
         <p className="editor-hint"><strong>Importante:</strong> o XML é uma sugestão do fornecedor, não uma confirmação da classificação do seu estabelecimento. Revise o produto, a vigência do código e a tributação com o contador antes de usar em emissão fiscal.</p>
       </section>}
+      {activeTab === 'Fiscal' && <section className="editor-card">
+        <h2>Sincronização com Bling</h2>
+        <p className="editor-hint">Ao salvar o produto, o ERP envia o cadastro para a conta Bling conectada. A autorização do usuário precisa incluir acesso a Produtos.</p>
+        {isEditing && <div className={`product-bling-sync-status ${blingSync.status}`} role="status">
+          <strong>Status: {blingSync.status === 'synced' ? 'Sincronizado' : blingSync.status === 'partial' ? 'Parcial' : blingSync.status === 'syncing' ? 'Sincronizando' : blingSync.status === 'uncertain' ? 'Resultado incerto' : 'Pendente / falhou'}</strong>
+          {blingSync.error && <span>{blingSync.error}</span>}
+          <button type="button" className="editor-link" onClick={() => void retryBlingSync()} disabled={retryingBling || blingSync.status === 'syncing'}>
+            {retryingBling ? 'Sincronizando…' : blingSync.status === 'uncertain' ? 'Verificar no Bling' : 'Sincronizar novamente'}
+          </button>
+        </div>}
+        {!isEditing && <p className="editor-hint">A sincronização será tentada após o primeiro salvamento.</p>}
+      </section>}
       {activeTab === 'Preço' && <><section className="editor-card"><h2>Preços e markup</h2><div className="editor-form-grid three">{field(product.saleUnit === 'Quilograma' ? 'Custo por kg' : 'Custo de compra', 'cost', 'currency')}{field(product.saleUnit === 'Quilograma' ? 'Preço de venda por kg' : 'Preço de venda', 'price', 'currency')}{field(product.saleUnit === 'Quilograma' ? 'Preço promocional por kg' : 'Preço promocional', 'promotionalPrice', 'currency')}{field('Desconto (%)', 'discount', 'number')}{field('Margem de lucro (%)', 'profitMarginPercent', 'number')}{field('Margem de lucro (R$)', 'profitMarginValue', 'currency')}{field('Markup (%)', 'markupPercent', 'text', { inputMode: 'decimal' })}</div><div className="effective-price-note">Preço efetivo considerado: <strong>{product.effectivePrice || 'informe os preços'}</strong><small>Usa o preço promocional quando informado; caso contrário, usa o preço de venda.</small></div><p className="editor-hint">O markup calcula automaticamente: custo de compra × (1 + markup ÷ 100) = preço de venda. Promoção e desconto atualizam a margem com base no preço efetivo.</p><div className="markup-suggestion"><strong>Sugestão para {selectedSuggestionCategory || 'a categoria selecionada'}</strong><span>Markup sugerido: {product.suggestedMarkup || 'selecione uma categoria'}</span><small>{markupStrategy[selectedSuggestionCategory] || 'Escolha uma categoria para receber uma referência de precificação.'}</small></div><label>Tipo de preço<select value={product.priceType} onChange={(event) => update('priceType', event.target.value)}><option>Normal</option>{priceTypes.map((type) => <option key={type}>{type}</option>)}</select></label><div className="product-classification-guide"><p><strong>Tipo de preço:</strong> classifica a estratégia comercial. Ele, sozinho, não altera o valor nem cria um selo na loja.</p><p><strong>Tipos de vitrine:</strong> definem os selos que aparecem no card do produto.</p><ul><li><strong>Oferta:</strong> selo no card, carrossel “Ofertas em destaque” e página de ofertas.</li><li><strong>Promoção, Clube Hoje e Super Hoje:</strong> exibem os respectivos selos no card.</li></ul></div><p className="editor-hint">Tipos de vitrine — selecione todos os selos que devem aparecer no produto.</p><div className="price-type-bubbles">{priceTypes.map((type) => <button type="button" key={type} className={product.featuredPriceTypes.includes(type) ? 'active' : ''} onClick={() => togglePriceType(type)}>{type}</button>)}</div></section><section className="editor-card"><h2>Promoção</h2><div className="editor-form-grid three">{field('Data inicial', 'promotionStart', 'date')}{field('Data final', 'promotionEnd', 'date')}{field('Limite por cliente', 'promotionLimit', 'number')}{field('Estoque promocional', 'promotionStock', 'number')}{field('Tipo de promoção', 'promotionType')}</div></section></>}
       {activeTab === 'Estoque' && <><section className="editor-card">
         <h2>Estoque e rastreabilidade</h2>
@@ -612,6 +666,12 @@ export default function ERPProductsPage() {
       {activeTab === 'SEO' && <section className="editor-card"><h2>SEO e descoberta</h2>{field('Título SEO', 'seoTitle')}{field('URL amigável', 'seoSlug')}<label>Meta descrição<textarea value={product.metaDescription || ''} onChange={(event) => update('metaDescription', event.target.value)} rows="4" /></label>{field('Palavras-chave', 'seoKeywords')}</section>}
     </main><aside className="product-editor-side"><section className="editor-card"><h2>Resumo</h2><p className="editor-hint">Preencha as abas para manter preço, estoque, logística e vitrine consistentes.</p><span className="status-pill ok">{product.status}</span></section></aside></div>
     {isEditing && <section className="editor-card product-audit-history"><h2>Auditoria do produto</h2><p>Histórico persistente de cadastro e alterações, com responsável, data e valores registrados.</p>{auditLoading && <p>Carregando auditoria...</p>}{auditError && <p role="alert">{auditError}</p>}{!auditLoading && !auditError && auditEntries.length === 0 && <p>Nenhum registro de auditoria disponível para este produto.</p>}{auditEntries.map((entry) => { const fields = entry.changes && typeof entry.changes === 'object' ? Object.entries(entry.changes) : Object.entries(entry.snapshot || {}); return <details className="product-audit-entry" key={entry.id}><summary><strong>{auditActionLabels[entry.action] || entry.action}</strong><span>{formatAuditDate(entry.occurredAt)} · {entry.actor}</span></summary>{entry.note && <p>{entry.note}</p>}{fields.length > 0 && <dl>{fields.map(([key, value]) => <div key={key}><dt>{auditFieldLabels[key] || key}</dt>{entry.changes ? <dd>De: {formatAuditValue(value?.before)} <span aria-hidden="true">→</span> Para: {formatAuditValue(value?.after)}</dd> : <dd>{formatAuditValue(value)}</dd>}</div>)}</dl>}</details>; })}</section>}
-    {feedback && <div className="editor-saved"><Check size={15} /> {feedback}</div>}
+    {feedback && <div className={`editor-saved ${createdProductReference || (isEditing && ['failed', 'uncertain'].includes(blingSync.status)) ? 'error' : ''}`} role={createdProductReference || (isEditing && ['failed', 'uncertain'].includes(blingSync.status)) ? 'alert' : 'status'}>
+      {createdProductReference || (isEditing && ['failed', 'uncertain'].includes(blingSync.status)) ? <AlertCircle size={15} /> : <Check size={15} />} {feedback}
+      {createdProductReference && <>
+        <Link href={`/erp/products/cadastro?edit=${encodeURIComponent(createdProductReference)}&tab=Fiscal`}>Abrir cadastro e revisar sincronização</Link>
+        <Link href={`/erp/registrar-lote?productId=${encodeURIComponent(createdProductReference)}`}>Continuar para registrar o lote</Link>
+      </>}
+    </div>}
   </form>;
 }

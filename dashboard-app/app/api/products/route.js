@@ -9,6 +9,7 @@ import {
   validateFlashOfferConfiguration,
 } from '@/features/erp/api/product-pricing';
 import { findProductIdentityConflict, getProductAuditChanges, productAuditSnapshot, productIdentityKeys } from '@/features/erp/api/product-audit';
+import { syncProductToBling } from '@/features/erp/api/bling-products';
 import { validateChangedProductNcm } from '@/features/erp/api/product-ncm';
 import {
   addInventoryLot,
@@ -34,6 +35,11 @@ const privateProductFields = new Set([
   'markupPercent',
   'shelfLifeDays',
   'expiryMode',
+  'blingProductId',
+  'blingSyncStatus',
+  'blingSyncError',
+  'blingSyncedAt',
+  'blingSyncStartedAt',
 ]);
 
 function corsHeaders(request) {
@@ -53,6 +59,7 @@ function productMetadata(product) {
     'id', 'title', 'description', 'price', 'cost', 'discount', 'quantity',
     'sku', 'barcode', 'brand', 'supplier', 'subcategory', 'image', 'status',
     'expiry', 'expiryMode', 'categories', 'createdBy', 'createdAt', 'updatedAt',
+    'blingProductId', 'blingSyncStatus', 'blingSyncError', 'blingSyncedAt', 'blingSyncStartedAt',
   ]) delete metadata[field];
   return metadata;
 }
@@ -98,6 +105,18 @@ class InventoryQuantityMismatchError extends Error {
   constructor(message = 'A quantidade exibida é o saldo total dos lotes. Ajuste estoque e validade em ERP → Validade.') {
     super(message);
     this.name = 'InventoryQuantityMismatchError';
+  }
+}
+
+async function syncSavedProduct(productId) {
+  try {
+    return await syncProductToBling(productId);
+  } catch (error) {
+    console.error('O produto foi salvo no Hoje, mas não foi possível iniciar a sincronização com o Bling:', error);
+    return {
+      status: 'failed',
+      error: String(error?.message || 'Não foi possível iniciar a sincronização com o Bling.').slice(0, 500),
+    };
   }
 }
 
@@ -525,7 +544,8 @@ export async function POST(request) {
   const duplicate = matchingDuplicate(savedProduct, await getProductCatalog());
   if (duplicate) return Response.json({ error: duplicate.message }, { status: 409, headers: corsHeaders(request) });
   try {
-    await saveProduct(savedProduct, { actor, action: 'CREATE' });
+    const saved = await saveProduct(savedProduct, { actor, action: 'CREATE' });
+    savedProduct.blingSync = await syncSavedProduct(saved.id);
   } catch (error) {
     console.error('Não foi possível salvar o produto no catálogo:', error);
     if (error?.status === 422) return Response.json({ error: error.message }, { status: 422, headers: corsHeaders(request) });
@@ -571,7 +591,8 @@ export async function PUT(request) {
       updatedBy: actor,
     };
     try {
-      await saveProduct(savedProduct, { actor, action: 'UPDATE', before: currentProduct });
+      const saved = await saveProduct(savedProduct, { actor, action: 'UPDATE', before: currentProduct });
+      savedProduct.blingSync = await syncSavedProduct(saved.id);
     } catch (error) {
       console.error('Não foi possível salvar a oferta relâmpago do produto:', error);
       return Response.json({ error: 'Não foi possível salvar a oferta relâmpago. Verifique a conexão e tente novamente.' }, { status: 500, headers: corsHeaders(request) });
@@ -636,7 +657,8 @@ export async function PUT(request) {
   if (duplicate) return Response.json({ error: duplicate.message }, { status: 409, headers: corsHeaders(request) });
   products[productIndex] = savedProduct;
   try {
-    await saveProduct(savedProduct, { actor, action: 'UPDATE', before: currentProduct });
+    const saved = await saveProduct(savedProduct, { actor, action: 'UPDATE', before: currentProduct });
+    savedProduct.blingSync = await syncSavedProduct(saved.id);
   } catch (error) {
     console.error('Não foi possível atualizar o produto no catálogo:', error);
     if (error?.status === 422) return Response.json({ error: error.message }, { status: 422, headers: corsHeaders(request) });
