@@ -25,6 +25,9 @@ test('builds a Bling product payload from approved product fields without stock'
   assert.equal(code, 'ARROZ-1');
   assert.equal(payload.nome, 'Arroz Hoje');
   assert.equal(payload.codigo, 'ARROZ-1');
+  assert.equal(payload.tipo, 'P');
+  assert.equal(payload.situacao, 'A');
+  assert.equal(payload.formato, 'S');
   assert.equal(payload.preco, 8);
   assert.equal(payload.unidade, 'KG');
   assert.equal(payload.marca, 'Hoje');
@@ -49,4 +52,9 @@ test('does not send unusable images or invent an NCM', () => {
 test('rejects products without a stable code or valid NCM format', () => {
   assert.throws(() => buildBlingProductPayload({ ...product, sku: '', externalId: '', id: '' }), /SKU ou identificador/);
   assert.throws(() => buildBlingProductPayload({ ...product, metadata: { ncm: '123' } }), /8 dígitos/);
+});
+
+test('maps non-active product states to inactive in Bling', () => {
+  const { payload } = buildBlingProductPayload({ ...product, status: 'Rascunho' });
+  assert.equal(payload.situacao, 'I');
 });

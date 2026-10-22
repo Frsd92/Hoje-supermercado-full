@@ -55,6 +55,9 @@ export function buildBlingProductPayload(product, { origin } = {}) {
     payload: {
       nome: name.slice(0, 120),
       codigo: code,
+      tipo: 'P',
+      situacao: product.status === 'Ativo' ? 'A' : 'I',
+      formato: 'S',
       descricaoCurta: String(product.description || '').slice(0, 500),
       ...(product.brand ? { marca: String(product.brand).slice(0, 100) } : {}),
       unidade: product.metadata?.saleUnit === 'Quilograma' ? 'KG' : 'UN',
