@@ -9,6 +9,7 @@ import {
   validateFlashOfferConfiguration,
 } from '@/features/erp/api/product-pricing';
 import { findProductIdentityConflict, getProductAuditChanges, productAuditSnapshot, productIdentityKeys } from '@/features/erp/api/product-audit';
+import { validateChangedProductNcm } from '@/features/erp/api/product-ncm';
 import {
   addInventoryLot,
   inventoryDateOnly,
@@ -106,6 +107,12 @@ function matchingDuplicate(product, products, excludedId = '') {
 }
 
 async function saveProduct(product, { actor, action, before = null }) {
+  try {
+    await validateChangedProductNcm(product, before);
+  } catch (error) {
+    error.status = 422;
+    throw error;
+  }
   const externalId = String(product.id || '').trim();
   const data = productDatabaseData(product);
   const keys = productIdentityKeys(product);
@@ -521,6 +528,8 @@ export async function POST(request) {
     await saveProduct(savedProduct, { actor, action: 'CREATE' });
   } catch (error) {
     console.error('Não foi possível salvar o produto no catálogo:', error);
+    if (error?.status === 422) return Response.json({ error: error.message }, { status: 422, headers: corsHeaders(request) });
+    if (error?.status === 502 || error?.name === 'AbortError' || error?.name === 'TimeoutError') return Response.json({ error: 'Não foi possível validar o NCM na tabela oficial agora. Tente novamente.' }, { status: 502, headers: corsHeaders(request) });
     if (error instanceof DuplicateProductError) return Response.json({ error: error.message }, { status: 409, headers: corsHeaders(request) });
     if (error instanceof InventoryQuantityMismatchError) return Response.json({ error: error.message }, { status: 409, headers: corsHeaders(request) });
     if (error?.code === 'P2002') return Response.json({ error: 'Já existe um produto com estes dados. Abra o cadastro existente para editá-lo.' }, { status: 409, headers: corsHeaders(request) });
@@ -630,6 +639,8 @@ export async function PUT(request) {
     await saveProduct(savedProduct, { actor, action: 'UPDATE', before: currentProduct });
   } catch (error) {
     console.error('Não foi possível atualizar o produto no catálogo:', error);
+    if (error?.status === 422) return Response.json({ error: error.message }, { status: 422, headers: corsHeaders(request) });
+    if (error?.status === 502 || error?.name === 'AbortError' || error?.name === 'TimeoutError') return Response.json({ error: 'Não foi possível validar o NCM na tabela oficial agora. Tente novamente.' }, { status: 502, headers: corsHeaders(request) });
     if (error instanceof DuplicateProductError) return Response.json({ error: error.message }, { status: 409, headers: corsHeaders(request) });
     if (error instanceof InventoryQuantityMismatchError) return Response.json({ error: error.message }, { status: 409, headers: corsHeaders(request) });
     if (error?.code === 'P2002') return Response.json({ error: 'Já existe um produto com estes dados. Abra o cadastro existente para editá-lo.' }, { status: 409, headers: corsHeaders(request) });
