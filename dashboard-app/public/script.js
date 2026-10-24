@@ -256,7 +256,10 @@ let erroCarrinhoDaApi = '';
 let erroEnderecosDaApi = '';
 let enderecosDaLoja = [];
 let favoritosLoja = new Set();
+let revisaoFavoritosLoja = 0;
+let gravacoesFavoritosPendentes = 0;
 let toastCarrinhoTimer;
+let toastFavoritosTimer;
 let checkoutFeeSettings = null;
 let checkoutFeeLoadError = '';
 let checkoutMissionSnapshot = null;
@@ -1047,6 +1050,7 @@ async function carregarSessaoDaLoja() {
       document.getElementById('login-trigger')?.setAttribute('aria-label', 'Abrir meu painel');
       if (favoritesElement) favoritesElement.textContent = 'Favoritos carregando...';
     } else {
+      revisaoFavoritosLoja += 1;
       favoritosLoja = new Set();
       if (nameElement) nameElement.textContent = 'Olá, faça seu login';
       if (statusElement) statusElement.textContent = 'ou cadastre-se';
@@ -1063,7 +1067,7 @@ async function carregarSessaoDaLoja() {
     }
 
     document.querySelectorAll('.fav-btn').forEach((button) => {
-      button.disabled = !sessaoLoja.authenticated;
+      button.disabled = button.dataset.favoritePending === 'true' || !sessaoLoja.authenticated;
       button.title = sessaoLoja.authenticated ? 'Adicionar aos favoritos' : 'Entre para favoritar';
     });
 
@@ -1305,10 +1309,16 @@ async function sincronizarFavorito(card, button) {
 
   const favorite = obterDadosFavorito(card);
   if (!favorite.productId) {
-    console.error('Não foi possível salvar o favorito porque o produto não tem identificador no catálogo.');
+    mostrarFeedbackFavoritos('Este produto não pode ser favoritado porque não tem identificador no catálogo.');
     return;
   }
+  if (button.dataset.favoritePending === 'true') return;
+
   const ativo = button.classList.toggle('is-favorite');
+  revisaoFavoritosLoja += 1;
+  gravacoesFavoritosPendentes += 1;
+  button.dataset.favoritePending = 'true';
+  button.disabled = true;
   button.setAttribute('aria-pressed', String(ativo));
   button.setAttribute('aria-label', ativo ? 'Remover dos favoritos' : 'Adicionar aos favoritos');
 
@@ -1319,13 +1329,52 @@ async function sincronizarFavorito(card, button) {
 
     const data = await response.json();
     if (!response.ok) throw new Error(data.error || 'Não foi possível sincronizar o favorito.');
-  } catch (error) {
-    button.classList.toggle('is-favorite', !ativo);
-    button.setAttribute('aria-pressed', String(!ativo));
-    console.error(error);
-  }
+    if (!Array.isArray(data?.favorites)) throw new Error('O servidor não confirmou a atualização dos favoritos.');
 
-  atualizarContadorFavoritos();
+    revisaoFavoritosLoja += 1;
+    favoritosLoja = new Set(data.favorites.map((item) => String(item.productId || item.id || '')).filter(Boolean));
+    aplicarEstadoFavoritoNosCartoes();
+    const favoritesElement = document.getElementById('store-favorites-count');
+    if (favoritesElement) favoritesElement.textContent = `${favoritosLoja.size} ${favoritosLoja.size === 1 ? 'item' : 'itens'}`;
+    mostrarFeedbackFavoritos(ativo ? 'Produto adicionado aos favoritos.' : 'Produto removido dos favoritos.');
+  } catch (error) {
+    revisaoFavoritosLoja += 1;
+    aplicarEstadoFavoritoNosCartoes();
+    console.error('Não foi possível sincronizar o favorito:', error);
+    mostrarFeedbackFavoritos(error.message || 'Não foi possível atualizar seus favoritos. Tente novamente.');
+  } finally {
+    gravacoesFavoritosPendentes -= 1;
+    delete button.dataset.favoritePending;
+    button.disabled = !sessaoLoja.authenticated || !favorite.productId;
+  }
+}
+
+function aplicarEstadoFavoritoNosCartoes() {
+  document.querySelectorAll('.product-card').forEach((card) => {
+    const button = card.querySelector('.fav-btn');
+    if (!button) return;
+    const ativo = favoritosLoja.has(card.dataset.id || '');
+    button.classList.toggle('is-favorite', ativo);
+    button.setAttribute('aria-pressed', String(ativo));
+    button.setAttribute('aria-label', ativo ? 'Remover dos favoritos' : 'Adicionar aos favoritos');
+  });
+}
+
+function mostrarFeedbackFavoritos(message) {
+  let toast = document.getElementById('store-feedback-toast');
+  if (!toast) {
+    toast = document.createElement('div');
+    toast.id = 'store-feedback-toast';
+    toast.className = 'store-feedback-toast';
+    toast.setAttribute('role', 'status');
+    toast.setAttribute('aria-live', 'polite');
+    toast.setAttribute('aria-atomic', 'true');
+    document.body.append(toast);
+  }
+  toast.textContent = message;
+  toast.classList.add('show');
+  window.clearTimeout(toastFavoritosTimer);
+  toastFavoritosTimer = window.setTimeout(() => toast.classList.remove('show'), 3200);
 }
 
 function formatarPreco(valor) {
@@ -1743,7 +1792,7 @@ function adicionarBotoesFavorito(cards = document.querySelectorAll('.product-car
 
     btn.type = 'button';
     const productId = card.dataset.id || '';
-    btn.disabled = !sessaoLoja.authenticated || !productId;
+    btn.disabled = btn.dataset.favoritePending === 'true' || !sessaoLoja.authenticated || !productId;
     const ativo = favoritosLoja.has(productId);
     btn.title = !sessaoLoja.authenticated
       ? 'Entre para favoritar'
@@ -1767,31 +1816,22 @@ function adicionarBotoesFavorito(cards = document.querySelectorAll('.product-car
 }
 
 async function carregarFavoritosDaApi() {
+  const revisaoDaLeitura = revisaoFavoritosLoja;
   try {
     const response = await fetch(FAVORITES_API, { credentials: 'include' });
-    if (!response.ok) return;
     const data = await response.json();
+    if (!response.ok) throw new Error(data.error || `Falha ao carregar favoritos (${response.status}).`);
     if (!Array.isArray(data?.favorites)) throw new Error('Resposta inválida ao carregar favoritos.');
+    if (revisaoDaLeitura !== revisaoFavoritosLoja || gravacoesFavoritosPendentes > 0) return;
+
     favoritosLoja = new Set(data.favorites.map((item) => String(item.productId || item.id || '')).filter(Boolean));
 
     const favoritesElement = document.getElementById('store-favorites-count');
     if (favoritesElement) favoritesElement.textContent = `${favoritosLoja.size} ${favoritosLoja.size === 1 ? 'item' : 'itens'}`;
-
-    document.querySelectorAll('.product-card').forEach((card) => {
-      const button = card.querySelector('.fav-btn');
-      if (!button) return;
-      const ativo = favoritosLoja.has(card.dataset.id || '');
-      button.classList.toggle('is-favorite', ativo);
-      button.setAttribute('aria-pressed', String(ativo));
-      button.setAttribute('aria-label', ativo ? 'Remover dos favoritos' : 'Adicionar aos favoritos');
-    });
+    aplicarEstadoFavoritoNosCartoes();
   } catch (error) {
-    console.warn('Dashboard de favoritos indisponível:', error.message);
+    console.warn('Não foi possível carregar os favoritos:', error.message);
   }
-}
-
-async function atualizarContadorFavoritos() {
-  if (sessaoLoja.authenticated) await carregarFavoritosDaApi();
 }
 
 function adicionarCategoriasProdutos(cards = document.querySelectorAll('.product-card')) {
