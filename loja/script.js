@@ -2387,6 +2387,13 @@ function normalizarCatalogo(valor) {
   return String(valor || '').toLowerCase().normalize('NFD').replace(/[\u0300-\u036f]/g, '');
 }
 
+function chaveCategoriaLoja(valor) {
+  const chave = normalizarCatalogo(valor).trim().replace(/[\s_-]+/g, '');
+  if (['pet', 'pets', 'petshop', 'petshops'].includes(chave)) return 'petshop';
+  if (chave === 'bebidasalcoolicas') return 'alcoolicas';
+  return chave;
+}
+
 function escapeStoreHtml(value) {
   const entities = { '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' };
   return String(value ?? '').replace(/[&<>"']/g, (character) => entities[character]);
@@ -2680,8 +2687,8 @@ async function carregarCatalogoReal() {
         : isOfferCarousel
         ? produtosCatalogo.filter((product) => produtoTemSeloDeVitrine(product, 'Oferta'))
         : produtosCatalogo.filter((product) => {
-          const hasCategory = category && product.categories?.some((item) => normalizarCatalogo(item) === category);
-          const hasDepartment = category && normalizarCatalogo(product.department) === category;
+          const hasCategory = category && product.categories?.some((item) => chaveCategoriaLoja(item) === chaveCategoriaLoja(category));
+          const hasDepartment = category && chaveCategoriaLoja(product.department) === chaveCategoriaLoja(category);
           return hasCategory || hasDepartment;
         });
       container.innerHTML = '';

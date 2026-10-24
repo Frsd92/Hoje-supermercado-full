@@ -41,8 +41,7 @@ function isAlcoholic(productName) {
 }
 
 function categoryKey(category) {
-  const key = normalizeCategory(category).replaceAll(' ', '-');
-  return key === 'bebidas-alcoolicas' ? 'alcoolicas' : key;
+  return chaveCategoriaLoja(category);
 }
 
 function getTimestamp(value) {
@@ -185,8 +184,8 @@ async function loadCategory() {
       product.flashOfferActive === true
       && getTimestamp(product.flashOfferEndsAt) > Date.now()
     )).sort((first, second) => getTimestamp(first.flashOfferEndsAt) - getTimestamp(second.flashOfferEndsAt))
-    : products.filter((product) => product.categories?.some((item) => categoryKey(item) === category)
-      || categoryKey(product.department || '') === category);
+    : products.filter((product) => product.categories?.some((item) => categoryKey(item) === categoryKey(category))
+      || categoryKey(product.department || '') === categoryKey(category));
 
   const container = document.getElementById('category-products');
   filteredProducts.forEach((product) => {
