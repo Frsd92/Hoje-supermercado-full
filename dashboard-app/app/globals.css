@@ -7196,6 +7196,9 @@ button.metric-mini:focus-visible {
 .erp-order-invoice-cpf small { color: #64748b; }
 .erp-sidebar-footer { display: flex; align-items: center; gap: 7px; margin-top: auto; padding: 12px; color: var(--erp-muted); font-size: .72rem; border-top: 1px solid var(--erp-border); }
 .erp-main { flex: 1; min-width: 0; padding: 26px clamp(18px, 4vw, 54px); }
+.erp-customer-signup-toast { position: fixed; z-index: 120; top: 18px; right: 22px; display: flex; align-items: center; gap: 14px; max-width: min(460px, calc(100vw - 32px)); padding: 14px 16px; border: 1px solid #86efac; border-radius: 12px; background: #f0fdf4; color: #14532d; box-shadow: 0 12px 32px rgba(15, 23, 42, .18); font-size: .84rem; font-weight: 700; }
+.erp-customer-signup-toast a { color: #166534; font-weight: 800; white-space: nowrap; }
+.erp-customer-signup-toast button { border: 0; background: transparent; color: inherit; font-size: 1.25rem; cursor: pointer; }
 .erp-quick-access { display: grid; gap: 11px; }
 .erp-quick-access-heading { display: flex; align-items: baseline; justify-content: space-between; gap: 12px; }
 .erp-quick-access-heading h2 { margin: 0; color: var(--erp-text); font-size: 1rem; }
@@ -7446,6 +7449,8 @@ button.metric-mini:focus-visible {
 .customer-budget-section > small { color: #64748b; font-size: .67rem; }
 .customer-mission-count { display: inline-grid; min-width: 25px; min-height: 25px; place-items: center; padding: 2px 7px; border-radius: 999px; background: #f1f5f9; color: #64748b; font-size: .7rem; font-weight: 850; }
 .customer-mission-count.is-near { background: #fff0cb; color: #854d0e; }
+.erp-new-customer-badge { display: inline-block; margin-left: 7px; padding: 2px 7px; border-radius: 999px; background: #dcfce7; color: #166534; font-size: .62rem; font-weight: 850; text-transform: uppercase; vertical-align: middle; }
+.erp-customers-table tbody tr.is-new-customer { background: #f7fef9; }
 .customer-mission-section h3, .customer-coupon-section h3 { display: flex; align-items: center; gap: 7px; }
 .customer-mission-section h3 svg { color: #b7791f; }
 .customer-coupon-section h3 svg { color: #166534; }

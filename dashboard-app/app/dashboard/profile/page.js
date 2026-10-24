@@ -157,13 +157,29 @@ export default function ProfilePage() {
       setSavingProfile(false);
       return;
     }
+    if (profile.fullName.trim().split(/\s+/).length < 2) {
+      setFeedback('Informe seu nome completo, incluindo nome e sobrenome.');
+      setSavingProfile(false);
+      return;
+    }
     if (contentModeration.containsOffensiveContent(profile.fullName)) {
       setFeedback('Remova termos ofensivos do nome antes de salvar.');
       setSavingProfile(false);
       return;
     }
-    if (profile.cpf && profile.cpf.replace(/\D/g, '').length !== 11) {
-      setFeedback('Digite um CPF válido com 11 dígitos.');
+    if (profile.cpf.replace(/\D/g, '').length !== 11) {
+      setFeedback('Informe um CPF válido com 11 dígitos.');
+      setSavingProfile(false);
+      return;
+    }
+    const whatsapp = profile.whatsapp.replace(/\D/g, '').replace(/^55(?=\d{12,13}$)/, '');
+    if (![10, 11].includes(whatsapp.length)) {
+      setFeedback('Informe um WhatsApp válido com DDD.');
+      setSavingProfile(false);
+      return;
+    }
+    if (!profile.birthDate) {
+      setFeedback('Informe sua data de nascimento.');
       setSavingProfile(false);
       return;
     }
@@ -278,8 +294,8 @@ export default function ProfilePage() {
 
           <div className="profile-form-grid">
             <label className="form-field">
-              <span>Nome Completo</span>
-              <input type="text" value={profile.fullName} disabled={loading || savingProfile || !profileLoaded} onChange={(event) => handleChange('fullName', event.target.value)} maxLength={100} aria-invalid={profileNameContainsOffensiveContent} aria-describedby={profileNameContainsOffensiveContent ? 'profile-name-moderation-error' : undefined} />
+              <span>Nome completo *</span>
+              <input type="text" value={profile.fullName} disabled={loading || savingProfile || !profileLoaded} onChange={(event) => handleChange('fullName', event.target.value)} maxLength={100} required aria-invalid={profileNameContainsOffensiveContent} aria-describedby={profileNameContainsOffensiveContent ? 'profile-name-moderation-error' : undefined} />
               {profileNameContainsOffensiveContent && <small id="profile-name-moderation-error" className="profile-moderation-error" role="alert">Remova termos ofensivos para salvar o perfil.</small>}
             </label>
             <label className="form-field">
@@ -291,11 +307,11 @@ export default function ProfilePage() {
               <input type="email" value={profile.email || session?.user?.email || ''} readOnly />
             </label>
             <label className="form-field">
-              <span>WhatsApp</span>
-              <input type="tel" value={profile.whatsapp} disabled={loading || savingProfile || !profileLoaded} onChange={(event) => handleChange('whatsapp', event.target.value)} maxLength={30} />
+              <span>WhatsApp *</span>
+              <input type="tel" value={profile.whatsapp} disabled={loading || savingProfile || !profileLoaded} onChange={(event) => handleChange('whatsapp', event.target.value)} maxLength={30} required />
             </label>
             <label className="form-field">
-              <span>CPF</span>
+              <span>CPF *</span>
               <input
                 type="text"
                 value={profile.cpf}
@@ -303,6 +319,7 @@ export default function ProfilePage() {
                 disabled={loading || savingProfile || !profileLoaded}
                 maxLength={14}
                 inputMode="numeric"
+                required
                 onChange={(event) => handleChange('cpf', event.target.value.replace(/\D/g, '').slice(0, 11))}
               />
             </label>
@@ -315,8 +332,8 @@ export default function ProfilePage() {
               </select>
             </label>
             <label className="form-field">
-              <span>Data de nascimento (opcional)</span>
-              <input type="date" value={profile.birthDate || ''} disabled={loading || savingProfile || !profileLoaded} onChange={(event) => handleChange('birthDate', event.target.value)} />
+              <span>Data de nascimento *</span>
+              <input type="date" value={profile.birthDate || ''} disabled={loading || savingProfile || !profileLoaded} onChange={(event) => handleChange('birthDate', event.target.value)} required />
             </label>
             <label className="form-field">
               <span>Membro desde</span>
@@ -324,11 +341,11 @@ export default function ProfilePage() {
             </label>
           </div>
 
-          <p className="analytics-source-note">Gênero e data de nascimento são opcionais e usados apenas para estatísticas agregadas de compras.</p>
+          <p className="analytics-source-note">Nome completo, WhatsApp, CPF e data de nascimento são obrigatórios. Gênero é opcional e usado apenas para estatísticas agregadas de compras.</p>
           <div className="profile-save-actions">
             <button type="button" className="primary-cta" disabled={loading || savingProfile || !profileLoaded || profileNameContainsOffensiveContent} onClick={saveProfile}>{savingProfile ? 'Salvando...' : 'Salvar alterações'}</button>
           </div>
-          {feedback && <p className={`profile-feedback ${feedback.includes('Não foi') || feedback.includes('Informe') || feedback.includes('Digite') || feedback.includes('Selecione') || feedback.includes('data de nascimento') ? 'error' : ''}`} role="status">{feedback}</p>}
+          {feedback && <p className={`profile-feedback ${feedback.includes('Não foi') || feedback.includes('Informe') || feedback.includes('Digite') || feedback.includes('Selecione') || feedback.includes('data de nascimento') || feedback.includes('WhatsApp') || feedback.includes('Remova') ? 'error' : ''}`} role="status">{feedback}</p>}
         </div>
       </div>
 

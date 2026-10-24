@@ -17,10 +17,10 @@ export function getPendingCustomerActionCount(orders) {
   }, 0);
 }
 
-export function getErpActionCounts(orders, acknowledgedOrderIds = []) {
+export function getErpActionCounts(orders, acknowledgedOrderIds = [], newCustomerCount = 0) {
   const acknowledged = new Set(acknowledgedOrderIds);
   const pendingOrders = orders.filter((order) => order.status === 'Recebido' && !acknowledged.has(order.id)).length;
-  const customerActions = getPendingCustomerActionCount(orders);
+  const customerActions = getPendingCustomerActionCount(orders) + Math.max(0, Number(newCustomerCount) || 0);
 
   return {
     customers: customerActions,

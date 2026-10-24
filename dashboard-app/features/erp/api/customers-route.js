@@ -7,7 +7,7 @@ import { getDaysSincePurchase, parseOrderDate } from '@/lib/order-sort';
 import { getLoyaltyMissionCycle } from '@/features/loyalty/mission-rules';
 import { getCustomerCouponInsights, getCustomerMissionInsights } from '@/features/erp/customer-insights';
 import { getCustomerOrderHistory } from '@/features/erp/customer-order-history';
-import { formatCustomerId } from '@/features/customers/customer-id';
+import { formatCustomerId, maskCpf } from '@/features/customers/customer-id';
 import { getRemainingRefundCents, refundRequestStatus } from '@/features/orders/order-refund-utils';
 import { isCardPaymentMethod } from '@/features/payments/card-methods';
 
@@ -99,7 +99,7 @@ export async function GET() {
         },
       }),
       prisma.customerProfile.findMany({
-        select: { email: true, customerId: true, fullName: true, monthlyBudget: true, memberSince: true },
+        select: { email: true, customerId: true, fullName: true, cpf: true, monthlyBudget: true, memberSince: true },
       }),
       prisma.customerAddressBook.findMany({ select: { email: true, addresses: true } }),
       prisma.user.findMany({ select: { id: true, email: true, createdAt: true } }),
@@ -244,6 +244,8 @@ export async function GET() {
         id: customerIdsByEmail.get(email) || formatCustomerId(userIdsByEmail.get(email)),
         name: profile?.fullName || email,
         email,
+        registeredAt: userCreatedAtByEmail.get(email)?.toISOString() || null,
+        cpfMasked: maskCpf(profile?.cpf),
         status: 'Ativo',
         orders: activeOrders.length,
         spent: totalSpent,

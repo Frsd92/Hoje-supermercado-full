@@ -75,7 +75,8 @@ const erpNavigationGroups = [
 
 export default function ERPLayout({ children }) {
   const pathname = usePathname();
-  const [actionCounts, setActionCounts] = useState({ customers: 0, orders: 0 });
+  const [actionCounts, setActionCounts] = useState({ customers: 0, orders: 0, newCustomers: 0 });
+  const [customerSignupNotice, setCustomerSignupNotice] = useState('');
   const [financeExpanded, setFinanceExpanded] = useState(() => pathname.startsWith('/erp/financeiro'));
 
   useEffect(() => {
@@ -88,25 +89,59 @@ export default function ERPLayout({ children }) {
     let active = true;
     const loadActionCounts = async () => {
       try {
-        const response = await fetch('/api/erp/orders', { cache: 'no-store' });
-        const data = await response.json();
-        if (!response.ok) throw new Error(data.error || 'Não foi possível carregar os indicadores de ações pendentes.');
+        const lastCheck = localStorage.getItem('erp-last-customer-signup-check');
+        const initialCheck = !lastCheck;
+        const since = lastCheck || new Date().toISOString();
+        const [ordersResponse, signupResponse] = await Promise.all([
+          fetch('/api/erp/orders', { cache: 'no-store' }),
+          fetch(`/api/erp/customer-signups?since=${encodeURIComponent(since)}`, { cache: 'no-store' }),
+        ]);
+        const [data, signupData] = await Promise.all([ordersResponse.json(), signupResponse.json()]);
+        if (!ordersResponse.ok) throw new Error(data.error || 'Não foi possível carregar os indicadores de ações pendentes.');
+        if (!signupResponse.ok) throw new Error(signupData.error || 'Não foi possível verificar novos cadastros.');
         if (!Array.isArray(data.orders)) throw new Error('A resposta de pedidos para os indicadores está inválida.');
+        if (!Array.isArray(signupData.signups) || !signupData.checkedAt) throw new Error('A resposta de novos cadastros está inválida.');
         const storedAcknowledged = JSON.parse(localStorage.getItem('erp-acknowledged-orders') || '[]');
         const acknowledged = Array.isArray(storedAcknowledged) ? storedAcknowledged : [];
-        if (active) setActionCounts(getErpActionCounts(data.orders, acknowledged));
+        const storedSignups = JSON.parse(localStorage.getItem('erp-unacknowledged-customer-signups') || '[]');
+        const unacknowledged = Array.isArray(storedSignups) ? storedSignups : [];
+        const newIds = signupData.signups.map((customer) => customer.id);
+        const currentIds = initialCheck ? [] : [...new Set([...unacknowledged, ...newIds])];
+        localStorage.setItem('erp-last-customer-signup-check', signupData.checkedAt);
+        localStorage.setItem('erp-unacknowledged-customer-signups', JSON.stringify(currentIds));
+        if (active) {
+          setActionCounts({
+            ...getErpActionCounts(data.orders, acknowledged, currentIds.length),
+            newCustomers: currentIds.length,
+          });
+          if (!initialCheck && signupData.total > 0) {
+            const count = signupData.total;
+            setCustomerSignupNotice(`${count} novo${count === 1 ? '' : 's'} cadastro${count === 1 ? '' : 's'} de cliente${count === 1 ? '' : 's'}.`);
+          }
+        }
       } catch (error) {
         console.error('Não foi possível atualizar os indicadores de ações pendentes do ERP:', error);
       }
     };
     void loadActionCounts();
     const refresh = () => { void loadActionCounts(); };
+    const acknowledgeSignups = () => {
+      localStorage.setItem('erp-unacknowledged-customer-signups', '[]');
+      setActionCounts((current) => ({
+        ...current,
+        customers: Math.max(0, current.customers - current.newCustomers),
+        newCustomers: 0,
+      }));
+      setCustomerSignupNotice('');
+    };
     const interval = window.setInterval(refresh, 30_000);
+    window.addEventListener('erp-customer-signups-acknowledged', acknowledgeSignups);
     window.addEventListener('erp-orders-updated', refresh);
     window.addEventListener('erp-customer-actions-updated', refresh);
     return () => {
       active = false;
       window.clearInterval(interval);
+      window.removeEventListener('erp-customer-signups-acknowledged', acknowledgeSignups);
       window.removeEventListener('erp-orders-updated', refresh);
       window.removeEventListener('erp-customer-actions-updated', refresh);
     };
@@ -138,7 +173,7 @@ export default function ERPLayout({ children }) {
                 const pendingActions = label === 'Pedidos' ? actionCounts.orders : label === 'Clientes' ? actionCounts.customers : 0;
                 const actionLabel = label === 'Pedidos'
                   ? `${pendingActions} pedido(s) ou ação(ões) aguardando atendimento`
-                  : `${pendingActions} solicitação(ões) de cliente aguardando atendimento`;
+                  : `${pendingActions} cadastro(s) novo(s) ou solicitação(ões) de cliente aguardando atendimento`;
                 const content = <><Icon size={17} aria-hidden="true" /><span>{label}</span>{pendingActions > 0 && <><span className="erp-nav-badge" aria-hidden="true">{pendingActions}</span><span className="visually-hidden">{actionLabel}</span></>}</>;
                 const className = `erp-nav-item ${active ? 'active' : ''}`;
                 return <Link key={label} href={href} className={className} aria-current={active ? 'page' : undefined}>{content}</Link>;
@@ -148,6 +183,11 @@ export default function ERPLayout({ children }) {
           })}
         </nav>
       </aside>
+      {customerSignupNotice && <div className="erp-customer-signup-toast" role="status">
+        <span>{customerSignupNotice}</span>
+        <Link href="/erp/customers" onClick={() => setCustomerSignupNotice('')}>Ver clientes</Link>
+        <button type="button" aria-label="Fechar aviso de novos clientes" onClick={() => setCustomerSignupNotice('')}>×</button>
+      </div>}
       <main className="erp-main" id="erp-main-content" tabIndex="-1">{children}</main>
     </div>
   );

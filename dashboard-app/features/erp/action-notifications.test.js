@@ -30,7 +30,7 @@ test('shows customer actions in both navigation items and respects acknowledged 
     { id: 'order-3', status: 'Separacao', serviceRequests: [], refundRequests: [{ status: 'requested' }] },
   ];
 
-  assert.deepEqual(getErpActionCounts(orders, ['order-1']), { customers: 2, orders: 3 });
+  assert.deepEqual(getErpActionCounts(orders, ['order-1'], 3), { customers: 5, orders: 6 });
   assert.deepEqual(getErpActionCounts(orders, ['order-1', 'order-2']), { customers: 2, orders: 2 });
 });
 

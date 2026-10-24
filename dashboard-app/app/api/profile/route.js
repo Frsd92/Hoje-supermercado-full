@@ -3,6 +3,7 @@ import { authOptions } from '@/auth';
 import { formatCustomerId } from '@/features/customers/customer-id';
 import { prisma } from '@/lib/prisma';
 import contentModeration from '@/lib/content-moderation.js';
+import { isValidCpf, splitBrazilianMobilePhone } from '@/features/payments/pagarme';
 
 const maximumPhotoBytes = 1024 * 1024;
 
@@ -81,10 +82,21 @@ export async function PUT(request) {
     return Response.json({ error: 'Os dados enviados são inválidos.' }, { status: 400 });
   }
 
+  const requiredPersonalFields = ['fullName', 'whatsapp', 'cpf', 'birthDate'];
+  if (
+    requiredPersonalFields.some((field) => Object.hasOwn(body, field))
+    && requiredPersonalFields.some((field) => !Object.hasOwn(body, field))
+  ) {
+    return Response.json({ error: 'Preencha nome completo, WhatsApp, CPF e data de nascimento.' }, { status: 400 });
+  }
+
   const updates = {};
   if (Object.hasOwn(body, 'fullName')) {
     if (typeof body.fullName !== 'string' || !body.fullName.trim() || body.fullName.trim().length > 100) {
       return Response.json({ error: 'Informe um nome válido com até 100 caracteres.' }, { status: 400 });
+    }
+    if (body.fullName.trim().split(/\s+/).length < 2) {
+      return Response.json({ error: 'Informe seu nome completo, incluindo nome e sobrenome.' }, { status: 400 });
     }
     if (contentModeration.containsOffensiveContent(body.fullName)) {
       return Response.json({ error: 'Remova termos ofensivos do nome antes de salvar.' }, { status: 400 });
@@ -92,14 +104,15 @@ export async function PUT(request) {
     updates.fullName = body.fullName.trim();
   }
   if (Object.hasOwn(body, 'whatsapp')) {
-    if (typeof body.whatsapp !== 'string' || body.whatsapp.length > 30) {
+    const whatsapp = typeof body.whatsapp === 'string' ? body.whatsapp.trim() : '';
+    if (whatsapp.length > 30 || !splitBrazilianMobilePhone(whatsapp)) {
       return Response.json({ error: 'Informe um número de WhatsApp válido.' }, { status: 400 });
     }
-    updates.whatsapp = body.whatsapp.trim();
+    updates.whatsapp = whatsapp;
   }
   if (Object.hasOwn(body, 'cpf')) {
     const cpf = typeof body.cpf === 'string' ? body.cpf.replace(/\D/g, '') : '';
-    if (cpf && cpf.length !== 11) return Response.json({ error: 'Digite um CPF válido com 11 dígitos.' }, { status: 400 });
+    if (!isValidCpf(cpf)) return Response.json({ error: 'Digite um CPF válido.' }, { status: 400 });
     updates.cpf = cpf;
   }
   if (Object.hasOwn(body, 'gender')) {
@@ -110,9 +123,7 @@ export async function PUT(request) {
     updates.gender = gender;
   }
   if (Object.hasOwn(body, 'birthDate')) {
-    if (body.birthDate === '') {
-      updates.birthDate = null;
-    } else if (typeof body.birthDate !== 'string' || !/^\d{4}-\d{2}-\d{2}$/.test(body.birthDate)) {
+    if (typeof body.birthDate !== 'string' || !/^\d{4}-\d{2}-\d{2}$/.test(body.birthDate)) {
       return Response.json({ error: 'Informe uma data de nascimento válida.' }, { status: 400 });
     } else {
       const [year, month, day] = body.birthDate.split('-').map(Number);
