@@ -27,3 +27,15 @@ export function getErpActionCounts(orders, acknowledgedOrderIds = [], newCustome
     orders: pendingOrders + customerActions,
   };
 }
+
+export function getErpActionCountsFromSummary(pendingOrderIds, pendingCustomerActionCount = 0, acknowledgedOrderIds = [], newCustomerCount = 0) {
+  const acknowledged = new Set(acknowledgedOrderIds);
+  const pendingOrders = pendingOrderIds.filter((id) => !acknowledged.has(id)).length;
+  const customerActions = Math.max(0, Number(pendingCustomerActionCount) || 0)
+    + Math.max(0, Number(newCustomerCount) || 0);
+
+  return {
+    customers: customerActions,
+    orders: pendingOrders + customerActions,
+  };
+}

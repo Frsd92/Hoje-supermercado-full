@@ -1,6 +1,6 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
-import { getErpActionCounts, getPendingCustomerActionCount } from './action-notifications.js';
+import { getErpActionCounts, getErpActionCountsFromSummary, getPendingCustomerActionCount } from './action-notifications.js';
 
 test('counts unresolved customer cancellation, exchange, and refund actions', () => {
   const orders = [{
@@ -32,6 +32,10 @@ test('shows customer actions in both navigation items and respects acknowledged 
 
   assert.deepEqual(getErpActionCounts(orders, ['order-1'], 3), { customers: 5, orders: 6 });
   assert.deepEqual(getErpActionCounts(orders, ['order-1', 'order-2']), { customers: 2, orders: 2 });
+  assert.deepEqual(
+    getErpActionCountsFromSummary(['order-1', 'order-2'], 2, ['order-1'], 3),
+    { customers: 5, orders: 6 },
+  );
 });
 
 test('does not show badges after customer requests are resolved', () => {

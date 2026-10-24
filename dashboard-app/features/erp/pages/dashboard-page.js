@@ -6,10 +6,7 @@ import { useEffect, useState } from 'react';
 import { createSparklinePoints, deriveDashboardMetrics } from './dashboard-metrics.js';
 
 export default function ERPPage() {
-  const [products, setProducts] = useState([]);
-  const [orders, setOrders] = useState([]);
-  const [customers, setCustomers] = useState([]);
-  const [lots, setLots] = useState([]);
+  const [dashboardSummary, setDashboardSummary] = useState(null);
   const [metricsLoading, setMetricsLoading] = useState(true);
   const [metricsError, setMetricsError] = useState('');
   const [hasDashboardData, setHasDashboardData] = useState(false);
@@ -21,48 +18,20 @@ export default function ERPPage() {
     const loadDashboardData = async (showLoading = false) => {
       if (showLoading) setMetricsLoading(true);
       try {
-        const [productsResponse, ordersResponse, customersResponse, inventoryResponse] = await Promise.all([
-          fetch('/api/products', { cache: 'no-store' }),
-          fetch('/api/erp/orders', { cache: 'no-store' }),
-          fetch('/api/erp/customers', { cache: 'no-store' }),
-          fetch('/api/erp/validade', { cache: 'no-store' }),
-        ]);
-        const responses = [
-          { name: 'Catálogo de produtos', response: productsResponse },
-          { name: 'Pedidos', response: ordersResponse },
-          { name: 'Clientes', response: customersResponse },
-          { name: 'Lotes de estoque', response: inventoryResponse },
-        ];
-        const failedResponse = responses.find(({ response }) => !response.ok);
-        if (failedResponse) {
-          let errorMessage = `${failedResponse.name} indisponível (HTTP ${failedResponse.response.status}).`;
-          try {
-            const errorData = await failedResponse.response.json();
-            errorMessage = errorData.error || errorMessage;
-          } catch (parseError) {
-            console.error(`Não foi possível interpretar a resposta de ${failedResponse.name}:`, parseError);
-          }
-          throw new Error(errorMessage);
-        }
-        const [productsData, ordersData, customersData, inventoryData] = await Promise.all([
-          productsResponse.json(),
-          ordersResponse.json(),
-          customersResponse.json(),
-          inventoryResponse.json(),
-        ]);
+        const response = await fetch('/api/erp/dashboard-summary', { cache: 'no-store' });
+        const data = await response.json();
+        if (!response.ok) throw new Error(data.error || `Indicadores indisponíveis (HTTP ${response.status}).`);
         if (!active) return;
         if (
-          !Array.isArray(productsData.products)
-          || !Array.isArray(ordersData.orders)
-          || !Array.isArray(customersData.customers)
-          || !Array.isArray(inventoryData.lots)
+          !data.metrics
+          || !Array.isArray(data.metrics.recentDailyMetrics)
+          || !Number.isFinite(data.productsCount)
+          || !Number.isFinite(data.customersCount)
+          || !Number.isFinite(data.pendingReceivedOrderCount)
         ) {
-          throw new Error('Os dados recebidos pelo Dashboard do ERP estão incompletos. Atualize a página ou tente novamente.');
+          throw new Error('Os indicadores recebidos pelo Dashboard do ERP estão incompletos. Atualize a página ou tente novamente.');
         }
-        setProducts(productsData.products);
-        setOrders(ordersData.orders);
-        setCustomers(customersData.customers);
-        setLots(inventoryData.lots);
+        setDashboardSummary(data);
         setMetricsError('');
         setHasDashboardData(true);
         setLastUpdatedAt(new Date());
@@ -84,7 +53,7 @@ export default function ERPPage() {
     };
   }, [refreshRequest]);
 
-  const dashboardMetrics = deriveDashboardMetrics({ products, orders, customers, lots });
+  const dashboardMetrics = dashboardSummary?.metrics || deriveDashboardMetrics();
   const formatter = new Intl.NumberFormat('pt-BR');
   const formatCurrency = (value) => new Intl.NumberFormat('pt-BR', { style: 'currency', currency: 'BRL' }).format(value);
   const displayValue = (value) => hasDashboardData ? value : metricsLoading ? '...' : '—';
@@ -153,9 +122,9 @@ export default function ERPPage() {
   ].filter(Boolean);
 
   const quickActions = [
-    { label: 'Pedidos', detail: metricsLoading ? 'Carregando fila' : `${orders.filter((order) => order.status === 'Recebido').length} aguardando conferência`, href: '/erp/orders', icon: ShoppingCart },
-    { label: 'Produtos', detail: metricsLoading ? 'Carregando catálogo' : `${products.length} produto(s) cadastrado(s)`, href: '/erp/products', icon: Boxes },
-    { label: 'Clientes', detail: metricsLoading ? 'Carregando clientes' : `${customers.length} cliente(s) identificado(s)`, href: '/erp/customers', icon: Users },
+    { label: 'Pedidos', detail: metricsLoading ? 'Carregando fila' : `${dashboardSummary?.pendingReceivedOrderCount || 0} aguardando conferência`, href: '/erp/orders', icon: ShoppingCart },
+    { label: 'Produtos', detail: metricsLoading ? 'Carregando catálogo' : `${dashboardSummary?.productsCount || 0} produto(s) cadastrado(s)`, href: '/erp/products', icon: Boxes },
+    { label: 'Clientes', detail: metricsLoading ? 'Carregando clientes' : `${dashboardSummary?.customersCount || 0} cliente(s) identificado(s)`, href: '/erp/customers', icon: Users },
     { label: 'Histórico de preços', detail: 'Variações e registros por produto', href: '/erp/price-history', icon: History },
   ];
 

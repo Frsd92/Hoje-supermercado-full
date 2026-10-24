@@ -9,6 +9,7 @@ import {
   validateFlashOfferConfiguration,
 } from '@/features/erp/api/product-pricing';
 import { findProductIdentityConflict, getProductAuditChanges, productAuditSnapshot, productIdentityKeys } from '@/features/erp/api/product-audit';
+import { normalizeProductCest } from '@/features/erp/api/product-cest';
 import { syncProductToBling } from '@/features/erp/api/bling-products';
 import { validateChangedProductNcm } from '@/features/erp/api/product-ncm';
 import {
@@ -478,6 +479,12 @@ export async function POST(request) {
   const actor = erpActorLabel(session?.user);
 
   const product = await request.json();
+  let cest;
+  try {
+    cest = normalizeProductCest(product?.cest);
+  } catch (error) {
+    return Response.json({ error: error.message }, { status: 400, headers: corsHeaders(request) });
+  }
   const title = String(product?.title || '').trim();
   const price = Number(product?.price);
   const cost = Number(product?.cost || 0);
@@ -511,6 +518,7 @@ export async function POST(request) {
 
   const savedProduct = {
     ...product,
+    cest,
     title,
     price,
     cost,
@@ -611,6 +619,12 @@ export async function PUT(request) {
   }
 
   const productId = String(product?.id || '').trim();
+  let cest;
+  try {
+    cest = normalizeProductCest(product?.cest);
+  } catch (error) {
+    return Response.json({ error: error.message }, { status: 400, headers: corsHeaders(request) });
+  }
   const title = String(product?.title || '').trim();
   const price = Number(product?.price);
   const cost = Number(product?.cost || 0);
@@ -636,6 +650,7 @@ export async function PUT(request) {
   const savedProduct = {
     ...currentProduct,
     ...product,
+    cest,
     id: currentProduct.id,
     createdAt: currentProduct.createdAt,
     createdBy: currentProduct.createdBy,

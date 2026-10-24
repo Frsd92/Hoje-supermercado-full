@@ -1,20 +1,21 @@
 'use client';
 
 import Link from 'next/link';
-import { AlertCircle, ArrowLeft, ArrowRight, BadgeCheck, CalendarClock, Check, FileUp, ImagePlus, Plus, Save, Search, Trash2 } from 'lucide-react';
+import { AlertCircle, ArrowLeft, ArrowRight, BadgeCheck, Barcode, CalendarClock, Check, FileUp, ImagePlus, Plus, Save, Search, Trash2 } from 'lucide-react';
 import { useCallback, useEffect, useRef, useState } from 'react';
 import { formatAuditValue } from '../api/product-audit.js';
 import { normalizeProductBarcode } from '../api/product-barcode-lookup.js';
+import { normalizeProductCest } from '../api/product-cest.js';
 import { getProductOrganizationError, normalizeProductOrganizationValue, usesHortifrutiOrganization } from '../product-organization.js';
 import { calculateProductPricing, formatBRL, parseBRL, parsePercent, priceFromMarkup, roundMoney } from './product-pricing.js';
 import { encodeProductImage } from './product-image.js';
 
 const categories = ['Hortifruti', 'Açougue', 'Padaria', 'Mercearia', 'Bebidas', 'Vinhos', 'Bebidas Alcoólicas', 'Cervejas', 'Produtos de Limpeza', 'Lavanderia', 'Pet Shop', 'Higiene Pessoal', 'Bomboniere', 'Laticínios', 'Bebês'];
-const emptyProduct = { title: '', description: '', price: '', cost: '', promotionalPrice: '', discount: '', profitMarginPercent: '', profitMarginValue: '', markupPercent: '', suggestedMarkup: '', priceType: 'Normal', featuredPriceTypes: [], barcodes: [], barcode: '', sku: '', ncm: '', expiry: '', lot: '', manufactureDate: '', controlsLot: false, controlsExpiry: false, minimumShelfLife: '', serialNumber: '', quantity: '0', minStock: '0', maxStock: '', location: '', weight: '', height: '', width: '', length: '', packageWeight: '', packageType: '', transportUnit: '', fragile: false, refrigerated: false, frozen: false, roomTemperature: true, specialCare: false, saleUnit: 'Unidade', fractionalSale: false, brand: '', manufacturer: '', supplier: '', suppliers: [], categories: [], department: '', subcategory: '', tags: [], collection: '', productType: '', perishable: false, seasonal: false, exclusive: false, promotionStart: '', promotionEnd: '', promotionLimit: '', promotionStock: '', promotionType: '', image: '', status: 'Ativo' };
+const emptyProduct = { title: '', description: '', price: '', cost: '', promotionalPrice: '', discount: '', profitMarginPercent: '', profitMarginValue: '', markupPercent: '', suggestedMarkup: '', priceType: 'Normal', featuredPriceTypes: [], barcodes: [], barcode: '', sku: '', ncm: '', cest: '', expiry: '', lot: '', manufactureDate: '', controlsLot: false, controlsExpiry: false, minimumShelfLife: '', serialNumber: '', quantity: '0', minStock: '0', maxStock: '', location: '', weight: '', height: '', width: '', length: '', packageWeight: '', packageType: '', transportUnit: '', fragile: false, refrigerated: false, frozen: false, roomTemperature: true, specialCare: false, saleUnit: 'Unidade', fractionalSale: false, brand: '', manufacturer: '', supplier: '', suppliers: [], categories: [], department: '', subcategory: '', tags: [], collection: '', productType: '', perishable: false, seasonal: false, exclusive: false, promotionStart: '', promotionEnd: '', promotionLimit: '', promotionStock: '', promotionType: '', image: '', status: 'Ativo' };
 const markupSuggestions = { 'Mercearia': '20% a 35%', 'Cervejas': '15% a 25%', 'Bebidas': '30% a 45%', 'Laticínios': '25% a 40%', 'Bebidas Alcoólicas': '40% a 60%', 'Vinhos': '50% a 80%', 'Bomboniere': '45% a 65%', 'Açougue': '35% a 55%', 'Hortifruti': '55% a 80%', 'Padaria': '100% a 150%', 'Produtos de Limpeza': '35% a 45%', 'Lavanderia': '25% a 35%', 'Higiene Pessoal': '35% a 50%', 'Bebês': '15% a 30%', 'Pet Shop': '35% a 55%' };
 const markupStrategy = { 'Mercearia': 'Giro alto e preço competitivo.', 'Cervejas': 'Produto isca e volume.', 'Bebidas': 'Giro alto e custo de refrigeração.', 'Laticínios': 'Giro rápido e validade rigorosa.', 'Bebidas Alcoólicas': 'Menor giro e maior valor agregado.', 'Vinhos': 'Experiência de compra e maior valor.', 'Bomboniere': 'Compra por impulso.', 'Açougue': 'Cobre operação, energia e quebra.', 'Hortifruti': 'Protege contra desperdício.', 'Padaria': 'Cobre transformação e mão de obra.', 'Produtos de Limpeza': 'Giro médio e concorrência moderada.', 'Lavanderia': 'Marcas fortes e alta comparação.', 'Higiene Pessoal': 'Concorrência e giro médios.', 'Bebês': 'Produto ímã, margem competitiva.', 'Pet Shop': 'Ração gira; acessórios têm maior margem.' };
 const isKilogramSaleUnit = (value) => /^(kg|quilo|quilograma)s?$/i.test(String(value || '').trim());
-const auditFieldLabels = { title: 'Nome', description: 'Descrição', price: 'Preço', cost: 'Custo', discount: 'Desconto', quantity: 'Estoque', sku: 'SKU', barcode: 'Código de barras', barcodes: 'Códigos de barras', ncm: 'NCM', brand: 'Marca', manufacturer: 'Fabricante', supplier: 'Fornecedor', suppliers: 'Fornecedores', subcategory: 'Categoria', categories: 'Categorias', image: 'Imagem', status: 'Status', expiry: 'Validade', shelfLifeDays: 'Prazo padrão de validade (dias)', saleUnit: 'Unidade de venda', priceHistory: 'Histórico de preços', createdAt: 'Criado em', createdBy: 'Criado por', updatedAt: 'Atualizado em', updatedBy: 'Atualizado por' };
+const auditFieldLabels = { title: 'Nome', description: 'Descrição', price: 'Preço', cost: 'Custo', discount: 'Desconto', quantity: 'Estoque', sku: 'SKU', barcode: 'Código de barras', barcodes: 'Códigos de barras', ncm: 'NCM', cest: 'CEST', brand: 'Marca', manufacturer: 'Fabricante', supplier: 'Fornecedor', suppliers: 'Fornecedores', subcategory: 'Categoria', categories: 'Categorias', image: 'Imagem', status: 'Status', expiry: 'Validade', shelfLifeDays: 'Prazo padrão de validade (dias)', saleUnit: 'Unidade de venda', priceHistory: 'Histórico de preços', createdAt: 'Criado em', createdBy: 'Criado por', updatedAt: 'Atualizado em', updatedBy: 'Atualizado por' };
 const auditActionLabels = { CREATE: 'Produto cadastrado', UPDATE: 'Produto atualizado', DELETE: 'Produto excluído', LEGACY_BASELINE: 'Snapshot inicial legado', LEGACY_PRICE_HISTORY: 'Registro legado de preço' };
 const formatAuditDate = (value) => new Intl.DateTimeFormat('pt-BR', { dateStyle: 'medium', timeStyle: 'medium' }).format(new Date(value));
 
@@ -62,6 +63,14 @@ export default function ERPProductsPage() {
 
     return next;
   });
+  const generateSku = () => {
+    if (!window.crypto?.randomUUID) {
+      setFeedback('Não foi possível gerar um SKU seguro neste navegador. Você pode informá-lo manualmente.');
+      return;
+    }
+    update('sku', `HSM-${window.crypto.randomUUID().replace(/-/g, '').slice(0, 12).toUpperCase()}`);
+    setFeedback('SKU gerada. Você também pode alterá-la manualmente.');
+  };
   const validateNcm = async (value = product.ncm) => {
     const code = String(value || '').trim();
     if (!code) {
@@ -369,6 +378,14 @@ export default function ERPProductsPage() {
   }, [product.categories]);
   const saveProduct = async (event) => {
     event.preventDefault();
+    let cest;
+    try {
+      cest = normalizeProductCest(product.cest);
+    } catch (error) {
+      setFeedback(error.message);
+      setActiveTab('Fiscal');
+      return;
+    }
     const organizationError = getProductOrganizationError(product);
     if (organizationError) {
       setFeedback(organizationError);
@@ -387,7 +404,7 @@ export default function ERPProductsPage() {
     const profitMarginValue = roundMoney(effectivePrice - cost);
     try {
       const productBarcodes = [...new Set([...(product.barcodes || []), product.barcode].filter(Boolean))];
-      const response = await fetch('/api/products', { method: isEditing ? 'PUT' : 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ ...product, fractionalSale: product.saleUnit === 'Quilograma', price, cost, promotionalPrice, profitMarginPercent: effectivePrice > 0 ? Number(((profitMarginValue / effectivePrice) * 100).toFixed(2)) : 0, profitMarginValue, markupPercent, barcodes: productBarcodes, barcode: productBarcodes[0] || '', discount, quantity: isEditing ? Number(product.quantity || 0) : 0 }) });
+      const response = await fetch('/api/products', { method: isEditing ? 'PUT' : 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ ...product, cest, fractionalSale: product.saleUnit === 'Quilograma', price, cost, promotionalPrice, profitMarginPercent: effectivePrice > 0 ? Number(((profitMarginValue / effectivePrice) * 100).toFixed(2)) : 0, profitMarginValue, markupPercent, barcodes: productBarcodes, barcode: productBarcodes[0] || '', discount, quantity: isEditing ? Number(product.quantity || 0) : 0 }) });
       const data = await response.json();
       if (!response.ok) throw new Error(data.error || 'Não foi possível salvar o produto.');
       const sync = data.product?.blingSync || {
@@ -498,7 +515,15 @@ export default function ERPProductsPage() {
           <h2>Informações do produto</h2>
           {field('Nome do produto', 'title')}
           <label>Descrição<textarea value={product.description} onChange={(event) => update('description', event.target.value)} rows="4" /></label>
-          <div className="editor-form-grid three">{field('SKU', 'sku')}{field('Marca', 'brand')}{field('Fabricante', 'manufacturer')}</div>
+          <div className="editor-form-grid three">
+            <label>SKU
+              <div className="editor-inline">
+                <input value={product.sku || ''} onChange={(event) => update('sku', event.target.value)} placeholder="Informe manualmente ou gere um código" />
+                <button type="button" className="editor-link" onClick={generateSku}><Barcode size={15} /> Gerar SKU</button>
+              </div>
+            </label>
+            {field('Marca', 'brand')}{field('Fabricante', 'manufacturer')}
+          </div>
         </section>
         <section className="editor-card">
           <h2>Códigos de barras</h2>
@@ -540,6 +565,17 @@ export default function ERPProductsPage() {
             {ncmValidation.status === 'valid' && <span aria-label="NCM validado"><Check size={16} /> NCM válido</span>}
           </div>
         </div>
+        <label>CEST (opcional)
+          <input
+            value={product.cest || ''}
+            onChange={(event) => update('cest', event.target.value)}
+            inputMode="numeric"
+            maxLength={9}
+            placeholder="Ex.: 01.001.00"
+            aria-describedby="product-cest-help"
+          />
+        </label>
+        <p id="product-cest-help" className="editor-hint">Informe os 7 dígitos conforme a classificação fiscal do produto. O CEST será salvo junto ao cadastro.</p>
         <p id="product-ncm-validation" className="editor-hint" role={ncmValidation.status === 'invalid' || ncmValidation.status === 'error' ? 'alert' : 'status'}>
           {ncmValidation.message}{ncmValidation.description ? ` Descrição oficial: ${ncmValidation.description}` : ''}
         </p>

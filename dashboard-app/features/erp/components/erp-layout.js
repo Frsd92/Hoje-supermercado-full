@@ -4,7 +4,7 @@ import Link from 'next/link';
 import { usePathname } from 'next/navigation';
 import { Activity, Award, BarChart3, Bell, CalendarDays, ChevronDown, CircleDollarSign, ClipboardList, FileText, History, LayoutDashboard, LayoutTemplate, MapPin, Package, PlugZap, Plus, ReceiptText, ShoppingCart, TicketPercent, TrendingUp, Truck, Users, Zap } from 'lucide-react';
 import { useEffect, useState } from 'react';
-import { getErpActionCounts } from '../action-notifications.js';
+import { getErpActionCountsFromSummary } from '../action-notifications.js';
 
 const erpNavigationGroups = [
   {
@@ -92,14 +92,16 @@ export default function ERPLayout({ children }) {
         const lastCheck = localStorage.getItem('erp-last-customer-signup-check');
         const initialCheck = !lastCheck;
         const since = lastCheck || new Date().toISOString();
-        const [ordersResponse, signupResponse] = await Promise.all([
-          fetch('/api/erp/orders', { cache: 'no-store' }),
+        const [actionResponse, signupResponse] = await Promise.all([
+          fetch('/api/erp/action-counts', { cache: 'no-store' }),
           fetch(`/api/erp/customer-signups?since=${encodeURIComponent(since)}`, { cache: 'no-store' }),
         ]);
-        const [data, signupData] = await Promise.all([ordersResponse.json(), signupResponse.json()]);
-        if (!ordersResponse.ok) throw new Error(data.error || 'Não foi possível carregar os indicadores de ações pendentes.');
+        const [actionData, signupData] = await Promise.all([actionResponse.json(), signupResponse.json()]);
+        if (!actionResponse.ok) throw new Error(actionData.error || 'Não foi possível carregar os indicadores de ações pendentes.');
         if (!signupResponse.ok) throw new Error(signupData.error || 'Não foi possível verificar novos cadastros.');
-        if (!Array.isArray(data.orders)) throw new Error('A resposta de pedidos para os indicadores está inválida.');
+        if (!Array.isArray(actionData.pendingOrderIds) || !Number.isFinite(actionData.pendingCustomerActionCount)) {
+          throw new Error('A resposta de ações pendentes está inválida.');
+        }
         if (!Array.isArray(signupData.signups) || !signupData.checkedAt) throw new Error('A resposta de novos cadastros está inválida.');
         const storedAcknowledged = JSON.parse(localStorage.getItem('erp-acknowledged-orders') || '[]');
         const acknowledged = Array.isArray(storedAcknowledged) ? storedAcknowledged : [];
@@ -111,7 +113,12 @@ export default function ERPLayout({ children }) {
         localStorage.setItem('erp-unacknowledged-customer-signups', JSON.stringify(currentIds));
         if (active) {
           setActionCounts({
-            ...getErpActionCounts(data.orders, acknowledged, currentIds.length),
+            ...getErpActionCountsFromSummary(
+              actionData.pendingOrderIds,
+              actionData.pendingCustomerActionCount,
+              acknowledged,
+              currentIds.length,
+            ),
             newCustomers: currentIds.length,
           });
           if (!initialCheck && signupData.total > 0) {
