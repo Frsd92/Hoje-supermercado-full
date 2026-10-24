@@ -2621,6 +2621,26 @@ body {
   flex: 0 0 auto;
 }
 
+.payment.is-coming-soon {
+  flex-wrap: wrap;
+  gap: 2px 6px;
+  border: 1px solid rgba(255,255,255,0.14);
+}
+
+.payment.is-coming-soon small {
+  opacity: .78;
+  font-size: 10px;
+  font-weight: 600;
+}
+
+.payment-note {
+  max-width: 280px;
+  margin: 9px 0 0;
+  color: rgba(230,246,238,0.86);
+  font-size: 11px;
+  line-height: 1.5;
+}
+
 .newsletter {
   margin-top: 14px;
   display: flex;
