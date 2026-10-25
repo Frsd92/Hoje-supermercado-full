@@ -41,6 +41,7 @@ export default function ERPProductsPage() {
   const [ncmXmlNotice, setNcmXmlNotice] = useState('');
   const [ncmBusy, setNcmBusy] = useState(false);
   const ncmXmlRef = useRef(null);
+  const ncmValidationController = useRef(null);
   const [newTag, setNewTag] = useState('');
   const [saving, setSaving] = useState(false);
   const [auditEntries, setAuditEntries] = useState([]);
@@ -77,11 +78,15 @@ export default function ERPProductsPage() {
       setNcmValidation({ status: 'invalid', message: 'Informe um NCM para validar.', description: '' });
       return false;
     }
+    ncmValidationController.current?.abort();
+    const controller = new AbortController();
+    ncmValidationController.current = controller;
     setNcmBusy(true);
     setNcmValidation({ status: 'loading', message: 'Consultando a tabela oficial vigente...', description: '' });
     try {
-      const response = await fetch(`/api/erp/products/ncm?code=${encodeURIComponent(code)}`, { cache: 'no-store' });
+      const response = await fetch(`/api/erp/products/ncm?code=${encodeURIComponent(code)}`, { cache: 'no-store', signal: controller.signal });
       const result = await response.json();
+      if (controller.signal.aborted) return false;
       if (response.status === 422) {
         setNcmValidation({ status: 'invalid', message: result.error || 'NCM inválido.', description: '' });
         return false;
@@ -94,10 +99,14 @@ export default function ERPProductsPage() {
       });
       return true;
     } catch (error) {
+      if (controller.signal.aborted) return false;
       setNcmValidation({ status: 'error', message: error.message || 'Não foi possível validar o NCM.', description: '' });
       return false;
     } finally {
-      setNcmBusy(false);
+      if (ncmValidationController.current === controller) {
+        ncmValidationController.current = null;
+        setNcmBusy(false);
+      }
     }
   };
   const searchNcm = async () => {
@@ -549,6 +558,7 @@ export default function ERPProductsPage() {
             <input
               value={product.ncm || ''}
               onChange={(event) => {
+                ncmValidationController.current?.abort();
                 update('ncm', event.target.value);
                 setNcmValidation({ status: 'idle', message: '', description: '' });
               }}

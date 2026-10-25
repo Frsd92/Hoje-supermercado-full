@@ -58,22 +58,32 @@ function normalizeNcmProductCode(value) {
   return String(value || '').replace(/\D/g, '');
 }
 
-export async function fetchOfficialNcmTable() {
-  try {
-    const response = await fetch(officialNcmUrl, {
-      headers: { Accept: 'application/json' },
-      next: { revalidate: 86_400 },
-      signal: AbortSignal.timeout(15_000),
-    });
-    if (!response.ok) throw new Error(`A consulta à tabela oficial da NCM falhou (HTTP ${response.status}).`);
-    const table = await response.json();
-    activeNcmEntries(table);
-    return table;
-  } catch (cause) {
-    const error = new Error('Não foi possível consultar a tabela vigente oficial da NCM.', { cause });
-    error.status = 502;
-    throw error;
+export async function fetchOfficialNcmTable(fetcher = fetch) {
+  let lastCause;
+  for (let attempt = 0; attempt < 2; attempt += 1) {
+    try {
+      const response = await fetcher(officialNcmUrl, {
+        headers: { Accept: 'application/json' },
+        next: { revalidate: 86_400 },
+        signal: AbortSignal.timeout(15_000),
+      });
+      if (!response.ok) {
+        const error = new Error(`A consulta à tabela oficial da NCM falhou (HTTP ${response.status}).`);
+        error.status = response.status;
+        throw error;
+      }
+      const table = await response.json();
+      activeNcmEntries(table);
+      return table;
+    } catch (cause) {
+      lastCause = cause;
+      if (cause?.status && cause.status < 500 && cause.status !== 429) break;
+      if (attempt === 0) await new Promise((resolve) => setTimeout(resolve, 250));
+    }
   }
+  const error = new Error('Não foi possível consultar a tabela vigente oficial da NCM.', { cause: lastCause });
+  error.status = 502;
+  throw error;
 }
 
 export async function validateActiveNcm(value) {

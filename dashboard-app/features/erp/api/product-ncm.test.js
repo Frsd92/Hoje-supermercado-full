@@ -2,6 +2,7 @@ import test from 'node:test';
 import assert from 'node:assert/strict';
 import {
   activeNcmEntries,
+  fetchOfficialNcmTable,
   findNcmEntries,
   matchNcmXmlItems,
   normalizeNcmCode,
@@ -37,6 +38,30 @@ test('rejects invalid changed product NCM values and skips unchanged values', as
   );
   await validateChangedProductNcm({ ncm: '01012100' }, { ncm: '01012100' });
   await validateChangedProductNcm({ ncm: '' }, { ncm: '01012100' });
+});
+
+test('retries transient failures from the official NCM source', async () => {
+  let attempts = 0;
+  const result = await fetchOfficialNcmTable(async () => {
+    attempts += 1;
+    if (attempts === 1) return { ok: false, status: 503 };
+    return { ok: true, json: async () => table };
+  });
+
+  assert.equal(attempts, 2);
+  assert.equal(result, table);
+});
+
+test('does not retry permanent client errors from the official NCM source', async () => {
+  let attempts = 0;
+  await assert.rejects(
+    fetchOfficialNcmTable(async () => {
+      attempts += 1;
+      return { ok: false, status: 404 };
+    }),
+    (error) => error.status === 502,
+  );
+  assert.equal(attempts, 1);
 });
 
 test('matches imported supplier XML items by exact barcode or SKU only', () => {
