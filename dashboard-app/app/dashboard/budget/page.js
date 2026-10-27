@@ -1,7 +1,7 @@
 'use client';
 
 import { useEffect, useState } from 'react';
-import { CircleDollarSign, Save } from 'lucide-react';
+import { CalendarDays, CircleDollarSign, Gauge, Save, TrendingDown, TrendingUp } from 'lucide-react';
 import { useSession } from 'next-auth/react';
 import { formatCurrency, getBudgetProgress, getCurrentMonthSpend } from '../budget';
 import { readLocalBudget, saveLocalBudget } from '../budget-storage';
@@ -15,6 +15,11 @@ export default function BudgetPage() {
   const [saving, setSaving] = useState(false);
   const [feedback, setFeedback] = useState('');
   const [refundSyncWarning, setRefundSyncWarning] = useState(false);
+  const [today, setToday] = useState(null);
+
+  useEffect(() => {
+    setToday(new Date());
+  }, []);
 
   useEffect(() => {
     if (status !== 'authenticated') return;
@@ -70,9 +75,25 @@ export default function BudgetPage() {
     return () => { active = false; };
   }, [status, session?.user?.email]);
 
-  const monthSpend = getCurrentMonthSpend(orders);
+  const monthSpend = getCurrentMonthSpend(orders, today || new Date());
   const budgetAmount = Number(monthlyBudget) || 0;
   const progress = getBudgetProgress(monthSpend, budgetAmount);
+  const daysInMonth = today ? new Date(today.getFullYear(), today.getMonth() + 1, 0).getDate() : 0;
+  const daysElapsed = today?.getDate() || 0;
+  const daysRemaining = Math.max(0, daysInMonth - daysElapsed);
+  const expectedSpendToDate = daysInMonth > 0 ? (budgetAmount * daysElapsed) / daysInMonth : 0;
+  const isOverBudget = budgetAmount > 0 && monthSpend > budgetAmount;
+  const isAbovePace = budgetAmount > 0 && monthSpend > expectedSpendToDate;
+  const remainingBudget = Math.max(0, budgetAmount - monthSpend);
+  const suggestedDailyLimit = daysRemaining > 0 ? remainingBudget / daysRemaining : remainingBudget;
+  const paceLabel = !budgetAmount
+    ? 'Comece pelo seu limite mensal'
+    : isOverBudget
+      ? 'Limite mensal ultrapassado'
+      : isAbovePace
+        ? 'Ritmo acima do planejado'
+        : 'Você está no ritmo do plano';
+  const PaceIcon = isAbovePace ? TrendingUp : TrendingDown;
 
   const saveBudget = async (event) => {
     event.preventDefault();
@@ -120,17 +141,72 @@ export default function BudgetPage() {
 
       <div className="budget-page-grid">
         <section className="budget-overview-card">
-          <span className="budget-overview-icon"><CircleDollarSign size={22} /></span>
-          <span className="budget-overview-label">Gasto neste mês</span>
-          <strong>{formatCurrency(monthSpend)}</strong>
-          <span className="budget-overview-caption">{budgetAmount ? `de ${formatCurrency(budgetAmount)} definidos` : 'Defina um limite mensal para acompanhar seu progresso.'}</span>
-          {budgetAmount > 0 && (
-            <div className="budget-meter budget-page-meter" role="progressbar" aria-label="Uso do orçamento mensal" aria-valuemin="0" aria-valuemax="100" aria-valuenow={Math.round(progress)} aria-valuetext={`${Math.round(progress)}% do orçamento utilizado`}>
-              <span className={progress >= 80 ? 'near-limit' : ''} style={{ width: `${progress}%` }} />
+          <div className="budget-overview-heading">
+            <span className="budget-overview-icon"><CircleDollarSign size={22} aria-hidden="true" /></span>
+            <div>
+              <span className="budget-overview-kicker">Seu mês em números</span>
+              <span className="budget-overview-label">Gasto acumulado</span>
+            </div>
+            <span className={`budget-pace-badge${isOverBudget ? ' over-budget' : isAbovePace ? ' above-pace' : ''}`}>
+              {budgetAmount ? <PaceIcon size={15} aria-hidden="true" /> : <Gauge size={15} aria-hidden="true" />}
+              {paceLabel}
+            </span>
+          </div>
+          <div className="budget-overview-values">
+            <div className="budget-overview-spent">
+              <strong>{formatCurrency(monthSpend)}</strong>
+              <span>gasto neste mês</span>
+            </div>
+            <div className="budget-overview-limit">
+              <span>Limite definido</span>
+              <strong>{budgetAmount ? formatCurrency(budgetAmount) : 'Ainda não definido'}</strong>
+            </div>
+          </div>
+          {budgetAmount > 0 && daysInMonth > 0 && (
+            <div className="budget-overview-progress">
+              <div
+                className="budget-meter budget-page-meter"
+                role="progressbar"
+                aria-label="Uso do orçamento mensal"
+                aria-valuemin="0"
+                aria-valuemax="100"
+                aria-valuenow={Math.round(progress)}
+                aria-valuetext={`${Math.round(progress)}% do limite utilizado. O ritmo proporcional do mês seria ${formatCurrency(expectedSpendToDate)}.`}
+                style={{ '--budget-pace-marker': `${Math.min(100, (daysElapsed / daysInMonth) * 100)}%` }}
+              >
+                <span className={progress >= 80 ? 'near-limit' : ''} style={{ width: `${progress}%` }} />
+              </div>
+              <div className="budget-overview-progress-labels"><span>Ritmo ideal até hoje</span><span>Limite mensal</span></div>
             </div>
           )}
-          {budgetAmount > 0 && <span className={`budget-remaining ${monthSpend > budgetAmount ? 'over-budget' : ''}`}>{monthSpend > budgetAmount ? `Você ultrapassou o limite em ${formatCurrency(monthSpend - budgetAmount)}.` : monthSpend === budgetAmount ? 'Você atingiu o limite mensal.' : `Restam ${formatCurrency(budgetAmount - monthSpend)} do seu orçamento.`}</span>}
-          {!budgetAmount && <p className="budget-first-use">Seu limite mensal ajuda a acompanhar o ritmo das compras. Você pode alterá-lo quando quiser.</p>}
+          {budgetAmount > 0 ? (
+            <div className={`budget-pace-insight${isOverBudget ? ' over-budget' : isAbovePace ? ' above-pace' : ''}`}>
+              <CalendarDays size={18} aria-hidden="true" />
+              <div>
+                <strong>{isOverBudget
+                  ? `Você passou ${formatCurrency(monthSpend - budgetAmount)} do limite.`
+                  : daysRemaining > 0
+                    ? `Restam ${formatCurrency(remainingBudget)} para ${daysRemaining} ${daysRemaining === 1 ? 'dia' : 'dias'}.`
+                    : `Saldo no fechamento: ${formatCurrency(remainingBudget)}.`}</strong>
+                <span>{daysRemaining > 0
+                  ? `Para fechar dentro do limite, use em média até ${formatCurrency(suggestedDailyLimit)} por dia.`
+                  : isOverBudget
+                    ? 'Ajuste seu próximo planejamento para começar o novo mês com clareza.'
+                    : 'Seu orçamento mensal está encerrando dentro do limite.'}</span>
+              </div>
+            </div>
+          ) : (
+            <div className="budget-pace-insight">
+              <Gauge size={18} aria-hidden="true" />
+              <div>
+                <strong>Defina um limite para acompanhar seu ritmo</strong>
+                <span>Seu gasto acumulado aparecerá aqui assim que você configurar um orçamento mensal.</span>
+              </div>
+            </div>
+          )}
+          {budgetAmount > 0 && today && <span className="budget-reference-note">
+            Referência proporcional até hoje: {formatCurrency(expectedSpendToDate)} de {formatCurrency(budgetAmount)}.
+          </span>}
         </section>
 
         <form className="budget-form-card" onSubmit={saveBudget}>
