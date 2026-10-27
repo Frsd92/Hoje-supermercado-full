@@ -1,11 +1,13 @@
 'use client';
 
 import { useEffect, useState } from 'react';
-import { CalendarDays, CircleDollarSign, Gauge, Save, TrendingDown, TrendingUp } from 'lucide-react';
+import { CalendarDays, Check, CircleDollarSign, Gauge, LoaderCircle, Save, TrendingDown, TrendingUp, WalletCards } from 'lucide-react';
 import { useSession } from 'next-auth/react';
 import { formatCurrency, getBudgetProgress, getCurrentMonthSpend } from '../budget';
 import { readLocalBudget, saveLocalBudget } from '../budget-storage';
 import AccountPageNav from '../account-page-nav';
+
+const budgetPresets = [300, 500, 800, 1000];
 
 export default function BudgetPage() {
   const { data: session, status } = useSession();
@@ -209,18 +211,39 @@ export default function BudgetPage() {
           </span>}
         </section>
 
-        <form className="budget-form-card" onSubmit={saveBudget}>
-          <span className="budget-form-step">Seu limite pessoal</span>
-          <h2>Limite mensal</h2>
-          <p>Este valor é pessoal e pode ser alterado sempre que você quiser.</p>
+        <form className="budget-form-card" onSubmit={saveBudget} aria-busy={saving}>
+          <div className="budget-form-heading">
+            <span className="budget-form-icon"><WalletCards size={21} aria-hidden="true" /></span>
+            <span className="budget-form-step">Seu limite pessoal</span>
+          </div>
+          <h2 id="budget-form-title">Planeje seu mês</h2>
+          <p>Escolha um valor confortável para suas compras. Você pode ajustá-lo quando quiser.</p>
+          <fieldset className="budget-presets" disabled={loading || saving} aria-label="Sugestões de limite mensal">
+            <legend>Comece com uma sugestão</legend>
+            <div className="budget-preset-options">
+              {budgetPresets.map((amount) => (
+                <button
+                  type="button"
+                  key={amount}
+                  className={Number(monthlyBudget) === amount ? 'selected' : ''}
+                  aria-pressed={Number(monthlyBudget) === amount}
+                  onClick={() => { setMonthlyBudget(String(amount)); setFeedback(''); }}
+                >
+                  {formatCurrency(amount)}
+                </button>
+              ))}
+            </div>
+          </fieldset>
           <label className="form-field" htmlFor="monthly-budget">
-            <span>Quanto deseja gastar por mês?</span>
-            <div className="budget-input-wrap"><span aria-hidden="true">R$</span><input id="monthly-budget" type="number" inputMode="decimal" min="0.01" max="100000000" step="0.01" value={monthlyBudget} onChange={(event) => setMonthlyBudget(event.target.value)} disabled={loading} placeholder="Ex.: 1500,00" required /></div>
+            <span>Ou defina outro valor</span>
+            <div className="budget-input-wrap"><span aria-hidden="true">R$</span><input id="monthly-budget" type="number" inputMode="decimal" min="0.01" max="100000000" step="0.01" value={monthlyBudget} onChange={(event) => { setMonthlyBudget(event.target.value); setFeedback(''); }} disabled={loading || saving} placeholder="Ex.: 1500" aria-describedby="budget-input-hint" required /></div>
+            <small id="budget-input-hint" className="budget-input-hint">O valor é mensal e pessoal. Seu gasto atual é de {formatCurrency(monthSpend)}.</small>
           </label>
-          <button className="primary-cta" type="submit" disabled={loading || saving}>
-            <Save size={16} /> {saving ? 'Salvando...' : 'Salvar orçamento'}
+          <button className="primary-cta budget-save-button" type="submit" disabled={loading || saving}>
+            {saving ? <LoaderCircle size={17} className="budget-save-spinner" aria-hidden="true" /> : feedback.startsWith('Orçamento salvo') ? <Check size={17} aria-hidden="true" /> : <Save size={17} aria-hidden="true" />}
+            {loading ? 'Carregando seu orçamento...' : saving ? 'Salvando seu limite...' : feedback.startsWith('Orçamento salvo') ? 'Orçamento atualizado' : 'Salvar meu limite'}
           </button>
-          {feedback && <p className={`profile-feedback ${feedback.startsWith('Não') || feedback.startsWith('Informe') ? 'error' : ''}`} role={feedback.startsWith('Não') || feedback.startsWith('Informe') ? 'alert' : 'status'} aria-live="polite">{feedback}</p>}
+          {feedback && <p className={`profile-feedback budget-form-feedback ${feedback.startsWith('Não') || feedback.startsWith('Informe') ? 'error' : ''}`} role={feedback.startsWith('Não') || feedback.startsWith('Informe') ? 'alert' : 'status'} aria-live="polite">{feedback}</p>}
         </form>
       </div>
     </div>

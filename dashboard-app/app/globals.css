@@ -6130,6 +6130,201 @@ button.metric-mini:focus-visible {
   margin-top: 8px;
 }
 
+.budget-form-card {
+  gap: 14px;
+  background:
+    radial-gradient(circle at 100% 0, rgba(240, 199, 93, .1), transparent 36%),
+    linear-gradient(145deg, #102a20, #101b17 72%);
+}
+
+.budget-form-heading {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+}
+
+.budget-form-icon {
+  display: grid;
+  width: 42px;
+  height: 42px;
+  place-items: center;
+  border: 1px solid rgba(134, 239, 172, .18);
+  border-radius: 13px;
+  color: #86efac;
+  background: rgba(34, 197, 94, .1);
+}
+
+.budget-form-step {
+  display: inline-flex;
+  align-items: center;
+  min-height: 28px;
+  padding: 5px 10px;
+  border: 1px solid rgba(134,239,172,.16);
+}
+
+.budget-form-card h2 {
+  font-size: clamp(1.35rem, 2.2vw, 1.65rem);
+  letter-spacing: -.025em;
+}
+
+.budget-form-card > p {
+  max-width: 420px;
+  margin: -7px 0 2px;
+  line-height: 1.55;
+}
+
+.budget-presets {
+  display: grid;
+  gap: 9px;
+  width: 100%;
+  min-width: 0;
+  margin: 0;
+  padding: 0;
+  border: 0;
+}
+
+.budget-presets legend {
+  margin-bottom: 9px;
+  color: #cbd5d1;
+  font-size: .71rem;
+  font-weight: 750;
+}
+
+.budget-preset-options {
+  display: grid;
+  grid-template-columns: repeat(4, minmax(0, 1fr));
+  gap: 8px;
+}
+
+.budget-preset-options button {
+  min-width: 0;
+  min-height: 40px;
+  padding: 7px 8px;
+  border: 1px solid rgba(226,232,240,.15);
+  border-radius: 10px;
+  color: #dbe7df;
+  background: rgba(255,255,255,.045);
+  cursor: pointer;
+  font: inherit;
+  font-size: .72rem;
+  font-variant-numeric: tabular-nums;
+  font-weight: 750;
+  transition: border-color .16s ease, color .16s ease, background-color .16s ease, transform .16s ease;
+}
+
+.budget-preset-options button:hover:not(:disabled) {
+  transform: translateY(-1px);
+  border-color: rgba(134,239,172,.48);
+  background: rgba(34,197,94,.1);
+}
+
+.budget-preset-options button.selected {
+  border-color: #86efac;
+  color: #d1fae5;
+  background: rgba(34,197,94,.16);
+  box-shadow: inset 0 0 0 1px rgba(134,239,172,.12);
+}
+
+.budget-preset-options button:focus-visible {
+  outline: 3px solid rgba(134,239,172,.45);
+  outline-offset: 2px;
+}
+
+.budget-preset-options button:disabled {
+  cursor: not-allowed;
+  opacity: .6;
+}
+
+.budget-form-card .form-field {
+  gap: 7px;
+}
+
+.budget-form-card .form-field > span {
+  font-size: .69rem;
+}
+
+.budget-input-wrap {
+  min-height: 52px;
+  border-color: rgba(148,163,184,.3);
+  box-shadow: 0 0 0 3px rgba(15,23,42,.06);
+  transition: border-color .16s ease, box-shadow .16s ease;
+}
+
+.budget-input-wrap:focus-within {
+  border-color: #4ade80;
+  box-shadow: 0 0 0 3px rgba(74,222,128,.16);
+}
+
+.budget-input-wrap input {
+  min-height: 50px;
+  font-size: 1rem;
+  font-variant-numeric: tabular-nums;
+}
+
+.budget-input-hint {
+  color: #a5b3aa;
+  font-size: .67rem;
+  line-height: 1.45;
+}
+
+.budget-form-card .budget-save-button {
+  display: flex;
+  width: 100%;
+  min-height: 48px;
+  justify-content: center;
+  margin-top: 2px;
+  border-radius: 12px;
+  font-size: .83rem;
+}
+
+.budget-save-button:focus-visible {
+  outline: 3px solid rgba(134,239,172,.48);
+  outline-offset: 3px;
+}
+
+.budget-save-button:disabled {
+  cursor: wait;
+  opacity: .78;
+}
+
+.budget-save-spinner {
+  animation: budget-save-spin 1s linear infinite;
+}
+
+@keyframes budget-save-spin {
+  to { transform: rotate(360deg); }
+}
+
+.budget-form-card .budget-form-feedback {
+  width: 100%;
+  margin: 0;
+  padding: 10px 12px;
+  border: 1px solid rgba(134,239,172,.2);
+  border-radius: 10px;
+  color: #bbf7d0;
+  background: rgba(34,197,94,.08);
+  font-size: .7rem;
+  line-height: 1.5;
+  overflow-wrap: anywhere;
+}
+
+.budget-form-card .budget-form-feedback.error {
+  border-color: rgba(252,165,165,.28);
+  color: #fecaca;
+  background: rgba(220,38,38,.1);
+}
+
+@media (max-width: 640px) {
+  .budget-form-card {
+    gap: 12px;
+    padding: 18px;
+  }
+
+  .budget-preset-options {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+  }
+}
+
 .profile-form-grid {
   display: grid;
   grid-template-columns: repeat(2, minmax(0, 1fr));
@@ -11298,5 +11493,92 @@ button.metric-mini:focus-visible {
 
   .dashboard-shell[data-dashboard-theme="light"] .recent-order-action {
     color: #187a3c;
+  }
+}
+
+.dashboard-shell[data-dashboard-theme="light"] .budget-page .budget-form-card {
+  border-color: #d7e5da;
+  background:
+    radial-gradient(circle at 100% 0, rgba(240, 199, 93, .12), transparent 36%),
+    linear-gradient(145deg, #fff, #f5f8f6 72%);
+}
+
+.dashboard-shell[data-dashboard-theme="light"] .budget-form-icon {
+  border-color: #d5e9d9;
+  color: #187a3c;
+  background: #eaf6ed;
+}
+
+.dashboard-shell[data-dashboard-theme="light"] .budget-form-step {
+  border-color: #d5e9d9;
+  color: #176b35;
+  background: #eef8f0;
+}
+
+.dashboard-shell[data-dashboard-theme="light"] .budget-presets legend {
+  color: #496257;
+}
+
+.dashboard-shell[data-dashboard-theme="light"] .budget-preset-options button {
+  border-color: #d8e2da;
+  color: #40564a;
+  background: #fff;
+}
+
+.dashboard-shell[data-dashboard-theme="light"] .budget-preset-options button:hover:not(:disabled) {
+  border-color: #83b894;
+  color: #176b35;
+  background: #f2f8f3;
+}
+
+.dashboard-shell[data-dashboard-theme="light"] .budget-preset-options button.selected {
+  border-color: #23834b;
+  color: #176b35;
+  background: #eaf6ed;
+  box-shadow: inset 0 0 0 1px rgba(35,131,75,.12);
+}
+
+.dashboard-shell[data-dashboard-theme="light"] .budget-preset-options button:focus-visible {
+  outline-color: rgba(35,131,75,.4);
+}
+
+.dashboard-shell[data-dashboard-theme="light"] .budget-input-wrap {
+  border-color: #d4dfd7;
+  background: #fff;
+  box-shadow: 0 0 0 3px rgba(23,63,49,.035);
+}
+
+.dashboard-shell[data-dashboard-theme="light"] .budget-input-wrap:focus-within {
+  border-color: #23834b;
+  box-shadow: 0 0 0 3px rgba(35,131,75,.13);
+}
+
+.dashboard-shell[data-dashboard-theme="light"] .budget-input-hint {
+  color: #64756c;
+}
+
+.dashboard-shell[data-dashboard-theme="light"] .budget-save-button:focus-visible {
+  outline-color: rgba(35,131,75,.38);
+}
+
+.dashboard-shell[data-dashboard-theme="light"] .budget-form-card .budget-form-feedback {
+  border-color: #cce4d2;
+  color: #176b35;
+  background: #f1f8f2;
+}
+
+.dashboard-shell[data-dashboard-theme="light"] .budget-form-card .budget-form-feedback.error {
+  border-color: #fecaca;
+  color: #8f211b;
+  background: #fff5f5;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .budget-save-spinner {
+    animation: none;
+  }
+
+  .budget-preset-options button {
+    transition: none;
   }
 }
