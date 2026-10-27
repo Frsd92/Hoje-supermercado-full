@@ -808,6 +808,18 @@
   margin-right: 8px;
   vertical-align: middle;
   box-shadow: 0 0 0 4px rgba(245, 197, 24, 0.18);
+  animation: checkout-dot-pulse 1.8s ease-in-out infinite;
+}
+
+@keyframes checkout-dot-pulse {
+  0%, 100% {
+    transform: scale(1);
+    box-shadow: 0 0 0 4px rgba(245, 197, 24, 0.18);
+  }
+  50% {
+    transform: scale(1.12);
+    box-shadow: 0 0 0 7px rgba(245, 197, 24, 0.08);
+  }
 }
 
 .btn-limpar {
@@ -4568,6 +4580,10 @@ body {
 }
 
 @media (prefers-reduced-motion: reduce) {
+  .btn-finalizar::before {
+    animation: none;
+  }
+
   .brands-track {
     animation: none;
     transform: none;
