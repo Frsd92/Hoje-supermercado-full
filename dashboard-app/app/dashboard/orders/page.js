@@ -1,6 +1,6 @@
 'use client';
 
-import { FileText, PackageOpen, Printer, Search, X } from 'lucide-react';
+import { Check, Copy, FileText, PackageOpen, Printer, Search, X } from 'lucide-react';
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { getOrderStatus, orderStages } from '../order-status';
 import { sortOrdersNewestFirst } from '@/lib/order-sort';
@@ -93,6 +93,7 @@ export default function OrdersPage() {
   const [serviceRequestBusy, setServiceRequestBusy] = useState(false);
   const [serviceRequestError, setServiceRequestError] = useState('');
   const [serviceRequestNotice, setServiceRequestNotice] = useState('');
+  const [orderCopyFeedback, setOrderCopyFeedback] = useState({});
   const [copiedPixOrderId, setCopiedPixOrderId] = useState('');
   const [pixCopyError, setPixCopyError] = useState('');
   const [checkingPaymentOrderId, setCheckingPaymentOrderId] = useState('');
@@ -182,6 +183,19 @@ export default function OrdersPage() {
       console.error('Não foi possível copiar o código Pix:', error);
       setCopiedPixOrderId('');
       setPixCopyError('Não foi possível copiar automaticamente. Selecione e copie o código Pix abaixo.');
+    }
+  };
+
+  const copyOrderId = async (order) => {
+    try {
+      await navigator.clipboard.writeText(String(order.id));
+      setOrderCopyFeedback((current) => ({ ...current, [order.id]: { copied: true, error: '' } }));
+    } catch (error) {
+      console.error('Não foi possível copiar o código do pedido:', error);
+      setOrderCopyFeedback((current) => ({
+        ...current,
+        [order.id]: { copied: false, error: 'Não foi possível copiar o código. Selecione-o manualmente.' },
+      }));
     }
   };
 
@@ -414,10 +428,24 @@ export default function OrdersPage() {
               return (
                 <div key={order.id} className={`table-row${order.status === 'Cancelado' ? ' cancelled-order-row' : ''}`} role="row">
                   <span className="customer-order-reference" role="cell">
-                    <strong title={order.id}>
-                      <span aria-hidden="true">{order.id.length > 21 ? `${order.id.slice(0, 14)}…${order.id.slice(-5)}` : order.id}</span>
-                      {order.id.length > 21 && <span className="sr-only">{order.id}</span>}
-                    </strong>
+                    <span className="customer-order-reference-heading">
+                      <strong title={order.id}>
+                        <span aria-hidden="true">{order.id.length > 21 ? `${order.id.slice(0, 14)}…${order.id.slice(-5)}` : order.id}</span>
+                        {order.id.length > 21 && <span className="sr-only">{order.id}</span>}
+                      </strong>
+                      <button
+                        type="button"
+                        className={`customer-order-copy-button${orderCopyFeedback[order.id]?.copied ? ' copied' : ''}`}
+                        aria-label={orderCopyFeedback[order.id]?.copied ? `Código do pedido ${order.id} copiado` : `Copiar código completo do pedido ${order.id}`}
+                        title={orderCopyFeedback[order.id]?.copied ? 'Código copiado' : 'Copiar código completo'}
+                        onClick={() => copyOrderId(order)}
+                      >
+                        {orderCopyFeedback[order.id]?.copied
+                          ? <><Check size={13} aria-hidden="true" /><span>Copiado</span></>
+                          : <Copy size={14} aria-hidden="true" />}
+                      </button>
+                    </span>
+                    {orderCopyFeedback[order.id]?.error && <small className="customer-order-copy-error" role="alert">{orderCopyFeedback[order.id].error}</small>}
                     <time className="customer-order-date" dateTime={order.createdAtIso || undefined}>
                       {formatOrderDate(order)}
                     </time>

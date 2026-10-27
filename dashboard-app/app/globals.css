@@ -3327,8 +3327,8 @@ body {
 
 .orders-showcase .table-head,
 .orders-showcase .table-row {
-  grid-template-columns: minmax(175px, 0.9fr) minmax(210px, 1.45fr) minmax(42px, 0.25fr) minmax(100px, 0.6fr);
-  gap: 12px;
+  grid-template-columns: minmax(190px, 1.15fr) minmax(180px, 1fr) minmax(52px, 0.3fr) minmax(125px, 0.6fr);
+  gap: 16px;
 }
 
 .orders-showcase .table-head {
@@ -3357,6 +3357,7 @@ body {
 
 .orders-showcase .cancelled-order-row {
   border-color: rgba(220, 38, 38, 0.16);
+  background: linear-gradient(110deg, rgba(255,255,255,0.98), rgba(255,249,249,0.96));
 }
 
 .orders-showcase .cancelled-order-row:hover {
@@ -3460,10 +3461,16 @@ body {
 }
 
 .customer-order-reference { display: grid; justify-items: start; gap: 8px; min-width: 0; }
+.customer-order-reference-heading { display: flex; align-items: center; gap: 5px; max-width: 100%; min-width: 0; }
 .customer-order-reference strong { max-width: 100%; overflow-wrap: anywhere; }
 .orders-showcase .customer-order-reference { gap: 5px; }
-.orders-showcase .customer-order-reference > strong { overflow-wrap: normal; white-space: nowrap; }
-.orders-showcase .customer-order-reference > strong [aria-hidden="true"] { font-variant-numeric: tabular-nums; }
+.orders-showcase .customer-order-reference-heading > strong { overflow-wrap: normal; white-space: nowrap; }
+.customer-order-copy-button { display: inline-flex; flex: 0 0 auto; align-items: center; justify-content: center; gap: 4px; min-width: 30px; min-height: 28px; padding: 4px 6px; border: 1px solid transparent; border-radius: 7px; color: #64756c; background: transparent; cursor: pointer; font: inherit; font-size: .61rem; font-weight: 800; }
+.customer-order-copy-button:hover, .customer-order-copy-button:focus-visible { border-color: #cbded0; color: #24583c; background: #f2f8f3; }
+.customer-order-copy-button:focus-visible { outline: 3px solid rgba(34,197,94,.3); outline-offset: 2px; }
+.customer-order-copy-button.copied { border-color: #bbf7d0; color: #166534; background: #f0fdf4; }
+.customer-order-copy-error { max-width: 220px; color: #991b1b; font-size: .62rem; line-height: 1.4; }
+.orders-showcase .customer-order-reference-heading > strong [aria-hidden="true"] { font-variant-numeric: tabular-nums; }
 .orders-toolbar { display: flex; align-items: center; gap: 8px; max-width: 520px; }
 .orders-search { display: flex; align-items: center; flex: 1 1 auto; gap: 9px; min-width: 0; min-height: 44px; padding: 0 12px; border: 1px solid rgba(23, 63, 49, 0.18); border-radius: 12px; color: #64756c; background: rgba(255,255,255,0.88); transition: border-color .16s ease, box-shadow .16s ease; }
 .orders-search:focus-within { border-color: #3b805e; box-shadow: 0 0 0 3px rgba(59,128,94,.14); }
