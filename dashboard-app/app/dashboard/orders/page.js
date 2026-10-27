@@ -1,6 +1,6 @@
 'use client';
 
-import { FileText, PackageOpen, Printer, X } from 'lucide-react';
+import { FileText, PackageOpen, Printer, Search, X } from 'lucide-react';
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { getOrderStatus, orderStages } from '../order-status';
 import { sortOrdersNewestFirst } from '@/lib/order-sort';
@@ -16,6 +16,7 @@ import {
 } from '@/features/orders/order-service-request-utils';
 
 const currencyFormatter = new Intl.NumberFormat('pt-BR', { style: 'currency', currency: 'BRL' });
+const orderDateFormatter = new Intl.DateTimeFormat('pt-BR', { dateStyle: 'medium' });
 const paymentStatusLabels = {
   pending: 'Aguardando pagamento',
   paid: 'Pago',
@@ -65,9 +66,18 @@ function getOrderActivitySummary(serviceRequests, refundRequests) {
   ];
 }
 
+function formatOrderDate(order) {
+  if (order.createdAtIso) {
+    const date = new Date(order.createdAtIso);
+    if (!Number.isNaN(date.getTime())) return orderDateFormatter.format(date);
+  }
+  return order.createdAt || 'Data não disponível';
+}
+
 export default function OrdersPage() {
   const [orders, setOrders] = useState([]);
   const [activeTab, setActiveTab] = useState('Todos');
+  const [searchTerm, setSearchTerm] = useState('');
   const [isLoading, setIsLoading] = useState(true);
   const [loadError, setLoadError] = useState('');
   const [refundSyncWarning, setRefundSyncWarning] = useState(false);
@@ -142,10 +152,18 @@ export default function OrdersPage() {
     if (serviceRequestOrder && dialog && !dialog.open) dialog.showModal();
   }, [serviceRequestOrder]);
 
-  const filteredOrders = useMemo(
-    () => sortOrdersNewestFirst(activeTab === 'Todos' ? orders : orders.filter((order) => order.status === activeTab)),
-    [activeTab, orders],
-  );
+  const orderCounts = useMemo(() => orders.reduce((counts, order) => {
+    counts.Todos += 1;
+    counts[order.status] = (counts[order.status] || 0) + 1;
+    return counts;
+  }, Object.fromEntries(tabs.map(({ value }) => [value, 0]))), [orders]);
+  const filteredOrders = useMemo(() => {
+    const normalizedSearch = searchTerm.trim().toLocaleLowerCase('pt-BR');
+    return sortOrdersNewestFirst(orders.filter((order) => (
+      (activeTab === 'Todos' || order.status === activeTab)
+      && (!normalizedSearch || String(order.id).toLocaleLowerCase('pt-BR').includes(normalizedSearch))
+    )));
+  }, [activeTab, orders, searchTerm]);
 
   const retryLoading = () => {
     setLoadError('');
@@ -283,7 +301,6 @@ export default function OrdersPage() {
         <button type="button" className="secondary-cta" onClick={() => setActiveTab('Todos')}>Ver todos os pedidos</button>
       </>
     );
-
   return (
     <div className="section-shell orders-showcase">
       <header className="section-header orders-header">
@@ -305,6 +322,22 @@ export default function OrdersPage() {
       {refundSyncWarning && <div className="dashboard-data-alert" role="status">Não foi possível confirmar alguns estornos com a Pagar.me agora. O status pode estar temporariamente desatualizado; tente atualizar a página em instantes.</div>}
       {serviceRequestNotice && <div className="customer-service-notice" role="status">{serviceRequestNotice}</div>}
 
+      <div className="orders-toolbar">
+        <label className="orders-search">
+          <Search size={17} aria-hidden="true" />
+          <input
+            type="search"
+            value={searchTerm}
+            onChange={(event) => setSearchTerm(event.target.value)}
+            placeholder="Buscar pelo número do pedido"
+            aria-label="Buscar pedido pelo número"
+          />
+        </label>
+        {searchTerm && <button type="button" className="orders-search-clear" aria-label="Limpar busca" onClick={() => setSearchTerm('')}>
+          <X size={16} aria-hidden="true" />
+        </button>}
+      </div>
+
       <div className="tab-row order-status-tabs" role="group" aria-label="Filtrar pedidos por status">
         {tabs.map(({ value, label }) => {
           const info = value === 'Todos' ? null : getOrderStatus(value);
@@ -314,14 +347,21 @@ export default function OrdersPage() {
               type="button"
               className={`${activeTab === value ? 'active' : ''} ${info ? `status-filter-${info.tone}` : 'all-filter'}`}
               aria-pressed={activeTab === value}
+              aria-label={`${label}, ${orderCounts[value]} ${orderCounts[value] === 1 ? 'pedido' : 'pedidos'}`}
               onClick={() => setActiveTab(value)}
             >
               {info && <span className="order-status-light" aria-hidden="true" />}
               {label}
+              <span className="order-filter-count" aria-hidden="true">{orderCounts[value]}</span>
             </button>
           );
         })}
       </div>
+      {!isLoading && !loadError && orders.length > 0 && <p className="orders-results-count" role="status" aria-live="polite">
+        {filteredOrders.length === orders.length
+          ? `${filteredOrders.length} ${filteredOrders.length === 1 ? 'pedido encontrado' : 'pedidos encontrados'}`
+          : `Mostrando ${filteredOrders.length} de ${orders.length} pedidos`}
+      </p>}
 
       {loadError && orders.length > 0 && (
         <div className="dashboard-data-alert" role="alert">
@@ -345,8 +385,15 @@ export default function OrdersPage() {
       ) : filteredOrders.length === 0 ? (
         <div className="empty-state">
           <div className="empty-state-box"><PackageOpen size={38} /></div>
-          <h3>{activeTab === 'Todos' ? 'Você ainda não tem pedidos' : 'Nenhum pedido neste status'}</h3>
-          {emptyState}
+          <h3>{orders.length === 0 ? 'Você ainda não tem pedidos' : searchTerm.trim() ? 'Nenhum pedido encontrado' : 'Nenhum pedido neste status'}</h3>
+          {orders.length === 0
+            ? emptyState
+            : searchTerm.trim()
+              ? <>
+                <p>Não encontramos pedidos com o código “{searchTerm.trim()}”.</p>
+                <button type="button" className="secondary-cta" onClick={() => { setSearchTerm(''); setActiveTab('Todos'); }}>Limpar busca e filtros</button>
+              </>
+              : emptyState}
         </div>
       ) : (
         <div className="orders-panel">
@@ -360,6 +407,7 @@ export default function OrdersPage() {
             {filteredOrders.map((order) => {
               const info = getOrderStatus(order.status);
               const currentStage = orderStages.indexOf(order.status);
+              const itemCount = order.items?.length || 0;
               const refundRequests = order.refundRequests || [];
               const serviceRequests = order.serviceRequests || [];
               const orderActivity = getOrderActivitySummary(serviceRequests, refundRequests);
@@ -370,6 +418,9 @@ export default function OrdersPage() {
                       <span aria-hidden="true">{order.id.length > 21 ? `${order.id.slice(0, 14)}…${order.id.slice(-5)}` : order.id}</span>
                       {order.id.length > 21 && <span className="sr-only">{order.id}</span>}
                     </strong>
+                    <time className="customer-order-date" dateTime={order.createdAtIso || undefined}>
+                      {formatOrderDate(order)}
+                    </time>
                     <button type="button" className="customer-order-receipt-link" aria-label={`Ver comprovante informativo do pedido ${order.id}`} aria-haspopup="dialog" onClick={() => setReceiptOrder(order)}>
                       <FileText size={14} aria-hidden="true" />Comprovante
                     </button>
@@ -444,8 +495,8 @@ export default function OrdersPage() {
                       })}
                     </span>}
                   </span>
-                  <span role="cell">{order.items?.length || 0}</span>
-                  <span role="cell">{order.total || 'R$ 0,00'}<small className="customer-order-payment-status">Pagamento: {paymentStatusLabels[order.paymentStatus] || order.paymentStatus || 'Não informado'}</small></span>
+                  <span role="cell" data-label="Itens">{itemCount}</span>
+                  <span role="cell" data-label="Total">{order.total || 'R$ 0,00'}<small className="customer-order-payment-status">Pagamento: {paymentStatusLabels[order.paymentStatus] || order.paymentStatus || 'Não informado'}</small></span>
                 </div>
               );
             })}
