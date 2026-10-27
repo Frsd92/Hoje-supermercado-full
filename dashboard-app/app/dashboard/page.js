@@ -11,6 +11,23 @@ import { getCartItemCount } from './cart-utils';
 import { syncFavoritesWithCatalog } from './favorite-utils';
 import { getOrderStatus } from './order-status';
 
+const recentOrderDateFormatter = new Intl.DateTimeFormat('pt-BR', {
+  day: '2-digit',
+  month: 'short',
+  year: 'numeric',
+});
+
+function getRecentOrderReference(id) {
+  const reference = String(id || '').trim();
+  return reference.length > 12 ? `${reference.slice(0, 4)}…${reference.slice(-6)}` : reference || 'Sem código';
+}
+
+function getRecentOrderDate(order) {
+  const value = order.createdAtIso || order.createdAt;
+  const date = value ? new Date(value) : null;
+  return date && !Number.isNaN(date.getTime()) ? recentOrderDateFormatter.format(date) : 'Data não disponível';
+}
+
 export default function DashboardHomePage() {
   const { data: session, status } = useSession();
   const router = useRouter();
@@ -275,8 +292,30 @@ export default function DashboardHomePage() {
           <div className="profile-detail-grid"><div><label>Localização</label><strong>{deliveryAddress?.city || deliveryAddress?.street || 'Sem endereço'}</strong></div><div><label>Entrega</label><strong>{deliveryAddress?.title || 'Não selecionada'}</strong></div><div><label>Orçamento mensal</label><strong>{profile.monthlyBudget ? formatCurrency(profile.monthlyBudget) : 'Não definido'}</strong></div></div>
         </div>
         <div className="panel-box">
-          <div className="panel-header compact"><h3>Últimos pedidos</h3><Link href="/dashboard/orders" className="dashboard-panel-link">Ver todos</Link></div>
-          {orders.length ? <ul className="mini-list">{orders.slice(0, 4).map((order) => { const info = getOrderStatus(order.status); return <li key={order.id}><span>{order.id}</span><strong className={`mini-order-status ${info.tone}`}><span className="order-status-light" />{info.label}</strong><em>{order.total}</em></li>; })}</ul> : <div className="dashboard-home-empty"><span>{dashboardLoading ? 'Carregando seus pedidos…' : dashboardError ? 'Pedidos indisponíveis no momento.' : 'Você ainda não fez um pedido.'}</span>{!dashboardLoading && !dashboardError && <a href="/">Escolher produtos</a>}</div>}
+          <div className="panel-header compact"><h3>Pedidos recentes</h3><Link href="/dashboard/orders" className="dashboard-panel-link">Ver todos</Link></div>
+          <p className="recent-orders-help">Confira a data, o andamento e o total de cada compra.</p>
+          {orders.length ? <ul className="recent-orders-list">{orders.slice(0, 4).map((order) => {
+            const info = getOrderStatus(order.status);
+            const itemCount = Array.isArray(order.items) ? order.items.length : 0;
+            return <li key={order.id}>
+              <Link
+                href="/dashboard/orders"
+                className="recent-order-card"
+                aria-label={`Acompanhar pedido ${order.id}, ${info.label}, total ${order.total}`}
+              >
+                <span className="recent-order-heading">
+                  <span className="recent-order-reference"><span>Pedido</span><strong title={order.id}>{getRecentOrderReference(order.id)}</strong></span>
+                  <time className="recent-order-date" dateTime={order.createdAtIso || undefined}>{getRecentOrderDate(order)}</time>
+                </span>
+                <span className="recent-order-details">
+                  <span className={`mini-order-status ${info.tone}`}><span className="order-status-light" />{info.label}</span>
+                  <span className="recent-order-item-count">{itemCount} {itemCount === 1 ? 'item' : 'itens'}</span>
+                  <span className="recent-order-total"><span>Total do pedido</span><strong>{order.total}</strong></span>
+                  <span className="recent-order-action">Acompanhar <ArrowRight size={14} aria-hidden="true" /></span>
+                </span>
+              </Link>
+            </li>;
+          })}</ul> : <div className="dashboard-home-empty"><span>{dashboardLoading ? 'Carregando seus pedidos…' : dashboardError ? 'Pedidos indisponíveis no momento.' : 'Você ainda não fez um pedido.'}</span>{!dashboardLoading && !dashboardError && <a href="/">Escolher produtos</a>}</div>}
         </div>
       </div>
 

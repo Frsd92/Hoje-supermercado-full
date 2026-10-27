@@ -10751,3 +10751,194 @@ button.metric-mini:focus-visible {
   .customer-order-history-details { border-top-color: #cbd5e1 !important; }
   .customer-history-report-footer { color: #475569 !important; }
 }
+
+.recent-orders-help {
+  margin: -8px 0 14px;
+  color: #a7b3bd;
+  font-size: 0.76rem;
+  line-height: 1.45;
+}
+
+.recent-orders-list {
+  display: grid;
+  gap: 9px;
+  margin: 0;
+  padding: 0;
+  list-style: none;
+}
+
+.recent-orders-list > li {
+  min-width: 0;
+}
+
+.recent-order-card {
+  display: grid;
+  gap: 12px;
+  min-width: 0;
+  padding: 12px 13px;
+  border: 1px solid rgba(148, 163, 184, 0.2);
+  border-radius: 14px;
+  background: rgba(255, 255, 255, 0.045);
+  color: #f1f5f9;
+  transition: background-color 160ms ease, border-color 160ms ease, transform 160ms ease;
+}
+
+.recent-order-card:hover {
+  transform: translateY(-1px);
+  border-color: rgba(134, 239, 172, 0.48);
+  background: rgba(255, 255, 255, 0.075);
+}
+
+.recent-order-card:focus-visible {
+  outline: 3px solid rgba(34, 197, 94, 0.58);
+  outline-offset: 3px;
+}
+
+.recent-order-heading,
+.recent-order-reference,
+.recent-order-details {
+  display: flex;
+  align-items: center;
+  min-width: 0;
+}
+
+.recent-order-heading {
+  justify-content: space-between;
+  gap: 8px;
+}
+
+.recent-order-reference {
+  gap: 6px;
+  flex-wrap: wrap;
+}
+
+.recent-order-reference > span,
+.recent-order-total > span {
+  color: #a7b3bd;
+  font-size: 0.7rem;
+}
+
+.recent-order-reference > strong {
+  color: #f8fafc;
+  font-size: 0.82rem;
+  letter-spacing: 0.02em;
+  white-space: nowrap;
+}
+
+.recent-order-date {
+  flex: 0 0 auto;
+  color: #a7b3bd;
+  font-size: 0.7rem;
+  white-space: nowrap;
+}
+
+.recent-order-details {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) auto;
+  gap: 7px 10px;
+}
+
+.recent-order-details .mini-order-status {
+  grid-column: 1;
+  grid-row: 1;
+  min-width: 0;
+  font-size: 0.76rem;
+}
+
+.recent-order-item-count {
+  grid-column: 1;
+  grid-row: 2;
+  color: #a7b3bd;
+  font-size: 0.7rem;
+}
+
+.recent-order-total {
+  grid-column: 2;
+  grid-row: 1;
+  display: grid;
+  justify-items: end;
+  align-content: start;
+  gap: 3px;
+  text-align: right;
+}
+
+.recent-order-total > strong {
+  color: #f8fafc;
+  font-size: 0.94rem;
+  white-space: nowrap;
+}
+
+.recent-order-action {
+  grid-column: 2;
+  grid-row: 2;
+  display: inline-flex;
+  align-items: center;
+  justify-self: end;
+  gap: 4px;
+  color: #86efac;
+  font-size: 0.7rem;
+  font-weight: 800;
+  white-space: nowrap;
+}
+
+.dashboard-shell[data-dashboard-theme="light"] .recent-orders-help,
+.dashboard-shell[data-dashboard-theme="light"] .recent-order-reference > span,
+.dashboard-shell[data-dashboard-theme="light"] .recent-order-date,
+.dashboard-shell[data-dashboard-theme="light"] .recent-order-item-count,
+.dashboard-shell[data-dashboard-theme="light"] .recent-order-total > span {
+  color: #718177;
+}
+
+.dashboard-shell[data-dashboard-theme="light"] .recent-order-card {
+  border-color: rgba(23, 63, 49, 0.12);
+  background: #f5f9f6;
+  color: #24372d;
+}
+
+.dashboard-shell[data-dashboard-theme="light"] .recent-order-card:hover {
+  border-color: rgba(23, 122, 60, 0.35);
+  background: #eef7f0;
+}
+
+.dashboard-shell[data-dashboard-theme="light"] .recent-order-reference > strong,
+.dashboard-shell[data-dashboard-theme="light"] .recent-order-total > strong {
+  color: #24372d;
+}
+
+.dashboard-shell[data-dashboard-theme="dark"] .recent-order-details .mini-order-status.received { color: #b3e5fc; }
+.dashboard-shell[data-dashboard-theme="dark"] .recent-order-details .mini-order-status.separating { color: #ffe082; }
+.dashboard-shell[data-dashboard-theme="dark"] .recent-order-details .mini-order-status.shipping { color: #ffb74d; }
+.dashboard-shell[data-dashboard-theme="dark"] .recent-order-details .mini-order-status.transit { color: #90caf9; }
+.dashboard-shell[data-dashboard-theme="dark"] .recent-order-details .mini-order-status.completed { color: #86efac; }
+.dashboard-shell[data-dashboard-theme="dark"] .recent-order-details .mini-order-status.cancelled,
+.dashboard-shell[data-dashboard-theme="dark"] .recent-order-details .mini-order-status.unknown { color: #cbd5e1; }
+
+@media (max-width: 480px) {
+  .recent-orders-help {
+    margin-top: -9px;
+    font-size: 0.72rem;
+  }
+
+  .recent-order-card {
+    gap: 10px;
+    padding: 11px;
+  }
+
+  .recent-order-heading {
+    align-items: flex-start;
+    flex-direction: column;
+    gap: 3px;
+  }
+
+  .recent-order-date {
+    font-size: 0.68rem;
+  }
+
+  .recent-order-action {
+    font-size: 0.68rem;
+  }
+
+  .dashboard-shell[data-dashboard-theme="light"] .recent-order-action {
+    color: #187a3c;
+  }
+}
