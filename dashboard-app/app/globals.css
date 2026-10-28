@@ -8872,6 +8872,8 @@ button.metric-mini:focus-visible {
 .financial-record-summary article { display: grid; gap: 5px; min-width: 0; padding: 11px; border: 1px solid #e1e8e3; border-radius: 10px; background: #fafcfb; }
 .financial-record-summary article span, .financial-record-summary article small { color: #6d7b71; font-size: .66rem; line-height: 1.4; }
 .financial-record-summary article strong { overflow-wrap: anywhere; color: #1e3428; font-size: 1.05rem; font-variant-numeric: tabular-nums; }
+.financial-expense-ledger { margin-bottom: 16px; }
+.financial-expense-ledger .financial-section-heading h3 { margin: 3px 0 0; color: #263a2d; font-size: 1rem; letter-spacing: -.01em; }
 .company-subscriptions { display: grid; gap: 12px; margin: 0 0 16px; padding: 16px; border: 1px solid #dfe9e1; border-radius: 12px; background: linear-gradient(145deg, #fff, #f7fbf8); }
 .company-subscriptions-heading { display: flex; align-items: flex-start; justify-content: space-between; gap: 12px; }
 .company-subscriptions-heading h3 { margin: 3px 0 5px; color: #24432e; font-size: 1rem; }

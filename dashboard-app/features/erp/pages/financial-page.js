@@ -586,6 +586,57 @@ function FinancialRecords({ ledger, onSaved }) {
       <article><span>Próximos 7 dias</span><strong>{ledger.dueSummary.dueNextSevenDays}</strong><small>Contagem baseada na data de vencimento</small></article>
     </div>
 
+    <section className="financial-expense-ledger" aria-labelledby="financial-expense-ledger-title">
+      <div className="financial-section-heading">
+        <div>
+          <span className="eyebrow">Acompanhe pagamentos e vencimentos</span>
+          <h3 id="financial-expense-ledger-title">Lançamentos de despesas</h3>
+        </div>
+        <span className="company-subscriptions-count">{ledger.expenses.length} lançamento(s)</span>
+      </div>
+      <div className="financial-record-table-wrap" role="region" aria-label="Despesas registradas e seus vencimentos" tabIndex={0}>
+        <table>
+          <caption>Todos os lançamentos exibidos, incluindo despesas recorrentes e avulsas; vencimentos mostram dias restantes ou de atraso</caption>
+          <thead><tr><th scope="col">Despesa / conta</th><th scope="col">Competência</th><th scope="col">Valor</th><th scope="col">Vencimento</th><th scope="col">Situação</th><th scope="col">Ação</th></tr></thead>
+          <tbody>{ledger.expenses.map((expense) => {
+            const days = daysUntil(expense.dueAt);
+            const countdown = days === null ? 'Sem vencimento cadastrado'
+              : days < 0 ? `Vencida há ${Math.abs(days)} dia(s)`
+                : days === 0 ? 'Vence hoje' : `Vence em ${days} dia(s)`;
+            return <tr key={expense.id}>
+              <th scope="row">
+                {expense.description}
+                <small>{expense.category?.code} · {expense.category?.name}</small>
+                {(expense.provider || expense.serviceSubscription?.provider || expense.plan || expense.serviceSubscription?.plan || expense.accountEmail || expense.serviceSubscription?.accountEmail || expense.managementUrl || expense.serviceSubscription?.managementUrl || expense.paymentMethod || expense.serviceSubscription?.paymentMethod) && <details className="financial-expense-details">
+                  <summary>Dados da despesa</summary>
+                  <span>Fornecedor: {expense.provider || expense.serviceSubscription?.provider || 'Não informado'}</span>
+                  {(expense.plan || expense.serviceSubscription?.plan) && <span>Plano/identificação: {expense.plan || expense.serviceSubscription.plan}</span>}
+                  {(expense.accountEmail || expense.serviceSubscription?.accountEmail) && <span>E-mail/identificação: {expense.accountEmail || expense.serviceSubscription.accountEmail}</span>}
+                  {(expense.paymentMethod || expense.serviceSubscription?.paymentMethod) && <span>Forma de pagamento: {expense.paymentMethod || expense.serviceSubscription.paymentMethod}</span>}
+                  {(expense.managementUrl || expense.serviceSubscription?.managementUrl) && <a href={expense.managementUrl || expense.serviceSubscription.managementUrl} target="_blank" rel="noreferrer">Abrir link de gestão</a>}
+                </details>}
+                {expense.serviceSubscription && <small>Conta recorrente · {expense.serviceSubscription.provider}{expense.serviceSubscription.billingCycle !== 'ONCE' ? ' · recorrente' : ''}</small>}
+              </th>
+              <td>{formatDateOnly(expense.competenceAt)}</td>
+              <td>{money(expense.amount)}</td>
+              <td>{expense.dueAt ? <>{formatDateOnly(expense.dueAt)}<small>{countdown}</small></> : countdown}</td>
+              <td>{expense.status === 'Paga' ? `Paga${expense.financialAccount?.name ? ` · ${expense.financialAccount.name}` : ''}` : expense.status}</td>
+              <td>{expense.status === 'Em aberto' ? <div className="financial-record-actions">
+                <label className="visually-hidden" htmlFor={`expense-account-${expense.id}`}>Conta usada no pagamento de {expense.description}</label>
+                <select id={`expense-account-${expense.id}`} value={selectedAccounts[expense.id] || ''} onChange={(event) => setSelectedAccounts({ ...selectedAccounts, [expense.id]: event.target.value })}>
+                  <option value="">Conta do pagamento</option>
+                  {activeFinancialAccounts.map((account) => <option key={account.id} value={account.id}>{account.name}</option>)}
+                </select>
+                <button type="button" onClick={() => updateExpense(expense, 'pay')} disabled={processingExpense === expense.id || !activeFinancialAccounts.length}>Marcar paga</button>
+                <button type="button" className="danger" onClick={() => updateExpense(expense, 'cancel')} disabled={processingExpense === expense.id}>Cancelar</button>
+              </div> : <span>—</span>}</td>
+            </tr>;
+          })}</tbody>
+        </table>
+        {!ledger.expenses.length && <EmptyState>Nenhuma despesa foi lançada. Cadastre uma despesa para iniciar o controle.</EmptyState>}
+      </div>
+    </section>
+
     <section className="company-subscriptions" aria-labelledby="company-subscriptions-title">
       <div className="company-subscriptions-heading">
         <div>
@@ -764,47 +815,6 @@ function FinancialRecords({ ledger, onSaved }) {
       {!ledger.automaticChartActivity.entries.length && <EmptyState>Ainda não há vendas ou estornos confirmados para registrar automaticamente.</EmptyState>}
     </div>}
 
-    <div className="financial-record-table-wrap" role="region" aria-label="Despesas registradas e seus vencimentos" tabIndex={0}>
-      <table>
-        <caption>Despesas gerenciais registradas; vencimentos exibem dias corridos restantes ou de atraso</caption>
-        <thead><tr><th scope="col">Despesa / conta</th><th scope="col">Competência</th><th scope="col">Valor</th><th scope="col">Vencimento</th><th scope="col">Situação</th><th scope="col">Ação</th></tr></thead>
-        <tbody>{ledger.expenses.map((expense) => {
-          const days = daysUntil(expense.dueAt);
-          const countdown = days === null ? 'Sem vencimento cadastrado'
-            : days < 0 ? `Vencida há ${Math.abs(days)} dia(s)`
-              : days === 0 ? 'Vence hoje' : `Vence em ${days} dia(s)`;
-          return <tr key={expense.id}>
-            <th scope="row">
-              {expense.description}
-              <small>{expense.category?.code} · {expense.category?.name}</small>
-              {(expense.provider || expense.serviceSubscription?.provider || expense.plan || expense.serviceSubscription?.plan || expense.accountEmail || expense.serviceSubscription?.accountEmail || expense.managementUrl || expense.serviceSubscription?.managementUrl || expense.paymentMethod || expense.serviceSubscription?.paymentMethod) && <details className="financial-expense-details">
-                <summary>Dados da despesa</summary>
-                <span>Fornecedor: {expense.provider || expense.serviceSubscription?.provider || 'Não informado'}</span>
-                {(expense.plan || expense.serviceSubscription?.plan) && <span>Plano/identificação: {expense.plan || expense.serviceSubscription.plan}</span>}
-                {(expense.accountEmail || expense.serviceSubscription?.accountEmail) && <span>E-mail/identificação: {expense.accountEmail || expense.serviceSubscription.accountEmail}</span>}
-                {(expense.paymentMethod || expense.serviceSubscription?.paymentMethod) && <span>Forma de pagamento: {expense.paymentMethod || expense.serviceSubscription.paymentMethod}</span>}
-                {(expense.managementUrl || expense.serviceSubscription?.managementUrl) && <a href={expense.managementUrl || expense.serviceSubscription.managementUrl} target="_blank" rel="noreferrer">Abrir link de gestão</a>}
-              </details>}
-              {expense.serviceSubscription && <small>Conta recorrente · {expense.serviceSubscription.provider}{expense.serviceSubscription.billingCycle !== 'ONCE' ? ' · recorrente' : ''}</small>}
-            </th>
-            <td>{formatDateOnly(expense.competenceAt)}</td>
-            <td>{money(expense.amount)}</td>
-            <td>{expense.dueAt ? <>{formatDateOnly(expense.dueAt)}<small>{countdown}</small></> : countdown}</td>
-            <td>{expense.status === 'Paga' ? `Paga${expense.financialAccount?.name ? ` · ${expense.financialAccount.name}` : ''}` : expense.status}</td>
-            <td>{expense.status === 'Em aberto' ? <div className="financial-record-actions">
-              <label className="visually-hidden" htmlFor={`expense-account-${expense.id}`}>Conta usada no pagamento de {expense.description}</label>
-              <select id={`expense-account-${expense.id}`} value={selectedAccounts[expense.id] || ''} onChange={(event) => setSelectedAccounts({ ...selectedAccounts, [expense.id]: event.target.value })}>
-                <option value="">Conta do pagamento</option>
-                {activeFinancialAccounts.map((account) => <option key={account.id} value={account.id}>{account.name}</option>)}
-              </select>
-              <button type="button" onClick={() => updateExpense(expense, 'pay')} disabled={processingExpense === expense.id || !activeFinancialAccounts.length}>Marcar paga</button>
-              <button type="button" className="danger" onClick={() => updateExpense(expense, 'cancel')} disabled={processingExpense === expense.id}>Cancelar</button>
-            </div> : <span>—</span>}</td>
-          </tr>;
-        })}</tbody>
-      </table>
-      {!ledger.expenses.length && <EmptyState>Nenhuma despesa foi lançada. Cadastre uma despesa para iniciar o controle.</EmptyState>}
-    </div>
   </section>;
 }
 
