@@ -5,6 +5,7 @@ import { usePathname } from 'next/navigation';
 import { ArrowDownToLine, Banknote, CalendarDays, CircleDollarSign, PackageSearch, Pause, Pencil, Play, Printer, RefreshCw, ShoppingBag, Tag, TicketPercent, TrendingDown, TrendingUp, X } from 'lucide-react';
 import { useEffect, useState } from 'react';
 import { parseChartAccountsCsv } from '@/features/erp/api/financial-csv';
+import { buildSalesCashFlowEntries } from '@/features/erp/api/sales-cash-flow';
 
 const currencyFormatter = new Intl.NumberFormat('pt-BR', { style: 'currency', currency: 'BRL' });
 const financialScreenLabels = {
@@ -340,20 +341,7 @@ function CashFlowLedger({ ledger, onSaved }) {
     && account.nature === 'EXPENSE'
     && !ledger.chartAccounts.some((child) => child.active && child.code.startsWith(`${account.code}.`)));
   const entries = [
-    ...sales.map((sale) => ({
-      id: `sale-${sale.id}`,
-      reference: `VEN-${String(sale.id).slice(-8)}`,
-      date: sale.createdAt,
-      description: sale.customerName ? `Venda · ${sale.customerName}` : `Venda · ${sale.id}`,
-      category: 'Vendas',
-      type: 'Entrada',
-      status: sale.paymentStatus === 'paid' ? 'Pago'
-        : sale.paymentStatus === 'failed' ? 'Recusado'
-          : ['canceled', 'refunded'].includes(sale.paymentStatus) ? 'Cancelado'
-            : sale.paymentStatus === 'partially_refunded' ? 'Estorno parcial' : 'Pendente',
-      amount: Number(sale.total) || 0,
-      direction: 'entry',
-    })),
+    ...buildSalesCashFlowEntries(sales),
     ...ledger.expenses.map((expense) => ({
       id: `expense-${expense.id}`,
       expense,
@@ -369,7 +357,8 @@ function CashFlowLedger({ ledger, onSaved }) {
   ].sort((left, right) => String(right.date || '').localeCompare(String(left.date || '')));
   const filteredEntries = entries.filter((entry) => filter === 'all'
     || (filter === 'pending' && entry.status === 'Pendente')
-    || (filter === 'paid' && entry.status === 'Pago'));
+    || (filter === 'paid' && entry.status === 'Pago')
+    || (filter === 'refunds' && entry.category === 'Estornos de vendas'));
 
   const beginEdit = (expense) => {
     const subscription = expense.serviceSubscription
@@ -467,12 +456,12 @@ function CashFlowLedger({ ledger, onSaved }) {
       <div><span className="eyebrow">Entradas de vendas e saídas cadastradas</span><h2 id="cash-flow-ledger-title">Extrato consolidado de caixa</h2></div>
       <div className="cash-flow-ledger-actions">
         <select aria-label="Filtrar lançamentos do caixa" value={filter} onChange={(event) => setFilter(event.target.value)}>
-          <option value="all">Todos os lançamentos</option><option value="pending">Pendentes</option><option value="paid">Pagos</option>
+          <option value="all">Todos os lançamentos</option><option value="pending">Pendentes</option><option value="paid">Pagos</option><option value="refunds">Estornos</option>
         </select>
         <button type="button" onClick={exportCsv} disabled={!filteredEntries.length}><ArrowDownToLine size={14} aria-hidden="true" />Exportar CSV</button>
       </div>
     </div>
-    <p className="financial-explainer">Entradas refletem o status de pagamento dos pedidos e saídas vêm das despesas cadastradas. Este extrato operacional não substitui conciliação bancária.</p>
+    <p className="financial-explainer">Entradas exibem pagamentos confirmados; estornos confirmados aparecem como saídas. Despesas cadastradas também aparecem neste extrato operacional, que não substitui a conciliação bancária.</p>
     {notice && <p className="financial-record-message" role="status">{notice}</p>}
     {loadError && <p className="financial-record-message error" role="alert">{loadError}<button type="button" onClick={() => setRefreshToken((value) => value + 1)}>Tentar novamente</button></p>}
     {loadingSales && <p className="financial-loading" role="status">Carregando entradas de vendas…</p>}

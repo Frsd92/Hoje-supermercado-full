@@ -8930,9 +8930,17 @@ button.metric-mini:focus-visible {
 .sales-page-summary article span, .sales-page-summary article small { color: var(--erp-muted); font-size: .7rem; line-height: 1.4; }
 .sales-page-summary article strong { color: var(--erp-text); font-size: 1.15rem; overflow-wrap: anywhere; font-variant-numeric: tabular-nums; }
 .sales-page-panel { min-width: 0; }
-.sales-page-toolbar { display: flex; justify-content: space-between; gap: 10px; margin-bottom: 12px; }
+.sales-page-toolbar { display: flex; align-items: flex-start; justify-content: space-between; gap: 10px; margin-bottom: 12px; }
 .sales-page-toolbar > label { display: flex; align-items: center; gap: 7px; width: min(420px, 100%); min-height: 38px; padding: 0 10px; border: 1px solid #d5e0d8; border-radius: 8px; color: #718177; background: #fff; }
 .sales-page-toolbar input { width: 100%; min-width: 0; border: 0; outline: 0; color: #25382b; font: inherit; font-size: .74rem; }
+.sales-page-filter-controls { display: flex; flex-wrap: wrap; align-items: center; justify-content: flex-end; gap: 8px; }
+.sales-page-toolbar .sales-page-filter-controls > select { min-height: 38px; }
+.sales-page-date-filter { display: flex; flex-wrap: wrap; align-items: center; gap: 6px; color: #718177; font-size: .68rem; }
+.sales-page-date-filter label { display: flex; align-items: center; gap: 5px; color: #526357; font-weight: 700; }
+.sales-page-date-filter input { width: 132px; min-height: 38px; padding: 6px 8px; border: 1px solid #d5e0d8; border-radius: 8px; background: #fff; color: #31503a; font: inherit; font-size: .7rem; }
+.sales-page-date-filter input:focus-visible, .sales-page-filter-controls select:focus-visible, .sales-page-clear-date:focus-visible { outline: 3px solid rgba(47,118,86,.28); outline-offset: 2px; }
+.sales-page-clear-date { min-height: 34px; padding: 5px 8px; border: 1px solid #d5e0d8; border-radius: 8px; background: #fff; color: #31503a; cursor: pointer; font: inherit; font-size: .67rem; font-weight: 700; }
+.sales-page-clear-date:hover { background: #f0f7f1; }
 .sales-page-table-wrap table { min-width: 760px; }
 .sales-page-table-wrap tbody th a { display: inline-flex; align-items: center; gap: 6px; color: #23613c; font-weight: 750; text-decoration: none; }
 .sales-page-table-wrap tbody th a:hover { text-decoration: underline; }
@@ -9029,7 +9037,12 @@ button.metric-mini:focus-visible {
   .sales-page-actions button, .sales-page-actions a { flex: 1 1 130px; }
   .sales-page-summary { grid-template-columns: minmax(0, 1fr); }
   .sales-page-toolbar { flex-direction: column; }
-  .sales-page-toolbar > label, .sales-page-toolbar select { width: 100%; }
+  .sales-page-toolbar > label, .sales-page-filter-controls, .sales-page-filter-controls > select { width: 100%; }
+  .sales-page-filter-controls { justify-content: stretch; }
+  .sales-page-date-filter { width: 100%; align-items: flex-end; }
+  .sales-page-date-filter label { flex: 1 1 125px; align-items: flex-start; flex-direction: column; }
+  .sales-page-date-filter input { width: 100%; }
+  .sales-page-clear-date { flex: 1 1 100%; }
   .financial-section-nav { position: static; }
   .financial-section-nav a { flex: 1 1 145px; justify-content: center; text-align: center; }
   .financial-pillar-disclosure > summary, .financial-records-disclosure > summary, .financial-analysis-disclosure > summary, .financial-indicators-disclosure > summary { align-items: flex-start; flex-wrap: wrap; }

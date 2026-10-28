@@ -29,15 +29,53 @@ export async function GET() {
         paymentMethod: true,
         paymentStatus: true,
         total: true,
+        refundedAmount: true,
         status: true,
+        updatedAt: true,
+        refundRequests: {
+          where: { status: 'completed' },
+          orderBy: { updatedAt: 'asc' },
+          select: {
+            id: true,
+            amount: true,
+            events: {
+              where: { action: 'completed' },
+              orderBy: { createdAt: 'desc' },
+              take: 1,
+              select: { createdAt: true },
+            },
+          },
+        },
+        paymentEvents: {
+          where: { eventType: 'charge.refunded' },
+          orderBy: { receivedAt: 'desc' },
+          take: 1,
+          select: { receivedAt: true },
+        },
       },
     });
     return Response.json({
-      sales: orders.map((order) => ({
-        ...order,
-        createdAt: order.createdAt.toISOString(),
-        total: parseOrderTotal(order.total),
-      })),
+      sales: orders.map((order) => {
+        const createdAt = order.createdAt.toISOString();
+        return {
+          id: order.id,
+          customerName: order.customerName,
+          createdAt,
+          paymentMethod: order.paymentMethod,
+          paymentStatus: order.paymentStatus,
+          status: order.status,
+          total: parseOrderTotal(order.total),
+          refundedAmount: parseOrderTotal(order.refundedAmount),
+          refundDate: order.paymentEvents[0]?.receivedAt?.toISOString()
+            || order.updatedAt?.toISOString()
+            || createdAt,
+          refunds: order.refundRequests.map((refund) => ({
+            id: refund.id,
+            amount: parseOrderTotal(refund.amount),
+            date: refund.events[0]?.createdAt?.toISOString() || order.updatedAt.toISOString(),
+          })),
+        };
+      }),
     }, { headers });
   } catch (error) {
     console.error('Não foi possível carregar as vendas do ERP:', error);
