@@ -280,8 +280,111 @@ export async function PATCH(request) {
   const body = await readBody(request);
   const expenseId = String(body?.expenseId || '').trim();
   const action = String(body?.action || '');
-  if (!expenseId || !['pay', 'cancel'].includes(action)) {
+  if (!expenseId || !['pay', 'cancel', 'update'].includes(action)) {
     return Response.json({ error: 'Informe uma despesa e uma ação válida.' }, { status: 400, headers });
+  }
+
+  if (action === 'update') {
+    const description = String(body.description || '').trim();
+    const amount = parseMoney(body.amount);
+    const competenceAt = dateOnly(body.competenceAt);
+    const dueAt = dateOnly(body.dueAt, true);
+    const categoryId = String(body.categoryId || '').trim();
+    const notes = String(body.notes || '').trim() || null;
+    const provider = String(body.provider || '').trim() || null;
+    const plan = String(body.plan || '').trim() || null;
+    const accountEmail = String(body.accountEmail || '').trim() || null;
+    const managementUrl = String(body.managementUrl || '').trim() || null;
+    const paymentMethod = String(body.paymentMethod || '').trim() || null;
+    if (!description || description.length > 180 || amount === null || amount <= 0
+      || competenceAt === undefined || dueAt === undefined || !categoryId || (notes && notes.length > 1000)
+      || (provider && provider.length > 80) || (plan && plan.length > 100)
+      || (accountEmail && (accountEmail.length > 254 || !/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(accountEmail)))
+      || (managementUrl && managementUrl.length > 500) || (paymentMethod && paymentMethod.length > 80)) {
+      return Response.json({ error: 'Confira descrição, valor, datas, categoria e dados opcionais da despesa.' }, { status: 400, headers });
+    }
+    if (managementUrl) {
+      try {
+        const url = new URL(managementUrl);
+        if (!['http:', 'https:'].includes(url.protocol)) {
+          return Response.json({ error: 'O link de gestão deve começar com http:// ou https://.' }, { status: 400, headers });
+        }
+      } catch {
+        return Response.json({ error: 'Informe um link de gestão válido.' }, { status: 400, headers });
+      }
+    }
+
+    const actor = erpActorLabel(session.user);
+    try {
+      const result = await prisma.$transaction(async (transaction) => {
+        const category = await transaction.financialChartAccount.findFirst({
+          where: { id: categoryId, nature: 'EXPENSE', active: true },
+          select: { id: true, code: true },
+        });
+        if (!category) return { invalidCategory: true };
+        const childAccount = await transaction.financialChartAccount.findFirst({
+          where: { active: true, code: { startsWith: `${category.code}.` } },
+          select: { id: true },
+        });
+        if (childAccount) return { invalidCategory: true };
+
+        const current = await transaction.companyExpense.findUnique({
+          where: { id: expenseId },
+          select: { id: true, status: true, serviceSubscriptionId: true },
+        });
+        if (!current) return { notFound: true };
+        if (current.status !== 'Em aberto' || current.serviceSubscriptionId) return { conflict: true };
+        const changed = await transaction.companyExpense.updateMany({
+          where: { id: expenseId, status: 'Em aberto', serviceSubscriptionId: null },
+          data: {
+            description,
+            amount,
+            competenceAt,
+            dueAt,
+            categoryId,
+            notes,
+            provider,
+            plan,
+            accountEmail,
+            managementUrl,
+            paymentMethod,
+          },
+        });
+        if (changed.count !== 1) return { conflict: true };
+        const expense = await transaction.companyExpense.findUnique({
+          where: { id: expenseId },
+          include: { category: { select: { id: true, code: true, name: true, expenseBehavior: true } } },
+        });
+        await transaction.companyExpenseAuditLog.create({
+          data: {
+            expenseId,
+            action: 'UPDATED',
+            actor,
+            snapshot: {
+              description: expense.description,
+              amount: expense.amount.toString(),
+              competenceAt: expense.competenceAt.toISOString(),
+              dueAt: expense.dueAt?.toISOString() || null,
+              categoryId: expense.categoryId,
+              notes: expense.notes,
+              provider: expense.provider,
+              plan: expense.plan,
+              accountEmail: expense.accountEmail,
+              managementUrl: expense.managementUrl,
+              paymentMethod: expense.paymentMethod,
+            },
+          },
+        });
+        return { expense };
+      });
+      if (result.notFound) return Response.json({ error: 'Despesa não encontrada.' }, { status: 404, headers });
+      if (result.invalidCategory) return Response.json({ error: 'Selecione uma categoria analítica ativa do plano de despesas.' }, { status: 400, headers });
+      if (result.conflict) return Response.json({ error: 'Somente despesas avulsas em aberto podem ser editadas. Contas recorrentes são editadas na seção de assinaturas.' }, { status: 409, headers });
+      return Response.json({ expense: result.expense }, { headers });
+    } catch (error) {
+      console.error('Não foi possível editar a despesa:', error);
+      return Response.json({ error: 'Não foi possível editar a despesa.' }, { status: 503, headers });
+    }
   }
 
   const financialAccountId = action === 'pay' ? String(body.financialAccountId || '').trim() : '';

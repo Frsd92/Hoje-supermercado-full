@@ -2,7 +2,7 @@
 
 import Link from 'next/link';
 import { usePathname } from 'next/navigation';
-import { Activity, Award, BarChart3, Bell, CalendarDays, ChevronDown, CircleDollarSign, ClipboardList, FileText, History, LayoutDashboard, LayoutTemplate, MapPin, Package, PlugZap, Plus, ReceiptText, ShoppingCart, TicketPercent, TrendingUp, Truck, Users, Zap } from 'lucide-react';
+import { Activity, Award, BarChart3, Bell, CalendarDays, ChevronDown, CircleDollarSign, ClipboardList, FileText, History, LayoutDashboard, LayoutTemplate, MapPin, Package, PlugZap, Plus, ReceiptText, ShoppingBag, ShoppingCart, TicketPercent, TrendingUp, Truck, Users, Zap } from 'lucide-react';
 import { useEffect, useState } from 'react';
 import { getErpActionCountsFromSummary } from '../action-notifications.js';
 
@@ -14,6 +14,7 @@ const erpNavigationGroups = [
   {
     label: 'Comercial',
     items: [
+      { label: 'Vendas', href: '/erp/sales', icon: ShoppingBag },
       { label: 'Pedidos', href: '/erp/orders', icon: ShoppingCart },
       { label: 'Clientes', href: '/erp/customers', icon: Users },
       { label: 'Comunicação', href: '/erp/communications', icon: Bell },

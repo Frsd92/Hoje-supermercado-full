@@ -291,6 +291,248 @@ function daysUntil(value) {
   return Math.round((Date.parse(`${dueDate}T00:00:00.000Z`) - Date.parse(`${getLocalDateKey(new Date())}T00:00:00.000Z`)) / 86400000);
 }
 
+function CashFlowLedger({ ledger, onSaved }) {
+  const [sales, setSales] = useState([]);
+  const [loadingSales, setLoadingSales] = useState(true);
+  const [loadError, setLoadError] = useState('');
+  const [filter, setFilter] = useState('all');
+  const [editing, setEditing] = useState(null);
+  const [form, setForm] = useState(null);
+  const [saving, setSaving] = useState(false);
+  const [saveError, setSaveError] = useState('');
+  const [notice, setNotice] = useState('');
+  const [refreshToken, setRefreshToken] = useState(0);
+
+  useEffect(() => {
+    if (!editing) return undefined;
+    const closeOnEscape = (event) => {
+      if (event.key === 'Escape' && !saving) {
+        setEditing(null);
+        setForm(null);
+      }
+    };
+    window.addEventListener('keydown', closeOnEscape);
+    return () => window.removeEventListener('keydown', closeOnEscape);
+  }, [editing, saving]);
+
+  useEffect(() => {
+    const controller = new AbortController();
+    const loadSales = async () => {
+      setLoadingSales(true);
+      setLoadError('');
+      try {
+        const response = await fetch('/api/erp/sales', { cache: 'no-store', signal: controller.signal });
+        const result = await response.json();
+        if (!response.ok) throw new Error(result.error || 'Não foi possível carregar as entradas de vendas.');
+        if (!Array.isArray(result.sales)) throw new Error('A resposta de vendas está inválida.');
+        setSales(result.sales);
+      } catch (error) {
+        if (error.name !== 'AbortError') setLoadError(error.message || 'Não foi possível carregar as entradas de vendas.');
+      } finally {
+        if (!controller.signal.aborted) setLoadingSales(false);
+      }
+    };
+    void loadSales();
+    return () => controller.abort();
+  }, [refreshToken]);
+
+  const categories = ledger.chartAccounts.filter((account) => account.active
+    && account.nature === 'EXPENSE'
+    && !ledger.chartAccounts.some((child) => child.active && child.code.startsWith(`${account.code}.`)));
+  const entries = [
+    ...sales.map((sale) => ({
+      id: `sale-${sale.id}`,
+      reference: `VEN-${String(sale.id).slice(-8)}`,
+      date: sale.createdAt,
+      description: sale.customerName ? `Venda · ${sale.customerName}` : `Venda · ${sale.id}`,
+      category: 'Vendas',
+      type: 'Entrada',
+      status: sale.paymentStatus === 'paid' ? 'Pago'
+        : sale.paymentStatus === 'failed' ? 'Recusado'
+          : ['canceled', 'refunded'].includes(sale.paymentStatus) ? 'Cancelado'
+            : sale.paymentStatus === 'partially_refunded' ? 'Estorno parcial' : 'Pendente',
+      amount: Number(sale.total) || 0,
+      direction: 'entry',
+    })),
+    ...ledger.expenses.map((expense) => ({
+      id: `expense-${expense.id}`,
+      expense,
+      reference: `DES-${String(expense.id).slice(-8)}`,
+      date: expense.dueAt || expense.competenceAt,
+      description: expense.description,
+      category: expense.category ? `${expense.category.code} · ${expense.category.name}` : 'Despesas',
+      type: 'Saída',
+      status: expense.status === 'Paga' ? 'Pago' : expense.status === 'Cancelada' ? 'Cancelado' : 'Pendente',
+      amount: Number(expense.amount) || 0,
+      direction: 'exit',
+    })),
+  ].sort((left, right) => String(right.date || '').localeCompare(String(left.date || '')));
+  const filteredEntries = entries.filter((entry) => filter === 'all'
+    || (filter === 'pending' && entry.status === 'Pendente')
+    || (filter === 'paid' && entry.status === 'Pago'));
+
+  const beginEdit = (expense) => {
+    const subscription = expense.serviceSubscription
+      ? ledger.subscriptions.find((item) => item.id === expense.serviceSubscription.id)
+      : null;
+    setEditing({ expense, subscription });
+    setForm(subscription ? {
+      description: subscription.name,
+      provider: subscription.provider || '',
+      amount: String(subscription.amount),
+      competenceAt: String(subscription.nextDueAt).slice(0, 10),
+      dueAt: String(subscription.nextDueAt).slice(0, 10),
+      categoryId: subscription.categoryId,
+      notes: subscription.notes || '',
+      plan: subscription.plan || '',
+      accountEmail: subscription.accountEmail || '',
+      managementUrl: subscription.managementUrl || '',
+      paymentMethod: subscription.paymentMethod || '',
+      billingCycle: subscription.billingCycle,
+      autoRenew: subscription.autoRenew,
+    } : {
+      description: expense.description,
+      provider: expense.provider || '',
+      amount: String(expense.amount),
+      competenceAt: String(expense.competenceAt).slice(0, 10),
+      dueAt: expense.dueAt ? String(expense.dueAt).slice(0, 10) : '',
+      categoryId: expense.categoryId,
+      notes: expense.notes || '',
+      plan: expense.plan || '',
+      accountEmail: expense.accountEmail || '',
+      managementUrl: expense.managementUrl || '',
+      paymentMethod: expense.paymentMethod || '',
+    });
+    setSaveError('');
+    setNotice('');
+  };
+
+  const saveEdit = async (event) => {
+    event.preventDefault();
+    if (!editing || !form) return;
+    setSaving(true);
+    setSaveError('');
+    setNotice('');
+    try {
+      const isSubscription = Boolean(editing.subscription);
+      const response = await fetch(isSubscription ? '/api/erp/financeiro/subscriptions' : '/api/erp/financeiro/records', {
+        method: 'PATCH',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify(isSubscription
+          ? {
+            ...form,
+            subscriptionId: editing.subscription.id,
+            action: 'update',
+            autoRenew: form.billingCycle === 'ONCE' ? false : form.autoRenew,
+          }
+          : { ...form, expenseId: editing.expense.id, action: 'update' }),
+      });
+      const result = await response.json();
+      if (!response.ok) throw new Error(result.error || 'Não foi possível atualizar o lançamento.');
+      setEditing(null);
+      setForm(null);
+      setNotice('Lançamento atualizado.');
+      await onSaved();
+    } catch (error) {
+      setSaveError(error.message || 'Não foi possível atualizar o lançamento.');
+    } finally {
+      setSaving(false);
+    }
+  };
+
+  const exportCsv = () => {
+    const rows = [
+      ['Código', 'Data', 'Descrição', 'Categoria / classificação DFC', 'Tipo', 'Status', 'Valor (R$)'],
+      ...filteredEntries.map((entry) => [
+        entry.reference,
+        formatDateOnly(entry.date),
+        entry.description,
+        entry.category,
+        entry.type,
+        entry.status,
+        Number(entry.amount).toFixed(2).replace('.', ','),
+      ]),
+    ];
+    const content = `\uFEFF${rows.map((row) => row.map((value) => `"${String(value).replaceAll('"', '""')}"`).join(';')).join('\r\n')}`;
+    const url = URL.createObjectURL(new Blob([content], { type: 'text/csv;charset=utf-8' }));
+    const link = document.createElement('a');
+    link.href = url;
+    link.download = 'extrato-consolidado-de-caixa.csv';
+    link.click();
+    URL.revokeObjectURL(url);
+  };
+
+  return <section className="financial-panel cash-flow-ledger" aria-labelledby="cash-flow-ledger-title">
+    <div className="financial-section-heading">
+      <div><span className="eyebrow">Entradas de vendas e saídas cadastradas</span><h2 id="cash-flow-ledger-title">Extrato consolidado de caixa</h2></div>
+      <div className="cash-flow-ledger-actions">
+        <select aria-label="Filtrar lançamentos do caixa" value={filter} onChange={(event) => setFilter(event.target.value)}>
+          <option value="all">Todos os lançamentos</option><option value="pending">Pendentes</option><option value="paid">Pagos</option>
+        </select>
+        <button type="button" onClick={exportCsv} disabled={!filteredEntries.length}><ArrowDownToLine size={14} aria-hidden="true" />Exportar CSV</button>
+      </div>
+    </div>
+    <p className="financial-explainer">Entradas refletem o status de pagamento dos pedidos e saídas vêm das despesas cadastradas. Este extrato operacional não substitui conciliação bancária.</p>
+    {notice && <p className="financial-record-message" role="status">{notice}</p>}
+    {loadError && <p className="financial-record-message error" role="alert">{loadError}<button type="button" onClick={() => setRefreshToken((value) => value + 1)}>Tentar novamente</button></p>}
+    {loadingSales && <p className="financial-loading" role="status">Carregando entradas de vendas…</p>}
+    {!loadingSales && !loadError && <div className="financial-record-table-wrap cash-flow-table-wrap" role="region" aria-label="Extrato consolidado de caixa" tabIndex={0}>
+      <table>
+        <caption>{filteredEntries.length} lançamento(s) no extrato, ordenados da data mais recente para a mais antiga</caption>
+        <thead><tr><th scope="col">Código</th><th scope="col">Data</th><th scope="col">Descrição</th><th scope="col">Categoria / classificação DFC</th><th scope="col">Tipo</th><th scope="col">Status</th><th scope="col">Valor (R$)</th><th scope="col">Ações</th></tr></thead>
+        <tbody>{filteredEntries.map((entry) => <tr key={entry.id}>
+          <td className="cash-flow-reference">{entry.reference}</td>
+          <td>{formatDateOnly(entry.date)}</td>
+          <th scope="row">{entry.description}</th>
+          <td>{entry.category}</td>
+          <td><span className={`cash-flow-type ${entry.direction}`}>{entry.type}</span></td>
+          <td><span className={`cash-flow-status${entry.status === 'Pago' ? ' is-paid' : entry.status === 'Pendente' ? ' is-pending' : ''}`}>{entry.status}</span></td>
+          <td className={`cash-flow-value ${entry.direction}`}>{entry.direction === 'entry' ? '+' : '-'} {money(entry.amount)}</td>
+          <td>{entry.expense?.status === 'Em aberto' ? <button className="cash-flow-edit-button" type="button" onClick={() => beginEdit(entry.expense)} aria-label={`Editar ${entry.description}`} title="Editar lançamento"><Pencil size={15} aria-hidden="true" /></button> : <span aria-label="Sem ações">—</span>}</td>
+        </tr>)}</tbody>
+      </table>
+      {!filteredEntries.length && <EmptyState>Nenhum lançamento corresponde a este filtro.</EmptyState>}
+    </div>}
+    {editing && form && <div className="cash-flow-edit-backdrop" onMouseDown={(event) => { if (event.target === event.currentTarget && !saving) { setEditing(null); setForm(null); } }}>
+      <section className="cash-flow-edit-dialog" role="dialog" aria-modal="true" aria-labelledby="cash-flow-edit-title">
+        <div className="financial-section-heading"><div><span className="eyebrow">Editar lançamento</span><h2 id="cash-flow-edit-title">{editing.subscription ? 'Conta recorrente' : 'Despesa avulsa'}</h2></div><button type="button" className="cash-flow-edit-close" onClick={() => { setEditing(null); setForm(null); }} aria-label="Fechar edição" disabled={saving}><X size={18} aria-hidden="true" /></button></div>
+        <form className="cash-flow-edit-form" onSubmit={saveEdit}>
+          <label>Descrição<input required maxLength={editing.subscription ? 100 : 180} value={form.description} onChange={(event) => setForm({ ...form, description: event.target.value })} /></label>
+          {editing.subscription && <label>Fornecedor<input required maxLength={80} value={form.provider} onChange={(event) => setForm({ ...form, provider: event.target.value })} /></label>}
+          <div className="financial-record-form-row">
+            <label>Valor (R$)<input required type="number" min="0.01" step="0.01" value={form.amount} onChange={(event) => setForm({ ...form, amount: event.target.value })} /></label>
+            <label>Vencimento<input required={Boolean(editing.subscription)} type="date" value={form.dueAt} onChange={(event) => setForm({ ...form, dueAt: event.target.value })} /></label>
+          </div>
+          {!editing.subscription && <label>Competência<input required type="date" value={form.competenceAt} onChange={(event) => setForm({ ...form, competenceAt: event.target.value })} /></label>}
+          <label>Categoria<select required value={form.categoryId} onChange={(event) => setForm({ ...form, categoryId: event.target.value })}><option value="">Selecione uma categoria</option>{categories.map((category) => <option key={category.id} value={category.id}>{category.code} · {category.name}</option>)}</select></label>
+          {!editing.subscription && <>
+            <label>Fornecedor<input maxLength={80} value={form.provider} onChange={(event) => setForm({ ...form, provider: event.target.value })} /></label>
+            <div className="financial-record-form-row">
+              <label>Plano/identificação<input maxLength={100} value={form.plan} onChange={(event) => setForm({ ...form, plan: event.target.value })} /></label>
+              <label>E-mail/identificação da conta<input maxLength={254} value={form.accountEmail} onChange={(event) => setForm({ ...form, accountEmail: event.target.value })} /></label>
+            </div>
+            <label>Link de gestão<input type="url" maxLength={500} value={form.managementUrl} onChange={(event) => setForm({ ...form, managementUrl: event.target.value })} /></label>
+            <label>Forma de pagamento<input maxLength={80} value={form.paymentMethod} onChange={(event) => setForm({ ...form, paymentMethod: event.target.value })} /></label>
+          </>}
+          {editing.subscription && <>
+            <label>Frequência<select value={form.billingCycle} onChange={(event) => setForm({ ...form, billingCycle: event.target.value, autoRenew: event.target.value === 'ONCE' ? false : form.autoRenew })}><option value="MONTHLY">Mensal</option><option value="YEARLY">Anual</option><option value="ONCE">Pagamento único</option></select></label>
+            {form.billingCycle !== 'ONCE' && <label className="company-subscription-renewal"><input type="checkbox" checked={form.autoRenew} onChange={(event) => setForm({ ...form, autoRenew: event.target.checked })} /><span>Gerar o próximo ciclo após registrar o pagamento</span></label>}
+            <div className="financial-record-form-row">
+              <label>Plano/identificação<input maxLength={100} value={form.plan} onChange={(event) => setForm({ ...form, plan: event.target.value })} /></label>
+              <label>E-mail/identificação da conta<input maxLength={254} value={form.accountEmail} onChange={(event) => setForm({ ...form, accountEmail: event.target.value })} /></label>
+            </div>
+            <label>Link de gestão<input type="url" maxLength={500} value={form.managementUrl} onChange={(event) => setForm({ ...form, managementUrl: event.target.value })} /></label>
+            <label>Forma de pagamento<input maxLength={80} value={form.paymentMethod} onChange={(event) => setForm({ ...form, paymentMethod: event.target.value })} /></label>
+          </>}
+          <label>Observações<textarea rows={2} maxLength={1000} value={form.notes} onChange={(event) => setForm({ ...form, notes: event.target.value })} /></label>
+          {saveError && <p className="financial-record-message error" role="alert">{saveError}</p>}
+          <div className="company-subscription-form-actions"><button type="submit" disabled={saving}>{saving ? 'Salvando…' : 'Salvar alterações'}</button><button type="button" className="secondary" onClick={() => { setEditing(null); setForm(null); }} disabled={saving}>Cancelar</button></div>
+        </form>
+      </section>
+    </div>}
+  </section>;
+}
+
 function FinancialRecords({ ledger, onSaved }) {
   const [notice, setNotice] = useState('');
   const [error, setError] = useState('');
@@ -1511,6 +1753,7 @@ export default function FinancialPage() {
       </section>}
 
       {financialScreen === 'fluxo-de-caixa' && <>
+      {ledger && <CashFlowLedger ledger={ledger} onSaved={() => setRefreshToken((token) => token + 1)} />}
       <section className="financial-panel" id="financial-liquidity" aria-labelledby="financial-liquidity-title">
         <div className="financial-section-heading">
           <div><span className="eyebrow">Pilar 2 · Fôlego, caixa e tesouraria</span><h2 id="financial-liquidity-title">Obrigações e liquidez registradas</h2></div>

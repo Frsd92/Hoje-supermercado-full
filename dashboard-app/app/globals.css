@@ -8893,6 +8893,52 @@ button.metric-mini:focus-visible {
 .financial-expense-details summary { width: fit-content; color: #31503a; cursor: pointer; font-weight: 700; }
 .financial-expense-details > span, .financial-expense-details > a { display: block; padding-top: 2px; color: #65756a; overflow-wrap: anywhere; }
 .financial-expense-details > a { color: #23613c; }
+.cash-flow-ledger { margin-bottom: 14px; }
+.cash-flow-ledger-actions, .sales-page-actions { display: flex; flex-wrap: wrap; align-items: center; gap: 8px; }
+.cash-flow-ledger-actions select, .sales-page-toolbar select { min-height: 36px; padding: 6px 9px; border: 1px solid #d5e0d8; border-radius: 8px; background: #fff; color: #31503a; font: inherit; font-size: .7rem; }
+.cash-flow-ledger-actions button, .sales-page-actions button, .sales-page-actions a { display: inline-flex; align-items: center; justify-content: center; gap: 6px; min-height: 36px; padding: 7px 10px; border: 1px solid #d5e0d8; border-radius: 8px; background: #fff; color: #28513b; cursor: pointer; font: inherit; font-size: .7rem; font-weight: 750; text-decoration: none; }
+.cash-flow-ledger-actions button:hover:not(:disabled), .sales-page-actions button:hover:not(:disabled), .sales-page-actions a:hover { background: #f0f7f1; }
+.cash-flow-ledger-actions button:focus-visible, .sales-page-actions button:focus-visible, .sales-page-actions a:focus-visible, .cash-flow-edit-button:focus-visible { outline: 3px solid rgba(47,118,86,.28); outline-offset: 2px; }
+.cash-flow-ledger-actions button:disabled, .sales-page-actions button:disabled { cursor: not-allowed; opacity: .55; }
+.cash-flow-table-wrap table { min-width: 930px; }
+.cash-flow-table-wrap tbody th { max-width: 270px; overflow-wrap: anywhere; }
+.cash-flow-reference { color: #687a8e !important; font-variant-numeric: tabular-nums; }
+.cash-flow-type, .cash-flow-status, .sales-status { display: inline-flex; align-items: center; min-height: 22px; padding: 3px 8px; border: 1px solid #dfe6e1; border-radius: 6px; background: #f7faf8; color: #5b6d61; font-size: .64rem; font-weight: 750; white-space: nowrap; }
+.cash-flow-type.entry { border-color: #b7e5cd; background: #ecfdf3; color: #087443; }
+.cash-flow-type.exit { border-color: #f1c4cb; background: #fff1f2; color: #b4233b; }
+.cash-flow-status.is-paid, .sales-status-paid { border-color: #c6ead5; background: #ecfdf3; color: #087443; }
+.cash-flow-status.is-pending, .sales-status-pending, .sales-status-manual { border-color: #f4d28e; background: #fff7e6; color: #8a5700; }
+.sales-status-failed, .sales-status-canceled, .sales-status-refunded { border-color: #f1c4cb; background: #fff1f2; color: #b4233b; }
+.cash-flow-value { text-align: right !important; font-variant-numeric: tabular-nums; font-weight: 800 !important; white-space: nowrap; }
+.cash-flow-value.entry { color: #087443 !important; }
+.cash-flow-value.exit { color: #b4233b !important; }
+.cash-flow-edit-button, .cash-flow-edit-close { display: inline-grid; place-items: center; width: 34px; height: 34px; border: 1px solid #d5e0d8; border-radius: 8px; background: #fff; color: #31503a; cursor: pointer; }
+.cash-flow-edit-button:hover, .cash-flow-edit-close:hover { background: #f0f7f1; }
+.cash-flow-edit-backdrop { position: fixed; inset: 0; z-index: 1200; display: grid; place-items: center; padding: 18px; overflow-y: auto; background: rgba(15,23,42,.52); }
+.cash-flow-edit-dialog { width: min(620px, 100%); max-height: min(90vh, 900px); overflow: auto; padding: 20px; border: 1px solid #dfe8e1; border-radius: 14px; background: #fff; box-shadow: 0 24px 70px rgba(15,23,42,.24); }
+.cash-flow-edit-form { display: grid; gap: 12px; }
+.cash-flow-edit-form > label { display: grid; gap: 5px; color: #415448; font-size: .7rem; font-weight: 700; }
+.cash-flow-edit-form input, .cash-flow-edit-form select, .cash-flow-edit-form textarea { width: 100%; min-height: 38px; padding: 8px 10px; border: 1px solid #d5e0d8; border-radius: 8px; background: #fff; color: #25382b; font: inherit; font-size: .75rem; }
+.cash-flow-edit-form textarea { resize: vertical; }
+.cash-flow-edit-form :where(input, select, textarea, button):focus-visible { outline: 3px solid rgba(47,118,86,.28); outline-offset: 2px; }
+.sales-page { display: grid; gap: 16px; min-width: 0; }
+.sales-page-header { display: flex; align-items: flex-start; justify-content: space-between; gap: 16px; padding: 20px; border: 1px solid var(--erp-border); border-radius: var(--erp-radius-panel); background: var(--erp-surface); box-shadow: var(--erp-shadow-panel); }
+.sales-page-header h1 { margin: 3px 0 5px; color: var(--erp-text); font-size: clamp(1.35rem, 3vw, 1.8rem); }
+.sales-page-header p { max-width: 720px; margin: 0; color: var(--erp-muted); font-size: .8rem; line-height: 1.55; }
+.sales-page-summary { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 10px; }
+.sales-page-summary article { display: grid; gap: 5px; min-width: 0; padding: 14px; border: 1px solid var(--erp-border); border-radius: 11px; background: var(--erp-surface); }
+.sales-page-summary article span, .sales-page-summary article small { color: var(--erp-muted); font-size: .7rem; line-height: 1.4; }
+.sales-page-summary article strong { color: var(--erp-text); font-size: 1.15rem; overflow-wrap: anywhere; font-variant-numeric: tabular-nums; }
+.sales-page-panel { min-width: 0; }
+.sales-page-toolbar { display: flex; justify-content: space-between; gap: 10px; margin-bottom: 12px; }
+.sales-page-toolbar > label { display: flex; align-items: center; gap: 7px; width: min(420px, 100%); min-height: 38px; padding: 0 10px; border: 1px solid #d5e0d8; border-radius: 8px; color: #718177; background: #fff; }
+.sales-page-toolbar input { width: 100%; min-width: 0; border: 0; outline: 0; color: #25382b; font: inherit; font-size: .74rem; }
+.sales-page-table-wrap table { min-width: 760px; }
+.sales-page-table-wrap tbody th a { display: inline-flex; align-items: center; gap: 6px; color: #23613c; font-weight: 750; text-decoration: none; }
+.sales-page-table-wrap tbody th a:hover { text-decoration: underline; }
+.sales-page-table-wrap tbody td:last-child { color: #263a2d; font-weight: 800; text-align: right; white-space: nowrap; }
+.sales-page-empty { display: grid; justify-items: center; gap: 6px; padding: 26px; color: #718177; font-size: .75rem; }
+.sales-page-empty p { margin: 0; }
 .company-subscription-form-actions, .company-subscription-actions { display: flex; flex-wrap: wrap; gap: 7px; }
 .company-subscription-form-actions button, .company-subscription-actions button { display: inline-flex; align-items: center; justify-content: center; gap: 6px; min-height: 36px; padding: 7px 10px; border: 1px solid #1b6840; border-radius: 8px; background: #1b6840; color: #fff; cursor: pointer; font: inherit; font-size: .68rem; font-weight: 750; }
 .company-subscription-form-actions button.secondary, .company-subscription-actions button { border-color: #cddbd0; background: #fff; color: #31503a; }
@@ -8974,6 +9020,16 @@ button.metric-mini:focus-visible {
 }
 @media (max-width: 640px) {
   .financial-page { gap: 12px; }
+  .cash-flow-ledger-actions { width: 100%; }
+  .cash-flow-ledger-actions select, .cash-flow-ledger-actions button { flex: 1 1 140px; }
+  .cash-flow-edit-backdrop { align-items: end; padding: 8px; }
+  .cash-flow-edit-dialog { max-height: 92vh; padding: 15px; border-radius: 14px 14px 10px 10px; }
+  .sales-page-header { flex-direction: column; padding: 14px; }
+  .sales-page-actions { width: 100%; }
+  .sales-page-actions button, .sales-page-actions a { flex: 1 1 130px; }
+  .sales-page-summary { grid-template-columns: minmax(0, 1fr); }
+  .sales-page-toolbar { flex-direction: column; }
+  .sales-page-toolbar > label, .sales-page-toolbar select { width: 100%; }
   .financial-section-nav { position: static; }
   .financial-section-nav a { flex: 1 1 145px; justify-content: center; text-align: center; }
   .financial-pillar-disclosure > summary, .financial-records-disclosure > summary, .financial-analysis-disclosure > summary, .financial-indicators-disclosure > summary { align-items: flex-start; flex-wrap: wrap; }
@@ -9013,6 +9069,7 @@ button.metric-mini:focus-visible {
   .financial-mode-switch { width: 100%; }
   .financial-mode-switch button { flex: 1; }
   .financial-panel { padding: 12px; }
+  .cash-flow-edit-form .financial-record-form-row { grid-template-columns: minmax(0, 1fr); }
 }
 @media print {
   @page { size: landscape; margin: 12mm; }
