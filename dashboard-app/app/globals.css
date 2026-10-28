@@ -8872,6 +8872,44 @@ button.metric-mini:focus-visible {
 .financial-record-summary article { display: grid; gap: 5px; min-width: 0; padding: 11px; border: 1px solid #e1e8e3; border-radius: 10px; background: #fafcfb; }
 .financial-record-summary article span, .financial-record-summary article small { color: #6d7b71; font-size: .66rem; line-height: 1.4; }
 .financial-record-summary article strong { overflow-wrap: anywhere; color: #1e3428; font-size: 1.05rem; font-variant-numeric: tabular-nums; }
+.company-subscriptions { display: grid; gap: 12px; margin: 0 0 16px; padding: 16px; border: 1px solid #dfe9e1; border-radius: 12px; background: linear-gradient(145deg, #fff, #f7fbf8); }
+.company-subscriptions-heading { display: flex; align-items: flex-start; justify-content: space-between; gap: 12px; }
+.company-subscriptions-heading h3 { margin: 3px 0 5px; color: #24432e; font-size: 1rem; }
+.company-subscriptions-heading p { max-width: 760px; margin: 0; color: #65756a; font-size: .72rem; line-height: 1.55; }
+.company-subscriptions-count { flex: 0 0 auto; padding: 5px 9px; border: 1px solid #cfe2d2; border-radius: 99px; background: #edf7ef; color: #22653a; font-size: .66rem; font-weight: 800; }
+.company-subscriptions-grid { display: grid; grid-template-columns: minmax(0, 1fr) minmax(0, 1fr); align-items: start; gap: 12px; }
+.company-subscription-form { grid-template-columns: minmax(0, 1fr); }
+.company-subscription-form h4 { margin: 0; color: #2b4433; font-size: .84rem; }
+.company-subscription-form textarea { width: 100%; min-width: 0; resize: vertical; padding: 8px 9px; border: 1px solid #d8e2db; border-radius: 8px; background: #fff; color: #25382b; font: inherit; font-size: .72rem; }
+.company-subscription-form input[type="checkbox"] { width: 16px; min-height: 16px; margin: 0; accent-color: #1b6840; }
+.company-subscription-form .company-subscription-renewal { display: flex; align-items: center; gap: 8px; padding: 9px; border: 1px solid #e1e9e3; border-radius: 8px; background: #fff; }
+.company-subscription-form-actions, .company-subscription-actions { display: flex; flex-wrap: wrap; gap: 7px; }
+.company-subscription-form-actions button, .company-subscription-actions button { display: inline-flex; align-items: center; justify-content: center; gap: 6px; min-height: 36px; padding: 7px 10px; border: 1px solid #1b6840; border-radius: 8px; background: #1b6840; color: #fff; cursor: pointer; font: inherit; font-size: .68rem; font-weight: 750; }
+.company-subscription-form-actions button.secondary, .company-subscription-actions button { border-color: #cddbd0; background: #fff; color: #31503a; }
+.company-subscription-actions button:hover:not(:disabled), .company-subscription-form-actions button.secondary:hover { background: #f0f7f1; }
+.company-subscription-form-actions button:focus-visible, .company-subscription-actions button:focus-visible, .company-subscription-link:focus-visible { outline: 3px solid rgba(47,118,86,.28); outline-offset: 2px; }
+.company-subscription-form-actions button:disabled, .company-subscription-actions button:disabled { cursor: not-allowed; opacity: .55; }
+.company-subscription-list { display: grid; gap: 9px; min-width: 0; }
+.company-subscription-card { display: grid; gap: 10px; min-width: 0; padding: 12px; border: 1px solid #dfe9e1; border-radius: 10px; background: #fff; }
+.company-subscription-card.is-paused { background: #f8faf8; }
+.company-subscription-card-heading { display: flex; align-items: flex-start; justify-content: space-between; gap: 10px; }
+.company-subscription-card-heading h4 { margin: 0; color: #2b4433; font-size: .8rem; overflow-wrap: anywhere; }
+.company-subscription-card-heading > div > span { display: block; margin-top: 3px; color: #718177; font-size: .66rem; }
+.company-subscription-status { flex: 0 0 auto; padding: 4px 7px; border: 1px solid #e0e5e1; border-radius: 99px; color: #69756e; background: #f5f7f5; font-size: .59rem; font-weight: 800; }
+.company-subscription-status.is-active { border-color: #cce2d0; color: #22653a; background: #eff8f0; }
+.company-subscription-due { display: flex; align-items: baseline; justify-content: space-between; gap: 9px; padding: 9px 10px; border-radius: 8px; background: #f2f7f3; }
+.company-subscription-due strong { color: #24432e; font-size: .92rem; font-variant-numeric: tabular-nums; }
+.company-subscription-due span { color: #587261; font-size: .68rem; font-weight: 800; text-align: right; }
+.company-subscription-due.is-soon { background: #fff8e9; }
+.company-subscription-due.is-soon span { color: #895b13; }
+.company-subscription-details { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 8px; margin: 0; }
+.company-subscription-details div { min-width: 0; }
+.company-subscription-details dt { color: #7a8980; font-size: .59rem; }
+.company-subscription-details dd { margin: 2px 0 0; color: #405348; font-size: .66rem; overflow-wrap: anywhere; }
+.company-subscription-link { width: fit-content; color: #23613c; font-size: .67rem; font-weight: 750; }
+.company-subscription-notes { margin: 0; padding: 8px 9px; border-left: 2px solid #c9dbce; color: #68786d; background: #f7faf7; font-size: .66rem; line-height: 1.45; white-space: pre-wrap; overflow-wrap: anywhere; }
+.company-subscription-actions { padding-top: 2px; border-top: 1px solid #edf1ee; }
+.company-subscription-actions button { min-height: 32px; }
 .financial-record-forms { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 10px; }
 .financial-record-form { display: grid; align-content: start; gap: 10px; min-width: 0; padding: 13px; border: 1px solid #e5ece6; border-radius: 11px; background: #fbfdfb; }
 .financial-record-form h3, .financial-record-lists h3 { margin: 0; color: #2b4433; font-size: .86rem; }
@@ -8922,6 +8960,7 @@ button.metric-mini:focus-visible {
   .financial-header-actions { justify-content: flex-start; }
   .financial-dre-heading { flex-direction: column; }
   .financial-dre-actions { justify-content: flex-start; }
+  .company-subscriptions-grid { grid-template-columns: minmax(0, 1fr); }
 }
 @media (max-width: 640px) {
   .financial-page { gap: 12px; }
@@ -8956,6 +8995,11 @@ button.metric-mini:focus-visible {
   .financial-metrics, .financial-coupon-summary { grid-template-columns: minmax(0, 1fr); }
   .financial-dre-kpis { grid-template-columns: minmax(0, 1fr); }
   .financial-record-forms, .financial-record-lists { grid-template-columns: minmax(0, 1fr); }
+  .company-subscriptions { padding: 11px; }
+  .company-subscriptions-heading { flex-direction: column; }
+  .company-subscriptions-count { align-self: flex-start; }
+  .company-subscription-details { grid-template-columns: minmax(0, 1fr); }
+  .company-subscription-form .financial-record-form-row { grid-template-columns: minmax(0, 1fr); }
   .financial-mode-switch { width: 100%; }
   .financial-mode-switch button { flex: 1; }
   .financial-panel { padding: 12px; }

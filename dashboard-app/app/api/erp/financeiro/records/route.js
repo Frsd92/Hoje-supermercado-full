@@ -3,6 +3,7 @@ import { authOptions } from '@/auth';
 import { erpActorLabel, hasErpAccess } from '@/features/erp/access';
 import { prisma } from '@/lib/prisma';
 import { automaticChartAccounts } from '@/features/erp/api/financial-metrics';
+import { getNextSubscriptionDueDate, getSubscriptionPeriod } from '@/features/erp/api/company-subscriptions';
 
 const headers = { 'Cache-Control': 'private, no-store, max-age=0' };
 const expenseBehaviors = new Set(['FIXED', 'VARIABLE', 'FINANCIAL', 'TAX', 'OTHER']);
@@ -46,7 +47,7 @@ export async function GET() {
       data: automaticChartAccounts,
       skipDuplicates: true,
     });
-    const [chartAccounts, financialAccounts, expenses, openCount, openTotal, overdueCount, dueTodayCount, dueNextSevenDays] = await Promise.all([
+    const [chartAccounts, financialAccounts, expenses, subscriptions, openCount, openTotal, overdueCount, dueTodayCount, dueNextSevenDays] = await Promise.all([
       prisma.financialChartAccount.findMany({
         orderBy: [{ active: 'desc' }, { code: 'asc' }],
       }),
@@ -60,6 +61,7 @@ export async function GET() {
           include: {
             category: { select: { id: true, code: true, name: true, expenseBehavior: true } },
             financialAccount: { select: { id: true, name: true } },
+            serviceSubscription: { select: { id: true, provider: true, billingCycle: true, autoRenew: true } },
           },
           orderBy: [{ dueAt: { sort: 'asc', nulls: 'last' } }, { createdAt: 'desc' }],
         }),
@@ -69,10 +71,15 @@ export async function GET() {
           include: {
             category: { select: { id: true, code: true, name: true, expenseBehavior: true } },
             financialAccount: { select: { id: true, name: true } },
+            serviceSubscription: { select: { id: true, provider: true, billingCycle: true, autoRenew: true } },
           },
           orderBy: { createdAt: 'desc' },
         }),
       ]),
+      prisma.companyServiceSubscription.findMany({
+        include: { category: { select: { id: true, code: true, name: true } } },
+        orderBy: [{ active: 'desc' }, { nextDueAt: 'asc' }, { provider: 'asc' }],
+      }),
       prisma.companyExpense.count({ where: { status: 'Em aberto' } }),
       prisma.companyExpense.aggregate({ where: { status: 'Em aberto' }, _sum: { amount: true } }),
       prisma.companyExpense.count({ where: { status: 'Em aberto', dueAt: { lt: todayDate } } }),
@@ -84,6 +91,7 @@ export async function GET() {
       chartAccounts,
       financialAccounts,
       expenses: [...expenses[0], ...expenses[1]],
+      subscriptions,
       dueSummary: {
         openCount,
         openAmount: Number(openTotal._sum.amount || 0),
@@ -247,7 +255,10 @@ export async function PATCH(request) {
   const actor = erpActorLabel(session.user);
   try {
     const updated = await prisma.$transaction(async (transaction) => {
-      const current = await transaction.companyExpense.findUnique({ where: { id: expenseId } });
+      const current = await transaction.companyExpense.findUnique({
+        where: { id: expenseId },
+        include: { serviceSubscription: true },
+      });
       if (!current) return null;
       if (current.status !== 'Em aberto') {
         return { conflict: true };
@@ -266,6 +277,73 @@ export async function PATCH(request) {
           : { status: 'Cancelada' },
       });
       if (changed.count !== 1) return { conflict: true };
+      if (action === 'pay' && current.serviceSubscription) {
+        const subscription = current.serviceSubscription;
+        const followingDueAt = getNextSubscriptionDueDate(current.dueAt || subscription.nextDueAt, subscription.billingCycle);
+        if (followingDueAt) {
+          const nextDate = new Date(`${followingDueAt}T00:00:00.000Z`);
+          const period = getSubscriptionPeriod(nextDate, subscription.billingCycle);
+          await transaction.companyServiceSubscription.update({
+            where: { id: subscription.id },
+            data: {
+              nextDueAt: nextDate,
+              ...(!subscription.autoRenew && subscription.active ? { active: false } : {}),
+            },
+          });
+          if (subscription.autoRenew && subscription.active) {
+            const nextExpense = await transaction.companyExpense.create({
+              data: {
+                description: `${subscription.provider}: ${subscription.name}`,
+                amount: subscription.amount,
+                competenceAt: nextDate,
+                dueAt: nextDate,
+                notes: subscription.notes,
+                createdBy: actor,
+                categoryId: subscription.categoryId,
+                serviceSubscriptionId: subscription.id,
+                subscriptionPeriod: period,
+              },
+            });
+            await transaction.companyExpenseAuditLog.create({
+              data: {
+                expenseId: nextExpense.id,
+                action: 'CREATED',
+                actor,
+                snapshot: {
+                  description: nextExpense.description,
+                  amount: nextExpense.amount.toString(),
+                  competenceAt: nextExpense.competenceAt.toISOString(),
+                  dueAt: nextExpense.dueAt?.toISOString() || null,
+                  status: nextExpense.status,
+                  categoryId: nextExpense.categoryId,
+                  serviceSubscriptionId: subscription.id,
+                },
+              },
+            });
+          }
+          await transaction.companyServiceSubscriptionAuditLog.create({
+            data: {
+              subscriptionId: subscription.id,
+              action: subscription.autoRenew && subscription.active ? 'NEXT_CYCLE_CREATED' : 'MANUAL_RENEWAL_DUE',
+              actor,
+              snapshot: { nextDueAt: nextDate.toISOString(), amount: subscription.amount.toString() },
+            },
+          });
+        } else if (subscription.active) {
+          await transaction.companyServiceSubscription.update({
+            where: { id: subscription.id },
+            data: { active: false },
+          });
+          await transaction.companyServiceSubscriptionAuditLog.create({
+            data: {
+              subscriptionId: subscription.id,
+              action: 'RENEWAL_COMPLETED',
+              actor,
+              snapshot: { billingCycle: subscription.billingCycle, autoRenew: subscription.autoRenew },
+            },
+          });
+        }
+      }
       const next = await transaction.companyExpense.findUnique({
         where: { id: expenseId },
         include: {

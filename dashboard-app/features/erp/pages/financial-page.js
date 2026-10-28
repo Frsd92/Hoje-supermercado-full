@@ -2,7 +2,7 @@
 
 import Link from 'next/link';
 import { usePathname } from 'next/navigation';
-import { ArrowDownToLine, Banknote, CalendarDays, CircleDollarSign, PackageSearch, Printer, RefreshCw, ShoppingBag, Tag, TicketPercent, TrendingDown, TrendingUp } from 'lucide-react';
+import { ArrowDownToLine, Banknote, CalendarDays, CircleDollarSign, PackageSearch, Pause, Pencil, Play, Printer, RefreshCw, ShoppingBag, Tag, TicketPercent, TrendingDown, TrendingUp, X } from 'lucide-react';
 import { useEffect, useState } from 'react';
 import { parseChartAccountsCsv } from '@/features/erp/api/financial-csv';
 
@@ -299,6 +299,23 @@ function FinancialRecords({ ledger, onSaved }) {
   const [deletingAccount, setDeletingAccount] = useState('');
   const [processingExpense, setProcessingExpense] = useState('');
   const [selectedAccounts, setSelectedAccounts] = useState({});
+  const [savingSubscription, setSavingSubscription] = useState(false);
+  const [processingSubscription, setProcessingSubscription] = useState('');
+  const [editingSubscriptionId, setEditingSubscriptionId] = useState('');
+  const [subscriptionForm, setSubscriptionForm] = useState({
+    name: '',
+    provider: '',
+    plan: '',
+    accountEmail: '',
+    managementUrl: '',
+    paymentMethod: '',
+    billingCycle: 'MONTHLY',
+    amount: '',
+    nextDueAt: '',
+    categoryId: '',
+    autoRenew: true,
+    notes: '',
+  });
   const [expenseForm, setExpenseForm] = useState({
     description: '',
     amount: '',
@@ -429,6 +446,93 @@ function FinancialRecords({ ledger, onSaved }) {
     }
   };
 
+  const resetSubscriptionForm = () => {
+    setEditingSubscriptionId('');
+    setSubscriptionForm({
+      name: '',
+      provider: '',
+      plan: '',
+      accountEmail: '',
+      managementUrl: '',
+      paymentMethod: '',
+      billingCycle: 'MONTHLY',
+      amount: '',
+      nextDueAt: '',
+      categoryId: '',
+      autoRenew: true,
+      notes: '',
+    });
+  };
+
+  const saveSubscription = async (event) => {
+    event.preventDefault();
+    setSavingSubscription(true);
+    setError('');
+    setNotice('');
+    try {
+      const response = await fetch('/api/erp/financeiro/subscriptions', {
+        method: editingSubscriptionId ? 'PATCH' : 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          ...subscriptionForm,
+          autoRenew: subscriptionForm.billingCycle === 'ONCE' ? false : subscriptionForm.autoRenew,
+          ...(editingSubscriptionId ? { subscriptionId: editingSubscriptionId, action: 'update' } : {}),
+        }),
+      });
+      const result = await response.json();
+      if (!response.ok) throw new Error(result.error || 'Não foi possível salvar a conta ou serviço.');
+      setNotice(editingSubscriptionId ? 'Cadastro atualizado e próximos dados de cobrança sincronizados.' : 'Conta cadastrada e lançamento adicionado às despesas.');
+      resetSubscriptionForm();
+      await onSaved();
+    } catch (saveError) {
+      setError(saveError.message || 'Não foi possível salvar a conta ou serviço.');
+    } finally {
+      setSavingSubscription(false);
+    }
+  };
+
+  const editSubscription = (subscription) => {
+    setEditingSubscriptionId(subscription.id);
+    setSubscriptionForm({
+      name: subscription.name,
+      provider: subscription.provider,
+      plan: subscription.plan || '',
+      accountEmail: subscription.accountEmail || '',
+      managementUrl: subscription.managementUrl || '',
+      paymentMethod: subscription.paymentMethod || '',
+      billingCycle: subscription.billingCycle,
+      amount: String(subscription.amount),
+      nextDueAt: String(subscription.nextDueAt).slice(0, 10),
+      categoryId: subscription.categoryId,
+      autoRenew: subscription.autoRenew,
+      notes: subscription.notes || '',
+    });
+    document.getElementById('company-subscription-form')?.scrollIntoView({ behavior: 'smooth', block: 'center' });
+  };
+
+  const updateSubscriptionStatus = async (subscription, action) => {
+    const confirmed = action !== 'pause' || window.confirm(`Pausar "${subscription.provider}: ${subscription.name}"? O lançamento já criado continuará em Despesas, mas novos ciclos não serão gerados.`);
+    if (!confirmed) return;
+    setProcessingSubscription(subscription.id);
+    setError('');
+    setNotice('');
+    try {
+      const response = await fetch('/api/erp/financeiro/subscriptions', {
+        method: 'PATCH',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ subscriptionId: subscription.id, action }),
+      });
+      const result = await response.json();
+      if (!response.ok) throw new Error(result.error || 'Não foi possível atualizar a conta ou serviço.');
+      setNotice(action === 'pause' ? 'Conta pausada; os lançamentos existentes foram preservados.' : 'Conta reativada e próxima despesa conferida.');
+      await onSaved();
+    } catch (updateError) {
+      setError(updateError.message || 'Não foi possível atualizar a conta ou serviço.');
+    } finally {
+      setProcessingSubscription('');
+    }
+  };
+
   const activeChartAccounts = ledger.chartAccounts.filter((account) => account.active
     && account.nature === 'EXPENSE'
     && !ledger.chartAccounts.some((child) => child.active && child.code.startsWith(`${account.code}.`)));
@@ -449,6 +553,102 @@ function FinancialRecords({ ledger, onSaved }) {
       <article><span>Vencem hoje</span><strong>{ledger.dueSummary.dueTodayCount}</strong><small>Despesas com vencimento cadastrado</small></article>
       <article><span>Próximos 7 dias</span><strong>{ledger.dueSummary.dueNextSevenDays}</strong><small>Contagem baseada na data de vencimento</small></article>
     </div>
+
+    <section className="company-subscriptions" aria-labelledby="company-subscriptions-title">
+      <div className="company-subscriptions-heading">
+        <div>
+          <span className="eyebrow">Serviços e renovações</span>
+          <h3 id="company-subscriptions-title">Contas e assinaturas</h3>
+          <p>Cadastre serviços como Vercel, internet, domínio e softwares. O próximo vencimento entra em Despesas; cobranças recorrentes com renovação automática geram o próximo ciclo ao serem marcadas como pagas. Nenhum pagamento é feito pelo ERP.</p>
+        </div>
+        <span className="company-subscriptions-count">{ledger.subscriptions.filter((subscription) => subscription.active).length} ativa(s)</span>
+      </div>
+      <div className="company-subscriptions-grid">
+        <form id="company-subscription-form" className="financial-record-form company-subscription-form" onSubmit={saveSubscription}>
+          <h4>{editingSubscriptionId ? 'Editar conta ou serviço' : 'Cadastrar conta ou serviço'}</h4>
+          <div className="financial-record-form-row">
+            <label>Nome do serviço<input required maxLength={100} placeholder="Ex.: Hospedagem do site" value={subscriptionForm.name} onChange={(event) => setSubscriptionForm({ ...subscriptionForm, name: event.target.value })} /></label>
+            <label>Fornecedor<input required maxLength={80} placeholder="Ex.: Vercel" value={subscriptionForm.provider} onChange={(event) => setSubscriptionForm({ ...subscriptionForm, provider: event.target.value })} /></label>
+          </div>
+          <div className="financial-record-form-row">
+            <label>Plano (opcional)<input maxLength={100} placeholder="Ex.: Pro" value={subscriptionForm.plan} onChange={(event) => setSubscriptionForm({ ...subscriptionForm, plan: event.target.value })} /></label>
+            <label>Valor por cobrança (R$)<input required type="number" min="0.01" step="0.01" value={subscriptionForm.amount} onChange={(event) => setSubscriptionForm({ ...subscriptionForm, amount: event.target.value })} /></label>
+          </div>
+          <div className="financial-record-form-row">
+            <label>Frequência<select value={subscriptionForm.billingCycle} onChange={(event) => setSubscriptionForm({
+              ...subscriptionForm,
+              billingCycle: event.target.value,
+              autoRenew: event.target.value === 'ONCE' ? false : subscriptionForm.autoRenew,
+            })}>
+              <option value="MONTHLY">Mensal</option><option value="YEARLY">Anual</option><option value="ONCE">Pagamento único</option>
+            </select></label>
+            <label>Próximo vencimento<input required type="date" value={subscriptionForm.nextDueAt} onChange={(event) => setSubscriptionForm({ ...subscriptionForm, nextDueAt: event.target.value })} /></label>
+          </div>
+          <label>Categoria de despesa<select required value={subscriptionForm.categoryId} onChange={(event) => setSubscriptionForm({ ...subscriptionForm, categoryId: event.target.value })}>
+            <option value="">Selecione uma categoria</option>
+            {activeChartAccounts.map((account) => <option key={account.id} value={account.id}>{account.code} · {account.name}</option>)}
+          </select></label>
+          <div className="financial-record-form-row">
+            <label>E-mail/identificação da conta<input maxLength={254} placeholder="Ex.: financeiro@empresa.com" value={subscriptionForm.accountEmail} onChange={(event) => setSubscriptionForm({ ...subscriptionForm, accountEmail: event.target.value })} /></label>
+            <label>Link de gestão<input type="url" maxLength={500} placeholder="https://" value={subscriptionForm.managementUrl} onChange={(event) => setSubscriptionForm({ ...subscriptionForm, managementUrl: event.target.value })} /></label>
+          </div>
+          <div className="financial-record-form-row">
+            <label>Forma de pagamento (opcional)<input maxLength={80} placeholder="Ex.: Cartão corporativo" value={subscriptionForm.paymentMethod} onChange={(event) => setSubscriptionForm({ ...subscriptionForm, paymentMethod: event.target.value })} /></label>
+            {subscriptionForm.billingCycle !== 'ONCE' && <label className="company-subscription-renewal">
+              <input type="checkbox" checked={subscriptionForm.autoRenew} onChange={(event) => setSubscriptionForm({ ...subscriptionForm, autoRenew: event.target.checked })} />
+              A cobrança se renova automaticamente
+            </label>}
+          </div>
+          <label>Observações (opcional)<textarea rows={2} maxLength={1000} placeholder="Contato de suporte, finalidade ou detalhes úteis. Não informe senhas." value={subscriptionForm.notes} onChange={(event) => setSubscriptionForm({ ...subscriptionForm, notes: event.target.value })} /></label>
+          <div className="company-subscription-form-actions">
+            <button type="submit" disabled={savingSubscription || !activeChartAccounts.length}>{savingSubscription ? 'Salvando…' : editingSubscriptionId ? 'Salvar alterações' : 'Cadastrar e lançar despesa'}</button>
+            {editingSubscriptionId && <button type="button" className="secondary" onClick={resetSubscriptionForm}><X size={15} aria-hidden="true" />Cancelar edição</button>}
+          </div>
+          {!activeChartAccounts.length && <small>Cadastre uma conta de despesa no plano de contas para classificar o serviço.</small>}
+          <small>Não armazene senhas, códigos de acesso ou dados completos de cartão neste cadastro.</small>
+        </form>
+
+        <div className="company-subscription-list" aria-label="Contas e serviços cadastrados">
+          {ledger.subscriptions.length ? ledger.subscriptions.map((subscription) => {
+            const manualRenewal = !subscription.active && !subscription.autoRenew && subscription.billingCycle !== 'ONCE';
+            const days = subscription.active || manualRenewal ? daysUntil(subscription.nextDueAt) : null;
+            const dueLabel = !subscription.active && !manualRenewal
+              ? subscription.billingCycle === 'ONCE' ? 'Sem novo ciclo previsto' : 'Pausada'
+              : days === null ? 'Vencimento não informado'
+                : days < 0 ? `Vencida há ${Math.abs(days)} dia(s)`
+                  : days === 0 ? manualRenewal ? 'Renovação manual vence hoje' : 'Vence hoje'
+                    : manualRenewal ? `Renovação manual em ${days} dia(s)` : `Vence em ${days} dia(s)`;
+            const cycleLabel = subscription.billingCycle === 'MONTHLY' ? 'Mensal' : subscription.billingCycle === 'YEARLY' ? 'Anual' : 'Pagamento único';
+            return <article className={`company-subscription-card${subscription.active ? '' : ' is-paused'}`} key={subscription.id}>
+              <div className="company-subscription-card-heading">
+                <div><h4>{subscription.provider}: {subscription.name}</h4><span>{subscription.plan || cycleLabel}</span></div>
+                <span className={`company-subscription-status${subscription.active ? ' is-active' : ''}`}>{subscription.active ? 'Ativa' : subscription.autoRenew ? 'Pausada' : 'Renovação manual'}</span>
+              </div>
+              <div className={`company-subscription-due${days !== null && days <= 7 && subscription.active ? ' is-soon' : ''}`}>
+                <strong>{money(subscription.amount)}</strong>
+                <span>{dueLabel}</span>
+              </div>
+              <dl className="company-subscription-details">
+                <div><dt>Próximo vencimento</dt><dd>{formatDateOnly(subscription.nextDueAt)}</dd></div>
+                <div><dt>Cobrança</dt><dd>{cycleLabel}{subscription.autoRenew && subscription.billingCycle !== 'ONCE' ? ' · renovação automática' : ''}</dd></div>
+                <div><dt>Categoria</dt><dd>{subscription.category?.code} · {subscription.category?.name}</dd></div>
+                {subscription.accountEmail && <div><dt>Conta</dt><dd>{subscription.accountEmail}</dd></div>}
+                {subscription.paymentMethod && <div><dt>Pagamento</dt><dd>{subscription.paymentMethod}</dd></div>}
+              </dl>
+              {subscription.managementUrl && <a className="company-subscription-link" href={subscription.managementUrl} target="_blank" rel="noreferrer">Abrir gestão do serviço</a>}
+              {subscription.notes && <p className="company-subscription-notes">{subscription.notes}</p>}
+              <div className="company-subscription-actions">
+                <button type="button" onClick={() => editSubscription(subscription)}><Pencil size={14} aria-hidden="true" />Editar</button>
+                <button type="button" onClick={() => updateSubscriptionStatus(subscription, subscription.active ? 'pause' : 'resume')} disabled={processingSubscription === subscription.id}>
+                  {subscription.active ? <Pause size={14} aria-hidden="true" /> : <Play size={14} aria-hidden="true" />}
+                  {processingSubscription === subscription.id ? 'Atualizando…' : subscription.active ? 'Pausar' : 'Reativar'}
+                </button>
+              </div>
+            </article>;
+          }) : <EmptyState>Nenhuma conta ou assinatura cadastrada. Adicione a primeira para acompanhar o próximo vencimento.</EmptyState>}
+        </div>
+      </div>
+    </section>
 
     <div className="financial-record-forms">
       <form className="financial-record-form" onSubmit={(event) => send(event, { kind: 'expense', ...expenseForm }, () => setExpenseForm({
@@ -553,7 +753,7 @@ function FinancialRecords({ ledger, onSaved }) {
             : days < 0 ? `Vencida há ${Math.abs(days)} dia(s)`
               : days === 0 ? 'Vence hoje' : `Vence em ${days} dia(s)`;
           return <tr key={expense.id}>
-            <th scope="row">{expense.description}<small>{expense.category?.code} · {expense.category?.name}</small></th>
+            <th scope="row">{expense.description}<small>{expense.category?.code} · {expense.category?.name}</small>{expense.serviceSubscription && <small>Conta cadastrada · {expense.serviceSubscription.provider}{expense.serviceSubscription.billingCycle !== 'ONCE' ? ' · recorrente' : ''}</small>}</th>
             <td>{formatDateOnly(expense.competenceAt)}</td>
             <td>{money(expense.amount)}</td>
             <td>{expense.dueAt ? <>{formatDateOnly(expense.dueAt)}<small>{countdown}</small></> : countdown}</td>
@@ -995,7 +1195,8 @@ export default function FinancialPage() {
         if (!result.financial || !Array.isArray(result.financial.promotionTypes) || !result.liquidity || !result.automaticChartActivity) {
           throw new Error('A resposta do financeiro veio incompleta. Tente atualizar a página.');
         }
-        if (!Array.isArray(ledgerResult.chartAccounts) || !Array.isArray(ledgerResult.financialAccounts) || !Array.isArray(ledgerResult.expenses) || !ledgerResult.dueSummary) {
+        if (!Array.isArray(ledgerResult.chartAccounts) || !Array.isArray(ledgerResult.financialAccounts)
+          || !Array.isArray(ledgerResult.expenses) || !Array.isArray(ledgerResult.subscriptions) || !ledgerResult.dueSummary) {
           throw new Error('A resposta dos cadastros financeiros veio incompleta. Atualize a página.');
         }
         if (active) {

@@ -520,8 +520,36 @@ model FinancialChartAccount {
   createdAt       DateTime        @default(now())
   updatedAt       DateTime        @updatedAt
   expenses        CompanyExpense[]
+  serviceSubscriptions CompanyServiceSubscription[]
 
   @@index([active, nature])
+}
+
+model CompanyServiceSubscription {
+  id            String                            @id @default(cuid())
+  name          String
+  provider      String
+  plan          String?
+  accountEmail  String?
+  managementUrl String?
+  paymentMethod String?
+  billingCycle  String
+  amount        Decimal                           @db.Decimal(14, 2)
+  nextDueAt     DateTime                          @db.Date
+  autoRenew     Boolean                           @default(true)
+  active        Boolean                           @default(true)
+  notes         String?
+  createdBy     String
+  updatedBy     String?
+  createdAt     DateTime                          @default(now())
+  updatedAt     DateTime                          @updatedAt
+  categoryId    String
+  category      FinancialChartAccount             @relation(fields: [categoryId], references: [id], onDelete: Restrict)
+  expenses      CompanyExpense[]
+  auditLogs     CompanyServiceSubscriptionAuditLog[]
+
+  @@index([active, nextDueAt])
+  @@index([categoryId])
 }
 
 model CompanyFinancialAccount {
@@ -551,16 +579,32 @@ model CompanyExpense {
   createdBy         String
   categoryId        String
   financialAccountId String?
+  serviceSubscriptionId String?
+  subscriptionPeriod String?
   createdAt         DateTime                 @default(now())
   updatedAt         DateTime                 @updatedAt
   category          FinancialChartAccount    @relation(fields: [categoryId], references: [id], onDelete: Restrict)
   financialAccount  CompanyFinancialAccount? @relation(fields: [financialAccountId], references: [id], onDelete: Restrict)
+  serviceSubscription CompanyServiceSubscription? @relation(fields: [serviceSubscriptionId], references: [id], onDelete: Restrict)
   auditLogs         CompanyExpenseAuditLog[]
 
+  @@unique([serviceSubscriptionId, subscriptionPeriod])
   @@index([status, dueAt])
   @@index([competenceAt, status])
   @@index([categoryId])
   @@index([financialAccountId])
+}
+
+model CompanyServiceSubscriptionAuditLog {
+  id             String                    @id @default(cuid())
+  subscriptionId String
+  action         String
+  actor          String
+  occurredAt     DateTime                  @default(now())
+  snapshot       Json?
+  subscription   CompanyServiceSubscription @relation(fields: [subscriptionId], references: [id], onDelete: Restrict)
+
+  @@index([subscriptionId, occurredAt])
 }
 
 model CompanyExpenseAuditLog {
