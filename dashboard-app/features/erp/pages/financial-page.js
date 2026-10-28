@@ -495,6 +495,11 @@ function FinancialRecords({ ledger, onSaved }) {
         dueAt: expenseForm.dueAt,
         categoryId: expenseForm.categoryId,
         notes: expenseForm.notes,
+        provider: expenseForm.provider,
+        plan: expenseForm.plan,
+        accountEmail: expenseForm.accountEmail,
+        managementUrl: expenseForm.managementUrl,
+        paymentMethod: expenseForm.paymentMethod,
       };
       const response = await fetch(managedAsSubscription ? '/api/erp/financeiro/subscriptions' : '/api/erp/financeiro/records', {
         method: editingSubscriptionId ? 'PATCH' : 'POST',
@@ -614,22 +619,32 @@ function FinancialRecords({ ledger, onSaved }) {
             })}>
               <option value="NONE">Não recorrente</option><option value="MONTHLY">Mensal</option><option value="YEARLY">Anual</option><option value="ONCE">Pagamento único acompanhado</option>
             </select></label>
-            {expenseForm.billingCycle !== 'NONE' && expenseForm.billingCycle !== 'ONCE' && <label className="company-subscription-renewal">
-              <input type="checkbox" checked={expenseForm.autoRenew} onChange={(event) => setExpenseForm({ ...expenseForm, autoRenew: event.target.checked })} />
-              Gerar o próximo ciclo após registrar o pagamento
-            </label>}
+            <label className="company-subscription-renewal">
+              <input
+                type="checkbox"
+                checked={expenseForm.billingCycle !== 'NONE' && expenseForm.billingCycle !== 'ONCE' && expenseForm.autoRenew}
+                onChange={(event) => setExpenseForm({
+                  ...expenseForm,
+                  billingCycle: event.target.checked && !['MONTHLY', 'YEARLY'].includes(expenseForm.billingCycle)
+                    ? 'MONTHLY'
+                    : expenseForm.billingCycle,
+                  autoRenew: event.target.checked,
+                })}
+              />
+              <span>Gerar o próximo ciclo após registrar o pagamento
+                {(expenseForm.billingCycle === 'NONE' || expenseForm.billingCycle === 'ONCE') && <small>Ao marcar, a frequência será definida como mensal.</small>}
+              </span>
+            </label>
           </div>
-          {(expenseForm.billingCycle !== 'NONE' || editingSubscriptionId) && <>
-            <div className="financial-record-form-row">
-              <label>Fornecedor<input maxLength={80} placeholder="Ex.: concessionária, imobiliária ou Vercel" value={expenseForm.provider} onChange={(event) => setExpenseForm({ ...expenseForm, provider: event.target.value })} /></label>
-              <label>Plano/identificação (opcional)<input maxLength={100} placeholder="Ex.: Pro, unidade ou contrato" value={expenseForm.plan} onChange={(event) => setExpenseForm({ ...expenseForm, plan: event.target.value })} /></label>
-            </div>
-            <div className="financial-record-form-row">
-              <label>E-mail/identificação da conta (opcional)<input maxLength={254} placeholder="Ex.: financeiro@empresa.com" value={expenseForm.accountEmail} onChange={(event) => setExpenseForm({ ...expenseForm, accountEmail: event.target.value })} /></label>
-              <label>Link de gestão (opcional)<input type="url" maxLength={500} placeholder="https://" value={expenseForm.managementUrl} onChange={(event) => setExpenseForm({ ...expenseForm, managementUrl: event.target.value })} /></label>
-            </div>
-            <label>Forma de pagamento (opcional)<input maxLength={80} placeholder="Ex.: Cartão corporativo" value={expenseForm.paymentMethod} onChange={(event) => setExpenseForm({ ...expenseForm, paymentMethod: event.target.value })} /></label>
-          </>}
+          <div className="financial-record-form-row">
+            <label>Fornecedor<input required maxLength={80} placeholder="Ex.: concessionária, imobiliária ou Vercel" value={expenseForm.provider} onChange={(event) => setExpenseForm({ ...expenseForm, provider: event.target.value })} /></label>
+            <label>Plano/identificação (opcional)<input maxLength={100} placeholder="Ex.: Pro, unidade ou contrato" value={expenseForm.plan} onChange={(event) => setExpenseForm({ ...expenseForm, plan: event.target.value })} /></label>
+          </div>
+          <div className="financial-record-form-row">
+            <label>E-mail/identificação da conta (opcional)<input maxLength={254} placeholder="Ex.: financeiro@empresa.com" value={expenseForm.accountEmail} onChange={(event) => setExpenseForm({ ...expenseForm, accountEmail: event.target.value })} /></label>
+            <label>Link de gestão (opcional)<input type="url" maxLength={500} placeholder="https://" value={expenseForm.managementUrl} onChange={(event) => setExpenseForm({ ...expenseForm, managementUrl: event.target.value })} /></label>
+          </div>
+          <label>Forma de pagamento (opcional)<input maxLength={80} placeholder="Ex.: Cartão corporativo" value={expenseForm.paymentMethod} onChange={(event) => setExpenseForm({ ...expenseForm, paymentMethod: event.target.value })} /></label>
           <label>Observações (opcional)<textarea rows={2} maxLength={1000} placeholder="Detalhes úteis, finalidade ou contato. Não informe senhas ou dados completos de cartão." value={expenseForm.notes} onChange={(event) => setExpenseForm({ ...expenseForm, notes: event.target.value })} /></label>
           <div className="company-subscription-form-actions">
             <button type="submit" disabled={saving || !activeChartAccounts.length}>{saving ? 'Salvando…' : editingSubscriptionId ? 'Salvar alterações' : expenseForm.billingCycle === 'NONE' ? 'Registrar despesa' : 'Cadastrar despesa e vencimento'}</button>
@@ -759,7 +774,19 @@ function FinancialRecords({ ledger, onSaved }) {
             : days < 0 ? `Vencida há ${Math.abs(days)} dia(s)`
               : days === 0 ? 'Vence hoje' : `Vence em ${days} dia(s)`;
           return <tr key={expense.id}>
-            <th scope="row">{expense.description}<small>{expense.category?.code} · {expense.category?.name}</small>{expense.serviceSubscription && <small>Conta cadastrada · {expense.serviceSubscription.provider}{expense.serviceSubscription.billingCycle !== 'ONCE' ? ' · recorrente' : ''}</small>}</th>
+            <th scope="row">
+              {expense.description}
+              <small>{expense.category?.code} · {expense.category?.name}</small>
+              {(expense.provider || expense.serviceSubscription?.provider || expense.plan || expense.serviceSubscription?.plan || expense.accountEmail || expense.serviceSubscription?.accountEmail || expense.managementUrl || expense.serviceSubscription?.managementUrl || expense.paymentMethod || expense.serviceSubscription?.paymentMethod) && <details className="financial-expense-details">
+                <summary>Dados da despesa</summary>
+                <span>Fornecedor: {expense.provider || expense.serviceSubscription?.provider || 'Não informado'}</span>
+                {(expense.plan || expense.serviceSubscription?.plan) && <span>Plano/identificação: {expense.plan || expense.serviceSubscription.plan}</span>}
+                {(expense.accountEmail || expense.serviceSubscription?.accountEmail) && <span>E-mail/identificação: {expense.accountEmail || expense.serviceSubscription.accountEmail}</span>}
+                {(expense.paymentMethod || expense.serviceSubscription?.paymentMethod) && <span>Forma de pagamento: {expense.paymentMethod || expense.serviceSubscription.paymentMethod}</span>}
+                {(expense.managementUrl || expense.serviceSubscription?.managementUrl) && <a href={expense.managementUrl || expense.serviceSubscription.managementUrl} target="_blank" rel="noreferrer">Abrir link de gestão</a>}
+              </details>}
+              {expense.serviceSubscription && <small>Conta recorrente · {expense.serviceSubscription.provider}{expense.serviceSubscription.billingCycle !== 'ONCE' ? ' · recorrente' : ''}</small>}
+            </th>
             <td>{formatDateOnly(expense.competenceAt)}</td>
             <td>{money(expense.amount)}</td>
             <td>{expense.dueAt ? <>{formatDateOnly(expense.dueAt)}<small>{countdown}</small></> : countdown}</td>

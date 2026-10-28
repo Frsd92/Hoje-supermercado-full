@@ -61,7 +61,7 @@ export async function GET() {
           include: {
             category: { select: { id: true, code: true, name: true, expenseBehavior: true } },
             financialAccount: { select: { id: true, name: true } },
-            serviceSubscription: { select: { id: true, provider: true, billingCycle: true, autoRenew: true } },
+            serviceSubscription: { select: { id: true, provider: true, plan: true, accountEmail: true, managementUrl: true, paymentMethod: true, billingCycle: true, autoRenew: true } },
           },
           orderBy: [{ dueAt: { sort: 'asc', nulls: 'last' } }, { createdAt: 'desc' }],
         }),
@@ -71,7 +71,7 @@ export async function GET() {
           include: {
             category: { select: { id: true, code: true, name: true, expenseBehavior: true } },
             financialAccount: { select: { id: true, name: true } },
-            serviceSubscription: { select: { id: true, provider: true, billingCycle: true, autoRenew: true } },
+            serviceSubscription: { select: { id: true, provider: true, plan: true, accountEmail: true, managementUrl: true, paymentMethod: true, billingCycle: true, autoRenew: true } },
           },
           orderBy: { createdAt: 'desc' },
         }),
@@ -189,9 +189,27 @@ export async function POST(request) {
       const dueAt = dateOnly(body.dueAt, true);
       const categoryId = String(body.categoryId || '').trim();
       const notes = String(body.notes || '').trim() || null;
+      const provider = String(body.provider || '').trim() || null;
+      const plan = String(body.plan || '').trim() || null;
+      const accountEmail = String(body.accountEmail || '').trim() || null;
+      const managementUrl = String(body.managementUrl || '').trim() || null;
+      const paymentMethod = String(body.paymentMethod || '').trim() || null;
       if (!description || description.length > 180 || amount === null || amount <= 0
-        || competenceAt === undefined || dueAt === undefined || !categoryId || (notes && notes.length > 1000)) {
+        || competenceAt === undefined || dueAt === undefined || !categoryId || (notes && notes.length > 1000)
+        || (provider && provider.length > 80) || (plan && plan.length > 100)
+        || (accountEmail && (accountEmail.length > 254 || !/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(accountEmail)))
+        || (managementUrl && managementUrl.length > 500) || (paymentMethod && paymentMethod.length > 80)) {
         return Response.json({ error: 'Informe descrição, valor positivo, competência e conta de despesa válidos.' }, { status: 400, headers });
+      }
+      if (managementUrl) {
+        try {
+          const url = new URL(managementUrl);
+          if (!['http:', 'https:'].includes(url.protocol)) {
+            return Response.json({ error: 'O link de gestão deve começar com http:// ou https://.' }, { status: 400, headers });
+          }
+        } catch {
+          return Response.json({ error: 'Informe um link de gestão válido.' }, { status: 400, headers });
+        }
       }
 
       const category = await prisma.financialChartAccount.findFirst({
@@ -207,7 +225,20 @@ export async function POST(request) {
 
       const expense = await prisma.$transaction(async (transaction) => {
         const created = await transaction.companyExpense.create({
-          data: { description, amount, competenceAt, dueAt, notes, categoryId, createdBy: actor },
+          data: {
+            description,
+            amount,
+            competenceAt,
+            dueAt,
+            notes,
+            provider,
+            plan,
+            accountEmail,
+            managementUrl,
+            paymentMethod,
+            categoryId,
+            createdBy: actor,
+          },
           include: { category: { select: { id: true, code: true, name: true, expenseBehavior: true } } },
         });
         await transaction.companyExpenseAuditLog.create({
@@ -222,6 +253,11 @@ export async function POST(request) {
               dueAt: created.dueAt?.toISOString() || null,
               status: created.status,
               categoryId: created.categoryId,
+              provider: created.provider,
+              plan: created.plan,
+              accountEmail: created.accountEmail,
+              managementUrl: created.managementUrl,
+              paymentMethod: created.paymentMethod,
             },
           },
         });
@@ -298,6 +334,11 @@ export async function PATCH(request) {
                 competenceAt: nextDate,
                 dueAt: nextDate,
                 notes: subscription.notes,
+                provider: subscription.provider,
+                plan: subscription.plan,
+                accountEmail: subscription.accountEmail,
+                managementUrl: subscription.managementUrl,
+                paymentMethod: subscription.paymentMethod,
                 createdBy: actor,
                 categoryId: subscription.categoryId,
                 serviceSubscriptionId: subscription.id,
@@ -316,6 +357,11 @@ export async function PATCH(request) {
                   dueAt: nextExpense.dueAt?.toISOString() || null,
                   status: nextExpense.status,
                   categoryId: nextExpense.categoryId,
+                  provider: nextExpense.provider,
+                  plan: nextExpense.plan,
+                  accountEmail: nextExpense.accountEmail,
+                  managementUrl: nextExpense.managementUrl,
+                  paymentMethod: nextExpense.paymentMethod,
                   serviceSubscriptionId: subscription.id,
                 },
               },

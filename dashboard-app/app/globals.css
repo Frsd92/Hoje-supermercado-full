@@ -8885,6 +8885,12 @@ button.metric-mini:focus-visible {
 .company-subscription-form textarea { width: 100%; min-width: 0; resize: vertical; padding: 8px 9px; border: 1px solid #d8e2db; border-radius: 8px; background: #fff; color: #25382b; font: inherit; font-size: .72rem; }
 .company-subscription-form input[type="checkbox"] { width: 16px; min-height: 16px; margin: 0; accent-color: #1b6840; }
 .company-subscription-form .company-subscription-renewal { display: flex; align-items: center; gap: 8px; padding: 9px; border: 1px solid #e1e9e3; border-radius: 8px; background: #fff; }
+.company-subscription-form .company-subscription-renewal span { display: grid; gap: 3px; }
+.company-subscription-form .company-subscription-renewal small { color: #78867d; font-size: .62rem; font-weight: 500; }
+.financial-expense-details { display: grid; gap: 3px; margin-top: 5px; font-size: .66rem; }
+.financial-expense-details summary { width: fit-content; color: #31503a; cursor: pointer; font-weight: 700; }
+.financial-expense-details > span, .financial-expense-details > a { display: block; padding-top: 2px; color: #65756a; overflow-wrap: anywhere; }
+.financial-expense-details > a { color: #23613c; }
 .company-subscription-form-actions, .company-subscription-actions { display: flex; flex-wrap: wrap; gap: 7px; }
 .company-subscription-form-actions button, .company-subscription-actions button { display: inline-flex; align-items: center; justify-content: center; gap: 6px; min-height: 36px; padding: 7px 10px; border: 1px solid #1b6840; border-radius: 8px; background: #1b6840; color: #fff; cursor: pointer; font: inherit; font-size: .68rem; font-weight: 750; }
 .company-subscription-form-actions button.secondary, .company-subscription-actions button { border-color: #cddbd0; background: #fff; color: #31503a; }

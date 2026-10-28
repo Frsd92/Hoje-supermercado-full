@@ -576,6 +576,11 @@ model CompanyExpense {
   status            String                   @default("Em aberto")
   paidAt            DateTime?
   notes             String?
+  provider           String?
+  plan               String?
+  accountEmail       String?
+  managementUrl      String?
+  paymentMethod      String?
   createdBy         String
   categoryId        String
   financialAccountId String?
