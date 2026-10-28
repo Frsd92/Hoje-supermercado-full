@@ -299,23 +299,8 @@ function FinancialRecords({ ledger, onSaved }) {
   const [deletingAccount, setDeletingAccount] = useState('');
   const [processingExpense, setProcessingExpense] = useState('');
   const [selectedAccounts, setSelectedAccounts] = useState({});
-  const [savingSubscription, setSavingSubscription] = useState(false);
   const [processingSubscription, setProcessingSubscription] = useState('');
   const [editingSubscriptionId, setEditingSubscriptionId] = useState('');
-  const [subscriptionForm, setSubscriptionForm] = useState({
-    name: '',
-    provider: '',
-    plan: '',
-    accountEmail: '',
-    managementUrl: '',
-    paymentMethod: '',
-    billingCycle: 'MONTHLY',
-    amount: '',
-    nextDueAt: '',
-    categoryId: '',
-    autoRenew: true,
-    notes: '',
-  });
   const [expenseForm, setExpenseForm] = useState({
     description: '',
     amount: '',
@@ -323,6 +308,13 @@ function FinancialRecords({ ledger, onSaved }) {
     dueAt: '',
     categoryId: '',
     notes: '',
+    provider: '',
+    plan: '',
+    accountEmail: '',
+    managementUrl: '',
+    paymentMethod: '',
+    billingCycle: 'NONE',
+    autoRenew: true,
   });
   const [chartForm, setChartForm] = useState({
     code: '',
@@ -446,68 +438,103 @@ function FinancialRecords({ ledger, onSaved }) {
     }
   };
 
-  const resetSubscriptionForm = () => {
+  const resetExpenseForm = () => {
     setEditingSubscriptionId('');
-    setSubscriptionForm({
-      name: '',
+    setExpenseForm({
+      description: '',
+      amount: '',
+      competenceAt: getLocalDateKey(new Date()),
+      dueAt: '',
+      categoryId: '',
+      notes: '',
       provider: '',
       plan: '',
       accountEmail: '',
       managementUrl: '',
       paymentMethod: '',
-      billingCycle: 'MONTHLY',
-      amount: '',
-      nextDueAt: '',
-      categoryId: '',
+      billingCycle: 'NONE',
       autoRenew: true,
-      notes: '',
     });
   };
 
-  const saveSubscription = async (event) => {
+  const saveExpense = async (event) => {
     event.preventDefault();
-    setSavingSubscription(true);
+    const managedAsSubscription = editingSubscriptionId || expenseForm.billingCycle !== 'NONE';
+    if (managedAsSubscription && expenseForm.description.trim().length > 100) {
+      setError('Para acompanhar uma conta recorrente, a descrição deve ter até 100 caracteres.');
+      return;
+    }
+    if (managedAsSubscription && !expenseForm.dueAt) {
+      setError('Informe o próximo vencimento para acompanhar uma conta recorrente.');
+      return;
+    }
+    setSaving(true);
     setError('');
     setNotice('');
     try {
-      const response = await fetch('/api/erp/financeiro/subscriptions', {
+      const requestBody = managedAsSubscription ? {
+        name: expenseForm.description.trim(),
+        provider: expenseForm.provider.trim()
+          || (expenseForm.description.trim().length <= 80 ? expenseForm.description.trim() : 'Fornecedor não informado'),
+        plan: expenseForm.plan,
+        accountEmail: expenseForm.accountEmail,
+        managementUrl: expenseForm.managementUrl,
+        paymentMethod: expenseForm.paymentMethod,
+        billingCycle: expenseForm.billingCycle === 'NONE' ? 'ONCE' : expenseForm.billingCycle,
+        amount: expenseForm.amount,
+        nextDueAt: expenseForm.dueAt,
+        categoryId: expenseForm.categoryId,
+        autoRenew: expenseForm.billingCycle === 'ONCE' ? false : expenseForm.autoRenew,
+        notes: expenseForm.notes,
+        ...(editingSubscriptionId ? { subscriptionId: editingSubscriptionId, action: 'update' } : {}),
+      } : {
+        kind: 'expense',
+        description: expenseForm.description,
+        amount: expenseForm.amount,
+        competenceAt: expenseForm.competenceAt,
+        dueAt: expenseForm.dueAt,
+        categoryId: expenseForm.categoryId,
+        notes: expenseForm.notes,
+      };
+      const response = await fetch(managedAsSubscription ? '/api/erp/financeiro/subscriptions' : '/api/erp/financeiro/records', {
         method: editingSubscriptionId ? 'PATCH' : 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({
-          ...subscriptionForm,
-          autoRenew: subscriptionForm.billingCycle === 'ONCE' ? false : subscriptionForm.autoRenew,
-          ...(editingSubscriptionId ? { subscriptionId: editingSubscriptionId, action: 'update' } : {}),
-        }),
+        body: JSON.stringify(requestBody),
       });
       const result = await response.json();
-      if (!response.ok) throw new Error(result.error || 'Não foi possível salvar a conta ou serviço.');
-      setNotice(editingSubscriptionId ? 'Cadastro atualizado e próximos dados de cobrança sincronizados.' : 'Conta cadastrada e lançamento adicionado às despesas.');
-      resetSubscriptionForm();
+      if (!response.ok) throw new Error(result.error || 'Não foi possível registrar a despesa.');
+      setNotice(editingSubscriptionId
+        ? 'Cadastro atualizado e próximos dados de cobrança sincronizados.'
+        : managedAsSubscription
+          ? 'Despesa recorrente cadastrada e adicionada aos vencimentos.'
+          : 'Despesa registrada.');
+      resetExpenseForm();
       await onSaved();
     } catch (saveError) {
-      setError(saveError.message || 'Não foi possível salvar a conta ou serviço.');
+      setError(saveError.message || 'Não foi possível registrar a despesa.');
     } finally {
-      setSavingSubscription(false);
+      setSaving(false);
     }
   };
 
   const editSubscription = (subscription) => {
     setEditingSubscriptionId(subscription.id);
-    setSubscriptionForm({
-      name: subscription.name,
+    setExpenseForm({
+      description: subscription.name,
+      amount: String(subscription.amount),
+      competenceAt: String(subscription.nextDueAt).slice(0, 10),
+      dueAt: String(subscription.nextDueAt).slice(0, 10),
+      categoryId: subscription.categoryId,
+      notes: subscription.notes || '',
       provider: subscription.provider,
       plan: subscription.plan || '',
       accountEmail: subscription.accountEmail || '',
       managementUrl: subscription.managementUrl || '',
       paymentMethod: subscription.paymentMethod || '',
       billingCycle: subscription.billingCycle,
-      amount: String(subscription.amount),
-      nextDueAt: String(subscription.nextDueAt).slice(0, 10),
-      categoryId: subscription.categoryId,
       autoRenew: subscription.autoRenew,
-      notes: subscription.notes || '',
     });
-    document.getElementById('company-subscription-form')?.scrollIntoView({ behavior: 'smooth', block: 'center' });
+    document.getElementById('company-expense-form')?.scrollIntoView({ behavior: 'smooth', block: 'center' });
   };
 
   const updateSubscriptionStatus = async (subscription, action) => {
@@ -557,58 +584,63 @@ function FinancialRecords({ ledger, onSaved }) {
     <section className="company-subscriptions" aria-labelledby="company-subscriptions-title">
       <div className="company-subscriptions-heading">
         <div>
-          <span className="eyebrow">Serviços e renovações</span>
-          <h3 id="company-subscriptions-title">Contas e assinaturas</h3>
-          <p>Cadastre serviços como Vercel, internet, domínio e softwares. O próximo vencimento entra em Despesas; cobranças recorrentes com renovação automática geram o próximo ciclo ao serem marcadas como pagas. Nenhum pagamento é feito pelo ERP.</p>
+          <span className="eyebrow">Cadastro unificado</span>
+          <h3 id="company-subscriptions-title">Lançar gasto da empresa</h3>
+          <p>Registre qualquer despesa usando o plano de contas: água, luz, internet, aluguel, papelaria, folha, benefícios e assinaturas. Escolha uma frequência para acompanhar contas recorrentes. Pagamentos são registrados manualmente.</p>
         </div>
         <span className="company-subscriptions-count">{ledger.subscriptions.filter((subscription) => subscription.active).length} ativa(s)</span>
       </div>
       <div className="company-subscriptions-grid">
-        <form id="company-subscription-form" className="financial-record-form company-subscription-form" onSubmit={saveSubscription}>
-          <h4>{editingSubscriptionId ? 'Editar conta ou serviço' : 'Cadastrar conta ou serviço'}</h4>
+        <form id="company-expense-form" className="financial-record-form company-subscription-form" onSubmit={saveExpense}>
+          <h4>{editingSubscriptionId ? 'Editar despesa recorrente' : 'Dados da despesa'}</h4>
+          <p className="financial-expense-form-intro">A categoria define a classificação no DRE. Para benefícios ou gastos de funcionários, identifique o beneficiário na descrição.</p>
+          <label>Descrição da despesa<input required maxLength={180} placeholder="Ex.: Conta de energia · Vale-refeição — nome do funcionário" value={expenseForm.description} onChange={(event) => setExpenseForm({ ...expenseForm, description: event.target.value })} /></label>
           <div className="financial-record-form-row">
-            <label>Nome do serviço<input required maxLength={100} placeholder="Ex.: Hospedagem do site" value={subscriptionForm.name} onChange={(event) => setSubscriptionForm({ ...subscriptionForm, name: event.target.value })} /></label>
-            <label>Fornecedor<input required maxLength={80} placeholder="Ex.: Vercel" value={subscriptionForm.provider} onChange={(event) => setSubscriptionForm({ ...subscriptionForm, provider: event.target.value })} /></label>
-          </div>
-          <div className="financial-record-form-row">
-            <label>Plano (opcional)<input maxLength={100} placeholder="Ex.: Pro" value={subscriptionForm.plan} onChange={(event) => setSubscriptionForm({ ...subscriptionForm, plan: event.target.value })} /></label>
-            <label>Valor por cobrança (R$)<input required type="number" min="0.01" step="0.01" value={subscriptionForm.amount} onChange={(event) => setSubscriptionForm({ ...subscriptionForm, amount: event.target.value })} /></label>
-          </div>
-          <div className="financial-record-form-row">
-            <label>Frequência<select value={subscriptionForm.billingCycle} onChange={(event) => setSubscriptionForm({
-              ...subscriptionForm,
-              billingCycle: event.target.value,
-              autoRenew: event.target.value === 'ONCE' ? false : subscriptionForm.autoRenew,
-            })}>
-              <option value="MONTHLY">Mensal</option><option value="YEARLY">Anual</option><option value="ONCE">Pagamento único</option>
+            <label>Valor (R$)<input required type="number" min="0.01" step="0.01" value={expenseForm.amount} onChange={(event) => setExpenseForm({ ...expenseForm, amount: event.target.value })} /></label>
+            <label>Categoria do plano de contas<select required value={expenseForm.categoryId} onChange={(event) => setExpenseForm({ ...expenseForm, categoryId: event.target.value })}>
+              <option value="">Selecione uma categoria de despesa</option>
+              {activeChartAccounts.map((account) => <option key={account.id} value={account.id}>{account.code} · {account.name}</option>)}
             </select></label>
-            <label>Próximo vencimento<input required type="date" value={subscriptionForm.nextDueAt} onChange={(event) => setSubscriptionForm({ ...subscriptionForm, nextDueAt: event.target.value })} /></label>
-          </div>
-          <label>Categoria de despesa<select required value={subscriptionForm.categoryId} onChange={(event) => setSubscriptionForm({ ...subscriptionForm, categoryId: event.target.value })}>
-            <option value="">Selecione uma categoria</option>
-            {activeChartAccounts.map((account) => <option key={account.id} value={account.id}>{account.code} · {account.name}</option>)}
-          </select></label>
-          <div className="financial-record-form-row">
-            <label>E-mail/identificação da conta<input maxLength={254} placeholder="Ex.: financeiro@empresa.com" value={subscriptionForm.accountEmail} onChange={(event) => setSubscriptionForm({ ...subscriptionForm, accountEmail: event.target.value })} /></label>
-            <label>Link de gestão<input type="url" maxLength={500} placeholder="https://" value={subscriptionForm.managementUrl} onChange={(event) => setSubscriptionForm({ ...subscriptionForm, managementUrl: event.target.value })} /></label>
           </div>
           <div className="financial-record-form-row">
-            <label>Forma de pagamento (opcional)<input maxLength={80} placeholder="Ex.: Cartão corporativo" value={subscriptionForm.paymentMethod} onChange={(event) => setSubscriptionForm({ ...subscriptionForm, paymentMethod: event.target.value })} /></label>
-            {subscriptionForm.billingCycle !== 'ONCE' && <label className="company-subscription-renewal">
-              <input type="checkbox" checked={subscriptionForm.autoRenew} onChange={(event) => setSubscriptionForm({ ...subscriptionForm, autoRenew: event.target.checked })} />
-              A cobrança se renova automaticamente
+            {expenseForm.billingCycle === 'NONE' && !editingSubscriptionId && <label>Competência<input required type="date" value={expenseForm.competenceAt} onChange={(event) => setExpenseForm({ ...expenseForm, competenceAt: event.target.value })} /></label>}
+            <label>Vencimento<input required={Boolean(editingSubscriptionId || expenseForm.billingCycle !== 'NONE')} type="date" value={expenseForm.dueAt} onChange={(event) => setExpenseForm({ ...expenseForm, dueAt: event.target.value })} /></label>
+          </div>
+          <div className="financial-record-form-row">
+            <label>Frequência<select value={expenseForm.billingCycle} onChange={(event) => setExpenseForm({
+              ...expenseForm,
+              billingCycle: event.target.value,
+              autoRenew: event.target.value === 'ONCE' ? false : expenseForm.billingCycle === 'ONCE' ? true : expenseForm.autoRenew,
+            })}>
+              <option value="NONE">Não recorrente</option><option value="MONTHLY">Mensal</option><option value="YEARLY">Anual</option><option value="ONCE">Pagamento único acompanhado</option>
+            </select></label>
+            {expenseForm.billingCycle !== 'NONE' && expenseForm.billingCycle !== 'ONCE' && <label className="company-subscription-renewal">
+              <input type="checkbox" checked={expenseForm.autoRenew} onChange={(event) => setExpenseForm({ ...expenseForm, autoRenew: event.target.checked })} />
+              Gerar o próximo ciclo após registrar o pagamento
             </label>}
           </div>
-          <label>Observações (opcional)<textarea rows={2} maxLength={1000} placeholder="Contato de suporte, finalidade ou detalhes úteis. Não informe senhas." value={subscriptionForm.notes} onChange={(event) => setSubscriptionForm({ ...subscriptionForm, notes: event.target.value })} /></label>
+          {(expenseForm.billingCycle !== 'NONE' || editingSubscriptionId) && <>
+            <div className="financial-record-form-row">
+              <label>Fornecedor<input maxLength={80} placeholder="Ex.: concessionária, imobiliária ou Vercel" value={expenseForm.provider} onChange={(event) => setExpenseForm({ ...expenseForm, provider: event.target.value })} /></label>
+              <label>Plano/identificação (opcional)<input maxLength={100} placeholder="Ex.: Pro, unidade ou contrato" value={expenseForm.plan} onChange={(event) => setExpenseForm({ ...expenseForm, plan: event.target.value })} /></label>
+            </div>
+            <div className="financial-record-form-row">
+              <label>E-mail/identificação da conta (opcional)<input maxLength={254} placeholder="Ex.: financeiro@empresa.com" value={expenseForm.accountEmail} onChange={(event) => setExpenseForm({ ...expenseForm, accountEmail: event.target.value })} /></label>
+              <label>Link de gestão (opcional)<input type="url" maxLength={500} placeholder="https://" value={expenseForm.managementUrl} onChange={(event) => setExpenseForm({ ...expenseForm, managementUrl: event.target.value })} /></label>
+            </div>
+            <label>Forma de pagamento (opcional)<input maxLength={80} placeholder="Ex.: Cartão corporativo" value={expenseForm.paymentMethod} onChange={(event) => setExpenseForm({ ...expenseForm, paymentMethod: event.target.value })} /></label>
+          </>}
+          <label>Observações (opcional)<textarea rows={2} maxLength={1000} placeholder="Detalhes úteis, finalidade ou contato. Não informe senhas ou dados completos de cartão." value={expenseForm.notes} onChange={(event) => setExpenseForm({ ...expenseForm, notes: event.target.value })} /></label>
           <div className="company-subscription-form-actions">
-            <button type="submit" disabled={savingSubscription || !activeChartAccounts.length}>{savingSubscription ? 'Salvando…' : editingSubscriptionId ? 'Salvar alterações' : 'Cadastrar e lançar despesa'}</button>
-            {editingSubscriptionId && <button type="button" className="secondary" onClick={resetSubscriptionForm}><X size={15} aria-hidden="true" />Cancelar edição</button>}
+            <button type="submit" disabled={saving || !activeChartAccounts.length}>{saving ? 'Salvando…' : editingSubscriptionId ? 'Salvar alterações' : expenseForm.billingCycle === 'NONE' ? 'Registrar despesa' : 'Cadastrar despesa e vencimento'}</button>
+            {editingSubscriptionId && <button type="button" className="secondary" onClick={resetExpenseForm}><X size={15} aria-hidden="true" />Cancelar edição</button>}
           </div>
-          {!activeChartAccounts.length && <small>Cadastre uma conta de despesa no plano de contas para classificar o serviço.</small>}
-          <small>Não armazene senhas, códigos de acesso ou dados completos de cartão neste cadastro.</small>
+          {!activeChartAccounts.length && <small>Cadastre ou importe as contas de despesa no plano de contas antes de lançar gastos.</small>}
         </form>
 
         <div className="company-subscription-list" aria-label="Contas e serviços cadastrados">
+          <h4>Contas recorrentes e assinaturas</h4>
+          <p>Consulte vencimentos, edite os dados ou pause renovações. As despesas não recorrentes aparecem na lista geral abaixo.</p>
           {ledger.subscriptions.length ? ledger.subscriptions.map((subscription) => {
             const manualRenewal = !subscription.active && !subscription.autoRenew && subscription.billingCycle !== 'ONCE';
             const days = subscription.active || manualRenewal ? daysUntil(subscription.nextDueAt) : null;
@@ -645,38 +677,12 @@ function FinancialRecords({ ledger, onSaved }) {
                 </button>
               </div>
             </article>;
-          }) : <EmptyState>Nenhuma conta ou assinatura cadastrada. Adicione a primeira para acompanhar o próximo vencimento.</EmptyState>}
+          }) : <EmptyState>Nenhuma conta recorrente cadastrada. Use o formulário ao lado e escolha uma frequência para acompanhar seus vencimentos.</EmptyState>}
         </div>
       </div>
     </section>
 
     <div className="financial-record-forms">
-      <form className="financial-record-form" onSubmit={(event) => send(event, { kind: 'expense', ...expenseForm }, () => setExpenseForm({
-        description: '',
-        amount: '',
-        competenceAt: getLocalDateKey(new Date()),
-        dueAt: '',
-        categoryId: '',
-        notes: '',
-      }))}>
-        <h3>Lançar gasto da empresa</h3>
-        <label>Descrição<input required maxLength={180} value={expenseForm.description} onChange={(event) => setExpenseForm({ ...expenseForm, description: event.target.value })} /></label>
-        <div className="financial-record-form-row">
-          <label>Valor (R$)<input required type="number" min="0.01" step="0.01" value={expenseForm.amount} onChange={(event) => setExpenseForm({ ...expenseForm, amount: event.target.value })} /></label>
-          <label>Competência<input required type="date" value={expenseForm.competenceAt} onChange={(event) => setExpenseForm({ ...expenseForm, competenceAt: event.target.value })} /></label>
-        </div>
-        <div className="financial-record-form-row">
-          <label>Vencimento<input type="date" value={expenseForm.dueAt} onChange={(event) => setExpenseForm({ ...expenseForm, dueAt: event.target.value })} /></label>
-          <label>Conta do plano<select required value={expenseForm.categoryId} onChange={(event) => setExpenseForm({ ...expenseForm, categoryId: event.target.value })}>
-            <option value="">Selecione uma conta</option>
-            {activeChartAccounts.map((account) => <option key={account.id} value={account.id}>{account.code} · {account.name}</option>)}
-          </select></label>
-        </div>
-        <label>Observação (opcional)<input maxLength={1000} value={expenseForm.notes} onChange={(event) => setExpenseForm({ ...expenseForm, notes: event.target.value })} /></label>
-        <button type="submit" disabled={saving || !activeChartAccounts.length}>{saving ? 'Salvando…' : 'Registrar despesa'}</button>
-        {!activeChartAccounts.length && <small>Cadastre uma conta de despesa no plano de contas para lançar gastos.</small>}
-      </form>
-
       <form className="financial-record-form" onSubmit={(event) => send(event, { kind: 'chartAccount', ...chartForm }, () => setChartForm({
         code: '',
         name: '',

@@ -8880,6 +8880,8 @@ button.metric-mini:focus-visible {
 .company-subscriptions-grid { display: grid; grid-template-columns: minmax(0, 1fr) minmax(0, 1fr); align-items: start; gap: 12px; }
 .company-subscription-form { grid-template-columns: minmax(0, 1fr); }
 .company-subscription-form h4 { margin: 0; color: #2b4433; font-size: .84rem; }
+.financial-expense-form-intro, .company-subscription-list > p { margin: 0; color: #65756a; font-size: .68rem; line-height: 1.5; }
+.company-subscription-list > h4 { margin: 0; color: #2b4433; font-size: .84rem; }
 .company-subscription-form textarea { width: 100%; min-width: 0; resize: vertical; padding: 8px 9px; border: 1px solid #d8e2db; border-radius: 8px; background: #fff; color: #25382b; font: inherit; font-size: .72rem; }
 .company-subscription-form input[type="checkbox"] { width: 16px; min-height: 16px; margin: 0; accent-color: #1b6840; }
 .company-subscription-form .company-subscription-renewal { display: flex; align-items: center; gap: 8px; padding: 9px; border: 1px solid #e1e9e3; border-radius: 8px; background: #fff; }
