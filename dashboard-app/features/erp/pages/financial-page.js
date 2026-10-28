@@ -2,7 +2,7 @@
 
 import Link from 'next/link';
 import { usePathname } from 'next/navigation';
-import { ArrowDownToLine, Banknote, CalendarDays, CircleDollarSign, PackageSearch, Pause, Pencil, Play, Printer, RefreshCw, ShoppingBag, Tag, TicketPercent, TrendingDown, TrendingUp, X } from 'lucide-react';
+import { ArrowDownToLine, Banknote, CalendarDays, CircleDollarSign, PackageSearch, Pause, Pencil, Play, Printer, RefreshCw, ShoppingBag, Tag, TicketPercent, Trash2, TrendingDown, TrendingUp, X } from 'lucide-react';
 import { useEffect, useState } from 'react';
 import { parseChartAccountsCsv } from '@/features/erp/api/financial-csv';
 import { buildSalesCashFlowEntries } from '@/features/erp/api/sales-cash-flow';
@@ -669,6 +669,30 @@ function FinancialRecords({ ledger, onSaved }) {
     }
   };
 
+  const removeChartAccount = async (account) => {
+    if (!window.confirm(`Excluir a conta "${account.code} · ${account.name}"? Se houver despesas ou assinaturas vinculadas, ela será desativada para preservar o histórico.`)) return;
+    setDeletingAccount(account.id);
+    setError('');
+    setNotice('');
+    try {
+      const response = await fetch('/api/erp/financeiro/records', {
+        method: 'DELETE',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ chartAccountId: account.id }),
+      });
+      const result = await response.json();
+      if (!response.ok) throw new Error(result.error || 'Não foi possível excluir a conta do plano.');
+      setNotice(result.archived
+        ? 'A conta possui despesas ou assinaturas vinculadas e foi desativada para preservar o histórico.'
+        : 'Conta do plano excluída.');
+      await onSaved();
+    } catch (deleteError) {
+      setError(deleteError.message || 'Não foi possível excluir a conta do plano.');
+    } finally {
+      setDeletingAccount('');
+    }
+  };
+
   const resetExpenseForm = () => {
     setEditingSubscriptionId('');
     setExpenseForm({
@@ -1016,8 +1040,8 @@ function FinancialRecords({ ledger, onSaved }) {
           <strong>{account.name}</strong><span>{account.institution || 'Instituição não informada'} · {account.accountType === 'CASH' ? 'Caixa' : account.accountType === 'DIGITAL' ? 'Digital' : 'Bancária'}</span>
           <small>Saldo informado: {money(account.openingBalance)} em {formatDateOnly(account.balanceAsOf)}</small>
           {!account.active && <small>Inativa</small>}
-          <button type="button" className="financial-record-delete" onClick={() => removeFinancialAccount(account)} disabled={deletingAccount === account.id}>
-            {deletingAccount === account.id ? 'Excluindo…' : 'Excluir conta'}
+          <button type="button" className="financial-record-delete financial-record-delete-icon" onClick={() => removeFinancialAccount(account)} disabled={deletingAccount === account.id} aria-label={`Excluir conta ${account.name}`} title="Excluir conta">
+            {deletingAccount === account.id ? <span aria-live="polite">Excluindo…</span> : <Trash2 size={16} aria-hidden="true" />}
           </button>
         </li>)}</ul> : <EmptyState>Nenhuma conta financeira cadastrada.</EmptyState>}
       </div>
@@ -1028,6 +1052,9 @@ function FinancialRecords({ ledger, onSaved }) {
           <span>{account.nature === 'EXPENSE' ? `Despesa ${account.expenseBehavior === 'FIXED' ? 'fixa' : account.expenseBehavior === 'VARIABLE' ? 'variável' : account.expenseBehavior === 'FINANCIAL' ? 'financeira' : account.expenseBehavior === 'TAX' ? 'tributária' : 'diversa'}` : account.nature === 'REVENUE' ? 'Receita' : account.nature === 'ASSET' ? 'Ativo' : account.nature === 'LIABILITY' ? 'Passivo' : 'Patrimônio líquido'}</span>
           {automaticAccountTotals.has(account.code) && <small>Movimento automático: {money(automaticAccountTotals.get(account.code).amount)} · {automaticAccountTotals.get(account.code).count} lançamento(s)</small>}
           {!account.active && <small>Inativa</small>}
+          {!automaticAccountTotals.has(account.code) && <button type="button" className="financial-record-delete financial-record-delete-icon" onClick={() => removeChartAccount(account)} disabled={deletingAccount === account.id} aria-label={`Excluir conta ${account.code} ${account.name}`} title="Excluir conta do plano">
+            {deletingAccount === account.id ? <span aria-live="polite">Excluindo…</span> : <Trash2 size={16} aria-hidden="true" />}
+          </button>}
         </li>)}</ul> : <EmptyState>Nenhuma conta contábil cadastrada.</EmptyState>}
       </div>
     </div>

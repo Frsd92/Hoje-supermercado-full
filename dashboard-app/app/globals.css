@@ -9000,6 +9000,8 @@ button.metric-mini:focus-visible {
 .financial-record-delete:hover:not(:disabled) { background: #fff3f2; }
 .financial-record-delete:focus-visible { outline: 3px solid rgba(162,43,32,.2); outline-offset: 2px; }
 .financial-record-delete:disabled { cursor: not-allowed; opacity: .55; }
+.financial-account-list .financial-record-delete-icon { display: inline-flex; align-items: center; justify-content: center; justify-self: end; width: 34px; min-height: 34px; padding: 0; }
+.financial-account-list .financial-record-delete-icon span { font-size: .62rem; }
 .financial-record-table-wrap { max-width: 100%; overflow: auto; border: 1px solid #edf1ee; border-radius: 9px; }
 .financial-record-table-wrap:focus-visible { outline: 3px solid rgba(47,118,86,.28); outline-offset: 2px; }
 .financial-record-table-wrap table { width: 100%; border-collapse: collapse; font-size: .7rem; text-align: left; }

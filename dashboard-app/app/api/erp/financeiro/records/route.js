@@ -529,9 +529,55 @@ export async function DELETE(request) {
   const session = await getServerSession(authOptions);
   if (!hasErpAccess(session?.user)) return Response.json({ error: 'Acesso negado.' }, { status: 403, headers });
   const body = await readBody(request);
+  const chartAccountId = String(body?.chartAccountId || '').trim();
   const financialAccountId = String(body?.financialAccountId || '').trim();
+  if (chartAccountId && financialAccountId) {
+    return Response.json({ error: 'Exclua apenas um tipo de conta por vez.' }, { status: 400, headers });
+  }
+  if (chartAccountId) {
+    try {
+      const account = await prisma.financialChartAccount.findUnique({
+        where: { id: chartAccountId },
+        select: { id: true, code: true },
+      });
+      if (!account) return Response.json({ error: 'A conta do plano não foi encontrada.' }, { status: 404, headers });
+      if (automaticChartAccounts.some(({ code }) => code === account.code)) {
+        return Response.json({ error: 'Esta conta do sistema não pode ser excluída.' }, { status: 409, headers });
+      }
+
+      const childAccount = await prisma.financialChartAccount.findFirst({
+        where: { active: true, code: { startsWith: `${account.code}.` } },
+        select: { id: true },
+      });
+      if (childAccount) {
+        return Response.json({ error: 'Esta conta possui subcontas ativas. Exclua ou desative primeiro as subcontas.' }, { status: 409, headers });
+      }
+
+      const [linkedExpenses, linkedSubscriptions] = await Promise.all([
+        prisma.companyExpense.count({ where: { categoryId: chartAccountId } }),
+        prisma.companyServiceSubscription.count({ where: { categoryId: chartAccountId } }),
+      ]);
+      if (linkedExpenses > 0 || linkedSubscriptions > 0) {
+        await prisma.financialChartAccount.update({
+          where: { id: chartAccountId },
+          data: { active: false },
+        });
+        return Response.json({ deleted: false, archived: true }, { headers });
+      }
+
+      await prisma.financialChartAccount.delete({ where: { id: chartAccountId } });
+      return Response.json({ deleted: true, archived: false }, { headers });
+    } catch (error) {
+      if (error?.code === 'P2003') {
+        return Response.json({ error: 'A conta passou a ter despesas ou assinaturas associadas. Atualize a tela e tente novamente.' }, { status: 409, headers });
+      }
+      console.error('Não foi possível excluir a conta do plano:', error);
+      return Response.json({ error: 'Não foi possível excluir a conta do plano.' }, { status: 503, headers });
+    }
+  }
+
   if (!financialAccountId) {
-    return Response.json({ error: 'Informe a conta da empresa que deseja excluir.' }, { status: 400, headers });
+    return Response.json({ error: 'Informe a conta que deseja excluir.' }, { status: 400, headers });
   }
 
   try {
