@@ -117,7 +117,7 @@ export default function CustomerLoyaltyPage() {
         <p>Acompanhe seus desafios, ganhe pontos ao concluir pedidos e troque-os por cupons.</p>
       </div>
       <div className="loyalty-page-header-actions">
-        <Link className="loyalty-rules-back" href="/fidelidade/regras"><BookOpen size={16} aria-hidden="true" />Todas as regras</Link>
+        <Link className="loyalty-rules-back" href="/dashboard/fidelidade/regras"><BookOpen size={16} aria-hidden="true" />Todas as regras</Link>
       </div>
     </header>
 

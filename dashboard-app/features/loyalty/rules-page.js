@@ -2,7 +2,7 @@ import Link from 'next/link';
 import { ArrowLeft, BookOpen, CircleHelp } from 'lucide-react';
 
 export default function LoyaltyRulesPage() {
-  return <article className="section-shell orders-showcase customer-coupons-showcase customer-loyalty-rules-page">
+  return <article className="section-shell orders-showcase customer-coupons-showcase customer-loyalty-rules-page loyalty-rules-page">
     <header className="section-header orders-header">
       <div>
         <span className="orders-kicker">Programa de fidelidade Hoje</span>
@@ -74,7 +74,7 @@ export default function LoyaltyRulesPage() {
       <section id="resgates" className="loyalty-rules-section">
         <h2>5. Resgates e cupons</h2>
         <ul>
-          <li>Cada recompensa informa o custo em pontos, o percentual de desconto, o pedido mínimo e a validade do cupom.</li>
+          <li>Cada recompensa informa o custo em pontos, o benefício oferecido (desconto percentual, entrega grátis ou taxa de serviço zero), o pedido mínimo e a validade do cupom.</li>
           <li>Ao confirmar o resgate, os pontos são debitados e o cupom é emitido para o e-mail da conta. O resgate é definitivo: pontos não são devolvidos se o cupom não for usado antes de expirar.</li>
           <li>O cupom é pessoal, de uso único e precisa ser usado dentro da validade. Se houver pedido mínimo, ele é calculado sobre o subtotal antes do desconto do cupom.</li>
           <li>É permitido usar um cupom por pedido. O desconto do cupom pode ser combinado com ofertas aplicadas aos produtos.</li>

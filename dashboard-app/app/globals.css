@@ -2737,6 +2737,8 @@ body {
 .dashboard-shell[data-dashboard-theme="dark"] .loyalty-admin-card-stats strong { color: #edf5ef; }
 .loyalty-page-header-actions, .loyalty-erp-header-actions { display: flex; flex-wrap: wrap; align-items: center; justify-content: flex-end; gap: 9px; }
 .loyalty-rules-back { display: inline-flex; align-items: center; justify-content: center; gap: 7px; min-height: 38px; padding: 8px 11px; border: 1px solid var(--customer-coupon-border, #dce7df); border-radius: 9px; color: var(--customer-coupon-text, #20372a); background: var(--customer-coupon-surface, #fff); font: inherit; font-size: .76rem; font-weight: 750; text-decoration: none; }
+.loyalty-rules-back:hover, .loyalty-rules-index a:hover { border-color: var(--customer-coupon-accent); }
+.loyalty-rules-back:focus-visible, .loyalty-rules-index a:focus-visible, .loyalty-rules-footer a:focus-visible { outline: 3px solid var(--customer-coupon-accent); outline-offset: 3px; }
 .loyalty-rules-page { max-width: 980px; margin: 26px auto; }
 .loyalty-rules-page .orders-header { align-items: center; }
 .loyalty-rules-intro, .loyalty-rules-footer { display: flex; align-items: flex-start; gap: 11px; margin: 18px 0; padding: 14px 16px; border: 1px solid var(--customer-coupon-border); border-radius: 12px; color: var(--customer-coupon-text); background: var(--customer-coupon-subtle); }
