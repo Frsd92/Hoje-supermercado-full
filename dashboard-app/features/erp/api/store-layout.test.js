@@ -28,8 +28,12 @@ test('defines uniquely identified store banners and brand logos with recommended
   );
   assert.ok(STORE_LAYOUT_SLOTS.filter((slot) => slot.group === 'carousels')
     .every(({ recommendedWidth, recommendedHeight }) => recommendedWidth === 520 && recommendedHeight === 700));
-  assert.ok(STORE_LAYOUT_SLOTS.filter((slot) => slot.group === 'wide-banners')
+  assert.ok(STORE_LAYOUT_SLOTS.filter((slot) => slot.group === 'wide-banners' && slot.key !== 'promo-roupas')
     .every(({ recommendedWidth, recommendedHeight }) => recommendedWidth === 1400 && recommendedHeight === 360));
+  assert.deepEqual(
+    [getStoreLayoutSlot('promo-roupas')?.recommendedWidth, getStoreLayoutSlot('promo-roupas')?.recommendedHeight],
+    [1400, 220],
+  );
   assert.equal(getStoreLayoutSlot('main-hero')?.recommendedWidth, 1644);
   assert.equal(getStoreLayoutSlot('main-hero')?.recommendedHeight, 760);
   assert.equal(getStoreLayoutSlot('main-hero')?.fallbackImage, '');

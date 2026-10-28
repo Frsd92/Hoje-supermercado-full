@@ -69,7 +69,7 @@ export const STORE_LAYOUT_SLOTS = [
     label: 'Banner Lavanderia',
     placement: 'Seção de Lavanderia',
     recommendedWidth: 1400,
-    recommendedHeight: 360,
+    recommendedHeight: 220,
     fallbackImage: '',
     group: 'wide-banners',
   },

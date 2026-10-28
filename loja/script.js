@@ -2741,8 +2741,12 @@ async function carregarLayoutGerenciado() {
           dimensions.src = imageUrl;
           try {
             await dimensions.decode();
-            element.style.aspectRatio = `${dimensions.naturalWidth} / ${dimensions.naturalHeight}`;
-            element.style.setProperty('--wide-banner-art-height', `${dimensions.naturalHeight / dimensions.naturalWidth * 100}%`);
+            const naturalAspectRatio = dimensions.naturalWidth / dimensions.naturalHeight;
+            const aspectRatio = key === 'promo-roupas'
+              ? Math.max(naturalAspectRatio, 1400 / 220)
+              : naturalAspectRatio;
+            element.style.aspectRatio = String(aspectRatio);
+            element.style.setProperty('--wide-banner-art-height', `${100 / aspectRatio}%`);
             element.classList.add('wide-banner--managed-art');
           } catch (error) {
             console.warn(`Não foi possível ajustar a proporção do banner ${key}:`, error.message);
