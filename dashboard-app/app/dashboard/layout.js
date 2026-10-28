@@ -191,7 +191,6 @@ export default function DashboardLayout({ children }) {
   const [notificationsOpen, setNotificationsOpen] = useState(false);
   const [mobileNavOpen, setMobileNavOpen] = useState(false);
   const mobileNavToggleRef = useRef(null);
-  const mobileNavLinkNavigationRef = useRef(false);
   const cpfNoteDialogRef = useRef(null);
   const cpfNoteNoButtonRef = useRef(null);
   const cartPanelRef = useRef(null);
@@ -355,8 +354,7 @@ export default function DashboardLayout({ children }) {
       document.body.style.top = bodyStyle.top;
       document.body.style.width = bodyStyle.width;
       document.body.style.overflow = bodyStyle.overflow;
-      if (!mobileNavLinkNavigationRef.current) window.scrollTo(0, scrollY);
-      mobileNavLinkNavigationRef.current = false;
+      window.scrollTo(0, scrollY);
     };
   }, [mobileNavOpen]);
 
@@ -1125,12 +1123,7 @@ export default function DashboardLayout({ children }) {
                         href={href}
                         className={`sidebar-item ${active ? 'active' : ''}`}
                         aria-current={active ? 'page' : undefined}
-                        onClick={() => {
-                          mobileNavLinkNavigationRef.current = mobileNavOpen
-                            && window.matchMedia('(max-width: 640px)').matches
-                            && href !== pathname;
-                          setMobileNavOpen(false);
-                        }}
+                        onClick={() => setMobileNavOpen(false)}
                       >
                         <Icon size={18} aria-hidden="true" />
                         <span>{itemLabel}</span>

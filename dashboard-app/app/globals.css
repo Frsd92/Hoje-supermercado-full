@@ -874,6 +874,7 @@ body {
   background: linear-gradient(180deg, rgba(34,197,94,0.8), rgba(245,197,24,0.8));
   opacity: 0;
   transition: opacity 0.2s ease;
+  pointer-events: none;
 }
 
 .sidebar-item.active {
@@ -886,7 +887,9 @@ body {
 .sidebar-item.active:hover {
   background: linear-gradient(135deg, rgba(255,255,255,0.12), rgba(34,197,94,0.12));
   color: #fff;
+  box-shadow: inset 0 0 0 1px rgba(255,255,255,0.08), 0 16px 28px rgba(34,197,94,0.12);
   border-color: rgba(34,197,94,0.20);
+  transition: none;
 }
 
 .sidebar-item.active::before {
@@ -10597,6 +10600,7 @@ button.metric-mini:focus-visible {
   background: var(--dashboard-brand);
   border-color: var(--dashboard-brand);
   box-shadow: inset 3px 0 var(--dashboard-gold), 0 4px 10px rgba(0,45,24,.1);
+  transition: none;
 }
 
 .dashboard-shell[data-dashboard-theme="light"] .sidebar-item.active svg {
