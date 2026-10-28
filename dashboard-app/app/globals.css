@@ -11436,6 +11436,93 @@ button.metric-mini:focus-visible {
   white-space: nowrap;
 }
 
+.recent-order-progress {
+  display: none;
+}
+
+.recent-order-progress-summary {
+  display: block;
+  margin-bottom: 8px;
+  color: #a7b3bd;
+  font-size: 0.68rem;
+  font-weight: 750;
+}
+
+.recent-order-progress ol {
+  display: grid;
+  grid-template-columns: repeat(5, minmax(0, 1fr));
+  gap: 0;
+  margin: 0;
+  padding: 0;
+  list-style: none;
+}
+
+.recent-order-progress li {
+  position: relative;
+  display: grid;
+  justify-items: center;
+  gap: 6px;
+  min-width: 0;
+  color: #a7b3bd;
+  text-align: center;
+}
+
+.recent-order-progress li:not(:last-child)::after {
+  position: absolute;
+  top: 5px;
+  left: 50%;
+  z-index: 0;
+  width: 100%;
+  height: 2px;
+  background: rgba(167, 179, 189, 0.3);
+  content: "";
+}
+
+.recent-order-progress li.is-complete:not(:last-child)::after {
+  background: #4caf50;
+}
+
+.recent-order-progress-dot {
+  position: relative;
+  z-index: 1;
+  width: 12px;
+  height: 12px;
+  border: 2px solid #718096;
+  border-radius: 50%;
+  background: #17212b;
+}
+
+.recent-order-progress li.is-complete .recent-order-progress-dot {
+  border-color: #4caf50;
+  background: #4caf50;
+}
+
+.recent-order-progress li.is-current .recent-order-progress-dot {
+  border-color: #86efac;
+  background: #22c55e;
+  box-shadow: 0 0 0 3px rgba(34, 197, 94, 0.2);
+}
+
+.recent-order-progress-label {
+  display: block;
+  max-width: 100%;
+  color: inherit;
+  font-size: 0.59rem;
+  font-weight: 650;
+  line-height: 1.25;
+  overflow-wrap: anywhere;
+}
+
+.recent-order-progress li.is-complete,
+.recent-order-progress li.is-current {
+  color: #e2e8f0;
+}
+
+.recent-order-progress li.is-current .recent-order-progress-label {
+  color: #86efac;
+  font-weight: 800;
+}
+
 .dashboard-shell[data-dashboard-theme="light"] .recent-orders-help,
 .dashboard-shell[data-dashboard-theme="light"] .recent-order-reference > span,
 .dashboard-shell[data-dashboard-theme="light"] .recent-order-date,
@@ -11458,6 +11545,47 @@ button.metric-mini:focus-visible {
 .dashboard-shell[data-dashboard-theme="light"] .recent-order-reference > strong,
 .dashboard-shell[data-dashboard-theme="light"] .recent-order-total > strong {
   color: #24372d;
+}
+
+.dashboard-shell[data-dashboard-theme="light"] .recent-order-progress-summary {
+  color: #718177;
+}
+
+.dashboard-shell[data-dashboard-theme="light"] .recent-order-progress li {
+  color: #718177;
+}
+
+.dashboard-shell[data-dashboard-theme="light"] .recent-order-progress li.is-complete,
+.dashboard-shell[data-dashboard-theme="light"] .recent-order-progress li.is-current {
+  color: #496257;
+}
+
+.dashboard-shell[data-dashboard-theme="light"] .recent-order-progress li.is-current .recent-order-progress-label {
+  color: #187a3c;
+}
+
+.dashboard-shell[data-dashboard-theme="light"] .recent-order-progress li:not(:last-child)::after {
+  background: rgba(113, 129, 119, 0.28);
+}
+
+.dashboard-shell[data-dashboard-theme="light"] .recent-order-progress li.is-complete:not(:last-child)::after {
+  background: #4caf50;
+}
+
+.dashboard-shell[data-dashboard-theme="light"] .recent-order-progress-dot {
+  border-color: #9baa9f;
+  background: #f5f9f6;
+}
+
+.dashboard-shell[data-dashboard-theme="light"] .recent-order-progress li.is-complete .recent-order-progress-dot {
+  border-color: #4caf50;
+  background: #4caf50;
+}
+
+.dashboard-shell[data-dashboard-theme="light"] .recent-order-progress li.is-current .recent-order-progress-dot {
+  border-color: #187a3c;
+  background: #22a04a;
+  box-shadow: 0 0 0 3px rgba(34, 160, 74, 0.16);
 }
 
 .dashboard-shell[data-dashboard-theme="dark"] .recent-order-details .mini-order-status.received { color: #b3e5fc; }
@@ -11495,6 +11623,14 @@ button.metric-mini:focus-visible {
 
   .dashboard-shell[data-dashboard-theme="light"] .recent-order-action {
     color: #187a3c;
+  }
+}
+
+@media (max-width: 760px) {
+  .recent-order-progress {
+    display: block;
+    grid-column: 1 / -1;
+    padding-top: 2px;
   }
 }
 

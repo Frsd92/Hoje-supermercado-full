@@ -9,7 +9,7 @@ import { formatCurrency, getBudgetProgress, getCurrentMonthSpend } from './budge
 import { readLocalBudget } from './budget-storage';
 import { getCartItemCount } from './cart-utils';
 import { syncFavoritesWithCatalog } from './favorite-utils';
-import { getOrderStatus } from './order-status';
+import { getOrderStatus, orderStages } from './order-status';
 
 const recentOrderDateFormatter = new Intl.DateTimeFormat('pt-BR', {
   day: '2-digit',
@@ -296,6 +296,7 @@ export default function DashboardHomePage() {
           <p className="recent-orders-help">Confira a data, o andamento e o total de cada compra.</p>
           {orders.length ? <ul className="recent-orders-list">{orders.slice(0, 4).map((order) => {
             const info = getOrderStatus(order.status);
+            const currentStage = orderStages.indexOf(order.status);
             const itemCount = Array.isArray(order.items) ? order.items.length : 0;
             return <li key={order.id}>
               <Link
@@ -313,6 +314,29 @@ export default function DashboardHomePage() {
                   <span className="recent-order-total"><span>Total do pedido</span><strong>{order.total}</strong></span>
                   <span className="recent-order-action">Acompanhar <ArrowRight size={14} aria-hidden="true" /></span>
                 </span>
+                {currentStage >= 0 && <span
+                  className="recent-order-progress"
+                  role="group"
+                  aria-label={`Etapas do pedido ${getRecentOrderReference(order.id)}: ${info.label}, etapa ${currentStage + 1} de ${orderStages.length}`}
+                >
+                  <span className="recent-order-progress-summary">Etapa {currentStage + 1} de {orderStages.length}</span>
+                  <ol>
+                    {orderStages.map((stage, index) => {
+                      const stageInfo = getOrderStatus(stage);
+                      const completed = index < currentStage;
+                      const current = index === currentStage;
+                      return <li
+                        key={stage}
+                        className={`${completed ? 'is-complete' : ''}${current ? ' is-current' : ''}`}
+                        aria-current={current ? 'step' : undefined}
+                        aria-label={`${stageInfo.label}: ${completed ? 'concluída' : current ? 'etapa atual' : 'pendente'}`}
+                      >
+                        <span className="recent-order-progress-dot" aria-hidden="true" />
+                        <span className="recent-order-progress-label">{stageInfo.label}</span>
+                      </li>;
+                    })}
+                  </ol>
+                </span>}
               </Link>
             </li>;
           })}</ul> : <div className="dashboard-home-empty"><span>{dashboardLoading ? 'Carregando seus pedidos…' : dashboardError ? 'Pedidos indisponíveis no momento.' : 'Você ainda não fez um pedido.'}</span>{!dashboardLoading && !dashboardError && <a href="/">Escolher produtos</a>}</div>}
