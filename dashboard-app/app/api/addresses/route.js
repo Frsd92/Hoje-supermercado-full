@@ -6,6 +6,7 @@ import {
   normalizeSavedAddress,
   sameDeliveryRegion,
 } from '@/features/service-regions/region-utils';
+import { createCustomerChangeAuditRecord, getChangedCustomerAddressFields } from '@/features/customers/customer-change-audit';
 import { prisma } from '@/lib/prisma';
 
 const allowedOrigins = new Set(['http://localhost:8010', 'http://localhost:5500', 'http://127.0.0.1:5500', 'null']);
@@ -115,11 +116,28 @@ export async function PUT(request) {
       }
     }
 
-    const addressBook = await prisma.customerAddressBook.upsert({
-      where: { email },
-      create: { email, addresses },
-      update: { addresses },
-      select: { addresses: true },
+    const addressBook = await prisma.$transaction(async (transaction) => {
+      const previousBook = await transaction.customerAddressBook.findUnique({ where: { email } });
+      const previousAddresses = previousBook?.addresses ?? [];
+      if (!Array.isArray(previousAddresses)) throw new Error('Os endereços armazenados possuem um formato inválido.');
+      const savedBook = await transaction.customerAddressBook.upsert({
+        where: { email },
+        create: { email, addresses },
+        update: { addresses },
+        select: { addresses: true },
+      });
+      const normalizedPreviousAddresses = previousAddresses
+        .filter((address) => address && typeof address === 'object' && !Array.isArray(address) && typeof address.id === 'string')
+        .map((address) => normalizeSavedAddress(address, regions));
+      const changedFields = getChangedCustomerAddressFields(normalizedPreviousAddresses, addresses);
+      const auditRecord = createCustomerChangeAuditRecord({
+        email,
+        resourceName: 'CustomerAddressBook',
+        action: previousBook ? 'UPDATE' : 'CREATE',
+        fields: changedFields,
+      });
+      if (auditRecord) await transaction.activityAuditLog.create({ data: auditRecord });
+      return savedBook;
     });
     if (!Array.isArray(addressBook.addresses)) throw new Error('O banco não confirmou a lista de endereços.');
 

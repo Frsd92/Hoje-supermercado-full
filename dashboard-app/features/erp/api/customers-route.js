@@ -146,24 +146,64 @@ export async function GET() {
     const missionWindows = activeMissions
       .map((mission) => ({ mission, cycle: getLoyaltyMissionCycle(mission, now) }))
       .filter(({ cycle }) => Boolean(cycle));
-    const missionProgress = missionWindows.length
-      ? await prisma.loyaltyMissionProgress.findMany({
-        where: {
-          customerEmail: { in: [...customerEmails] },
-          OR: missionWindows.map(({ mission, cycle }) => ({
-            missionId: mission.id,
-            cycleStartAt: cycle.cycleStartAt,
-          })),
-        },
-        select: {
-          missionId: true,
-          customerEmail: true,
-          progressCount: true,
-          progressAmount: true,
-          completedAt: true,
-        },
-      })
-      : [];
+    const [missionProgress, customerChangeEntries] = await Promise.all([
+      missionWindows.length
+        ? prisma.loyaltyMissionProgress.findMany({
+          where: {
+            customerEmail: { in: [...customerEmails] },
+            OR: missionWindows.map(({ mission, cycle }) => ({
+              missionId: mission.id,
+              cycleStartAt: cycle.cycleStartAt,
+            })),
+          },
+          select: {
+            missionId: true,
+            customerEmail: true,
+            progressCount: true,
+            progressAmount: true,
+            completedAt: true,
+          },
+        })
+        : Promise.resolve([]),
+      customerEmails.size
+        ? prisma.activityAuditLog.findMany({
+          where: {
+            eventOrigin: 'CUSTOMER_PROFILE',
+            resourceId: { in: [...customerEmails] },
+          },
+          orderBy: { occurredAt: 'desc' },
+          take: 2000,
+          select: {
+            id: true,
+            resourceId: true,
+            resourceName: true,
+            action: true,
+            occurredAt: true,
+            changes: true,
+          },
+        })
+        : Promise.resolve([]),
+    ]);
+    const customerChangesByEmail = new Map();
+    customerChangeEntries.forEach((entry) => {
+      if (!entry.resourceId) return;
+      const email = entry.resourceId.trim().toLowerCase();
+      const fields = Array.isArray(entry.changes?.fields)
+        ? entry.changes.fields.filter((field) => typeof field === 'string')
+        : [];
+      if (!fields.length) return;
+      const changes = customerChangesByEmail.get(email) || [];
+      if (changes.length < 5) {
+        changes.push({
+          id: entry.id,
+          resourceName: entry.resourceName,
+          action: entry.action,
+          occurredAt: entry.occurredAt.toISOString(),
+          fields,
+        });
+        customerChangesByEmail.set(email, changes);
+      }
+    });
     const activeMissionsWithCycle = missionWindows.map(({ mission }) => mission);
 
     const favoritesByUser = new Map();
@@ -269,6 +309,7 @@ export async function GET() {
         couponCounts: customerCoupons.couponCounts,
         orderHistory,
         serviceRequests,
+        profileChanges: customerChangesByEmail.get(email) || [],
       };
     });
 

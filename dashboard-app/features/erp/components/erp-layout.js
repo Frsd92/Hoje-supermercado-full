@@ -77,7 +77,6 @@ const erpNavigationGroups = [
 export default function ERPLayout({ children }) {
   const pathname = usePathname();
   const [actionCounts, setActionCounts] = useState({ customers: 0, orders: 0, newCustomers: 0 });
-  const [customerSignupNotice, setCustomerSignupNotice] = useState('');
   const [financeExpanded, setFinanceExpanded] = useState(() => pathname.startsWith('/erp/financeiro'));
 
   useEffect(() => {
@@ -88,43 +87,62 @@ export default function ERPLayout({ children }) {
     if (pathname === '/erp/login') return undefined;
 
     let active = true;
+    let acknowledgementVersion = 0;
     const loadActionCounts = async () => {
       try {
-        const lastCheck = localStorage.getItem('erp-last-customer-signup-check');
-        const initialCheck = !lastCheck;
-        const since = lastCheck || new Date().toISOString();
-        const [actionResponse, signupResponse] = await Promise.all([
+        const checkVersion = acknowledgementVersion;
+        const lastSignupCheck = localStorage.getItem('erp-last-customer-signup-check');
+        const lastChangeCheck = localStorage.getItem('erp-last-customer-change-check');
+        const initialSince = new Date(Date.now() - 24 * 60 * 60 * 1000).toISOString();
+        const signupSince = lastSignupCheck || initialSince;
+        const changeSince = lastChangeCheck || initialSince;
+        const [actionResponse, signupResponse, changeResponse] = await Promise.all([
           fetch('/api/erp/action-counts', { cache: 'no-store' }),
-          fetch(`/api/erp/customer-signups?since=${encodeURIComponent(since)}`, { cache: 'no-store' }),
+          fetch(`/api/erp/customer-signups?since=${encodeURIComponent(signupSince)}`, { cache: 'no-store' }),
+          fetch(`/api/erp/customer-changes?since=${encodeURIComponent(changeSince)}`, { cache: 'no-store' }),
         ]);
-        const [actionData, signupData] = await Promise.all([actionResponse.json(), signupResponse.json()]);
+        const [actionData, signupData, changeData] = await Promise.all([
+          actionResponse.json(),
+          signupResponse.json(),
+          changeResponse.json(),
+        ]);
         if (!actionResponse.ok) throw new Error(actionData.error || 'Não foi possível carregar os indicadores de ações pendentes.');
         if (!signupResponse.ok) throw new Error(signupData.error || 'Não foi possível verificar novos cadastros.');
+        if (!changeResponse.ok) throw new Error(changeData.error || 'Não foi possível verificar alterações cadastrais.');
         if (!Array.isArray(actionData.pendingOrderIds) || !Number.isFinite(actionData.pendingCustomerActionCount)) {
           throw new Error('A resposta de ações pendentes está inválida.');
         }
         if (!Array.isArray(signupData.signups) || !signupData.checkedAt) throw new Error('A resposta de novos cadastros está inválida.');
+        if (!Array.isArray(changeData.changes) || !changeData.checkedAt) throw new Error('A resposta de alterações cadastrais está inválida.');
         const storedAcknowledged = JSON.parse(localStorage.getItem('erp-acknowledged-orders') || '[]');
         const acknowledged = Array.isArray(storedAcknowledged) ? storedAcknowledged : [];
         const storedSignups = JSON.parse(localStorage.getItem('erp-unacknowledged-customer-signups') || '[]');
         const unacknowledged = Array.isArray(storedSignups) ? storedSignups : [];
+        const storedCustomerChanges = JSON.parse(localStorage.getItem('erp-unacknowledged-customer-changes') || '[]');
+        const unacknowledgedChanges = Array.isArray(storedCustomerChanges) ? storedCustomerChanges : [];
         const newIds = signupData.signups.map((customer) => customer.id);
-        const currentIds = initialCheck ? [] : [...new Set([...unacknowledged, ...newIds])];
+        const acknowledgedDuringCheck = checkVersion !== acknowledgementVersion;
+        const currentIds = acknowledgedDuringCheck ? unacknowledged : [...new Set([...unacknowledged, ...newIds])];
+        const newChangeIds = changeData.changes.map((change) => change.id);
+        const currentChangeIds = acknowledgedDuringCheck
+          ? unacknowledgedChanges
+          : [...new Set([...unacknowledgedChanges, ...newChangeIds])];
         localStorage.setItem('erp-last-customer-signup-check', signupData.checkedAt);
+        localStorage.setItem('erp-last-customer-change-check', changeData.checkedAt);
         localStorage.setItem('erp-unacknowledged-customer-signups', JSON.stringify(currentIds));
+        localStorage.setItem('erp-unacknowledged-customer-changes', JSON.stringify(currentChangeIds));
         if (active) {
           setActionCounts({
             ...getErpActionCountsFromSummary(
               actionData.pendingOrderIds,
               actionData.pendingCustomerActionCount,
               acknowledged,
-              currentIds.length,
+              currentIds.length + currentChangeIds.length,
             ),
-            newCustomers: currentIds.length,
+            newCustomers: currentIds.length + currentChangeIds.length,
           });
-          if (!initialCheck && signupData.total > 0) {
-            const count = signupData.total;
-            setCustomerSignupNotice(`${count} novo${count === 1 ? '' : 's'} cadastro${count === 1 ? '' : 's'} de cliente${count === 1 ? '' : 's'}.`);
+          if (!acknowledgedDuringCheck && pathname === '/erp/customers' && newChangeIds.some((id) => !unacknowledgedChanges.includes(id))) {
+            window.dispatchEvent(new Event('erp-customer-profile-changes-updated'));
           }
         }
       } catch (error) {
@@ -134,22 +152,23 @@ export default function ERPLayout({ children }) {
     void loadActionCounts();
     const refresh = () => { void loadActionCounts(); };
     const acknowledgeSignups = () => {
+      acknowledgementVersion += 1;
       localStorage.setItem('erp-unacknowledged-customer-signups', '[]');
+      localStorage.setItem('erp-unacknowledged-customer-changes', '[]');
       setActionCounts((current) => ({
         ...current,
         customers: Math.max(0, current.customers - current.newCustomers),
         newCustomers: 0,
       }));
-      setCustomerSignupNotice('');
     };
     const interval = window.setInterval(refresh, 30_000);
-    window.addEventListener('erp-customer-signups-acknowledged', acknowledgeSignups);
+    window.addEventListener('erp-customer-updates-acknowledged', acknowledgeSignups);
     window.addEventListener('erp-orders-updated', refresh);
     window.addEventListener('erp-customer-actions-updated', refresh);
     return () => {
       active = false;
       window.clearInterval(interval);
-      window.removeEventListener('erp-customer-signups-acknowledged', acknowledgeSignups);
+      window.removeEventListener('erp-customer-updates-acknowledged', acknowledgeSignups);
       window.removeEventListener('erp-orders-updated', refresh);
       window.removeEventListener('erp-customer-actions-updated', refresh);
     };
@@ -180,8 +199,8 @@ export default function ERPLayout({ children }) {
                 const active = pathname === href || (href !== '/erp' && href !== '/erp/financeiro' && pathname.startsWith(href));
                 const pendingActions = label === 'Pedidos' ? actionCounts.orders : label === 'Clientes' ? actionCounts.customers : 0;
                 const actionLabel = label === 'Pedidos'
-                  ? `${pendingActions} pedido(s) ou ação(ões) aguardando atendimento`
-                  : `${pendingActions} cadastro(s) novo(s) ou solicitação(ões) de cliente aguardando atendimento`;
+                  ? `${pendingActions} pedido(s) ou solicitação(ões) de pedido aguardando atendimento`
+                  : `${pendingActions} cadastro(s) novo(s), alteração(ões) cadastral(is) ou solicitação(ões) de cliente para consultar`;
                 const content = <><Icon size={17} aria-hidden="true" /><span>{label}</span>{pendingActions > 0 && <><span className="erp-nav-badge" aria-hidden="true">{pendingActions}</span><span className="visually-hidden">{actionLabel}</span></>}</>;
                 const className = `erp-nav-item ${active ? 'active' : ''}`;
                 return <Link key={label} href={href} className={className} aria-current={active ? 'page' : undefined}>{content}</Link>;
@@ -191,11 +210,6 @@ export default function ERPLayout({ children }) {
           })}
         </nav>
       </aside>
-      {customerSignupNotice && <div className="erp-customer-signup-toast" role="status">
-        <span>{customerSignupNotice}</span>
-        <Link href="/erp/customers" onClick={() => setCustomerSignupNotice('')}>Ver clientes</Link>
-        <button type="button" aria-label="Fechar aviso de novos clientes" onClick={() => setCustomerSignupNotice('')}>×</button>
-      </div>}
       <main className="erp-main" id="erp-main-content" tabIndex="-1">{children}</main>
     </div>
   );

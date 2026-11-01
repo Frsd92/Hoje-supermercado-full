@@ -20,22 +20,23 @@ export function getPendingCustomerActionCount(orders) {
 export function getErpActionCounts(orders, acknowledgedOrderIds = [], newCustomerCount = 0) {
   const acknowledged = new Set(acknowledgedOrderIds);
   const pendingOrders = orders.filter((order) => order.status === 'Recebido' && !acknowledged.has(order.id)).length;
-  const customerActions = getPendingCustomerActionCount(orders) + Math.max(0, Number(newCustomerCount) || 0);
+  const pendingCustomerActions = getPendingCustomerActionCount(orders);
+  const newCustomers = Math.max(0, Number(newCustomerCount) || 0);
 
   return {
-    customers: customerActions,
-    orders: pendingOrders + customerActions,
+    customers: pendingCustomerActions + newCustomers,
+    orders: pendingOrders + pendingCustomerActions,
   };
 }
 
 export function getErpActionCountsFromSummary(pendingOrderIds, pendingCustomerActionCount = 0, acknowledgedOrderIds = [], newCustomerCount = 0) {
   const acknowledged = new Set(acknowledgedOrderIds);
   const pendingOrders = pendingOrderIds.filter((id) => !acknowledged.has(id)).length;
-  const customerActions = Math.max(0, Number(pendingCustomerActionCount) || 0)
-    + Math.max(0, Number(newCustomerCount) || 0);
+  const pendingCustomerActions = Math.max(0, Number(pendingCustomerActionCount) || 0);
+  const newCustomers = Math.max(0, Number(newCustomerCount) || 0);
 
   return {
-    customers: customerActions,
-    orders: pendingOrders + customerActions,
+    customers: pendingCustomerActions + newCustomers,
+    orders: pendingOrders + pendingCustomerActions,
   };
 }

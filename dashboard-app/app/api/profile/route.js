@@ -1,6 +1,7 @@
 import { getServerSession } from 'next-auth';
 import { authOptions } from '@/auth';
 import { formatCustomerId } from '@/features/customers/customer-id';
+import { createCustomerChangeAuditRecord, getChangedCustomerProfileFields } from '@/features/customers/customer-change-audit';
 import { prisma } from '@/lib/prisma';
 import contentModeration from '@/lib/content-moderation.js';
 import { isValidCpf, splitBrazilianMobilePhone } from '@/features/payments/pagarme';
@@ -11,7 +12,7 @@ async function getCustomer() {
   const session = await getServerSession(authOptions);
   const email = session?.user?.email?.trim().toLowerCase();
   if (!email) return null;
-  return { email, name: session.user.name || '', image: session.user.image || '' };
+  return { id: session.user.id || null, email, name: session.user.name || '', image: session.user.image || '' };
 }
 
 function serializeProfile(profile, customer) {
@@ -158,10 +159,23 @@ export async function PUT(request) {
   }
 
   try {
-    const profile = await prisma.customerProfile.upsert({
-      where: { email: customer.email },
-      create: { email: customer.email, ...updates },
-      update: updates,
+    const profile = await prisma.$transaction(async (transaction) => {
+      const previous = await transaction.customerProfile.findUnique({ where: { email: customer.email } });
+      const profileRecord = await transaction.customerProfile.upsert({
+        where: { email: customer.email },
+        create: { email: customer.email, ...updates },
+        update: updates,
+      });
+      const changedFields = getChangedCustomerProfileFields(previous, updates);
+      const auditRecord = createCustomerChangeAuditRecord({
+        email: customer.email,
+        actorId: customer.id,
+        resourceName: 'CustomerProfile',
+        action: previous ? 'UPDATE' : 'CREATE',
+        fields: changedFields,
+      });
+      if (auditRecord) await transaction.activityAuditLog.create({ data: auditRecord });
+      return profileRecord;
     });
     return Response.json({ profile: serializeProfile(profile, customer) });
   } catch (error) {

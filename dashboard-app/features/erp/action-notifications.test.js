@@ -23,18 +23,18 @@ test('counts unresolved customer cancellation, exchange, and refund actions', ()
   assert.equal(getPendingCustomerActionCount(orders), 4);
 });
 
-test('shows customer actions in both navigation items and respects acknowledged new orders', () => {
+test('shows new customers only in customer navigation and order actions only in order navigation', () => {
   const orders = [
     { id: 'order-1', status: 'Recebido', serviceRequests: [], refundRequests: [] },
     { id: 'order-2', status: 'Recebido', serviceRequests: [{ status: 'requested' }], refundRequests: [] },
     { id: 'order-3', status: 'Separacao', serviceRequests: [], refundRequests: [{ status: 'requested' }] },
   ];
 
-  assert.deepEqual(getErpActionCounts(orders, ['order-1'], 3), { customers: 5, orders: 6 });
+  assert.deepEqual(getErpActionCounts(orders, ['order-1'], 3), { customers: 5, orders: 3 });
   assert.deepEqual(getErpActionCounts(orders, ['order-1', 'order-2']), { customers: 2, orders: 2 });
   assert.deepEqual(
     getErpActionCountsFromSummary(['order-1', 'order-2'], 2, ['order-1'], 3),
-    { customers: 5, orders: 6 },
+    { customers: 5, orders: 3 },
   );
 });
 
