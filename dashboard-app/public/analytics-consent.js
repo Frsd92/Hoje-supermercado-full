@@ -27,39 +27,67 @@
   const style = document.createElement('style');
   style.textContent = `
     #hoje-analytics-controls [hidden] { display: none !important; }
+    #hoje-analytics-controls,
+    #hoje-analytics-controls * { box-sizing: border-box; }
     #hoje-analytics-controls .privacy-consent-panel {
       position: fixed;
       z-index: 2147483000;
       left: 16px;
       bottom: 16px;
-      width: min(440px, calc(100vw - 32px));
-      max-height: calc(100vh - 32px);
+      width: min(460px, calc(100vw - 32px));
+      max-height: min(720px, calc(100vh - 32px));
       overflow-y: auto;
-      padding: 20px;
-      border: 1px solid #d9e5dc;
-      border-radius: 16px;
+      padding: 22px;
+      border: 1px solid #d5e2d9;
+      border-radius: 20px;
       color: #183b2b;
       background: #fff;
-      box-shadow: 0 12px 40px rgba(0, 0, 0, .24);
+      box-shadow: 0 18px 56px rgba(18, 54, 35, .22);
       font: 400 14px/1.5 system-ui, sans-serif;
     }
     #hoje-analytics-controls .privacy-consent-heading {
       display: flex;
-      align-items: flex-start;
+      align-items: center;
       justify-content: space-between;
       gap: 12px;
+    }
+    #hoje-analytics-controls .privacy-consent-kicker {
+      margin: 0 0 4px;
+      color: #52705e;
+      font-size: 11px;
+      font-weight: 800;
+      letter-spacing: .08em;
+      text-transform: uppercase;
     }
     #hoje-analytics-controls h2 {
       margin: 0;
       color: inherit;
-      font: 800 17px/1.3 system-ui, sans-serif;
+      font: 800 20px/1.25 system-ui, sans-serif;
     }
     #hoje-analytics-controls h3 {
-      margin: 14px 0 4px;
+      margin: 0;
       color: inherit;
-      font: 700 14px/1.4 system-ui, sans-serif;
+      font: 750 15px/1.35 system-ui, sans-serif;
     }
-    #hoje-analytics-controls p { margin: 8px 0; }
+    #hoje-analytics-controls p { margin: 8px 0 0; }
+    #hoje-analytics-controls .privacy-consent-intro {
+      margin: 10px 0 16px;
+      color: #456251;
+    }
+    #hoje-analytics-controls .privacy-consent-option {
+      margin-top: 12px;
+      padding: 14px;
+      border: 1px solid #dce7df;
+      border-radius: 14px;
+      background: #f8fbf8;
+    }
+    #hoje-analytics-controls .privacy-consent-option p { color: #405d4c; }
+    #hoje-analytics-controls .privacy-consent-option-status {
+      min-height: 21px;
+      color: #526e5c;
+      font-size: 12px;
+      font-weight: 600;
+    }
     #hoje-analytics-controls .privacy-consent-status {
       padding: 8px 10px;
       border-radius: 8px;
@@ -67,19 +95,20 @@
       background: #fff4e8;
     }
     #hoje-analytics-controls .privacy-consent-actions {
-      display: flex;
-      flex-wrap: wrap;
+      display: grid;
+      grid-template-columns: repeat(2, minmax(0, 1fr));
       gap: 8px;
-      margin-top: 8px;
+      margin-top: 10px;
     }
     #hoje-analytics-controls button {
-      min-height: 44px;
-      padding: 9px 12px;
+      min-width: 0;
+      min-height: 46px;
+      padding: 10px;
       border: 1px solid #8da294;
-      border-radius: 9px;
+      border-radius: 10px;
       color: #183b2b;
       background: #fff;
-      font: 700 13px/1.2 system-ui, sans-serif;
+      font: 700 13px/1.25 system-ui, sans-serif;
       cursor: pointer;
     }
     #hoje-analytics-controls .privacy-consent-close {
@@ -89,21 +118,31 @@
       border-color: transparent;
       font-size: 22px;
     }
-    #hoje-analytics-controls button:hover { background: #eef6f0; }
+    #hoje-analytics-controls .privacy-consent-actions button:hover,
+    #hoje-analytics-controls .privacy-consent-close:hover { background: #eef6f0; }
     #hoje-analytics-controls button:focus-visible,
     #hoje-analytics-controls a:focus-visible {
       outline: 3px solid #b18127;
       outline-offset: 3px;
     }
-    #hoje-analytics-controls a { color: #145c38; font-weight: 700; }
+    #hoje-analytics-controls a {
+      display: inline-block;
+      margin-top: 14px;
+      color: #145c38;
+      font-weight: 700;
+    }
     @media (max-width: 520px) {
       #hoje-analytics-controls .privacy-consent-panel {
         right: 8px;
         bottom: 8px;
         left: 8px;
         width: auto;
+        max-height: calc(100dvh - 16px);
         padding: 16px;
+        border-radius: 18px;
       }
+      #hoje-analytics-controls h2 { font-size: 18px; }
+      #hoje-analytics-controls .privacy-consent-option { padding: 12px; }
     }
   `;
   document.head.appendChild(style);
@@ -113,24 +152,31 @@
   controls.innerHTML = `
     <section class="privacy-consent-panel" id="hoje-analytics-panel" role="dialog" aria-labelledby="hoje-analytics-title" aria-describedby="hoje-analytics-description">
       <div class="privacy-consent-heading">
-        <h2 id="hoje-analytics-title">Preferências de privacidade</h2>
+        <div>
+          <p class="privacy-consent-kicker">Sua privacidade</p>
+          <h2 id="hoje-analytics-title">Escolha suas preferências</h2>
+        </div>
         <button class="privacy-consent-close" type="button" aria-label="Fechar preferências">×</button>
       </div>
-      <p id="hoje-analytics-description">Escolha separadamente se autoriza analytics de usabilidade e medição de anúncios. As escolhas são opcionais e não afetam as funções da Loja ou da sua conta.</p>
-      <h3>Analytics de usabilidade (Hotjar)</h3>
-      <p>Ajuda a entender cliques, rolagem e navegação para melhorar a experiência. Textos em áreas da conta são suprimidos nas gravações.</p>
-      <p data-consent-status="analytics"></p>
-      <div class="privacy-consent-actions">
-        <button type="button" data-consent-category="analytics" data-consent-choice="accepted">Aceitar analytics</button>
-        <button type="button" data-consent-category="analytics" data-consent-choice="rejected">Recusar analytics</button>
-      </div>
-      <h3>Medição de anúncios da Meta (Pixel)</h3>
-      <p>Permite medir visitas e campanhas da Meta, além de ajudar a criar públicos e otimizar anúncios. A Meta recebe dados de navegação e do dispositivo; não enviamos dados de perfil, CPF ou pagamento.</p>
-      <p data-consent-status="marketing"></p>
-      <div class="privacy-consent-actions">
-        <button type="button" data-consent-category="marketing" data-consent-choice="accepted">Aceitar medição de anúncios</button>
-        <button type="button" data-consent-category="marketing" data-consent-choice="rejected">Recusar medição de anúncios</button>
-      </div>
+      <p class="privacy-consent-intro" id="hoje-analytics-description">As duas opções são independentes. Você pode aceitar ou recusar cada uma; sua escolha não muda o acesso à Loja ou à sua conta.</p>
+      <section class="privacy-consent-option" aria-labelledby="hoje-hotjar-title">
+        <h3 id="hoje-hotjar-title">Analytics de usabilidade (Hotjar)</h3>
+        <p>Ajuda a entender a navegação para melhorar a experiência. Textos em áreas da conta são suprimidos nas gravações.</p>
+        <p class="privacy-consent-option-status" data-consent-status="analytics" aria-live="polite"></p>
+        <div class="privacy-consent-actions" role="group" aria-label="Escolha sobre analytics de usabilidade">
+          <button type="button" data-consent-category="analytics" data-consent-choice="accepted">Permitir Hotjar</button>
+          <button type="button" data-consent-category="analytics" data-consent-choice="rejected">Não permitir</button>
+        </div>
+      </section>
+      <section class="privacy-consent-option" aria-labelledby="hoje-meta-title">
+        <h3 id="hoje-meta-title">Medição de anúncios da Meta (Pixel)</h3>
+        <p>Ajuda a medir campanhas e melhorar anúncios. A Meta recebe dados de navegação e do dispositivo; não enviamos dados de perfil, CPF ou pagamento.</p>
+        <p class="privacy-consent-option-status" data-consent-status="marketing" aria-live="polite"></p>
+        <div class="privacy-consent-actions" role="group" aria-label="Escolha sobre medição de anúncios da Meta">
+          <button type="button" data-consent-category="marketing" data-consent-choice="accepted">Permitir Meta Pixel</button>
+          <button type="button" data-consent-category="marketing" data-consent-choice="rejected">Não permitir</button>
+        </div>
+      </section>
       <p class="privacy-consent-status" role="status" aria-live="polite" hidden></p>
       <p><a href="/politica-de-privacidade.html">Leia a Política de Privacidade</a></p>
     </section>
@@ -159,11 +205,11 @@
 
   function updatePreferenceLabels() {
     analyticsStatus.textContent = analyticsPreference === 'accepted'
-      ? 'Analytics autorizado.'
-      : analyticsPreference === 'rejected' ? 'Analytics recusado.' : 'Ainda não escolhido.';
+      ? 'Sua escolha: permitido.'
+      : analyticsPreference === 'rejected' ? 'Sua escolha: não permitido.' : 'Ainda não escolhido.';
     marketingStatus.textContent = marketingPreference === 'accepted'
-      ? 'Medição de anúncios autorizada.'
-      : marketingPreference === 'rejected' ? 'Medição de anúncios recusada.' : 'Ainda não escolhido.';
+      ? 'Sua escolha: permitido.'
+      : marketingPreference === 'rejected' ? 'Sua escolha: não permitido.' : 'Ainda não escolhido.';
     panel.hidden = analyticsPreference !== null && marketingPreference !== null;
   }
 
