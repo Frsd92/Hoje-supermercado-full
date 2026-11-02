@@ -507,7 +507,7 @@ export default function PaymentMethodsPage() {
                 <fieldset className="checkout-card-fields" ref={cardFieldsRef} disabled={cardSaving} aria-describedby="saved-card-form-help">
                   <legend>Dados do cartão</legend>
                   <p className="saved-card-form-help" id="saved-card-form-help">
-                    Escolha o tipo correto. Crédito, débito, VA e VR ficam separados; o checkout usa somente cartões compatíveis com a forma escolhida. Seus dados completos não são armazenados.
+                    O nome impresso no cartão precisa corresponder ao nome completo do seu perfil. Escolha o tipo correto: crédito, débito, VA e VR ficam separados, e o checkout usa somente cartões compatíveis. Seus dados completos não são armazenados.
                   </p>
                   <label className="delivery-address-field">Número do cartão
                     <input name="cardNumber" type="text" inputMode="numeric" autoComplete="cc-number" maxLength={23} required />

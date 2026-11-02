@@ -16,11 +16,14 @@ import {
   MAX_SAVED_CARDS,
   SAVED_CARD_TYPES,
 } from '@/features/payments/card-methods';
+import { cardholderNameMatchesProfile } from '@/features/payments/cardholder-validation';
 
 const cardTokenPattern = /^token_[A-Za-z0-9]+$/;
 const customerIdPattern = /^cus_[A-Za-z0-9]+$/;
 const cardIdPattern = /^card_[A-Za-z0-9]+$/;
 const requestIdPattern = /^[0-9a-f]{8}-[0-9a-f]{4}-[1-8][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i;
+
+class CardholderNameMismatchError extends Error {}
 
 function serializeCard(card) {
   const id = String(card?.id || '');
@@ -191,11 +194,14 @@ export async function POST(request) {
     let card;
     try {
       card = await createPagarmeCustomerCard(
-      profile.pagarmeCustomerId,
-      body.cardToken,
-      body.requestId || randomUUID(),
-      { cardType: body.cardType },
+        profile.pagarmeCustomerId,
+        body.cardToken,
+        body.requestId || randomUUID(),
+        { cardType: body.cardType },
       );
+      if (!cardholderNameMatchesProfile(card?.holder_name, name)) {
+        throw new CardholderNameMismatchError();
+      }
       card = serializeCard(card);
       if (card.status !== 'active') throw new Error('A Pagar.me não ativou o cartão salvo.');
     } catch (error) {
@@ -205,6 +211,9 @@ export async function POST(request) {
           await deletePagarmeCustomerCard(profile.pagarmeCustomerId, card.id);
         } catch (cleanupError) {
           console.error('Não foi possível remover da Pagar.me um cartão inválido:', cleanupError);
+          if (error instanceof CardholderNameMismatchError) {
+            throw new Error('Não foi possível remover com segurança o cartão. Contate o suporte antes de tentar novamente.');
+          }
         }
       }
       throw error;
@@ -240,6 +249,11 @@ export async function POST(request) {
       maxCards: MAX_SAVED_CARDS,
     }, { status: existingCard ? 200 : 201 });
   } catch (error) {
+    if (error instanceof CardholderNameMismatchError) {
+      return Response.json({
+        error: 'O nome impresso no cartão não corresponde ao nome completo do seu perfil. Atualize o perfil ou use um cartão em seu nome.',
+      }, { status: 422 });
+    }
     const mappedError = mapPagarmeError(error);
     if (mappedError) return Response.json({ error: mappedError.message }, { status: mappedError.status });
     console.error('Não foi possível salvar o cartão do cliente:', error);
