@@ -48,3 +48,26 @@ test('does not show badges after customer requests are resolved', () => {
 
   assert.deepEqual(getErpActionCounts(orders), { customers: 0, orders: 0 });
 });
+
+test('counts newly arrived orders across statuses, deduplicates pending orders, and clears acknowledged orders', () => {
+  assert.deepEqual(
+    getErpActionCountsFromSummary(
+      ['received-1', 'received-2'],
+      2,
+      ['received-1'],
+      0,
+      ['received-2', 'in-transit-1', 'completed-1'],
+    ),
+    { customers: 2, orders: 5 },
+  );
+  assert.deepEqual(
+    getErpActionCountsFromSummary(
+      ['received-1'],
+      0,
+      ['received-1', 'in-transit-1'],
+      0,
+      ['received-1', 'in-transit-1'],
+    ),
+    { customers: 0, orders: 0 },
+  );
+});

@@ -29,14 +29,23 @@ export function getErpActionCounts(orders, acknowledgedOrderIds = [], newCustome
   };
 }
 
-export function getErpActionCountsFromSummary(pendingOrderIds, pendingCustomerActionCount = 0, acknowledgedOrderIds = [], newCustomerCount = 0) {
+export function getErpActionCountsFromSummary(
+  pendingOrderIds,
+  pendingCustomerActionCount = 0,
+  acknowledgedOrderIds = [],
+  newCustomerCount = 0,
+  newOrderIds = [],
+) {
   const acknowledged = new Set(acknowledgedOrderIds);
-  const pendingOrders = pendingOrderIds.filter((id) => !acknowledged.has(id)).length;
+  const actionableOrderIds = new Set([
+    ...pendingOrderIds,
+    ...newOrderIds,
+  ].filter((id) => !acknowledged.has(id)));
   const pendingCustomerActions = Math.max(0, Number(pendingCustomerActionCount) || 0);
   const newCustomers = Math.max(0, Number(newCustomerCount) || 0);
 
   return {
     customers: pendingCustomerActions + newCustomers,
-    orders: pendingOrders + pendingCustomerActions,
+    orders: actionableOrderIds.size + pendingCustomerActions,
   };
 }

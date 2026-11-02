@@ -81,6 +81,8 @@ export default function ERPOrdersPage() {
 
   useEffect(() => {
     let active = true;
+    const storedAcknowledged = JSON.parse(localStorage.getItem('erp-acknowledged-orders') || '[]');
+    const previouslyAcknowledged = Array.isArray(storedAcknowledged) ? storedAcknowledged : [];
     const loadOrders = async () => {
       let syncWarning = false;
       try {
@@ -97,6 +99,14 @@ export default function ERPOrdersPage() {
         if (!Array.isArray(data.orders)) throw new Error('A resposta de pedidos está inválida.');
         if (active) {
           setOrders(data.orders);
+          const acknowledgedIds = [...new Set([
+            ...previouslyAcknowledged,
+            ...data.orders.map((order) => order.id),
+          ])];
+          setAcknowledged(acknowledgedIds);
+          localStorage.setItem('erp-acknowledged-orders', JSON.stringify(acknowledgedIds));
+          localStorage.setItem('erp-unacknowledged-order-arrivals', '[]');
+          window.dispatchEvent(new Event('erp-orders-acknowledged'));
           setSelected((current) => current
             ? data.orders.find((order) => order.id === current.id) || current
             : current);
@@ -111,9 +121,15 @@ export default function ERPOrdersPage() {
       }
     };
     void loadOrders();
-    setAcknowledged(JSON.parse(localStorage.getItem('erp-acknowledged-orders') || '[]'));
+    setAcknowledged(previouslyAcknowledged);
     return () => { active = false; };
   }, [reloadToken]);
+
+  useEffect(() => {
+    const refreshOrders = () => setReloadToken((current) => current + 1);
+    window.addEventListener('erp-new-orders-detected', refreshOrders);
+    return () => window.removeEventListener('erp-new-orders-detected', refreshOrders);
+  }, []);
 
   useEffect(() => {
     const dialog = printDialogRef.current;
@@ -132,9 +148,12 @@ export default function ERPOrdersPage() {
   const newOrders = orders.filter((order) => order.status === 'Recebido' && !acknowledged.includes(order.id));
   const isPickingList = printDocument?.type === 'picking-list';
   const acknowledge = (id) => {
-    const next = [...acknowledged, id];
+    const next = [...new Set([...acknowledged, id])];
     setAcknowledged(next);
     localStorage.setItem('erp-acknowledged-orders', JSON.stringify(next));
+    const storedArrivals = JSON.parse(localStorage.getItem('erp-unacknowledged-order-arrivals') || '[]');
+    const arrivals = Array.isArray(storedArrivals) ? storedArrivals : [];
+    localStorage.setItem('erp-unacknowledged-order-arrivals', JSON.stringify(arrivals.filter((orderId) => orderId !== id)));
     window.dispatchEvent(new Event('erp-orders-updated'));
   };
 
