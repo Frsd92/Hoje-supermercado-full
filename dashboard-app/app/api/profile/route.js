@@ -1,6 +1,7 @@
 import { getServerSession } from 'next-auth';
 import { authOptions } from '@/auth';
 import { formatCustomerId } from '@/features/customers/customer-id';
+import { isValidFullName } from '@/features/customers/customer-profile-validation';
 import { createCustomerChangeAuditRecord, getChangedCustomerProfileFields } from '@/features/customers/customer-change-audit';
 import { prisma } from '@/lib/prisma';
 import contentModeration from '@/lib/content-moderation.js';
@@ -96,7 +97,7 @@ export async function PUT(request) {
     if (typeof body.fullName !== 'string' || !body.fullName.trim() || body.fullName.trim().length > 100) {
       return Response.json({ error: 'Informe um nome válido com até 100 caracteres.' }, { status: 400 });
     }
-    if (body.fullName.trim().split(/\s+/).length < 2) {
+    if (!isValidFullName(body.fullName)) {
       return Response.json({ error: 'Informe seu nome completo, incluindo nome e sobrenome.' }, { status: 400 });
     }
     if (contentModeration.containsOffensiveContent(body.fullName)) {

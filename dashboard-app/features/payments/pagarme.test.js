@@ -15,6 +15,7 @@ import {
 
 test('validates CPF and normalizes Brazilian mobile phones', () => {
   assert.equal(isValidCpf('529.982.247-25'), true);
+  assert.equal(isValidCpf('529.982.247-24'), false);
   assert.equal(isValidCpf('111.111.111-11'), false);
   assert.deepEqual(splitBrazilianMobilePhone('+55 (11) 98765-4321'), {
     country_code: '55',

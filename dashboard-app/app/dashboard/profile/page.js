@@ -9,6 +9,8 @@ import { readLocalBudget } from '../budget-storage';
 import { getCartItemCount } from '../cart-utils';
 import AccountPageNav from '../account-page-nav';
 import contentModeration from '@/lib/content-moderation.js';
+import { isValidFullName } from '@/features/customers/customer-profile-validation.js';
+import { isValidCpf } from '@/features/payments/pagarme.js';
 
 const emptyProfile = {
   fullName: '',
@@ -157,7 +159,7 @@ export default function ProfilePage() {
       setSavingProfile(false);
       return;
     }
-    if (profile.fullName.trim().split(/\s+/).length < 2) {
+    if (!isValidFullName(profile.fullName)) {
       setFeedback('Informe seu nome completo, incluindo nome e sobrenome.');
       setSavingProfile(false);
       return;
@@ -167,8 +169,8 @@ export default function ProfilePage() {
       setSavingProfile(false);
       return;
     }
-    if (profile.cpf.replace(/\D/g, '').length !== 11) {
-      setFeedback('Informe um CPF válido com 11 dígitos.');
+    if (!isValidCpf(profile.cpf)) {
+      setFeedback('Digite um CPF válido. Confira os 11 dígitos e os dígitos verificadores.');
       setSavingProfile(false);
       return;
     }
@@ -259,6 +261,9 @@ export default function ProfilePage() {
   const monthSpend = getCurrentMonthSpend(orders);
   const budgetProgress = getBudgetProgress(monthSpend, profile.monthlyBudget);
   const profileNameContainsOffensiveContent = contentModeration.containsOffensiveContent(profile.fullName);
+  const profileNameIsInvalid = profile.fullName.trim().length > 0 && !isValidFullName(profile.fullName);
+  const profileCpfDigits = profile.cpf.replace(/\D/g, '');
+  const profileCpfIsInvalid = profileCpfDigits.length === 11 && !isValidCpf(profileCpfDigits);
 
   return (
     <div className="section-shell">
@@ -295,8 +300,9 @@ export default function ProfilePage() {
           <div className="profile-form-grid">
             <label className="form-field">
               <span>Nome completo *</span>
-              <input type="text" value={profile.fullName} disabled={loading || savingProfile || !profileLoaded} onChange={(event) => handleChange('fullName', event.target.value)} maxLength={100} required aria-invalid={profileNameContainsOffensiveContent} aria-describedby={profileNameContainsOffensiveContent ? 'profile-name-moderation-error' : undefined} />
+              <input type="text" value={profile.fullName} disabled={loading || savingProfile || !profileLoaded} onChange={(event) => handleChange('fullName', event.target.value)} maxLength={100} autoComplete="name" required aria-invalid={profileNameContainsOffensiveContent || profileNameIsInvalid} aria-describedby={profileNameContainsOffensiveContent ? 'profile-name-moderation-error' : profileNameIsInvalid ? 'profile-name-format-error' : undefined} />
               {profileNameContainsOffensiveContent && <small id="profile-name-moderation-error" className="profile-moderation-error" role="alert">Remova termos ofensivos para salvar o perfil.</small>}
+              {!profileNameContainsOffensiveContent && profileNameIsInvalid && <small id="profile-name-format-error" className="profile-moderation-error" role="alert">Informe nome e sobrenome usando letras; acentos, hífens, apóstrofos e iniciais são aceitos.</small>}
             </label>
             <label className="form-field">
               <span>ID do cliente</span>
@@ -319,9 +325,13 @@ export default function ProfilePage() {
                 disabled={loading || savingProfile || !profileLoaded}
                 maxLength={14}
                 inputMode="numeric"
+                autoComplete="off"
                 required
+                aria-invalid={profileCpfIsInvalid}
+                aria-describedby={profileCpfIsInvalid ? 'profile-cpf-error' : undefined}
                 onChange={(event) => handleChange('cpf', event.target.value.replace(/\D/g, '').slice(0, 11))}
               />
+              {profileCpfIsInvalid && <small id="profile-cpf-error" className="profile-moderation-error" role="alert">Este CPF não passou na validação dos dígitos verificadores.</small>}
             </label>
             <label className="form-field">
               <span>Gênero (opcional)</span>
