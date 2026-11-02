@@ -21,6 +21,7 @@ export default function SettingsPage() {
   const [settings, setSettings] = useState(initialSettings);
   const [feedback, setFeedback] = useState('');
   const [analyticsPreference, setAnalyticsPreference] = useState('loading');
+  const [marketingPreference, setMarketingPreference] = useState('loading');
   const [deleteDialogOpen, setDeleteDialogOpen] = useState(false);
   const [deleteConfirmation, setDeleteConfirmation] = useState('');
   const deleteDialogRef = useRef(null);
@@ -57,10 +58,31 @@ export default function SettingsPage() {
     const handleAnalyticsPreferenceChange = (event) => {
       applyAnalyticsPreference(event.detail?.choice);
     };
+    const applyMarketingPreference = (choice) => {
+      setMarketingPreference(
+        choice === 'accepted' || choice === 'rejected' ? choice : 'unset',
+      );
+    };
+    const readMarketingPreference = () => {
+      try {
+        applyMarketingPreference(localStorage.getItem('hoje-marketing-consent-v1'));
+      } catch (error) {
+        console.error('Não foi possível ler a preferência de medição de anúncios.', error);
+        setMarketingPreference('unavailable');
+      }
+    };
+    const handleMarketingPreferenceChange = (event) => {
+      applyMarketingPreference(event.detail?.choice);
+    };
 
     readAnalyticsPreference();
+    readMarketingPreference();
     window.addEventListener('hoje-analytics-consent-changed', handleAnalyticsPreferenceChange);
-    return () => window.removeEventListener('hoje-analytics-consent-changed', handleAnalyticsPreferenceChange);
+    window.addEventListener('hoje-marketing-consent-changed', handleMarketingPreferenceChange);
+    return () => {
+      window.removeEventListener('hoje-analytics-consent-changed', handleAnalyticsPreferenceChange);
+      window.removeEventListener('hoje-marketing-consent-changed', handleMarketingPreferenceChange);
+    };
   }, []);
 
   const updateSetting = (key, value) => {
@@ -126,13 +148,20 @@ export default function SettingsPage() {
     unset: 'Ainda não escolhida',
     unavailable: 'Não foi possível consultar',
   }[analyticsPreference];
+  const marketingPreferenceLabel = {
+    loading: 'Consultando preferência...',
+    accepted: 'Aceita',
+    rejected: 'Recusada',
+    unset: 'Ainda não escolhida',
+    unavailable: 'Não foi possível consultar',
+  }[marketingPreference];
 
   return (
     <div className="section-shell settings-page">
       <div className="page-header-block settings-page-header"><span className="settings-kicker">Conta e privacidade</span><h1>Configurações</h1><p>Gerencie suas preferências, notificações e escolhas de privacidade.</p></div>
       <div className="settings-dashboard-grid">
         <section className="settings-panel"><div className="settings-panel-heading"><Bell size={16} /><div><h3>Notificações</h3><p>Configure como você quer receber avisos.</p></div></div>{renderToggle('Notificações por e-mail', 'emailNotifications', 'Receba atualizações no seu e-mail')}{renderToggle('Notificações por SMS', 'smsNotifications', 'Receba alertas importantes por mensagem')}{renderToggle('Notificações push', 'pushNotifications', 'Receba avisos instantâneos sobre seus pedidos')}{renderToggle('Ofertas e promoções', 'promotions', 'Receba novidades e ofertas da loja')}{renderToggle('Status dos pedidos', 'orderStatus', 'Acompanhe atualizações das suas entregas')}</section>
-        <section className="settings-panel"><div className="settings-panel-heading"><Lock size={16} /><div><h3>Privacidade</h3><p>Controle como seus dados são utilizados.</p></div></div>{renderToggle('Compartilhamento de dados', 'dataSharing', 'Permita o compartilhamento com parceiros')}<div className="settings-option analytics-consent-row"><div><strong>Analytics de navegação (Hotjar)</strong><small>Escolha atual: {analyticsPreferenceLabel}. Você pode alterar ou revogar a qualquer momento.</small></div><button type="button" className="analytics-consent-settings-button" onClick={openAnalyticsPreferences}>Alterar escolha</button></div>{renderToggle('Marketing personalizado', 'personalizedMarketing', 'Receba ofertas baseadas no seu perfil')}</section>
+        <section className="settings-panel"><div className="settings-panel-heading"><Lock size={16} /><div><h3>Privacidade</h3><p>Controle como seus dados são utilizados.</p></div></div>{renderToggle('Compartilhamento de dados', 'dataSharing', 'Permita o compartilhamento com parceiros')}<div className="settings-option analytics-consent-row"><div><strong>Analytics de navegação (Hotjar)</strong><small>Escolha atual: {analyticsPreferenceLabel}. Você pode alterar ou revogar a qualquer momento.</small><strong>Medição de anúncios da Meta (Pixel)</strong><small>Escolha atual: {marketingPreferenceLabel}. Você pode alterar ou revogar a qualquer momento.</small></div><button type="button" className="analytics-consent-settings-button" onClick={openAnalyticsPreferences}>Alterar escolhas</button></div>{renderToggle('Marketing personalizado', 'personalizedMarketing', 'Receba ofertas baseadas no seu perfil')}</section>
         <section className="settings-panel"><div className="settings-panel-heading"><UserRound size={16} /><div><h3>Preferências</h3><p>Personalize sua experiência.</p></div></div><label className="settings-select-field">Tema<select value={settings.theme} onChange={(event) => updateSetting('theme', event.target.value)}><option value="Claro">Claro</option><option value="Escuro">Escuro</option><option value="Automatico">Automático</option></select></label><label className="settings-select-field">Idioma<select value={settings.language} onChange={(event) => updateSetting('language', event.target.value)}><option value="Portugues (Brasil)">Português (Brasil)</option><option value="English">English</option></select></label><label className="settings-select-field">Moeda<select value={settings.currency} onChange={(event) => updateSetting('currency', event.target.value)}><option value="Real (R$)">Real (R$)</option><option value="Dolar (US$)">Dólar (US$)</option></select></label></section>
         <section className="settings-panel"><div className="settings-panel-heading"><Truck size={16} /><div><h3>Entrega</h3><p>Configure suas preferências de entrega.</p></div></div><label className="settings-select-field">Horário preferido<select value={settings.deliveryWindow} onChange={(event) => updateSetting('deliveryWindow', event.target.value)}><option value="Manha (8h - 12h)">Manhã (8h–12h)</option><option value="Tarde (12h - 18h)">Tarde (12h–18h)</option><option value="Noite (18h - 22h)">Noite (18h–22h)</option></select></label></section>
       </div>

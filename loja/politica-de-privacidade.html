@@ -212,8 +212,9 @@
           <li>Interações necessárias para operar recursos usados por você, como carrinho, favoritos e navegação entre páginas</li>
           <li>Um identificador aleatório temporário, horários de atividade, tipo geral do dispositivo e família do navegador para estimar sessões ativas na Loja e registrar picos agregados; a classificação do navegador é derivada do User-Agent, cujo texto completo não é armazenado, e não é vinculada à conta, a páginas individuais ou a dados de contato</li>
           <li>Se você aceitar analytics, páginas acessadas e interações de navegação, como cliques e rolagem, coletadas pelo Hotjar para produzir mapas de calor e gravações de navegação</li>
+          <li>Se você aceitar a medição de anúncios, a Meta recebe informações sobre páginas visitadas, navegador, dispositivo e interações na Loja por meio do Pixel, para medir campanhas, criar públicos e otimizar anúncios</li>
         </ul>
-        <p>O Hotjar só é carregado após sua autorização opcional na Loja ou no painel do cliente. O conteúdo textual do painel do cliente e áreas da Loja que podem exibir dados da conta, endereço ou carrinho são suprimidos nas gravações. Esses dados não são usados para publicidade.</p>
+        <p>O Hotjar e o Pixel da Meta só são carregados após autorizações opcionais e separadas, que podem ser recusadas ou revogadas. O conteúdo textual do painel do cliente e áreas da Loja que podem exibir dados da conta, endereço ou carrinho são suprimidos nas gravações do Hotjar. O Pixel registra visualizações de página; a Loja não envia ao Pixel dados de perfil, CPF, endereço ou pagamento.</p>
         <p>A medição de sessões ativas é independente do Hotjar e não registra o caminho visitado, endereço IP ou dados de conta no histórico de tráfego. Usamos somente categorias amplas, como celular, tablet, computador e família do navegador; não armazenamos o User-Agent completo nem o modelo exato do aparelho. O identificador temporário expira após 30 minutos sem atividade, e o registro técnico da sessão pode permanecer por até 24 horas; os picos agregados são mantidos por até 30 dias. A medição é feita nas páginas da Loja web e não acompanha o app nativo separadamente. Um navegador em mais de um dispositivo pode representar mais de uma sessão, por isso a contagem é uma estimativa e não identifica pessoas individualmente.</p>
  
         <h3>3.3 Dados de terceiros (login social)</h3>
@@ -233,9 +234,10 @@
             <tr><td>Presença agregada na Loja</td><td>Estimar sessões ativas e picos por tipo geral de dispositivo e família do navegador, sem identificar a conta</td><td>Cookie temporário de primeira parte; categorias da sessão por até 24 horas e contagens agregadas no PostgreSQL por até 30 dias</td></tr>
             <tr><td>Preferências funcionais</td><td>Lembrar o identificador do endereço selecionado e, no painel, o orçamento mensal informado</td><td>Armazenamento local do navegador</td></tr>
             <tr><td>Analytics opcional (Hotjar)</td><td>Entender a navegação e melhorar a usabilidade, somente após autorização</td><td>Preferência de consentimento no armazenamento local; cookies e tecnologias do Hotjar após autorização</td></tr>
+            <tr><td>Medição opcional de anúncios (Meta Pixel)</td><td>Medir visitas e campanhas, criar públicos e otimizar anúncios, somente após autorização</td><td>Preferência de consentimento no armazenamento local; cookies e tecnologias da Meta após autorização</td></tr>
           </tbody>
         </table>
-        <p>Na primeira visita, um aviso permite aceitar ou recusar analytics. A escolha pode ser alterada ou revogada a qualquer momento em Configurações &gt; Privacidade no painel do cliente ou pelo link “Configurações de analytics” no rodapé da Loja. Sem autorização, o script do Hotjar não é carregado; recusar analytics não afeta as funções da Loja ou da conta. A preferência fica no armazenamento local do navegador e pode ser removida nas configurações do navegador.</p>
+        <p>Na primeira visita, você pode aceitar ou recusar separadamente o Hotjar e a medição de anúncios da Meta. As escolhas podem ser alteradas ou revogadas a qualquer momento em Configurações &gt; Privacidade no painel do cliente ou pelo link “Configurações de privacidade” no rodapé da Loja. Sem autorização para uma finalidade, o respectivo script não é carregado; recusar não afeta as funções da Loja ou da conta. As preferências ficam no armazenamento local do navegador e podem ser removidas nas configurações do navegador.</p>
       </section>
  
       <section id="privacy-s4">
@@ -267,11 +269,12 @@
             <tr><td>Avisos promocionais e cupons apresentados na conta</td><td>Legítimo interesse ou consentimento, conforme a finalidade e a campanha</td></tr>
             <tr><td>Medição agregada de sessões ativas na Loja, sem associação à conta</td><td>Legítimo interesse operacional, respeitados os direitos do titular</td></tr>
             <tr><td>Medição opcional de usabilidade por meio do Hotjar</td><td>Consentimento, que pode ser recusado ou revogado</td></tr>
+            <tr><td>Medição de anúncios por meio do Pixel da Meta</td><td>Consentimento, que pode ser recusado ou revogado</td></tr>
             <tr><td>Segurança e prevenção de uso indevido</td><td>Legítimo interesse, observados os direitos do titular, ou outra base legal aplicável</td></tr>
             <tr><td>Atender obrigação legal ou requisição válida de autoridade</td><td>Cumprimento de obrigação legal ou regulatória</td></tr>
           </tbody>
         </table>
-        <p>A base legal é definida de acordo com a finalidade concreta do tratamento. Quando um tratamento depender de consentimento, ele será solicitado separadamente e poderá ser revogado nos termos da lei. O site não utiliza atualmente cookies de publicidade ou envio de campanhas promocionais por e-mail; avisos promocionais podem ser exibidos dentro da conta.</p>
+        <p>A base legal é definida de acordo com a finalidade concreta do tratamento. Quando um tratamento depender de consentimento, ele será solicitado separadamente e poderá ser revogado nos termos da lei. O Pixel da Meta usa cookies e tecnologias de publicidade somente após sua autorização; avisos promocionais também podem ser exibidos dentro da conta.</p>
       </section>
  
       <section id="privacy-s6">
@@ -284,6 +287,7 @@
           <li>Pagar.me, para cadastrar referências seguras de pagamento, processar pagamentos online e informar o resultado da transação</li>
           <li>Bling, para receber dados de pedidos elegíveis, manter a integração de produtos do catálogo e tentar gerar e transmitir NFC-e; a SEFAZ recebe os dados fiscais necessários para analisar e autorizar o documento</li>
           <li>Hotjar, como prestador de analytics, somente quando você autorizar essa finalidade</li>
+          <li>Meta Platforms, por meio do Pixel, para medição de campanhas e publicidade, somente quando você autorizar essa finalidade</li>
           <li>Prestadores técnicos que sejam necessários à operação da Plataforma</li>
           <li>Autoridades públicas, judiciais ou reguladoras, quando houver obrigação ou requisição válida</li>
         </ul>
@@ -321,7 +325,7 @@
           <li>Oposição a tratamento realizado em desconformidade com a LGPD, nos casos previstos em lei</li>
           <li>Peticionar perante a ANPD e demais órgãos competentes</li>
         </ol>
-        <p>Você pode alterar ou revogar a autorização do Hotjar em Configurações &gt; Privacidade no painel do cliente ou pelo link “Configurações de analytics” no rodapé da Loja. A revogação impede novas coletas pelo Hotjar, mas não apaga automaticamente dados coletados antes dela; solicitações de eliminação podem ser encaminhadas pelo canal do controlador na seção 11. Você também pode atualizar os dados de perfil na área da conta. Poderemos solicitar informações razoáveis para confirmar sua identidade e responderemos nos prazos e condições previstos na legislação aplicável. Alguns dados poderão ser conservados quando houver fundamento legal para isso.</p>
+        <p>Você pode alterar ou revogar as autorizações do Hotjar e da medição de anúncios da Meta em Configurações &gt; Privacidade no painel do cliente ou pelo link “Configurações de privacidade” no rodapé da Loja. A revogação impede novas coletas pelos respectivos serviços, mas não apaga automaticamente dados coletados antes dela; solicitações de eliminação podem ser encaminhadas pelo canal do controlador na seção 11. Você também pode atualizar os dados de perfil na área da conta. Poderemos solicitar informações razoáveis para confirmar sua identidade e responderemos nos prazos e condições previstos na legislação aplicável. Alguns dados poderão ser conservados quando houver fundamento legal para isso.</p>
       </section>
  
       <section id="privacy-s9">
@@ -373,7 +377,7 @@
           <ul>
             <li><a href="politica-de-privacidade.html" aria-current="page">Política de Privacidade</a></li>
             <li><a href="termos-de-uso.html">Termos de uso</a></li>
-            <li><a href="#analytics-preferences" data-analytics-settings-link>Configurações de analytics</a></li>
+            <li><a href="#analytics-preferences" data-analytics-settings-link>Configurações de privacidade</a></li>
           </ul>
         </div>
         <div class="footer-column">

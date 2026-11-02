@@ -4,9 +4,25 @@
     hjid: 6788464,
     hjsv: 6,
   };
-  const consentKey = 'hoje-analytics-consent-v1';
+  const metaPixel = {
+    enabled: true,
+    id: '2042883969747267',
+  };
+  const consentKeys = {
+    analytics: 'hoje-analytics-consent-v1',
+    marketing: 'hoje-marketing-consent-v1',
+  };
+  const metaPixelPagePaths = new Set([
+    '/',
+    '/index.html',
+    '/categoria.html',
+    '/sobre-nos.html',
+    '/politica-de-privacidade.html',
+    '/termos-de-uso.html',
+  ]);
+  const canLoadMetaPixel = () => metaPixel.enabled && metaPixelPagePaths.has(window.location.pathname);
 
-  if (!hotjar.enabled || document.getElementById('hoje-analytics-controls')) return;
+  if ((!hotjar.enabled && !metaPixel.enabled) || document.getElementById('hoje-analytics-controls')) return;
 
   const style = document.createElement('style');
   style.textContent = `
@@ -17,6 +33,8 @@
       left: 16px;
       bottom: 16px;
       width: min(440px, calc(100vw - 32px));
+      max-height: calc(100vh - 32px);
+      overflow-y: auto;
       padding: 20px;
       border: 1px solid #d9e5dc;
       border-radius: 16px;
@@ -36,7 +54,12 @@
       color: inherit;
       font: 800 17px/1.3 system-ui, sans-serif;
     }
-    #hoje-analytics-controls p { margin: 10px 0; }
+    #hoje-analytics-controls h3 {
+      margin: 14px 0 4px;
+      color: inherit;
+      font: 700 14px/1.4 system-ui, sans-serif;
+    }
+    #hoje-analytics-controls p { margin: 8px 0; }
     #hoje-analytics-controls .privacy-consent-status {
       padding: 8px 10px;
       border-radius: 8px;
@@ -47,7 +70,7 @@
       display: flex;
       flex-wrap: wrap;
       gap: 8px;
-      margin-top: 14px;
+      margin-top: 8px;
     }
     #hoje-analytics-controls button {
       min-height: 44px;
@@ -90,15 +113,25 @@
   controls.innerHTML = `
     <section class="privacy-consent-panel" id="hoje-analytics-panel" role="dialog" aria-labelledby="hoje-analytics-title" aria-describedby="hoje-analytics-description">
       <div class="privacy-consent-heading">
-        <h2 id="hoje-analytics-title">Preferências de analytics</h2>
+        <h2 id="hoje-analytics-title">Preferências de privacidade</h2>
         <button class="privacy-consent-close" type="button" aria-label="Fechar preferências">×</button>
       </div>
-      <p id="hoje-analytics-description">O Hotjar ajuda a entender cliques, rolagem e navegação para melhorar a experiência. No painel do cliente, os textos ficam ocultos nas gravações. Essa escolha é opcional e não afeta as funções da conta.</p>
-      <p class="privacy-consent-status" role="status" aria-live="polite" hidden></p>
+      <p id="hoje-analytics-description">Escolha separadamente se autoriza analytics de usabilidade e medição de anúncios. As escolhas são opcionais e não afetam as funções da Loja ou da sua conta.</p>
+      <h3>Analytics de usabilidade (Hotjar)</h3>
+      <p>Ajuda a entender cliques, rolagem e navegação para melhorar a experiência. Textos em áreas da conta são suprimidos nas gravações.</p>
+      <p data-consent-status="analytics"></p>
       <div class="privacy-consent-actions">
-        <button type="button" data-analytics-choice="accepted">Aceitar analytics</button>
-        <button type="button" data-analytics-choice="rejected">Recusar analytics</button>
+        <button type="button" data-consent-category="analytics" data-consent-choice="accepted">Aceitar analytics</button>
+        <button type="button" data-consent-category="analytics" data-consent-choice="rejected">Recusar analytics</button>
       </div>
+      <h3>Medição de anúncios da Meta (Pixel)</h3>
+      <p>Permite medir visitas e campanhas da Meta, além de ajudar a criar públicos e otimizar anúncios. A Meta recebe dados de navegação e do dispositivo; não enviamos dados de perfil, CPF ou pagamento.</p>
+      <p data-consent-status="marketing"></p>
+      <div class="privacy-consent-actions">
+        <button type="button" data-consent-category="marketing" data-consent-choice="accepted">Aceitar medição de anúncios</button>
+        <button type="button" data-consent-category="marketing" data-consent-choice="rejected">Recusar medição de anúncios</button>
+      </div>
+      <p class="privacy-consent-status" role="status" aria-live="polite" hidden></p>
       <p><a href="/politica-de-privacidade.html">Leia a Política de Privacidade</a></p>
     </section>
   `;
@@ -106,21 +139,32 @@
   const panel = controls.querySelector('.privacy-consent-panel');
   const closeButton = controls.querySelector('.privacy-consent-close');
   const status = controls.querySelector('.privacy-consent-status');
-  const acceptButton = controls.querySelector('[data-analytics-choice="accepted"]');
-  const rejectButton = controls.querySelector('[data-analytics-choice="rejected"]');
-  let preference = null;
+  const analyticsStatus = controls.querySelector('[data-consent-status="analytics"]');
+  const marketingStatus = controls.querySelector('[data-consent-status="marketing"]');
+  let analyticsPreference = null;
+  let marketingPreference = null;
   let returnFocus = null;
 
-  function readPreference() {
+  function readPreference(key) {
     try {
-      const saved = window.localStorage.getItem(consentKey);
+      const saved = window.localStorage.getItem(key);
       return saved === 'accepted' || saved === 'rejected' ? saved : null;
     } catch (error) {
-      console.error('Não foi possível ler a preferência de analytics.', error);
-      status.textContent = 'Não foi possível ler sua preferência salva. O Hotjar ficará desativado até você escolher nesta página.';
+      console.error('Não foi possível ler uma preferência de privacidade.', error);
+      status.textContent = 'Não foi possível ler as preferências salvas. Os serviços opcionais ficarão desativados até você escolher nesta página.';
       status.hidden = false;
       return null;
     }
+  }
+
+  function updatePreferenceLabels() {
+    analyticsStatus.textContent = analyticsPreference === 'accepted'
+      ? 'Analytics autorizado.'
+      : analyticsPreference === 'rejected' ? 'Analytics recusado.' : 'Ainda não escolhido.';
+    marketingStatus.textContent = marketingPreference === 'accepted'
+      ? 'Medição de anúncios autorizada.'
+      : marketingPreference === 'rejected' ? 'Medição de anúncios recusada.' : 'Ainda não escolhido.';
+    panel.hidden = analyticsPreference !== null && marketingPreference !== null;
   }
 
   function loadHotjar() {
@@ -139,19 +183,65 @@
     script.onerror = (error) => {
       window.__hojeHotjarScriptRequested = false;
       console.error('Não foi possível carregar o script do Hotjar.', error);
-      status.textContent = 'Não foi possível carregar o analytics. As funções do site continuam disponíveis.';
+      status.textContent = 'Não foi possível carregar o Hotjar. As funções do site continuam disponíveis.';
       status.hidden = false;
       panel.hidden = false;
     };
     document.head.appendChild(script);
   }
 
-  function savePreference(nextPreference) {
+  function trackMetaPageView() {
+    if (marketingPreference !== 'accepted' || !canLoadMetaPixel() || typeof window.fbq !== 'function') return;
+    const pageUrl = window.location.href;
+    if (window.__hojeMetaPixelLastPageView === pageUrl) return;
+    window.__hojeMetaPixelLastPageView = pageUrl;
+    window.fbq('track', 'PageView');
+  }
+
+  function loadMetaPixel() {
+    if (!canLoadMetaPixel()) return;
+
+    window.fbq = window.fbq || function () {
+      window.fbq.callMethod
+        ? window.fbq.callMethod.apply(window.fbq, arguments)
+        : window.fbq.queue.push(arguments);
+    };
+    window.fbq.queue = window.fbq.queue || [];
+    window.fbq.loaded = true;
+    window.fbq.version = '2.0';
+    window._fbq = window._fbq || window.fbq;
+    window.fbq('consent', 'grant');
+
+    if (!window.__hojeMetaPixelInitialized) {
+      window.fbq('init', metaPixel.id);
+      window.__hojeMetaPixelInitialized = true;
+    }
+
+    if (!window.__hojeMetaPixelScriptRequested) {
+      const script = document.createElement('script');
+      script.async = true;
+      script.src = 'https://connect.facebook.net/en_US/fbevents.js';
+      window.__hojeMetaPixelScriptRequested = true;
+      script.onerror = (error) => {
+        window.__hojeMetaPixelScriptRequested = false;
+        console.error('Não foi possível carregar o Meta Pixel.', error);
+        status.textContent = 'Não foi possível carregar o Pixel da Meta. As funções do site continuam disponíveis.';
+        status.hidden = false;
+        panel.hidden = false;
+      };
+      document.head.appendChild(script);
+    }
+
+    trackMetaPageView();
+  }
+
+  function savePreference(category, nextPreference) {
+    const key = consentKeys[category];
     try {
-      window.localStorage.setItem(consentKey, nextPreference);
+      window.localStorage.setItem(key, nextPreference);
       return true;
     } catch (error) {
-      console.error('Não foi possível salvar a preferência de analytics.', error);
+      console.error(`Não foi possível salvar a preferência de ${category}.`, error);
       status.textContent = 'Não foi possível salvar sua escolha. Ela valerá somente nesta página.';
       status.hidden = false;
       return false;
@@ -169,25 +259,41 @@
     returnFocus = document.activeElement instanceof HTMLElement ? document.activeElement : null;
     status.hidden = true;
     panel.hidden = false;
-    acceptButton.focus();
+    controls.querySelector('[data-consent-choice="accepted"]')?.focus();
   }
 
-  function setPreference(nextPreference) {
-    preference = nextPreference;
-    const saved = savePreference(nextPreference);
-    window.dispatchEvent(new CustomEvent('hoje-analytics-consent-changed', { detail: { choice: preference } }));
-
-    if (nextPreference === 'accepted') {
-      loadHotjar();
-    } else if (typeof window.hj === 'function') {
-      window.hj('consent', false);
+  function setPreference(category, nextPreference) {
+    if (category === 'analytics') {
+      analyticsPreference = nextPreference;
+    } else if (category === 'marketing') {
+      marketingPreference = nextPreference;
+    } else {
+      return;
     }
 
-    rejectButton.textContent = nextPreference === 'accepted' ? 'Revogar analytics' : 'Recusar analytics';
-    if (saved) {
+    const saved = savePreference(category, nextPreference);
+    if (category === 'analytics') {
+      window.dispatchEvent(new CustomEvent('hoje-analytics-consent-changed', { detail: { choice: nextPreference } }));
+      if (nextPreference === 'accepted' && hotjar.enabled) {
+        loadHotjar();
+      } else if (typeof window.hj === 'function') {
+        window.hj('consent', false);
+      }
+    } else {
+      window.dispatchEvent(new CustomEvent('hoje-marketing-consent-changed', { detail: { choice: nextPreference } }));
+      if (nextPreference === 'accepted' && canLoadMetaPixel()) {
+        loadMetaPixel();
+      } else if (typeof window.fbq === 'function') {
+        window.fbq('consent', 'revoke');
+        window.__hojeMetaPixelLastPageView = null;
+      }
+    }
+
+    updatePreferenceLabels();
+    if (saved && analyticsPreference !== null && marketingPreference !== null) {
       status.hidden = true;
       closePanel();
-    } else {
+    } else if (!saved) {
       panel.hidden = false;
     }
   }
@@ -199,21 +305,27 @@
     });
   });
   closeButton.addEventListener('click', closePanel);
-  controls.querySelectorAll('[data-analytics-choice]').forEach((button) => {
-    button.addEventListener('click', () => setPreference(button.dataset.analyticsChoice));
+  controls.querySelectorAll('[data-consent-category][data-consent-choice]').forEach((button) => {
+    button.addEventListener('click', () => {
+      setPreference(button.dataset.consentCategory, button.dataset.consentChoice);
+    });
   });
   panel.addEventListener('keydown', (event) => {
     if (event.key === 'Escape') closePanel();
   });
+  window.addEventListener('hoje-page-view', trackMetaPageView);
 
-  preference = readPreference();
-  rejectButton.textContent = preference === 'accepted' ? 'Revogar analytics' : 'Recusar analytics';
-  panel.hidden = preference !== null;
+  analyticsPreference = readPreference(consentKeys.analytics);
+  marketingPreference = readPreference(consentKeys.marketing);
+  updatePreferenceLabels();
   window.hojeAnalyticsPreferences = {
     open: openPreferences,
-    getChoice: () => preference,
+    getChoice: () => analyticsPreference,
+    getMarketingChoice: () => marketingPreference,
   };
   window.dispatchEvent(new CustomEvent('hoje-analytics-preferences-ready'));
-  window.dispatchEvent(new CustomEvent('hoje-analytics-consent-changed', { detail: { choice: preference } }));
-  if (preference === 'accepted') loadHotjar();
+  window.dispatchEvent(new CustomEvent('hoje-analytics-consent-changed', { detail: { choice: analyticsPreference } }));
+  window.dispatchEvent(new CustomEvent('hoje-marketing-consent-changed', { detail: { choice: marketingPreference } }));
+  if (analyticsPreference === 'accepted' && hotjar.enabled) loadHotjar();
+  if (marketingPreference === 'accepted' && canLoadMetaPixel()) loadMetaPixel();
 })();
