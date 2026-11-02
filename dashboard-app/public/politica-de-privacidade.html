@@ -86,6 +86,7 @@
     <p class="cart-subtitle">Revise seus itens antes de finalizar</p>
     <div id="cart-items" class="cart-items" aria-live="polite"></div>
     <div class="cart-panel-footer">
+      <div class="cart-panel-footer-content">
       <div class="cart-summary-box">
         <div class="summary-row"><span>Subtotal (0 itens)</span><strong>R$ 0,00</strong></div>
         <div class="summary-row"><span>Descontos</span><strong>R$ 0,00</strong></div>
@@ -111,12 +112,18 @@
         <select id="payment-method" required>
           <option value="" selected disabled>Selecione sua forma de pagamento</option>
           <option value="pix">Pix</option>
-          <option value="cartao">Cartão</option>
+          <option value="cartao_credito">Cartão de crédito</option>
+          <option value="cartao_debito">Cartão de débito</option>
+          <option value="vale_alimentacao">VA · Vale-alimentação</option>
+          <option value="vale_refeicao">VR · Vale-refeição</option>
         </select>
       </label>
       <small class="checkout-field-hint">Obrigatória para concluir o pedido.</small>
+      </div>
+      <div class="cart-panel-actions">
       <button id="finalizar-compra" class="btn-finalizar" type="button">Finalizar Pedido</button>
       <button id="limpar-carrinho" class="btn-limpar" type="button">Limpar Carrinho</button>
+      </div>
     </div>
   </aside>
 
@@ -205,9 +212,9 @@
           <li>Interações necessárias para operar recursos usados por você, como carrinho, favoritos e navegação entre páginas</li>
           <li>Um identificador aleatório temporário, horários de atividade, tipo geral do dispositivo e família do navegador para estimar sessões ativas na Loja e registrar picos agregados; a classificação do navegador é derivada do User-Agent, cujo texto completo não é armazenado, e não é vinculada à conta, a páginas individuais ou a dados de contato</li>
           <li>Se você aceitar analytics, páginas acessadas e interações de navegação, como cliques e rolagem, coletadas pelo Hotjar para produzir mapas de calor e gravações de navegação</li>
-          <li>Se você aceitar a medição de anúncios, a Meta recebe informações sobre páginas visitadas, navegador, dispositivo e interações na Loja por meio do Pixel, para medir campanhas, criar públicos e otimizar anúncios</li>
+          <li>Se você aceitar a medição de anúncios, a Meta recebe visualizações de páginas e eventos da Loja, como adicionar produtos ao carrinho, iniciar o checkout e concluir uma compra paga, além de identificadores de produtos, quantidades e valores, para medir campanhas e otimizar anúncios</li>
         </ul>
-        <p>O Hotjar e o Pixel da Meta só são carregados após autorizações opcionais e separadas, que podem ser recusadas ou revogadas. O conteúdo textual do painel do cliente e áreas da Loja que podem exibir dados da conta, endereço ou carrinho são suprimidos nas gravações do Hotjar. O Pixel registra visualizações de página; a Loja não envia ao Pixel dados de perfil, CPF, endereço ou pagamento.</p>
+        <p>O Hotjar e o Pixel da Meta só são carregados após autorizações opcionais e separadas, que podem ser recusadas ou revogadas. O conteúdo textual do painel do cliente e áreas da Loja que podem exibir dados da conta, endereço ou carrinho são suprimidos nas gravações do Hotjar. Ao Pixel não enviamos dados de perfil, nome, e-mail, CPF, endereço, forma de pagamento ou dados do cartão.</p>
         <p>A medição de sessões ativas é independente do Hotjar e não registra o caminho visitado, endereço IP ou dados de conta no histórico de tráfego. Usamos somente categorias amplas, como celular, tablet, computador e família do navegador; não armazenamos o User-Agent completo nem o modelo exato do aparelho. O identificador temporário expira após 30 minutos sem atividade, e o registro técnico da sessão pode permanecer por até 24 horas; os picos agregados são mantidos por até 30 dias. A medição é feita nas páginas da Loja web e não acompanha o app nativo separadamente. Um navegador em mais de um dispositivo pode representar mais de uma sessão, por isso a contagem é uma estimativa e não identifica pessoas individualmente.</p>
  
         <h3>3.3 Dados de terceiros (login social)</h3>

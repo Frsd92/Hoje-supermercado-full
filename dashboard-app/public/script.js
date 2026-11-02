@@ -1690,6 +1690,7 @@ function alterarCarrinhoDoProduto(product, operation, initialQuantity) {
 
   const step = normalizedProduct.saleUnit === 'Quilograma' ? 0.1 : 1;
   const index = encontrarIndiceCarrinho(normalizedProduct);
+  let addedQuantity = 0;
 
   if (operation === 'remove') {
     carrinhoItens = carrinhoItens.filter((item) => encontrarIndiceCarrinho(item) !== index);
@@ -1699,12 +1700,14 @@ function alterarCarrinhoDoProduto(product, operation, initialQuantity) {
       ? Math.max(step, Math.round((Number(initialQuantity) || step) * 10) / 10)
       : Math.max(1, Math.trunc(Number(initialQuantity) || 1));
     carrinhoItens.push(normalizedProduct);
+    addedQuantity = normalizedProduct.qty;
   } else if (operation === 'increment' || operation === 'decrement') {
     const item = carrinhoItens[index];
     const next = item.qty + (operation === 'increment' ? step : -step);
     item.qty = item.saleUnit === 'Quilograma'
       ? Math.max(step, Math.round(next * 10) / 10)
       : Math.max(step, Math.trunc(next));
+    if (operation === 'increment') addedQuantity = step;
   }
 
   carrinhoRevision += 1;
@@ -1712,6 +1715,16 @@ function alterarCarrinhoDoProduto(product, operation, initialQuantity) {
     (normalizedProduct.id && String(item.id) === String(normalizedProduct.id))
     || normalizarCatalogo(item.nome) === normalizarCatalogo(normalizedProduct.nome)
   ));
+  const productId = String(normalizedProduct.id || '');
+  if (addedQuantity > 0 && productId) {
+    window.hojeMetaTrack?.('AddToCart', {
+      content_ids: [productId],
+      content_type: 'product',
+      contents: [{ id: productId, quantity: addedQuantity, item_price: normalizedProduct.preco }],
+      value: normalizedProduct.preco * addedQuantity,
+      currency: 'BRL',
+    });
+  }
   atualizarCartoesDoProduto(normalizedProduct, cartItem);
   renderizarCarrinho();
   return cartItem || null;
@@ -2099,6 +2112,17 @@ function inicializarCarrinho() {
       }
       const totals = getStoreCheckoutTotals(subtotal);
       const { discount, deliveryFee, serviceFee, total } = totals;
+      window.hojeMetaTrack?.('InitiateCheckout', {
+        content_ids: carrinhoItens.map((item) => String(item.id)),
+        content_type: 'product',
+        contents: carrinhoItens.map((item) => ({
+          id: String(item.id),
+          quantity: item.qty,
+          item_price: item.preco,
+        })),
+        value: total,
+        currency: 'BRL',
+      });
       checkoutLojaEmAndamento = true;
       atualizarBotaoFinalizarCompra();
       try {
@@ -2183,6 +2207,19 @@ function inicializarCarrinho() {
             await carregarTaxasCheckoutLoja();
           }
           throw new Error(data.error || 'Não foi possível registrar o pedido.');
+        }
+        if (data.order?.paymentStatus === 'paid') {
+          window.hojeMetaTrack?.('Purchase', {
+            content_ids: carrinhoItens.map((item) => String(item.id)),
+            content_type: 'product',
+            contents: carrinhoItens.map((item) => ({
+              id: String(item.id),
+              quantity: item.qty,
+              item_price: item.preco,
+            })),
+            value: total,
+            currency: 'BRL',
+          });
         }
         tentativaCheckoutId = '';
         assinaturaTentativaCheckout = '';

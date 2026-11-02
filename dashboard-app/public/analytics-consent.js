@@ -12,6 +12,8 @@
     analytics: 'hoje-analytics-consent-v1',
     marketing: 'hoje-marketing-consent-v1',
   };
+  const metaPixelEventNames = new Set(['AddToCart', 'InitiateCheckout', 'Purchase']);
+  const metaPixelParameterNames = new Set(['content_ids', 'content_type', 'contents', 'value', 'currency']);
   const metaPixelPagePaths = new Set([
     '/',
     '/index.html',
@@ -20,7 +22,8 @@
     '/politica-de-privacidade.html',
     '/termos-de-uso.html',
   ]);
-  const canLoadMetaPixel = () => metaPixel.enabled && metaPixelPagePaths.has(window.location.pathname);
+  const metaPixelEventPagePaths = new Set([...metaPixelPagePaths, '/dashboard/orders']);
+  const canLoadMetaPixel = () => metaPixel.enabled && metaPixelEventPagePaths.has(window.location.pathname);
 
   if ((!hotjar.enabled && !metaPixel.enabled) || document.getElementById('hoje-analytics-controls')) return;
 
@@ -170,7 +173,7 @@
       </section>
       <section class="privacy-consent-option" aria-labelledby="hoje-meta-title">
         <h3 id="hoje-meta-title">Medição de anúncios da Meta (Pixel)</h3>
-        <p>Ajuda a medir campanhas e melhorar anúncios. A Meta recebe dados de navegação e do dispositivo; não enviamos dados de perfil, CPF ou pagamento.</p>
+        <p>Ajuda a medir campanhas e melhorar anúncios com dados de navegação e eventos de produtos, carrinho e compras. Não enviamos dados de perfil, CPF, endereço ou pagamento.</p>
         <p class="privacy-consent-option-status" data-consent-status="marketing" aria-live="polite"></p>
         <div class="privacy-consent-actions" role="group" aria-label="Escolha sobre medição de anúncios da Meta">
           <button type="button" data-consent-category="marketing" data-consent-choice="accepted">Permitir Meta Pixel</button>
@@ -237,7 +240,8 @@
   }
 
   function trackMetaPageView() {
-    if (marketingPreference !== 'accepted' || !canLoadMetaPixel() || typeof window.fbq !== 'function') return;
+    if (marketingPreference !== 'accepted' || !metaPixelPagePaths.has(window.location.pathname)
+      || typeof window.fbq !== 'function') return;
     const pageUrl = window.location.href;
     if (window.__hojeMetaPixelLastPageView === pageUrl) return;
     window.__hojeMetaPixelLastPageView = pageUrl;
@@ -279,6 +283,47 @@
     }
 
     trackMetaPageView();
+  }
+
+  function trackMetaEvent(eventName, parameters = {}) {
+    if (
+      !metaPixelEventNames.has(eventName)
+      || marketingPreference !== 'accepted'
+      || !canLoadMetaPixel()
+    ) return false;
+
+    loadMetaPixel();
+    const safeParameters = {};
+    for (const [key, value] of Object.entries(parameters)) {
+      if (!metaPixelParameterNames.has(key)) continue;
+      if (key === 'value') {
+        const numericValue = Number(value);
+        if (Number.isFinite(numericValue) && numericValue >= 0) safeParameters.value = numericValue;
+      } else if (key === 'currency' && value === 'BRL') {
+        safeParameters.currency = value;
+      } else if (key === 'content_type' && value === 'product') {
+        safeParameters.content_type = value;
+      } else if (key === 'content_ids' && Array.isArray(value)) {
+        safeParameters.content_ids = value
+          .filter((id) => typeof id === 'string' || typeof id === 'number')
+          .map(String)
+          .filter((id) => id.length > 0 && id.length <= 100)
+          .slice(0, 100);
+      } else if (key === 'contents' && Array.isArray(value)) {
+        safeParameters.contents = value.slice(0, 100).flatMap((item) => {
+          if (!item || typeof item !== 'object') return [];
+          const id = String(item.id ?? '');
+          const quantity = Number(item.quantity);
+          const itemPrice = Number(item.item_price);
+          if (!id || id.length > 100 || !Number.isFinite(quantity) || quantity <= 0
+            || !Number.isFinite(itemPrice) || itemPrice < 0) return [];
+          return [{ id, quantity, item_price: itemPrice }];
+        });
+      }
+    }
+
+    window.fbq('track', eventName, safeParameters);
+    return true;
   }
 
   function savePreference(category, nextPreference) {
@@ -369,9 +414,10 @@
     getChoice: () => analyticsPreference,
     getMarketingChoice: () => marketingPreference,
   };
+  window.hojeMetaTrack = trackMetaEvent;
   window.dispatchEvent(new CustomEvent('hoje-analytics-preferences-ready'));
   window.dispatchEvent(new CustomEvent('hoje-analytics-consent-changed', { detail: { choice: analyticsPreference } }));
   window.dispatchEvent(new CustomEvent('hoje-marketing-consent-changed', { detail: { choice: marketingPreference } }));
   if (analyticsPreference === 'accepted' && hotjar.enabled) loadHotjar();
-  if (marketingPreference === 'accepted' && canLoadMetaPixel()) loadMetaPixel();
+  if (marketingPreference === 'accepted' && metaPixelPagePaths.has(window.location.pathname)) loadMetaPixel();
 })();

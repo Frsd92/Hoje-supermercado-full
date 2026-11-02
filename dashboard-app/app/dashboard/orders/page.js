@@ -7,6 +7,7 @@ import { sortOrdersNewestFirst } from '@/lib/order-sort';
 import OrderReceipt from '@/features/orders/order-receipt';
 import { refundRequestStatusLabels } from '@/features/orders/order-refund-utils';
 import { isCardPaymentMethod } from '@/features/payments/card-methods';
+import { parseReceiptAmount } from '@/features/orders/order-receipt-data';
 import {
   canRequestOrderService,
   hasOpenOrderServiceRequest,
@@ -100,6 +101,31 @@ export default function OrdersPage() {
   const [paymentCheckFeedback, setPaymentCheckFeedback] = useState({});
   const paymentChecksInFlightRef = useRef(new Set());
   const paymentPollingInProgressRef = useRef(false);
+  const observedPaymentStatusesRef = useRef(new Map());
+
+  useEffect(() => {
+    for (const order of orders) {
+      const previousStatus = observedPaymentStatusesRef.current.get(order.id);
+      if (previousStatus === 'pending' && order.paymentStatus === 'paid') {
+        const items = (Array.isArray(order.items) ? order.items : [])
+          .map((item) => ({
+            id: String(item.productId || ''),
+            quantity: Number(item.quantity),
+            item_price: parseReceiptAmount(item.price),
+          }))
+          .filter((item) => item.id && Number.isFinite(item.quantity) && item.quantity > 0
+            && Number.isFinite(item.item_price) && item.item_price >= 0);
+        window.hojeMetaTrack?.('Purchase', {
+          content_ids: items.map((item) => item.id),
+          content_type: 'product',
+          contents: items,
+          value: parseReceiptAmount(order.total),
+          currency: 'BRL',
+        });
+      }
+      observedPaymentStatusesRef.current.set(order.id, order.paymentStatus);
+    }
+  }, [orders]);
 
   useEffect(() => {
     let active = true;
