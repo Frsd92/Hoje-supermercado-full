@@ -1,4 +1,4 @@
-const CACHE_NAME = 'hoje-store-shell-v17';
+const CACHE_NAME = 'hoje-store-shell-v18';
 const PRECACHE_URLS = [
   '/index.html',
   '/categoria.html',
@@ -13,6 +13,7 @@ const PRECACHE_URLS = [
   '/analytics-consent.js',
   '/content-moderation.js',
   '/pwa-register.js',
+  '/store-icons.js',
   '/imagens/logo/logo-hoje.webp',
   '/imagens/logo/app-icon-180.png',
   '/imagens/logo/app-icon-192.png',
@@ -35,6 +36,7 @@ const STATIC_ASSET_PATHS = new Set([
   '/analytics-consent.js',
   '/content-moderation.js',
   '/pwa-register.js',
+  '/store-icons.js',
 ]);
 
 self.addEventListener('install', (event) => {

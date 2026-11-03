@@ -1,12 +1,16 @@
 let lucideIconsRefreshScheduled = false;
+const lucideIconRootsPending = new Set();
 
-function agendarAtualizacaoIconesLucide() {
+function agendarAtualizacaoIconesLucide(root = document) {
+  lucideIconRootsPending.add(root);
   if (!window.lucide || lucideIconsRefreshScheduled) return;
   lucideIconsRefreshScheduled = true;
 
   const renderIcons = () => {
     lucideIconsRefreshScheduled = false;
-    window.lucide?.createIcons();
+    const roots = [...lucideIconRootsPending];
+    lucideIconRootsPending.clear();
+    roots.forEach((iconRoot) => window.lucide?.createIcons({ root: iconRoot }));
   };
 
   if (typeof window.requestIdleCallback === 'function') {
@@ -15,9 +19,6 @@ function agendarAtualizacaoIconesLucide() {
     window.requestAnimationFrame(renderIcons);
   }
 }
-
-const lucideLibrary = document.getElementById('lucide-library');
-lucideLibrary?.addEventListener('load', agendarAtualizacaoIconesLucide);
 
 // Chamada toda vez que uma seta de carrossel (‹ ou ›) é clicada
 function moveCarousel(botao, direcao) {
@@ -2604,6 +2605,7 @@ let produtosCatalogo = [];
 let catalogoCarregado = false;
 let estadosDosCarrosseis = new Map();
 let observadorDeCarrosseis;
+let observadorDeCatalogo;
 
 function criarBotaoCarregarMais(state) {
   const button = document.createElement('button');
@@ -2626,6 +2628,14 @@ function criarBotaoCarregarMais(state) {
     }, { root: state.container, rootMargin: '0px 48px', threshold: 0.1 });
   }
   observadorDeCarrosseis.observe(button);
+}
+
+function inicializarCarrosselDoCatalogo(state) {
+  if (state.initialized) return;
+  state.initialized = true;
+  state.container.replaceChildren();
+  state.container.setAttribute('aria-busy', 'false');
+  renderizarProximoLote(state);
 }
 
 function renderizarProximoLote(state) {
@@ -2659,7 +2669,7 @@ function renderizarProximoLote(state) {
   })), cards);
 
   if (state.renderedCount < state.products.length) criarBotaoCarregarMais(state);
-  agendarAtualizacaoIconesLucide();
+  agendarAtualizacaoIconesLucide(state.container);
 }
 
 function atualizarPrecosCarrinhoDoCatalogo(products) {
@@ -2764,7 +2774,23 @@ async function carregarCatalogoReal() {
     atualizarPrecosCarrinhoDoCatalogo(data.products);
     renderFlashOfferPanel(data.products);
     catalogoCarregado = true;
+    observadorDeCatalogo?.disconnect();
+    observadorDeCarrosseis?.disconnect();
+    observadorDeCarrosseis = null;
     estadosDosCarrosseis = new Map();
+    if ('IntersectionObserver' in window) {
+      observadorDeCatalogo = new IntersectionObserver((entries, observer) => {
+        entries.forEach((entry) => {
+          if (!entry.isIntersecting) return;
+          estadosDosCarrosseis.forEach((state) => {
+            if (state.section === entry.target) inicializarCarrosselDoCatalogo(state);
+          });
+          observer.unobserve(entry.target);
+        });
+      }, { rootMargin: '500px 0px' });
+    } else {
+      observadorDeCatalogo = null;
+    }
     carrossels.forEach((container) => {
       const category = categoriaDoCarrossel(container);
       const isSalesCarousel = category === 'mais vendidos';
@@ -2779,17 +2805,18 @@ async function carregarCatalogoReal() {
           const hasDepartment = category && chaveCategoriaLoja(product.department) === chaveCategoriaLoja(category);
           return hasCategory || hasDepartment;
         });
-      container.innerHTML = '';
-      container.setAttribute('aria-busy', 'false');
       const state = {
         container,
+        section: container.closest('section') || container,
         products: visibleProducts,
         renderedCount: 0,
         loadButton: null,
+        initialized: false,
         label: container.closest('section')?.querySelector('h2, h3')?.textContent.trim() || heading || 'loja',
       };
       estadosDosCarrosseis.set(container, state);
-      renderizarProximoLote(state);
+      if (observadorDeCatalogo) observadorDeCatalogo.observe(state.section);
+      else inicializarCarrosselDoCatalogo(state);
     });
     buildProductIndex();
   } catch (error) {
@@ -2922,7 +2949,7 @@ let _productIndex = [];
 let _searchDebounceTimer = null;
 
 function buildProductIndex() {
-  const cards = [...document.querySelectorAll('.product-card')];
+  const cards = catalogoCarregado ? [] : [...document.querySelectorAll('.product-card')];
   const cardsById = new Map(cards.filter((card) => card.dataset.id).map((card) => [card.dataset.id, card]));
   const cardsByName = new Map(cards.map((card) => [
     normalizarBusca(card.querySelector('.product-name')?.textContent.trim() || ''),
@@ -2968,8 +2995,11 @@ function garantirProdutoRenderizado(product) {
   const productId = String(product.id || product.productId || '');
   const name = normalizarBusca(product.title || product.name || product.nome || '');
   let card = [...document.querySelectorAll('.product-card')].find((item) => (
-    (productId && item.dataset.id === productId)
-    || normalizarBusca(item.querySelector('.product-name')?.textContent.trim() || '') === name
+    (!catalogoCarregado || item.dataset.id)
+    && (
+      (productId && item.dataset.id === productId)
+      || normalizarBusca(item.querySelector('.product-name')?.textContent.trim() || '') === name
+    )
   ));
   if (card) return card;
 
@@ -2978,6 +3008,7 @@ function garantirProdutoRenderizado(product) {
     || normalizarBusca(item.title || '') === name
   )));
   if (!state) return null;
+  inicializarCarrosselDoCatalogo(state);
 
   const productIndex = state.products.findIndex((item) => (
     (productId && String(item.id) === productId)
