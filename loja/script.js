@@ -1,3 +1,24 @@
+let lucideIconsRefreshScheduled = false;
+
+function agendarAtualizacaoIconesLucide() {
+  if (!window.lucide || lucideIconsRefreshScheduled) return;
+  lucideIconsRefreshScheduled = true;
+
+  const renderIcons = () => {
+    lucideIconsRefreshScheduled = false;
+    window.lucide?.createIcons();
+  };
+
+  if (typeof window.requestIdleCallback === 'function') {
+    window.requestIdleCallback(renderIcons, { timeout: 1000 });
+  } else {
+    window.requestAnimationFrame(renderIcons);
+  }
+}
+
+const lucideLibrary = document.getElementById('lucide-library');
+lucideLibrary?.addEventListener('load', agendarAtualizacaoIconesLucide);
+
 // Chamada toda vez que uma seta de carrossel (‹ ou ›) é clicada
 function moveCarousel(botao, direcao) {
   const track = botao.parentElement.querySelector('.scroll-target');
@@ -146,10 +167,18 @@ function configurarDicaDeDeslizeDosCarrosseis() {
   scheduleHintUpdate();
 }
 
-function configurarSlidesBannerPrincipal(slides) {
+async function configurarSlidesBannerPrincipal(slides) {
   const banner = document.querySelector('.banner[data-store-layout="main-hero"]');
   const dots = banner?.querySelector('.banner-dots');
-  if (!banner || !dots) return;
+  if (!banner) return;
+  const revelarBanner = () => {
+    delete banner.dataset.mainHeroLoading;
+    banner.setAttribute('aria-busy', 'false');
+  };
+  if (!dots) {
+    revelarBanner();
+    return;
+  }
 
   const logo = banner.querySelector('[data-main-hero-logo]');
   const title = banner.querySelector('[data-main-hero-title]');
@@ -160,6 +189,17 @@ function configurarSlidesBannerPrincipal(slides) {
 
   if (!slideList.length) {
     dots.hidden = true;
+    revelarBanner();
+    return;
+  }
+
+  const firstImage = new Image();
+  firstImage.src = new URL(slideList[0].imageUrl, window.location.origin).href;
+  try {
+    await firstImage.decode();
+  } catch (error) {
+    console.warn('Não foi possível carregar o banner principal:', error.message);
+    revelarBanner();
     return;
   }
 
@@ -212,6 +252,7 @@ function configurarSlidesBannerPrincipal(slides) {
   };
 
   showSlide(0);
+  revelarBanner();
   dots.hidden = slideList.length < 2;
   if (slideList.length < 2) return;
 
@@ -231,6 +272,7 @@ const PAYMENT_METHOD_CARD_TYPES = {
   vale_refeicao: 'meal_voucher',
 };
 let sessaoLoja = { authenticated: false, user: null };
+let sessaoDaLojaAtualizando = false;
 let checkoutLojaEmAndamento = false;
 let cartoesSalvosLoja = [];
 let cartaoSelecionadoLojaId = '';
@@ -798,7 +840,7 @@ function abrirDialogoPagamentoPix(order, message) {
         <h2 id="pix-payment-title">Conclua seu pagamento</h2>
         <p id="pix-payment-description"></p>
         <strong class="checkout-pix-order-id"></strong>
-        <img class="checkout-pix-qr" alt="QR Code Pix" hidden>
+        <img class="checkout-pix-qr" alt="QR Code Pix" width="256" height="256" hidden>
         <small class="checkout-pix-qr-status" role="status"></small>
         <label class="checkout-pix-code-label" for="pix-payment-code">Código Pix copia e cola</label>
         <textarea id="pix-payment-code" class="checkout-pix-code" readonly rows="4" aria-label="Código Pix copia e cola"></textarea>
@@ -1018,7 +1060,9 @@ async function carregarCarrinhoDaApi() {
   }
 }
 
-async function carregarSessaoDaLoja() {
+async function carregarSessaoDaLoja({ atualizarDadosRelacionados = true } = {}) {
+  if (sessaoDaLojaAtualizando) return;
+  sessaoDaLojaAtualizando = true;
   try {
     const response = await fetch(`${SESSION_API}?t=${Date.now()}`, {
       credentials: 'include',
@@ -1071,9 +1115,14 @@ async function carregarSessaoDaLoja() {
       button.title = sessaoLoja.authenticated ? 'Adicionar aos favoritos' : 'Entre para favoritar';
     });
 
-    if (sessaoLoja.authenticated) await carregarFavoritosDaApi();
-    await carregarEnderecosDaApi();
-    await carregarCarrinhoDaApi();
+    if (atualizarDadosRelacionados) {
+      const requests = [
+        carregarEnderecosDaApi(),
+        carregarCarrinhoDaApi(),
+      ];
+      if (sessaoLoja.authenticated) requests.push(carregarFavoritosDaApi());
+      await Promise.all(requests);
+    }
     atualizarOrientacaoCheckout();
   } catch (error) {
     erroSessaoDaLoja = error.message || 'Sessão indisponível.';
@@ -1084,6 +1133,8 @@ async function carregarSessaoDaLoja() {
     atualizarBotaoFinalizarCompra();
     console.warn('Não foi possível verificar o login:', error.message);
     atualizarOrientacaoCheckout();
+  } finally {
+    sessaoDaLojaAtualizando = false;
   }
 }
 
@@ -1534,7 +1585,7 @@ function renderizarCarrinho(persistir = true) {
       <div class="summary-row"><div class="summary-row-label">Taxa de serviço${totals.couponBenefitType === 'FREE_SERVICE_FEE' ? ' · zerada' : ''}${renderStoreFeeInfo('taxa de serviço', serviceFeeExplanation)}</div><strong>${checkoutFeeSettings ? formatarPreco(totals.serviceFee) : checkoutFeeLoadError ? 'Indisponível' : 'Calculando...'}</strong></div>
       <div class="summary-row total"><span>Total</span><strong>${totalDisplay}</strong></div>
     `;
-    if (window.lucide) window.lucide.createIcons();
+    agendarAtualizacaoIconesLucide();
     atualizarOrientacaoCheckout();
     if (persistir) sincronizarCarrinhoApi([]);
     return;
@@ -1543,7 +1594,7 @@ function renderizarCarrinho(persistir = true) {
   if (cartItems) cartItems.innerHTML = itens.map(item => `
     <div class="cart-item" data-name="${escapeStoreHtml(item.nome)}">
       <div class="cart-item-thumb">
-        ${item.imagem ? `<img src="${escapeStoreHtml(item.imagem)}" alt="${escapeStoreHtml(item.nome)}">` : '<div class="cart-thumb-placeholder"></div>'}
+        ${item.imagem ? `<img src="${escapeStoreHtml(item.imagem)}" alt="${escapeStoreHtml(item.nome)}" width="80" height="80">` : '<div class="cart-thumb-placeholder"></div>'}
       </div>
 
       <div class="cart-item-info">
@@ -1578,9 +1629,7 @@ function renderizarCarrinho(persistir = true) {
     cartPanelTotal.textContent = formatarPreco(totalComDesconto);
   }
 
-  if (window.lucide) {
-    window.lucide.createIcons();
-  }
+  agendarAtualizacaoIconesLucide();
 
   atualizarOrientacaoCheckout();
   if (persistir) sincronizarCarrinhoApi(itens);
@@ -2263,7 +2312,7 @@ function inicializarCarrinho() {
   carregarSessaoDaLoja();
   window.setInterval(() => {
     if (document.visibilityState === 'visible' && sessaoLoja.authenticated) carregarCarrinhoDaApi();
-  }, 3000);
+  }, 15000);
 
   const atualizarSessaoAoVoltar = () => {
     if (document.visibilityState === 'visible') carregarSessaoDaLoja();
@@ -2271,7 +2320,11 @@ function inicializarCarrinho() {
 
   document.addEventListener('visibilitychange', atualizarSessaoAoVoltar);
   window.addEventListener('pageshow', atualizarSessaoAoVoltar);
-  window.setInterval(carregarSessaoDaLoja, 15000);
+  window.setInterval(() => {
+    if (document.visibilityState === 'visible') {
+      void carregarSessaoDaLoja({ atualizarDadosRelacionados: false });
+    }
+  }, 60000);
 
   if (cartTrigger) {
     cartTrigger.addEventListener('click', abrirCarrinho);
@@ -2443,7 +2496,7 @@ function renderProductImage(image, title) {
     return `<div class="product-image-placeholder" role="img" aria-label="Imagem de ${accessibleTitle} indisponível"><i data-lucide="image" aria-hidden="true"></i><span>Foto indisponível</span></div>`;
   }
 
-  return `<img src="${escapeStoreHtml(source)}" alt="${escapeStoreHtml(title)}" class="product-img" loading="lazy" decoding="async">`;
+  return `<img src="${escapeStoreHtml(source)}" alt="${escapeStoreHtml(title)}" class="product-img" width="300" height="100" loading="lazy" decoding="async">`;
 }
 
 function createProductImageFallback(title) {
@@ -2459,7 +2512,7 @@ document.addEventListener('error', (event) => {
   const image = event.target;
   if (!(image instanceof HTMLImageElement) || !image.classList.contains('product-img')) return;
   image.replaceWith(createProductImageFallback(image.alt));
-  if (window.lucide) window.lucide.createIcons();
+  agendarAtualizacaoIconesLucide();
 }, true);
 
 function getProductCardCategoryLabel(product) {
@@ -2608,7 +2661,7 @@ function renderizarProximoLote(state) {
   })), cards);
 
   if (state.renderedCount < state.products.length) criarBotaoCarregarMais(state);
-  if (window.lucide) window.lucide.createIcons();
+  agendarAtualizacaoIconesLucide();
 }
 
 function atualizarPrecosCarrinhoDoCatalogo(products) {
@@ -2760,24 +2813,38 @@ async function carregarLayoutGerenciado() {
     const mainHeroSlides = (data.banners || []).filter(({ key }) => (
       key === 'main-hero' || /^main-hero-slide-\d{2,4}$/.test(key)
     ));
-    configurarSlidesBannerPrincipal(mainHeroSlides);
+    await configurarSlidesBannerPrincipal(mainHeroSlides);
 
-    for (const { key, imageUrl } of (data.banners || []).filter(({ key }) => key !== 'main-hero' && !key.startsWith('main-hero-slide-'))) {
-      const elements = document.querySelectorAll(`[data-store-layout="${key}"]`);
-      if (!elements.length || !imageUrl) continue;
-      const image = `url("${imageUrl}")`;
-      for (const element of elements) {
-        if (element.tagName === 'IMG') {
-          element.src = imageUrl;
-          continue;
-        }
-        const isCarouselBanner = key.startsWith('carousel-');
-        const isWideBanner = element.matches('.promo-banner, .vendor-banner');
-        if (isWideBanner) {
-          const dimensions = new Image();
-          dimensions.src = imageUrl;
-          try {
-            await dimensions.decode();
+    const deferredBackgrounds = new Map();
+    const backgroundObserver = 'IntersectionObserver' in window
+      ? new IntersectionObserver((entries, observer) => {
+        entries.forEach((entry) => {
+          if (!entry.isIntersecting) return;
+          const applyBackground = deferredBackgrounds.get(entry.target);
+          deferredBackgrounds.delete(entry.target);
+          observer.unobserve(entry.target);
+          applyBackground?.();
+        });
+      }, { rootMargin: '300px 0px' })
+      : null;
+
+    const applyManagedImage = (element, key, imageUrl) => {
+      if (element.tagName === 'IMG') {
+        element.loading = 'lazy';
+        element.decoding = 'async';
+        element.src = imageUrl;
+        return;
+      }
+
+      const isCarouselBanner = key.startsWith('carousel-');
+      const isWideBanner = element.matches('.promo-banner, .vendor-banner');
+      if (isWideBanner) {
+        const dimensions = new Image();
+        dimensions.decoding = 'async';
+        dimensions.src = imageUrl;
+        dimensions.decode()
+          .then(() => {
+            if (!element.isConnected) return;
             const naturalAspectRatio = dimensions.naturalWidth / dimensions.naturalHeight;
             const aspectRatio = key === 'promo-roupas'
               ? Math.max(naturalAspectRatio, 1400 / 220)
@@ -2785,19 +2852,37 @@ async function carregarLayoutGerenciado() {
             element.style.aspectRatio = String(aspectRatio);
             element.style.setProperty('--wide-banner-art-height', `${100 / aspectRatio}%`);
             element.classList.add('wide-banner--managed-art');
-          } catch (error) {
+          })
+          .catch((error) => {
             console.warn(`Não foi possível ajustar a proporção do banner ${key}:`, error.message);
-          }
+          });
+      }
+      element.style.backgroundImage = isCarouselBanner
+        ? `linear-gradient(180deg, rgba(0, 0, 0, 0.34), rgba(0, 0, 0, 0.48)), url("${imageUrl}")`
+        : `url("${imageUrl}")`;
+      element.style.backgroundSize = isCarouselBanner ? 'cover, contain' : 'cover';
+      element.style.backgroundPosition = 'center';
+      element.style.backgroundRepeat = 'no-repeat';
+    };
+
+    for (const { key, imageUrl } of (data.banners || []).filter(({ key }) => key !== 'main-hero' && !key.startsWith('main-hero-slide-'))) {
+      const elements = document.querySelectorAll(`[data-store-layout="${key}"]`);
+      if (!elements.length || !imageUrl) continue;
+      for (const element of elements) {
+        if (backgroundObserver && element.tagName !== 'IMG') {
+          deferredBackgrounds.set(element, () => applyManagedImage(element, key, imageUrl));
+          backgroundObserver.observe(element);
+        } else {
+          applyManagedImage(element, key, imageUrl);
         }
-        element.style.backgroundImage = isCarouselBanner
-          ? `linear-gradient(180deg, rgba(0, 0, 0, 0.34), rgba(0, 0, 0, 0.48)), ${image}`
-          : image;
-        element.style.backgroundSize = isCarouselBanner ? 'cover, contain' : 'cover';
-        element.style.backgroundPosition = 'center';
-        element.style.backgroundRepeat = 'no-repeat';
       }
     }
   } catch (error) {
+    const mainHero = document.querySelector('.banner[data-store-layout="main-hero"]');
+    if (mainHero) {
+      delete mainHero.dataset.mainHeroLoading;
+      mainHero.setAttribute('aria-busy', 'false');
+    }
     console.warn('Imagens personalizadas do layout indisponíveis:', error.message);
   }
 }
@@ -2807,7 +2892,7 @@ window.addEventListener('DOMContentLoaded', () => {
   configurarDicaDeDeslizeDosCarrosseis();
   inicializarCarrinho();
   carregarLayoutGerenciado();
-  adicionarBotoesFavorito();
+  adicionarBotoesFavorito(document.querySelectorAll('.product-card'), false);
   adicionarCategoriasProdutos();
   carregarCatalogoReal();
   carregarCarrinhoDaApi();
@@ -2820,9 +2905,7 @@ window.addEventListener('DOMContentLoaded', () => {
       input.focus();
     }
   }
-  if (window.lucide) {
-    window.lucide.createIcons();
-  }
+  agendarAtualizacaoIconesLucide();
 });
 
 function normalizarBusca(texto) {
@@ -2997,7 +3080,7 @@ function buscarProdutos() {
       const discountLabel = indexedProduct.discountLabel;
 
       item.innerHTML = `
-        <span class="search-result-image">${image ? `<img src="${escapeStoreHtml(image)}" alt="">` : '<i data-lucide="shopping-bag"></i>'}</span>
+        <span class="search-result-image">${image ? `<img src="${escapeStoreHtml(image)}" alt="" width="40" height="40">` : '<i data-lucide="shopping-bag"></i>'}</span>
         <span class="search-result-info"><strong>${escapeStoreHtml(nomeOriginal)}</strong><small>${escapeStoreHtml(category)}</small>${discountLabel ? `<span class="search-result-discount">${escapeStoreHtml(discountLabel)}</span>` : ''}</span>
         <span class="search-result-price">${escapeStoreHtml(priceLabel)}</span>
         <span class="search-result-actions">
@@ -3081,7 +3164,7 @@ function buscarProdutos() {
     });
   }
 
-  if (window.lucide) window.lucide.createIcons();
+  agendarAtualizacaoIconesLucide();
   resultsBox.classList.add('show');
   document.querySelector('.main-header')?.classList.add('search-open');
 }

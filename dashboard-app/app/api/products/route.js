@@ -21,7 +21,7 @@ import {
   resolveInventoryExpiry,
   requiresInventoryExpiry,
 } from '@/features/erp/api/inventory-lots';
-import { getProductCatalog, readLegacyProducts, serializeProduct } from '@/features/erp/api/product-catalog';
+import { getProductCatalog, getPublicProductCatalog, readLegacyProducts, serializeProduct } from '@/features/erp/api/product-catalog';
 import { getProductOrganizationError } from '@/features/erp/product-organization';
 import { prisma } from '@/lib/prisma';
 
@@ -297,9 +297,10 @@ function ensurePriceHistory(product) {
 
 function publicProductImage(product) {
   const image = typeof product.image === 'string' ? product.image : '';
-  if (!/^data:image\/(?:png|jpeg|webp);base64,/i.test(image)) return image;
+  const imageHash = /^[a-f0-9]{32}$/i.test(product.imageHash) ? product.imageHash : '';
+  if (!imageHash && !/^data:image\/(?:png|jpeg|webp);base64,/i.test(image)) return image;
 
-  const version = createHash('sha256').update(image).digest('hex').slice(0, 16);
+  const version = `${imageHash || createHash('md5').update(image).digest('hex')}-webp-384-v1`;
   return `/api/products?purpose=image&id=${encodeURIComponent(product.id)}&v=${version}`;
 }
 
@@ -337,7 +338,7 @@ export async function GET(request) {
     const image = typeof product?.image === 'string' ? product.image : '';
     const imageMatch = /^data:(image\/(?:png|jpeg|webp));base64,([A-Za-z0-9+/]+={0,2})$/i.exec(image);
     const currentVersion = image
-      ? createHash('sha256').update(image).digest('hex').slice(0, 16)
+      ? `${createHash('md5').update(image).digest('hex')}-webp-384-v1`
       : '';
     if (product?.status !== 'Ativo' || !imageMatch || currentVersion !== version) {
       return Response.json({ error: 'Imagem do produto não encontrada.' }, {
@@ -353,18 +354,32 @@ export async function GET(request) {
         headers: corsHeaders(request),
       });
     }
-    return new Response(imageBytes, {
+    let optimizedImage;
+    try {
+      const { optimizeProductImage } = await import('@/features/erp/api/product-image');
+      optimizedImage = await optimizeProductImage(imageBytes);
+    } catch (error) {
+      console.error(`Não foi possível otimizar a imagem do produto ${productId}:`, error);
+      return Response.json({ error: 'Não foi possível preparar a imagem do produto.' }, {
+        status: 500,
+        headers: corsHeaders(request),
+      });
+    }
+
+    return new Response(optimizedImage, {
       headers: {
         ...corsHeaders(request),
-        'Content-Type': imageMatch[1].toLowerCase(),
-        'Content-Length': String(imageBytes.byteLength),
+        'Content-Type': 'image/webp',
+        'Content-Length': String(optimizedImage.byteLength),
         'Cache-Control': 'public, max-age=31536000, immutable',
         'X-Content-Type-Options': 'nosniff',
       },
     });
   }
 
-  const products = await getProductCatalog();
+  const products = purpose === 'search' || purpose === 'store'
+    ? await getPublicProductCatalog()
+    : await getProductCatalog();
   if (purpose === 'search') {
     const searchableProducts = products
       .filter((product) => product.status === 'Ativo')
@@ -419,7 +434,7 @@ export async function GET(request) {
         };
       });
     return Response.json({ products: storeProducts }, {
-      headers: { ...corsHeaders(request), 'Cache-Control': 'private, no-store, max-age=0' },
+      headers: { ...corsHeaders(request), 'Cache-Control': 'public, max-age=0, s-maxage=10, stale-while-revalidate=10' },
     });
   }
   const session = await getServerSession(authOptions);

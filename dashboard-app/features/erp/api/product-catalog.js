@@ -2,6 +2,7 @@ import { promises as fs } from 'node:fs';
 import path from 'node:path';
 import { prisma } from '@/lib/prisma';
 import { parseShelfLifeDays } from './inventory-lots.js';
+import { serializePublicProductRecord } from './public-product-record.js';
 
 const productsFile = path.join(process.cwd(), 'data', 'products.json');
 
@@ -53,6 +54,44 @@ export async function getProductCatalog(client = prisma) {
     databaseProducts = (await client.product.findMany()).map(serializeProduct);
   } catch (error) {
     console.error('Não foi possível carregar o catálogo persistido:', error);
+  }
+
+  const legacyProducts = await readLegacyProducts();
+  const productsById = new Map(legacyProducts.map((product) => [String(product.id), product]));
+  databaseProducts.forEach((product) => productsById.set(String(product.id), product));
+  return [...productsById.values()];
+}
+
+export async function getPublicProductCatalog(client = prisma) {
+  let databaseProducts = [];
+  try {
+    const records = await client.$queryRaw`
+      SELECT
+        "id",
+        "externalId",
+        "title",
+        "description",
+        "price",
+        "discount",
+        "status",
+        "categories",
+        "brand",
+        "subcategory",
+        "metadata",
+        CASE
+          WHEN "image" ~* '^data:image/(png|jpeg|webp);base64,' THEN ''
+          ELSE COALESCE("image", '')
+        END AS "image",
+        CASE
+          WHEN "image" ~* '^data:image/(png|jpeg|webp);base64,' THEN MD5("image")
+          ELSE ''
+        END AS "imageHash"
+      FROM "Product"
+      WHERE "status" = 'Ativo'
+    `;
+    databaseProducts = records.map(serializePublicProductRecord);
+  } catch (error) {
+    console.error('Não foi possível carregar o catálogo público persistido:', error);
   }
 
   const legacyProducts = await readLegacyProducts();

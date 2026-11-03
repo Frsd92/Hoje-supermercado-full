@@ -196,7 +196,7 @@
   opacity: 0;
   visibility: hidden;
   pointer-events: none;
-  transition: opacity 0.25s ease, visibility 0.25s ease;
+  transition: opacity 0.18s ease, visibility 0.18s ease;
   z-index: 1101;
 }
 
@@ -216,7 +216,7 @@
   background: linear-gradient(180deg, rgba(255,255,255,0.99) 0%, rgba(244,247,245,0.98) 100%);
   box-shadow: -28px 0 52px rgba(15, 23, 42, 0.14), 0 0 0 1px rgba(148,163,184,0.12);
   transform: translateX(102%);
-  transition: transform 0.28s ease;
+  transition: transform 0.18s ease;
   z-index: 1102;
   display: flex;
   flex-direction: column;
@@ -1556,6 +1556,32 @@ body {
   padding-bottom: 8px;
 }
 
+.main-content > .showcases {
+  content-visibility: auto;
+  contain-intrinsic-size: auto 300px;
+}
+
+.main-content > .offers {
+  content-visibility: auto;
+  contain-intrinsic-size: auto 420px;
+}
+
+.main-content > .vendor-banner,
+.main-content > .promo-banner {
+  content-visibility: auto;
+  contain-intrinsic-size: auto 240px;
+}
+
+.main-content > .highlight-banner {
+  content-visibility: auto;
+  contain-intrinsic-size: auto 280px;
+}
+
+.main-content > .carousel-section {
+  content-visibility: auto;
+  contain-intrinsic-size: auto 420px;
+}
+
 @media (min-width: 1181px) {
   .main-content > .offers,
   .main-content > .vendor-banner,
@@ -1708,6 +1734,13 @@ body {
     width: 100vw;
     max-width: 100vw;
     border-radius: 20px 0 0 0;
+    backdrop-filter: none;
+    -webkit-backdrop-filter: none;
+  }
+
+  .cart-backdrop {
+    backdrop-filter: none;
+    -webkit-backdrop-filter: none;
   }
 
   .cart-item {
@@ -1741,6 +1774,10 @@ body {
   box-shadow: 0 36px 64px rgba(15, 23, 42, 0.18), inset 0 1px 0 rgba(255,255,255,0.12);
   border: 1px solid rgba(255,255,255,0.18);
   overflow: hidden;
+}
+
+.banner[data-main-hero-loading="true"] {
+  visibility: hidden;
 }
 
 .banner [hidden] {
@@ -2301,7 +2338,7 @@ body {
 .old-price {
   font-size: 13px;
   font-weight: normal;
-  color: #999;
+  color: #475569;
   text-decoration: line-through;
 }
 
@@ -3075,7 +3112,7 @@ body {
 
 /* Variações de cor do highlight-banner */
 .highlight-verde { background-color: #1a7a3c; }
-.highlight-laranja { background-color: #e08a1e; }
+.highlight-laranja { background-color: #e08a1e; color: #111827; }
 .highlight-azul { background-color: #1565c0; }
 
 /* ===================================================== */
@@ -5014,5 +5051,73 @@ body {
     width: min(430px, calc(100vw - 20px));
     height: min(650px, calc(100dvh - 95px - env(safe-area-inset-bottom)));
     min-height: 360px;
+  }
+}
+
+@media (max-width: 640px) {
+  .fav-btn {
+    width: 48px;
+    height: 48px;
+  }
+
+  .btn-comprar {
+    min-height: 48px;
+  }
+
+  .btn-remove,
+  .btn-add,
+  .carousel-arrow,
+  .cart-close,
+  .btn-coupon,
+  .all-categories {
+    min-width: 48px;
+    min-height: 48px;
+  }
+
+  .topbar-item,
+  .topbar-item:last-child {
+    min-height: 48px;
+  }
+
+  .topbar.home-topbar .install-app-button {
+    min-height: 48px;
+  }
+
+  .search-results .fav-btn {
+    min-width: 48px;
+    min-height: 48px;
+  }
+
+  .location-manage-link {
+    display: inline-flex;
+    align-items: center;
+    min-height: 48px;
+  }
+
+  .categories-bar a,
+  .main-content a:not([class]),
+  .footer-column a {
+    display: inline-flex;
+    align-items: center;
+    min-height: 48px;
+  }
+
+  .promo-cta,
+  .panel-cta,
+  .footer-offers-link {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    min-height: 48px;
+  }
+
+  .cart-item-remove {
+    width: 48px;
+    height: 48px;
+  }
+
+  .btn-limpar,
+  #search-submit {
+    min-height: 48px;
   }
 }

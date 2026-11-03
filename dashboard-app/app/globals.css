@@ -11327,7 +11327,7 @@ button.metric-mini:focus-visible {
   gap: 8px;
   padding: 15px;
 }
-.favorites-showcase .product-box { height: 156px; }
+.favorites-showcase .product-box { height: 100px; }
 
 .dashboard-shell[data-dashboard-theme="dark"] .favorites-showcase {
   --favorites-surface: #17231d;
@@ -11431,13 +11431,13 @@ button.metric-mini:focus-visible {
   .favorites-promo-banner { gap: 12px; padding: 16px; }
   .favorites-promo-orbit { width: 66px; height: 66px; border-width: 7px; }
   .favorites-showcase-rule { align-items: flex-start; flex-direction: column; gap: 4px; }
-  .favorites-showcase .product-box { height: 156px; }
-  .favorites-showcase .favorites-carousel-track .favorite-card { flex-basis: min(210px, calc(100vw - 48px)); }
+  .favorites-showcase .product-box { height: 100px; }
+  .favorites-showcase .favorites-carousel-track .favorite-card { flex-basis: min(180px, calc(100vw - 48px)); }
 }
 
 @media (max-width: 640px) {
-  .favorites-showcase .product-box { height: 156px; }
-  .favorites-showcase .favorites-carousel-track .favorite-card { flex-basis: min(210px, calc(100vw - 48px)); }
+  .favorites-showcase .product-box { height: 100px; }
+  .favorites-showcase .favorites-carousel-track .favorite-card { flex-basis: min(180px, calc(100vw - 48px)); }
 }
 
 @media print {

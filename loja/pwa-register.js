@@ -67,10 +67,19 @@
 
   if ('serviceWorker' in navigator) {
     window.addEventListener('load', () => {
-      navigator.serviceWorker.register('/service-worker.js', { scope: '/' })
-        .catch((error) => {
-          console.error('Não foi possível preparar a loja para uso offline:', error);
-        });
-    });
+      window.setTimeout(() => {
+        const registerServiceWorker = () => {
+          navigator.serviceWorker.register('/service-worker.js', { scope: '/' })
+            .catch((error) => {
+              console.error('Não foi possível preparar a loja para uso offline:', error);
+            });
+        };
+        if (typeof window.requestIdleCallback === 'function') {
+          window.requestIdleCallback(registerServiceWorker, { timeout: 5000 });
+        } else {
+          registerServiceWorker();
+        }
+      }, 5000);
+    }, { once: true });
   }
 })();
