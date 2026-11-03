@@ -16,8 +16,9 @@ export async function GET(request, { params }) {
     if (!asset) return new Response('Imagem não encontrada.', { status: 404 });
 
     const optimizedImage = await optimizeStoreLayoutImage(key, Buffer.from(asset.imageData, 'base64'));
-    const requestedVersion = new URL(request.url).searchParams.get('v');
-    const isVersioned = requestedVersion === String(asset.updatedAt.getTime());
+    const requestUrl = new URL(request.url);
+    const isVersioned = requestUrl.searchParams.get('v') === String(asset.updatedAt.getTime())
+      && requestUrl.searchParams.get('format') === 'webp-v2';
     const cacheControl = isVersioned
       ? 'public, max-age=31536000, s-maxage=31536000, immutable'
       : 'public, max-age=60, stale-while-revalidate=300';

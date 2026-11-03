@@ -32,7 +32,9 @@ export async function GET() {
         const asset = assetsByKey.get(slot.key);
         return {
           ...slot,
-          imageUrl: asset ? `/api/store-layout/${slot.key}?v=${asset.updatedAt.getTime()}` : '',
+          imageUrl: asset
+            ? `/api/store-layout/${slot.key}?v=${asset.updatedAt.getTime()}&format=webp-v2`
+            : '',
           settings: slot.group === 'main'
             ? getMainHeroSlideSettings(settingsByKey.get(slot.key), slot.key)
             : undefined,
@@ -118,7 +120,7 @@ export async function PUT(request) {
     return Response.json({
       asset: {
         key,
-        imageUrl: `/api/store-layout/${key}?v=${asset.updatedAt.getTime()}`,
+        imageUrl: `/api/store-layout/${key}?v=${asset.updatedAt.getTime()}&format=webp-v2`,
         originalName: asset.originalName,
         updatedAt: asset.updatedAt.toISOString(),
         updatedBy: asset.updatedBy,

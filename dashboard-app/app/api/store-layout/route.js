@@ -13,7 +13,10 @@ export async function GET() {
       ...heroBanners,
       ...STORE_LAYOUT_SLOTS.filter((slot) => !isMainHeroSlideKey(slot.key)).flatMap((slot) => {
         const updatedAt = assetsByKey.get(slot.key);
-        return updatedAt ? [{ key: slot.key, imageUrl: `/api/store-layout/${slot.key}?v=${updatedAt.getTime()}` }] : [];
+        return updatedAt ? [{
+          key: slot.key,
+          imageUrl: `/api/store-layout/${slot.key}?v=${updatedAt.getTime()}&format=webp-v2`,
+        }] : [];
       }),
     ];
     return Response.json({ banners }, {

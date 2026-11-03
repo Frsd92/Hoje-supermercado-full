@@ -66,7 +66,7 @@ test('defines uniquely identified store banners and brand logos with recommended
     },
     {
       key: 'main-hero-slide-02',
-      imageUrl: `/api/store-layout/main-hero-slide-02?v=${updatedAt.getTime()}`,
+      imageUrl: `/api/store-layout/main-hero-slide-02?v=${updatedAt.getTime()}&format=webp-v2`,
       settings: getDefaultMainHeroSlideSettings('main-hero-slide-02'),
     },
   ]);

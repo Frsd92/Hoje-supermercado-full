@@ -293,7 +293,7 @@ export function getMainHeroBanners(savedAssets, savedSettings = []) {
     .sort((first, second) => getMainHeroSlideOrder(first.key) - getMainHeroSlideOrder(second.key))
     .map((asset) => ({
       key: asset.key,
-      imageUrl: `/api/store-layout/${asset.key}?v=${asset.updatedAt.getTime()}`,
+      imageUrl: `/api/store-layout/${asset.key}?v=${asset.updatedAt.getTime()}&format=webp-v2`,
       settings: getMainHeroSlideSettings(settingsByKey.get(asset.key), asset.key),
     }));
 

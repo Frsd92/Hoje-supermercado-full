@@ -18,7 +18,7 @@ test('resizes store layout images to the slot dimensions and serves WebP', async
   const metadata = await sharp(optimized).metadata();
 
   assert.equal(metadata.format, 'webp');
-  assert.ok(metadata.width <= 1644);
+  assert.ok(metadata.width <= 1400);
   assert.ok(metadata.height <= 760);
   assert.ok(optimized.length < original.length);
 });

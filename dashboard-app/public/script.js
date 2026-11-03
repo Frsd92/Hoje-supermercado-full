@@ -2804,7 +2804,7 @@ async function carregarLayoutGerenciado() {
   if (!document.querySelector('[data-store-layout]')) return;
 
   try {
-    const response = await fetch('/api/store-layout');
+    const response = await fetch('/api/store-layout?v=2');
     const data = await response.json();
     if (!response.ok) throw new Error(data.error || 'Não foi possível carregar as imagens personalizadas.');
 
