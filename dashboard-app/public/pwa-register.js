@@ -78,11 +78,13 @@
           });
       };
 
-      if (typeof window.requestIdleCallback === 'function') {
-        window.requestIdleCallback(registerServiceWorker, { timeout: 5000 });
-      } else {
-        window.setTimeout(registerServiceWorker, 1000);
-      }
+      window.setTimeout(() => {
+        if (typeof window.requestIdleCallback === 'function') {
+          window.requestIdleCallback(registerServiceWorker, { timeout: 5000 });
+        } else {
+          registerServiceWorker();
+        }
+      }, 3000);
     };
 
     window.addEventListener('pointerdown', scheduleRegistration, { once: true, passive: true });
