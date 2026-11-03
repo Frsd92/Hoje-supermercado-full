@@ -1,4 +1,4 @@
-const CACHE_NAME = 'hoje-store-shell-v16';
+const CACHE_NAME = 'hoje-store-shell-v17';
 const PRECACHE_URLS = [
   '/index.html',
   '/categoria.html',

@@ -18,7 +18,7 @@ test('creates a compact WebP thumbnail within the catalog image dimensions', asy
   const metadata = await sharp(thumbnail).metadata();
 
   assert.equal(metadata.format, 'webp');
-  assert.ok(metadata.width <= 384);
-  assert.ok(metadata.height <= 384);
+  assert.ok(metadata.width <= 256);
+  assert.ok(metadata.height <= 256);
   assert.ok(thumbnail.length < original.length * 0.25);
 });

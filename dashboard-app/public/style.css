@@ -1776,10 +1776,6 @@ body {
   overflow: hidden;
 }
 
-.banner[data-main-hero-loading="true"] {
-  visibility: hidden;
-}
-
 .banner [hidden] {
   display: none !important;
 }

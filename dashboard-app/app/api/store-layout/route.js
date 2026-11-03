@@ -17,7 +17,7 @@ export async function GET() {
       }),
     ];
     return Response.json({ banners }, {
-      headers: { 'Cache-Control': 'no-store' },
+      headers: { 'Cache-Control': 'public, max-age=0, s-maxage=30, stale-while-revalidate=60' },
     });
   } catch (error) {
     console.error('Não foi possível carregar as imagens gerenciadas da Loja:', error);

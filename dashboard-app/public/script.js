@@ -196,14 +196,10 @@ async function configurarSlidesBannerPrincipal(slides) {
   const firstImage = new Image();
   firstImage.fetchPriority = 'high';
   firstImage.decoding = 'async';
+  firstImage.addEventListener('error', () => {
+    console.warn('Não foi possível carregar o banner principal.');
+  }, { once: true });
   firstImage.src = new URL(slideList[0].imageUrl, window.location.origin).href;
-  try {
-    await firstImage.decode();
-  } catch (error) {
-    console.warn('Não foi possível carregar o banner principal:', error.message);
-    revelarBanner();
-    return;
-  }
 
   let activeIndex = 0;
   const gradient = 'linear-gradient(90deg, rgba(7, 23, 15, 0.86), rgba(9, 34, 22, 0.58), rgba(10, 26, 18, 0.22))';
@@ -2808,7 +2804,7 @@ async function carregarLayoutGerenciado() {
   if (!document.querySelector('[data-store-layout]')) return;
 
   try {
-    const response = await fetch('/api/store-layout', { cache: 'no-store' });
+    const response = await fetch('/api/store-layout');
     const data = await response.json();
     if (!response.ok) throw new Error(data.error || 'Não foi possível carregar as imagens personalizadas.');
 

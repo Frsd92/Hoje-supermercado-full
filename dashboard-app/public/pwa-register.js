@@ -87,8 +87,5 @@
 
     window.addEventListener('pointerdown', scheduleRegistration, { once: true, passive: true });
     window.addEventListener('keydown', scheduleRegistration, { once: true });
-    document.addEventListener('visibilitychange', () => {
-      if (document.hidden) scheduleRegistration();
-    });
   }
 })();

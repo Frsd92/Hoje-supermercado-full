@@ -300,7 +300,7 @@ function publicProductImage(product) {
   const imageHash = /^[a-f0-9]{32}$/i.test(product.imageHash) ? product.imageHash : '';
   if (!imageHash && !/^data:image\/(?:png|jpeg|webp);base64,/i.test(image)) return image;
 
-  const version = `${imageHash || createHash('md5').update(image).digest('hex')}-webp-384-v1`;
+  const version = `${imageHash || createHash('md5').update(image).digest('hex')}-webp-256-v2`;
   return `/api/products?purpose=image&id=${encodeURIComponent(product.id)}&v=${version}`;
 }
 
@@ -338,7 +338,7 @@ export async function GET(request) {
     const image = typeof product?.image === 'string' ? product.image : '';
     const imageMatch = /^data:(image\/(?:png|jpeg|webp));base64,([A-Za-z0-9+/]+={0,2})$/i.exec(image);
     const currentVersion = image
-      ? `${createHash('md5').update(image).digest('hex')}-webp-384-v1`
+      ? `${createHash('md5').update(image).digest('hex')}-webp-256-v2`
       : '';
     if (product?.status !== 'Ativo' || !imageMatch || currentVersion !== version) {
       return Response.json({ error: 'Imagem do produto não encontrada.' }, {
