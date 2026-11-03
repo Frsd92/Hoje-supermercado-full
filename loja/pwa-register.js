@@ -66,20 +66,29 @@
   }
 
   if ('serviceWorker' in navigator) {
-    window.addEventListener('load', () => {
-      window.setTimeout(() => {
-        const registerServiceWorker = () => {
-          navigator.serviceWorker.register('/service-worker.js', { scope: '/' })
-            .catch((error) => {
-              console.error('Não foi possível preparar a loja para uso offline:', error);
-            });
-        };
-        if (typeof window.requestIdleCallback === 'function') {
-          window.requestIdleCallback(registerServiceWorker, { timeout: 5000 });
-        } else {
-          registerServiceWorker();
-        }
-      }, 30000);
-    }, { once: true });
+    let registrationScheduled = false;
+    const scheduleRegistration = () => {
+      if (registrationScheduled) return;
+      registrationScheduled = true;
+
+      const registerServiceWorker = () => {
+        navigator.serviceWorker.register('/service-worker.js', { scope: '/' })
+          .catch((error) => {
+            console.error('Não foi possível preparar a loja para uso offline:', error);
+          });
+      };
+
+      if (typeof window.requestIdleCallback === 'function') {
+        window.requestIdleCallback(registerServiceWorker, { timeout: 5000 });
+      } else {
+        window.setTimeout(registerServiceWorker, 1000);
+      }
+    };
+
+    window.addEventListener('pointerdown', scheduleRegistration, { once: true, passive: true });
+    window.addEventListener('keydown', scheduleRegistration, { once: true });
+    document.addEventListener('visibilitychange', () => {
+      if (document.hidden) scheduleRegistration();
+    });
   }
 })();
