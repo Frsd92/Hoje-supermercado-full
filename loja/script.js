@@ -172,11 +172,17 @@ async function configurarSlidesBannerPrincipal(slides) {
   const dots = banner?.querySelector('.banner-dots');
   if (!banner) return;
   const revelarBanner = () => {
+    banner.hidden = false;
+    delete banner.dataset.mainHeroLoading;
+    banner.setAttribute('aria-busy', 'false');
+  };
+  const ocultarBanner = () => {
+    banner.hidden = true;
     delete banner.dataset.mainHeroLoading;
     banner.setAttribute('aria-busy', 'false');
   };
   if (!dots) {
-    revelarBanner();
+    ocultarBanner();
     return;
   }
 
@@ -189,7 +195,7 @@ async function configurarSlidesBannerPrincipal(slides) {
 
   if (!slideList.length) {
     dots.hidden = true;
-    revelarBanner();
+    ocultarBanner();
     return;
   }
 
@@ -199,7 +205,7 @@ async function configurarSlidesBannerPrincipal(slides) {
     await firstImage.decode();
   } catch (error) {
     console.warn('Não foi possível carregar o banner principal:', error.message);
-    revelarBanner();
+    ocultarBanner();
     return;
   }
 
@@ -2880,6 +2886,7 @@ async function carregarLayoutGerenciado() {
   } catch (error) {
     const mainHero = document.querySelector('.banner[data-store-layout="main-hero"]');
     if (mainHero) {
+      mainHero.hidden = true;
       delete mainHero.dataset.mainHeroLoading;
       mainHero.setAttribute('aria-busy', 'false');
     }
