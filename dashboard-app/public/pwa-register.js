@@ -79,7 +79,7 @@
         } else {
           registerServiceWorker();
         }
-      }, 5000);
+      }, 30000);
     }, { once: true });
   }
 })();

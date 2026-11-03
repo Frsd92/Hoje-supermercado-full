@@ -1,21 +1,31 @@
 import { getStoreLayoutSlot } from '@/features/erp/api/store-layout';
+import { optimizeStoreLayoutImage } from '@/features/erp/api/store-layout-image';
 import { prisma } from '@/lib/prisma';
 
-export async function GET(_request, { params }) {
+export async function GET(request, { params }) {
   const { key } = await params;
-  if (!getStoreLayoutSlot(key)) return new Response('Imagem do layout não encontrada.', { status: 404 });
+  if (!getStoreLayoutSlot(key)) {
+    return new Response('Imagem do layout não encontrada.', { status: 404 });
+  }
 
   try {
     const asset = await prisma.storeLayoutAsset.findUnique({
       where: { key },
-      select: { imageData: true, contentType: true },
+      select: { imageData: true, updatedAt: true },
     });
     if (!asset) return new Response('Imagem não encontrada.', { status: 404 });
 
-    return new Response(Buffer.from(asset.imageData, 'base64'), {
+    const optimizedImage = await optimizeStoreLayoutImage(key, Buffer.from(asset.imageData, 'base64'));
+    const requestedVersion = new URL(request.url).searchParams.get('v');
+    const isVersioned = requestedVersion === String(asset.updatedAt.getTime());
+    const cacheControl = isVersioned
+      ? 'public, max-age=31536000, s-maxage=31536000, immutable'
+      : 'public, max-age=60, stale-while-revalidate=300';
+
+    return new Response(optimizedImage, {
       headers: {
-        'Content-Type': asset.contentType,
-        'Cache-Control': 'public, max-age=60, stale-while-revalidate=300',
+        'Content-Type': 'image/webp',
+        'Cache-Control': cacheControl,
         'X-Content-Type-Options': 'nosniff',
       },
     });

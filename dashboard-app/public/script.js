@@ -194,6 +194,8 @@ async function configurarSlidesBannerPrincipal(slides) {
   }
 
   const firstImage = new Image();
+  firstImage.fetchPriority = 'high';
+  firstImage.decoding = 'async';
   firstImage.src = new URL(slideList[0].imageUrl, window.location.origin).href;
   try {
     await firstImage.decode();
@@ -2814,6 +2816,11 @@ async function carregarLayoutGerenciado() {
       key === 'main-hero' || /^main-hero-slide-\d{2,4}$/.test(key)
     ));
     await configurarSlidesBannerPrincipal(mainHeroSlides);
+    const savedImageKeys = new Set((data.banners || []).map(({ key }) => key));
+    document.querySelectorAll('img[data-store-layout-fallback]').forEach((image) => {
+      if (savedImageKeys.has(image.dataset.storeLayout)) return;
+      image.src = image.dataset.storeLayoutFallback;
+    });
 
     const deferredBackgrounds = new Map();
     const backgroundObserver = 'IntersectionObserver' in window
@@ -2879,6 +2886,9 @@ async function carregarLayoutGerenciado() {
       delete mainHero.dataset.mainHeroLoading;
       mainHero.setAttribute('aria-busy', 'false');
     }
+    document.querySelectorAll('img[data-store-layout-fallback]').forEach((image) => {
+      image.src = image.dataset.storeLayoutFallback;
+    });
     console.warn('Imagens personalizadas do layout indisponíveis:', error.message);
   }
 }
