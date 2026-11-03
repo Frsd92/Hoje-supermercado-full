@@ -4,6 +4,7 @@ import { getServerSession } from 'next-auth';
 import { authOptions } from '@/auth';
 import { sortOrdersNewestFirst } from '@/lib/order-sort';
 import { erpActorLabel, hasErpAccess } from '@/features/erp/access';
+import { deactivateDeliveryTracking } from '@/features/tracking/delivery-tracking';
 import { normalizeDeliveryLocation } from '@/lib/delivery-location';
 import { allocateOrderInventory } from '@/features/erp/api/order-inventory-fulfillment';
 import { getOrderPromotionSnapshot } from '@/features/erp/api/product-pricing';
@@ -729,6 +730,7 @@ export async function PATCH(request) {
         });
         if (result.count !== 1) return null;
 
+        await deactivateDeliveryTracking(transaction, id);
         await awardCompletedOrderMissions(transaction, id);
         return transaction.order.findUnique({
           where: { id },

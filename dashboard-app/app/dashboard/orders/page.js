@@ -8,6 +8,7 @@ import OrderReceipt from '@/features/orders/order-receipt';
 import { refundRequestStatusLabels } from '@/features/orders/order-refund-utils';
 import { isCardPaymentMethod } from '@/features/payments/card-methods';
 import { parseReceiptAmount } from '@/features/orders/order-receipt-data';
+import CustomerDeliveryTracking from '@/components/customer-delivery-tracking';
 import {
   canRequestOrderService,
   hasOpenOrderServiceRequest,
@@ -487,6 +488,7 @@ export default function OrdersPage() {
                       {canRequestOrderService(order, orderServiceRequestType.cancellation) && !hasOpenOrderServiceRequest(serviceRequests, orderServiceRequestType.cancellation) && <button type="button" onClick={() => openServiceRequestDialog(order, orderServiceRequestType.cancellation)}>Solicitar cancelamento</button>}
                       {canRequestOrderService(order, orderServiceRequestType.exchange) && order.items?.length > 0 && !hasOpenOrderServiceRequest(serviceRequests, orderServiceRequestType.exchange) && <button type="button" onClick={() => openServiceRequestDialog(order, orderServiceRequestType.exchange)}>Solicitar troca</button>}
                     </div>
+                    {order.status === 'Em transito' && <CustomerDeliveryTracking orderId={order.id} />}
                     {orderActivity.length > 0 && <div className="customer-order-activity">
                       <div className="customer-order-activity-badges" aria-label="Resumo de cancelamento e estorno">
                         {orderActivity.map((activity) => <span className={`customer-order-activity-badge ${activity.type}`} key={activity.id}>{activity.label}</span>)}

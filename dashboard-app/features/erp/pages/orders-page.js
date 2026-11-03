@@ -78,6 +78,10 @@ export default function ERPOrdersPage() {
   const [nfceBusy, setNfceBusy] = useState(false);
   const [nfceError, setNfceError] = useState('');
   const [nfceNotice, setNfceNotice] = useState('');
+  const [trackingBusy, setTrackingBusy] = useState(false);
+  const [trackingError, setTrackingError] = useState('');
+  const [trackingNotice, setTrackingNotice] = useState('');
+  const [trackingLink, setTrackingLink] = useState('');
 
   useEffect(() => {
     let active = true;
@@ -143,6 +147,9 @@ export default function ERPOrdersPage() {
     setBlingNotice('');
     setNfceError('');
     setNfceNotice('');
+    setTrackingError('');
+    setTrackingNotice('');
+    setTrackingLink('');
   }, [selected?.id]);
 
   const newOrders = orders.filter((order) => order.status === 'Recebido' && !acknowledged.includes(order.id));
@@ -183,6 +190,47 @@ export default function ERPOrdersPage() {
       setActionError(error.message || 'Não foi possível atualizar o pedido.');
     } finally {
       setBusy(false);
+    }
+  };
+
+  const manageDeliveryTracking = async (action) => {
+    if (!selected) return;
+    setTrackingBusy(true);
+    setTrackingError('');
+    setTrackingNotice('');
+    try {
+      const response = await fetch(`/api/erp/orders/${encodeURIComponent(selected.id)}/tracking`, {
+        method: action === 'start' ? 'POST' : 'DELETE',
+        cache: 'no-store',
+      });
+      const data = await response.json();
+      if (!response.ok) throw new Error(data.error || 'Não foi possível atualizar o rastreamento.');
+      if (action === 'start') {
+        setTrackingLink(data.trackingUrl);
+        try {
+          await navigator.clipboard.writeText(data.trackingUrl);
+          setTrackingNotice('Link do entregador gerado e copiado. Ele é válido por 12 horas.');
+        } catch {
+          setTrackingNotice('Link gerado. Copie-o manualmente no campo abaixo; ele é válido por 12 horas.');
+        }
+      } else {
+        setTrackingLink('');
+        setTrackingNotice(data.message || 'Rastreamento encerrado e localização removida.');
+      }
+    } catch (error) {
+      setTrackingError(error.message || 'Não foi possível atualizar o rastreamento.');
+    } finally {
+      setTrackingBusy(false);
+    }
+  };
+
+  const copyDeliveryTrackingLink = async () => {
+    try {
+      await navigator.clipboard.writeText(trackingLink);
+      setTrackingNotice('Link do entregador copiado.');
+      setTrackingError('');
+    } catch {
+      setTrackingError('Não foi possível copiar automaticamente. Selecione e copie o link no campo.');
     }
   };
 
@@ -479,6 +527,25 @@ export default function ERPOrdersPage() {
           <div className="erp-order-customer"><UserRound size={15} /><strong>{selected.customerName || 'Cliente não identificado'}</strong><span>{selected.customerEmail}</span></div>
           <div className="erp-order-address"><MapPin size={15} /><span>{selected.address || 'Endereço não informado'}</span></div>
           <div className="erp-order-address"><CreditCard size={15} /><span>Forma: {paymentLabels[selected.paymentMethod] || 'Não informada'} · Pagamento: <strong>{paymentStatusLabels[selected.paymentStatus] || 'Não informado'}</strong></span></div>
+          {selected.status === 'Em transito' && <section className="erp-delivery-tracking-control" aria-labelledby="erp-delivery-tracking-title">
+            <h4 id="erp-delivery-tracking-title">Rastreamento ao vivo</h4>
+            <p>Gere um link individual e envie ao entregador para compartilhar o GPS pelo celular.</p>
+            <div className="erp-delivery-tracking-actions">
+              <button type="button" disabled={trackingBusy} onClick={() => void manageDeliveryTracking('start')}>
+                {trackingBusy ? 'Aguarde...' : 'Gerar link do entregador'}
+              </button>
+              <button type="button" className="secondary" disabled={trackingBusy} onClick={() => void manageDeliveryTracking('stop')}>
+                Encerrar rastreamento
+              </button>
+            </div>
+            {trackingLink && <div className="erp-delivery-tracking-link">
+              <label htmlFor="erp-delivery-tracking-link">Link privado do entregador</label>
+              <input id="erp-delivery-tracking-link" type="text" readOnly value={trackingLink} onFocus={(event) => event.currentTarget.select()} />
+              <button type="button" onClick={() => void copyDeliveryTrackingLink()}>Copiar link</button>
+            </div>}
+            {trackingError && <p className="erp-delivery-tracking-error" role="alert">{trackingError}</p>}
+            {trackingNotice && <p className="erp-delivery-tracking-notice" role="status">{trackingNotice}</p>}
+          </section>}
           {selected.paymentStatus === 'pending' && <p className="erp-order-fefo-note" role="status">A separação está bloqueada até a confirmação do pagamento pela Pagar.me.</p>}
           <div className="erp-order-address erp-order-invoice-cpf">
             <FileText size={15} />

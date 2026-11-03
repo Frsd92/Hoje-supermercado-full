@@ -10,6 +10,7 @@ import {
 } from '@/features/orders/order-service-request-utils';
 import { getRemainingRefundCents, refundRequestStatus } from '@/features/orders/order-refund-utils';
 import { isCardPaymentMethod } from '@/features/payments/card-methods';
+import { deactivateDeliveryTracking } from '@/features/tracking/delivery-tracking';
 import { prisma } from '@/lib/prisma';
 import { randomUUID } from 'crypto';
 
@@ -141,6 +142,7 @@ export async function PATCH(request, { params }) {
             data: { status: 'Cancelado', updatedBy: actor },
           });
           if (updatedOrder.count !== 1) throw new ServiceRequestConflictError('O pedido foi atualizado durante o atendimento.');
+          await deactivateDeliveryTracking(transaction, current.order.id);
         }
       }
 

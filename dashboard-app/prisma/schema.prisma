@@ -714,10 +714,30 @@ model Order {
   paymentEvents               PagarmeWebhookEvent[]
   loyaltyMissionContributions LoyaltyMissionContribution[]
   loyaltyPointEntries         LoyaltyPointEntry[]          @relation("LoyaltyPointsSourceOrder")
+  deliveryTracking            DeliveryTracking?
 
   @@index([createdAt])
   @@index([customerEmail])
   @@index([status])
+}
+
+model DeliveryTracking {
+  orderId            String   @id
+  tokenHash          String?  @unique
+  active             Boolean  @default(true)
+  latitude           Float?
+  longitude          Float?
+  accuracy           Float?
+  heading            Float?
+  speed              Float?
+  locationUpdatedAt  DateTime?
+  startedAt          DateTime?
+  expiresAt          DateTime
+  createdAt          DateTime @default(now())
+  updatedAt          DateTime @updatedAt
+  order              Order    @relation(fields: [orderId], references: [id], onDelete: Cascade)
+
+  @@index([active, expiresAt])
 }
 
 model PagarmeWebhookEvent {
