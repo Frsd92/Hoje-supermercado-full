@@ -221,6 +221,40 @@
 .about-trust-strip h2 { margin: 0 0 4px; font-size: 14px; }
 .about-trust-strip p { margin: 0; color: var(--about-muted); font-size: 12px; line-height: 1.5; }
 
+.about-savings {
+  width: min(1100px, calc(100% - 48px));
+  margin: 36px auto 0;
+  padding: clamp(24px, 4vw, 44px);
+  display: grid;
+  grid-template-columns: 1.1fr .9fr;
+  align-items: center;
+  gap: 28px;
+  overflow: hidden;
+  border: 1px solid #e1eadf;
+  border-radius: 24px;
+  background: #f2f8f1;
+}
+
+.about-savings-copy { max-width: 560px; }
+.about-savings-copy h2 {
+  margin: 0;
+  color: var(--about-deep);
+  font-size: clamp(27px, 3.4vw, 42px);
+  font-weight: 800;
+  letter-spacing: -.045em;
+  line-height: 1.12;
+}
+
+.about-savings-copy > p:not(.about-eyebrow) {
+  margin: 15px 0 18px;
+  color: #435449;
+  font-size: 15px;
+  line-height: 1.65;
+}
+
+.about-savings-art { width: 100%; max-width: 390px; margin: 0 auto; }
+.about-savings-art img { display: block; width: 100%; height: auto; }
+
 .about-section,
 .about-info-grid,
 .about-final-cta { width: min(1100px, calc(100% - 48px)); margin: 0 auto; }
@@ -306,8 +340,6 @@
 .about-how-copy > p:not(.about-eyebrow) { margin: 16px 0 24px; color: #d4e2d8; }
 .about-button-light { background: var(--about-lime); color: var(--about-deep); }
 .about-button-light:hover { transform: translateY(-2px); background: #e9f9af; }
-.about-how-art { max-width: 340px; margin: 24px 0 0; }
-.about-how-art img { display: block; width: 100%; height: auto; }
 .about-steps { margin: 0; padding: 0; display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 24px 28px; list-style: none; }
 .about-steps li { display: flex; align-items: flex-start; gap: 13px; }
 .about-steps li > span {
@@ -393,8 +425,10 @@
   .about-art-orbit-two { width: min(47vw, 190px); }
   .about-art-sticker { right: 2px; bottom: 8px; width: 88px; height: 88px; font-size: 8px; }
   .about-art-sticker strong { font-size: 12px; }
-  .about-trust-strip, .about-section, .about-info-grid { width: calc(100% - 40px); }
+  .about-trust-strip, .about-savings, .about-section, .about-info-grid { width: calc(100% - 40px); }
   .about-trust-strip { padding: 20px; grid-template-columns: 1fr; gap: 18px; }
+  .about-savings { margin-top: 24px; padding: 24px; grid-template-columns: 1fr; gap: 14px; }
+  .about-savings-art { max-width: 300px; }
   .about-intro { padding: 68px 0 54px; grid-template-columns: 1fr; gap: 18px; }
   .about-departments { padding: 52px 0 64px; }
   .about-section-heading-row { align-items: flex-start; flex-direction: column; gap: 14px; }
