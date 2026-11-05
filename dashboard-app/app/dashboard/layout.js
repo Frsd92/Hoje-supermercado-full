@@ -76,8 +76,8 @@ const navigationGroups = [
     label: 'Minhas compras',
     items: [
       { label: 'Meus Pedidos', href: '/dashboard/orders', icon: ShoppingBag },
-      { label: 'Comprar novamente', href: '/dashboard/shopping#reorder', icon: RotateCcw },
-      { label: 'Listas de compras', href: '/dashboard/shopping#lists', icon: ListPlus },
+      { label: 'Comprar novamente', href: '/dashboard/reorder', icon: RotateCcw, badgeId: 'buy-again' },
+      { label: 'Listas de compras', href: '/dashboard/lists', icon: ListPlus, badgeId: 'shopping-lists' },
       { label: 'Meus cupons', href: '/dashboard/cupons', icon: TicketPercent },
       { label: 'Missões e pontos', href: '/dashboard/fidelidade', icon: Award },
       { label: 'Favoritos', href: '/dashboard/favorites', icon: Star },
@@ -136,6 +136,9 @@ export default function DashboardLayout({ children }) {
   const [savedCardError, setSavedCardError] = useState('');
   const [profileCpf, setProfileCpf] = useState('');
   const [profilePhone, setProfilePhone] = useState('');
+  const [dismissedDashboardBadges, setDismissedDashboardBadges] = useState([]);
+  const [dashboardBadgeError, setDashboardBadgeError] = useState('');
+  const [savingDashboardBadge, setSavingDashboardBadge] = useState('');
   const [cpfNoteDialogOpen, setCpfNoteDialogOpen] = useState(false);
   const [coupon, setCoupon] = useState('');
   const [couponDiscountPercent, setCouponDiscountPercent] = useState(0);
@@ -456,6 +459,26 @@ export default function DashboardLayout({ children }) {
       window.removeEventListener('dashboard-profile-updated', handleProfileUpdated);
     };
   }, [session?.user?.image, session?.user?.email]);
+
+  useEffect(() => {
+    if (sessionStatus !== 'authenticated') return undefined;
+    let active = true;
+    fetch('/api/customer-onboarding', { cache: 'no-store', credentials: 'include' })
+      .then(async (response) => {
+        const data = await response.json();
+        if (!response.ok) throw new Error(data.error || 'Não foi possível carregar as novidades.');
+        if (!Array.isArray(data.dismissedBadges)) throw new Error('A resposta das novidades está inválida.');
+        if (active) setDismissedDashboardBadges(data.dismissedBadges);
+      })
+      .catch((error) => {
+        if (!active) return;
+        console.error('Não foi possível carregar os selos de novidades do painel:', error);
+        setDashboardBadgeError('Não foi possível atualizar os selos de novidades. Eles continuarão visíveis até sincronizar.');
+      });
+    return () => {
+      active = false;
+    };
+  }, [sessionStatus, session?.user?.email]);
 
   useEffect(() => {
     let active = true;
@@ -1114,12 +1137,14 @@ export default function DashboardLayout({ children }) {
           {mobileNavOpen && <button type="button" className="sidebar-nav-backdrop" aria-label="Fechar navegação" onClick={() => { setMobileNavOpen(false); mobileNavToggleRef.current?.focus(); }} />}
 
           <nav id="dashboard-primary-navigation" className={`sidebar-nav ${mobileNavOpen ? 'mobile-open' : ''}`} aria-label="Navegação principal do cliente">
+            {dashboardBadgeError && <p className="sidebar-badge-error" role="status">{dashboardBadgeError}</p>}
             {navigationGroups.map(({ label, items }) => (
               <div key={label} className="sidebar-nav-group">
                 <span className="sidebar-nav-group-label">{label}</span>
                 <div className="sidebar-nav-group-items">
-                  {items.map(({ label: itemLabel, href, icon: Icon }) => {
+                  {items.map(({ label: itemLabel, href, icon: Icon, badgeId }) => {
                     const active = pathname === href || (href !== '/dashboard' && pathname.startsWith(href));
+                    const showBadge = badgeId && !dismissedDashboardBadges.includes(badgeId);
 
                     return (
                       <Link
@@ -1127,10 +1152,40 @@ export default function DashboardLayout({ children }) {
                         href={href}
                         className={`sidebar-item ${active ? 'active' : ''}`}
                         aria-current={active ? 'page' : undefined}
-                        onClick={() => setMobileNavOpen(false)}
+                        onClick={async (event) => {
+                          setMobileNavOpen(false);
+                          if (!showBadge) return;
+
+                          event.preventDefault();
+                          if (savingDashboardBadge) {
+                            setDashboardBadgeError('Aguarde a sincronização da novidade selecionada antes de abrir outra seção.');
+                            return;
+                          }
+                          setSavingDashboardBadge(badgeId);
+                          setDashboardBadgeError('');
+                          try {
+                            const response = await fetch('/api/customer-onboarding', {
+                              method: 'POST',
+                              credentials: 'include',
+                              headers: { 'Content-Type': 'application/json' },
+                              body: JSON.stringify({ badgeId }),
+                            });
+                            const data = await response.json();
+                            if (!response.ok) throw new Error(data.error || 'Não foi possível salvar esta alteração.');
+                            if (!Array.isArray(data.dismissedBadges)) throw new Error('A resposta das novidades está inválida.');
+                            setDismissedDashboardBadges(data.dismissedBadges);
+                            router.push(href);
+                          } catch (error) {
+                            console.error('Não foi possível salvar a novidade visualizada no painel:', error);
+                            setDashboardBadgeError(error.message || 'Não foi possível salvar esta alteração. Tente novamente.');
+                          } finally {
+                            setSavingDashboardBadge('');
+                          }
+                        }}
                       >
                         <Icon size={18} aria-hidden="true" />
                         <span>{itemLabel}</span>
+                        {showBadge && <span className="sidebar-item-badge">Novo</span>}
                       </Link>
                     );
                   })}

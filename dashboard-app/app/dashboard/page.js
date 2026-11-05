@@ -4,12 +4,13 @@ import Link from 'next/link';
 import { useSession } from 'next-auth/react';
 import { useRouter } from 'next/navigation';
 import { useEffect, useState } from 'react';
-import { ArrowRight, CircleDollarSign, CreditCard, Heart, MapPin, Package, ShoppingCart, UserRound } from 'lucide-react';
+import { ArrowRight, CircleDollarSign, CreditCard, Heart, MapPin, Package, ShoppingCart, Truck, UserRound } from 'lucide-react';
 import { formatCurrency, getBudgetProgress, getCurrentMonthSpend } from './budget';
 import { readLocalBudget } from './budget-storage';
 import { getCartItemCount } from './cart-utils';
 import { syncFavoritesWithCatalog } from './favorite-utils';
 import { getOrderStatus, orderStages } from './order-status';
+import CustomerDeliveryTracking from '@/components/customer-delivery-tracking';
 
 const recentOrderDateFormatter = new Intl.DateTimeFormat('pt-BR', {
   day: '2-digit',
@@ -26,6 +27,18 @@ function getRecentOrderDate(order) {
   const value = order.createdAtIso || order.createdAt;
   const date = value ? new Date(value) : null;
   return date && !Number.isNaN(date.getTime()) ? recentOrderDateFormatter.format(date) : 'Data não disponível';
+}
+
+function getNextOrderStep(order, currentStage) {
+  const nextStage = orderStages[currentStage + 1];
+  if (!nextStage) return null;
+  const guidance = {
+    Recebido: 'A loja está confirmando seu pedido para iniciar a separação.',
+    Separacao: 'Nossa equipe está escolhendo os produtos para você.',
+    Expedicao: 'Seu pedido está sendo preparado para sair para entrega.',
+    'Em transito': 'O pedido está a caminho. A localização aparece quando o entregador ativa o compartilhamento.',
+  };
+  return { label: getOrderStatus(nextStage).label, guidance: guidance[order.status] || '' };
 }
 
 export default function DashboardHomePage() {
@@ -208,6 +221,9 @@ export default function DashboardHomePage() {
   const monthSpend = getCurrentMonthSpend(orders);
   const budgetProgress = getBudgetProgress(monthSpend, profile.monthlyBudget);
   const cartCount = getCartItemCount(cart);
+  const featuredOrder = orders.find((order) => orderStages.includes(order.status) && order.status !== 'Concluido') || null;
+  const featuredOrderStage = featuredOrder ? orderStages.indexOf(featuredOrder.status) : -1;
+  const nextOrderStep = featuredOrder ? getNextOrderStep(featuredOrder, featuredOrderStage) : null;
   const metricData = [
     { label: 'Pedidos realizados', value: dashboardLoading ? '—' : orders.length, detail: dashboardLoading ? 'Atualizando pedidos' : 'pedidos registrados', Icon: Package },
     { label: 'Orçamento do mês', value: dashboardLoading ? '—' : profile.monthlyBudget ? formatCurrency(profile.monthlyBudget) : 'Não definido', detail: dashboardLoading ? 'Atualizando orçamento' : `${formatCurrency(monthSpend)} gastos neste mês`, Icon: CircleDollarSign, budget: true },
@@ -264,6 +280,58 @@ export default function DashboardHomePage() {
           </Link>
         </div>
       </section>
+
+      {featuredOrder && (
+        <section className="featured-order-panel" aria-labelledby="featured-order-title">
+          <div className="featured-order-heading">
+            <div className="featured-order-icon" aria-hidden="true">
+              {featuredOrder.status === 'Em transito' ? <Truck size={23} /> : <Package size={23} />}
+            </div>
+            <div className="featured-order-title-group">
+              <p className="featured-order-kicker">Pedido em andamento</p>
+              <h2 id="featured-order-title">{getOrderStatus(featuredOrder.status).label}</h2>
+              <p>Pedido {getRecentOrderReference(featuredOrder.id)} <span aria-hidden="true">·</span> {getRecentOrderDate(featuredOrder)}</p>
+            </div>
+            <Link href="/dashboard/orders" className="featured-order-details">
+              Ver pedido <ArrowRight size={16} aria-hidden="true" />
+            </Link>
+          </div>
+
+          <div className="featured-order-progress">
+            <ol aria-label={`Etapas do pedido: ${getOrderStatus(featuredOrder.status).label}, etapa ${featuredOrderStage + 1} de ${orderStages.length}`}>
+              {orderStages.map((stage, index) => {
+                const stageInfo = getOrderStatus(stage);
+                const complete = index < featuredOrderStage;
+                const current = index === featuredOrderStage;
+                return (
+                  <li
+                    key={stage}
+                    className={`${complete ? 'is-complete' : ''}${current ? ' is-current' : ''}`}
+                    aria-current={current ? 'step' : undefined}
+                  >
+                    <span className="featured-order-step-dot" aria-hidden="true" />
+                    <span>{stageInfo.label}</span>
+                  </li>
+                );
+              })}
+            </ol>
+          </div>
+
+          {nextOrderStep && (
+            <div className="featured-order-next-step">
+              <span className="featured-order-next-label">Próximo passo</span>
+              <strong>{nextOrderStep.label}</strong>
+              <p>{nextOrderStep.guidance}</p>
+            </div>
+          )}
+
+          {featuredOrder.status === 'Em transito' && (
+            <div className="featured-order-tracking">
+              <CustomerDeliveryTracking orderId={featuredOrder.id} />
+            </div>
+          )}
+        </section>
+      )}
 
       <div className="stats-panel-home">{metricData.map(({ label, value, detail, Icon, budget }) => {
         const isCartCard = label === 'Itens no carrinho';

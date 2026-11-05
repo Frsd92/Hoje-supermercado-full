@@ -58,6 +58,7 @@ model CustomerProfile {
   birthDate                 DateTime? @db.Date
   photo                     String?   @db.Text
   monthlyBudget             Decimal   @default(0) @db.Decimal(12, 2)
+  dismissedDashboardBadges  Json      @default("[]")
   pagarmeCustomerId         String?   @unique
   pagarmeCardId             String?   @unique
   pagarmeCardBrand          String?

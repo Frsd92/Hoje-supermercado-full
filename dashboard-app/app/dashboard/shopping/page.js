@@ -1,5 +1,6 @@
 'use client';
 
+import Link from 'next/link';
 import { useCallback, useEffect, useMemo, useState } from 'react';
 import { useSession } from 'next-auth/react';
 import {
@@ -74,7 +75,7 @@ function stockLimitedQuantity(product, requested, current = 0) {
     : Math.max(0, Math.floor(total));
 }
 
-export default function ShoppingPage() {
+export default function ShoppingPage({ mode = 'all' }) {
   const { data: session, status } = useSession();
   const [orders, setOrders] = useState([]);
   const [products, setProducts] = useState([]);
@@ -93,6 +94,8 @@ export default function ShoppingPage() {
   const [confirmDelete, setConfirmDelete] = useState(false);
 
   const selectedList = lists.find((list) => list.id === selectedListId) || null;
+  const showReorder = mode === 'all' || mode === 'reorder';
+  const showLists = mode === 'all' || mode === 'lists';
 
   const loadData = useCallback(async () => {
     if (status !== 'authenticated') return;
@@ -369,17 +372,21 @@ export default function ShoppingPage() {
   return (
     <main className="shopping-hub">
       <header className="shopping-hero">
-        <div className="shopping-hero-icon" aria-hidden="true"><ShoppingBasket size={25} /></div>
+        <div className="shopping-hero-icon" aria-hidden="true">{mode === 'lists' ? <ListPlus size={25} /> : mode === 'reorder' ? <RotateCcw size={25} /> : <ShoppingBasket size={25} />}</div>
         <div>
           <p className="shopping-eyebrow">Praticidade para sua rotina</p>
-          <h1>Suas compras, do seu jeito</h1>
-          <p>Repita uma compra anterior ou monte listas para ter tudo pronto na próxima visita.</p>
+          <h1>{mode === 'lists' ? 'Listas de compras' : mode === 'reorder' ? 'Comprar novamente' : 'Suas compras, do seu jeito'}</h1>
+          <p>{mode === 'lists'
+            ? 'Organize seus produtos favoritos e deixe sua próxima compra mais rápida.'
+            : mode === 'reorder'
+              ? 'Repita uma compra anterior com produtos, preços e estoque atualizados.'
+              : 'Repita uma compra anterior ou monte listas para ter tudo pronto na próxima visita.'}</p>
         </div>
       </header>
 
       <nav className="shopping-shortcuts" aria-label="Nesta página">
-        <a href="#reorder"><RotateCcw size={17} /> Comprar novamente <ChevronRight size={16} /></a>
-        <a href="#lists"><ListPlus size={18} /> Listas de compras <ChevronRight size={16} /></a>
+        <Link href="/dashboard/reorder" aria-current={mode === 'reorder' ? 'page' : undefined}><RotateCcw size={17} /> Comprar novamente <ChevronRight size={16} /></Link>
+        <Link href="/dashboard/lists" aria-current={mode === 'lists' ? 'page' : undefined}><ListPlus size={18} /> Listas de compras <ChevronRight size={16} /></Link>
       </nav>
 
       {(actionError || notice) && (
@@ -390,7 +397,7 @@ export default function ShoppingPage() {
         </div>
       )}
 
-      <section id="reorder" className="shopping-section" aria-labelledby="reorder-title">
+      {showReorder && <section id="reorder" className="shopping-section" aria-labelledby="reorder-title">
         <div className="shopping-section-heading">
           <div className="shopping-section-icon" aria-hidden="true"><RotateCcw size={20} /></div>
           <div>
@@ -411,6 +418,7 @@ export default function ShoppingPage() {
             {eligibleOrders.map((order) => {
               const resolvedItems = getOrderProducts(order);
               const availableCount = resolvedItems.filter(({ product }) => product && isProductAvailable(product)).length;
+              const catalogItemCount = resolvedItems.filter(({ product }) => product).length;
               return (
                 <article className="shopping-order-card" key={order.id}>
                   <div className="shopping-order-top">
@@ -435,7 +443,7 @@ export default function ShoppingPage() {
                       {cartBusy ? <LoaderCircle size={16} className="shopping-spin" /> : <ShoppingBasket size={16} />}
                       Adicionar disponíveis
                     </button>
-                    <button type="button" className="shopping-button shopping-button-secondary" onClick={() => saveOrderAsList(order)} disabled={!availableCount || savingList}>
+                    <button type="button" className="shopping-button shopping-button-secondary" onClick={() => saveOrderAsList(order)} disabled={!catalogItemCount || savingList}>
                       <ListPlus size={16} /> Salvar como lista
                     </button>
                   </div>
@@ -444,9 +452,9 @@ export default function ShoppingPage() {
             })}
           </div>
         )}
-      </section>
+      </section>}
 
-      <section id="lists" className="shopping-section shopping-lists-section" aria-labelledby="lists-title">
+      {showLists && <section id="lists" className="shopping-section shopping-lists-section" aria-labelledby="lists-title">
         <div className="shopping-section-heading">
           <div className="shopping-section-icon" aria-hidden="true"><ListPlus size={21} /></div>
           <div>
@@ -574,7 +582,7 @@ export default function ShoppingPage() {
 
                 <div className="shopping-list-footer">
                   <p>{selectedList.items.length} {selectedList.items.length === 1 ? 'produto na lista' : 'produtos na lista'}{selectedList.items.length ? ' · preços atualizados no carrinho' : ''}</p>
-                  <button type="button" className="shopping-button shopping-button-primary" onClick={addListToCart} disabled={!selectedList.items.some((item) => products.some((product) => product.id === item.productId)) || cartBusy}>
+                  <button type="button" className="shopping-button shopping-button-primary" onClick={addListToCart} disabled={!selectedList.items.some((item) => products.some((product) => product.id === item.productId && isProductAvailable(product))) || cartBusy}>
                     {cartBusy ? <LoaderCircle size={16} className="shopping-spin" /> : <ShoppingBasket size={16} />}
                     Adicionar disponíveis ao carrinho
                   </button>
@@ -583,7 +591,7 @@ export default function ShoppingPage() {
             )}
           </div>
         )}
-      </section>
+      </section>}
     </main>
   );
 }
