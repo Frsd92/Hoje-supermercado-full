@@ -2,6 +2,7 @@ import { createHash } from 'node:crypto';
 import { getServerSession } from 'next-auth';
 import { authOptions } from '@/auth';
 import { erpActorLabel, hasErpAccess } from '@/features/erp/access';
+import { hasCustomerDashboardAccess } from '@/features/auth/access';
 import { appendPriceHistory } from '@/features/erp/api/price-history';
 import {
   calculateSalePrice,
@@ -377,6 +378,36 @@ export async function GET(request) {
     });
   }
 
+  if (purpose === 'shopping') {
+    const session = await getServerSession(authOptions);
+    if (!hasCustomerDashboardAccess(session?.user)) {
+      return Response.json({ error: 'Acesso negado.' }, { status: 403, headers: corsHeaders(request) });
+    }
+    const [products, productRecords] = await Promise.all([
+      getProductCatalog(),
+      prisma.product.findMany({ where: { status: 'Ativo' }, select: { id: true, externalId: true } }),
+    ]);
+    const catalogIdByPublicId = new Map(productRecords.map((record) => [
+      String(record.externalId || record.id),
+      String(record.id),
+    ]));
+    const shoppingProducts = products
+      .filter((product) => product.status === 'Ativo')
+      .map((product) => ({
+        id: product.id,
+        catalogId: catalogIdByPublicId.get(String(product.id)) || product.id,
+        title: product.title,
+        categories: Array.isArray(product.categories) ? product.categories : [],
+        image: publicProductImage(product),
+        price: Number(product.price) || 0,
+        salePrice: calculateSalePrice(product),
+        saleUnit: product.saleUnit === 'Quilograma' ? 'Quilograma' : 'Unidade',
+        availableQuantity: Number(product.quantity),
+      }));
+    return Response.json({ products: shoppingProducts }, {
+      headers: { ...corsHeaders(request), 'Cache-Control': 'private, no-store, max-age=0' },
+    });
+  }
   const products = purpose === 'search' || purpose === 'store'
     ? await getPublicProductCatalog()
     : await getProductCatalog();

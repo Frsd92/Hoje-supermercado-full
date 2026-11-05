@@ -39,6 +39,8 @@ import {
   Search,
   ShoppingBag,
   ShoppingCart,
+  RotateCcw,
+  ListPlus,
   Minus,
   Plus,
   Trash2,
@@ -74,6 +76,8 @@ const navigationGroups = [
     label: 'Minhas compras',
     items: [
       { label: 'Meus Pedidos', href: '/dashboard/orders', icon: ShoppingBag },
+      { label: 'Comprar novamente', href: '/dashboard/shopping#reorder', icon: RotateCcw },
+      { label: 'Listas de compras', href: '/dashboard/shopping#lists', icon: ListPlus },
       { label: 'Meus cupons', href: '/dashboard/cupons', icon: TicketPercent },
       { label: 'Missões e pontos', href: '/dashboard/fidelidade', icon: Award },
       { label: 'Favoritos', href: '/dashboard/favorites', icon: Star },

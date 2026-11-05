@@ -12,6 +12,7 @@ model User {
   name          String?
   image         String?
   favorites     Favorite[]
+  shoppingLists CustomerShoppingList[]
   orders        Order[]
   notifications NotificationRecipient[]
   createdAt     DateTime                @default(now())
@@ -117,6 +118,18 @@ model CustomerCart {
   email     String   @id
   items     Json     @default("[]")
   updatedAt DateTime @updatedAt
+}
+
+model CustomerShoppingList {
+  id        String   @id @default(cuid())
+  userId    String
+  name      String   @db.VarChar(60)
+  items     Json     @default("[]")
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+  user      User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@index([userId, updatedAt])
 }
 
 model GuestCart {
