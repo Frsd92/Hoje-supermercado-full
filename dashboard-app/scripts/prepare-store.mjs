@@ -24,6 +24,7 @@ await Promise.all([
   cp(path.join(storeDirectory, 'offline.html'), path.join(publicDirectory, 'offline.html')),
   cp(path.join(storeDirectory, 'style.css'), path.join(publicDirectory, 'style.css')),
   cp(path.join(storeDirectory, 'politica-de-privacidade.html'), path.join(publicDirectory, 'politica-de-privacidade.html')),
+  cp(path.join(storeDirectory, 'politica-de-devolucao.html'), path.join(publicDirectory, 'politica-de-devolucao.html')),
   cp(path.join(storeDirectory, 'termos-de-uso.html'), path.join(publicDirectory, 'termos-de-uso.html')),
   cp(path.join(storeDirectory, 'robots.txt'), path.join(publicDirectory, 'robots.txt')),
   cp(path.join(storeDirectory, 'sitemap.xml'), path.join(publicDirectory, 'sitemap.xml')),
