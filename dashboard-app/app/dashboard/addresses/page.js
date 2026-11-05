@@ -327,13 +327,13 @@ export default function AddressesPage() {
     <div className="section-shell addresses-page">
       <AccountPageNav current="addresses" />
       <div className="section-header addresses-header">
-        <div>
+        <div className="addresses-header-copy">
           <span className="dashboard-page-eyebrow">Minha conta</span>
-          <h1>Meus Endereços</h1>
-          <p>Escolha onde receber seus pedidos e mantenha suas informações de entrega atualizadas.</p>
-          {!addressesError && <span className="address-count">{addresses.length} {addresses.length === 1 ? 'endereço salvo' : 'endereços salvos'}</span>}
+          <h1>Meus endereços</h1>
+          <p>Gerencie onde receber suas compras. Você pode salvar mais de um endereço.</p>
+          {!addressesError && <span className="address-count" aria-live="polite">{addresses.length} {addresses.length === 1 ? 'endereço salvo' : 'endereços salvos'}</span>}
         </div>
-        <button type="button" className="primary-cta" onClick={openCreateForm} disabled={isSavingAddress}><Plus size={17} /> Novo Endereço</button>
+        <button type="button" className="primary-cta addresses-header-action" onClick={openCreateForm} disabled={isSavingAddress}><Plus size={18} aria-hidden="true" /> Novo endereço</button>
       </div>
 
       <aside className="service-area-notice" aria-live="polite" aria-busy={serviceRegionsLoading}>
