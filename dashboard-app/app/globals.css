@@ -11900,3 +11900,315 @@ button.metric-mini:focus-visible {
     transition: none;
   }
 }
+
+.dashboard-shell[data-dashboard-theme="dark"] .profile-panel .profile-preview strong,
+.dashboard-shell[data-dashboard-theme="dark"] .profile-panel .profile-detail-grid strong {
+  color: #f0f5f2;
+}
+
+.dashboard-shell[data-dashboard-theme="dark"] .profile-panel .profile-preview span,
+.dashboard-shell[data-dashboard-theme="dark"] .profile-panel .profile-detail-grid label {
+  color: #b7c5bc;
+}
+
+.profile-panel .profile-detail-grid strong {
+  display: block;
+  font-size: .9rem;
+  line-height: 1.4;
+  overflow-wrap: anywhere;
+}
+
+.profile-panel .dashboard-panel-link:focus-visible,
+.addresses-page .icon-button-small:focus-visible,
+.addresses-page .select-delivery-address:focus-visible {
+  outline: 3px solid var(--dashboard-focus);
+  outline-offset: 3px;
+}
+
+.dashboard-shell[data-dashboard-theme="dark"] .service-area-notice {
+  color: #edf5ef;
+  border-color: #37684a;
+  background: #16281e;
+}
+
+.dashboard-shell[data-dashboard-theme="dark"] .service-area-notice-icon {
+  color: #a5e8b4;
+  background: #23432e;
+}
+
+.dashboard-shell[data-dashboard-theme="dark"] .service-area-notice p {
+  color: #d3e2d8;
+}
+
+.dashboard-shell[data-dashboard-theme="dark"] .service-area-notice small {
+  color: #b7c5bc;
+}
+
+.dashboard-shell[data-dashboard-theme="dark"] .addresses-page .address-card {
+  border-color: #35483b;
+  color: #edf5ef;
+  background: linear-gradient(160deg, #1a2a20, #142019);
+  box-shadow: 0 12px 26px rgba(0, 0, 0, .18);
+}
+
+.dashboard-shell[data-dashboard-theme="dark"] .addresses-page .address-card p {
+  color: #c4d2c8;
+  line-height: 1.55;
+  overflow-wrap: anywhere;
+}
+
+.dashboard-shell[data-dashboard-theme="dark"] .addresses-page .address-card.delivery-address-selected {
+  border-color: #86d59f;
+  box-shadow: 0 0 0 2px rgba(134, 213, 159, .18), 0 12px 26px rgba(0, 0, 0, .18);
+}
+
+.dashboard-shell[data-dashboard-theme="dark"] .addresses-page .address-tag {
+  color: #b6efc1;
+  background: #23432e;
+}
+
+.dashboard-shell[data-dashboard-theme="dark"] .addresses-page .default-setting {
+  color: #c5dcf2;
+  background: #263b4d;
+}
+
+.dashboard-shell[data-dashboard-theme="dark"] .addresses-page .select-delivery-address {
+  border-color: #3a8956;
+  color: #b6efc1;
+  background: #20392a;
+}
+
+.dashboard-shell[data-dashboard-theme="dark"] .addresses-page .select-delivery-address[aria-pressed="true"] {
+  border-color: #277342;
+  color: #fff;
+  background: #277342;
+}
+
+.dashboard-shell[data-dashboard-theme="dark"] .addresses-page .empty-state {
+  border-color: #35483b;
+  color: #edf5ef;
+  background: #17251e;
+}
+
+.dashboard-shell[data-dashboard-theme="dark"] .addresses-page .empty-state p {
+  color: #b7c5bc;
+}
+
+.dashboard-shell[data-dashboard-theme="light"] .addresses-page .address-card {
+  color: #24372d;
+  background: linear-gradient(180deg, #fff, #f7faf8);
+}
+
+.dashboard-shell[data-dashboard-theme="light"] .addresses-page .address-card p {
+  color: #47574d;
+  line-height: 1.55;
+  overflow-wrap: anywhere;
+}
+
+.dashboard-shell[data-dashboard-theme="light"] .addresses-page .address-card.delivery-address-selected {
+  border-color: #16834a;
+  box-shadow: 0 0 0 2px rgba(22, 131, 74, .14);
+}
+
+.dashboard-shell[data-dashboard-theme="light"] .addresses-page .empty-state {
+  color: #24372d;
+}
+
+.dashboard-shell[data-dashboard-theme="light"] .addresses-page .empty-state p {
+  color: #52635a;
+}
+
+.customer-loyalty-showcase .customer-coupon-empty {
+  padding: 18px 20px;
+  border: 1px solid var(--customer-coupon-border);
+  border-radius: 12px;
+  color: var(--customer-coupon-text);
+  background: var(--customer-coupon-subtle);
+}
+
+.customer-loyalty-showcase .customer-coupon-empty p {
+  margin: 0;
+  color: var(--customer-coupon-muted);
+  font-size: .9rem;
+  line-height: 1.55;
+}
+
+.customer-loyalty-showcase .loyalty-empty-action {
+  min-height: 40px;
+}
+
+.customer-loyalty-showcase .loyalty-customer-nav a {
+  min-height: 42px;
+  font-size: .82rem;
+}
+
+.loyalty-mission-list > .customer-coupon-card.loyalty-mission-card {
+  flex: 1 1 360px;
+  max-width: 520px;
+  min-height: 0;
+  padding: 18px;
+  overflow: visible;
+  aspect-ratio: auto;
+}
+
+.loyalty-mission-list .loyalty-mission-card-layout:not(.is-compact) {
+  grid-template-columns: 52px minmax(0, 1fr);
+  grid-template-rows: auto;
+  align-items: start;
+  gap: 12px;
+  height: auto;
+  min-height: 0;
+}
+
+.loyalty-mission-list .loyalty-mission-card-layout:not(.is-compact) .loyalty-mission-thumb {
+  width: 52px;
+  height: 52px;
+}
+
+.loyalty-mission-list .loyalty-mission-content {
+  grid-row: auto;
+  gap: 10px;
+  overflow: visible;
+}
+
+.loyalty-mission-list .loyalty-mission-heading {
+  flex-wrap: wrap;
+  gap: 8px;
+}
+
+.loyalty-mission-list .loyalty-mission-info h3 {
+  display: block;
+  overflow: visible;
+  font-size: 1rem;
+  line-height: 1.35;
+  -webkit-line-clamp: unset;
+}
+
+.loyalty-mission-list .loyalty-mission-kind {
+  font-size: .72rem;
+  line-height: 1.35;
+}
+
+.loyalty-mission-list .loyalty-mission-heading > .customer-coupon-status {
+  min-height: 26px;
+  padding: 4px 9px;
+  font-size: .7rem;
+}
+
+.loyalty-mission-list .customer-coupon-card-message {
+  display: block;
+  overflow: visible;
+  font-size: .84rem;
+  line-height: 1.5;
+  -webkit-line-clamp: unset;
+}
+
+.loyalty-mission-list .loyalty-mission-reward {
+  gap: 9px;
+  padding: 9px 10px;
+}
+
+.loyalty-mission-list .loyalty-mission-reward small {
+  font-size: .7rem;
+}
+
+.loyalty-mission-list .loyalty-mission-reward strong {
+  font-size: .82rem;
+}
+
+.loyalty-mission-list .loyalty-mission-progress {
+  gap: 6px;
+}
+
+.loyalty-mission-list .loyalty-progress-label {
+  gap: 10px;
+  font-size: .75rem;
+}
+
+.loyalty-mission-list .loyalty-progress-label strong {
+  min-width: 0;
+  overflow: visible;
+  font-size: .75rem;
+  text-align: right;
+  text-overflow: clip;
+  white-space: normal;
+}
+
+.loyalty-mission-list .loyalty-progress-track {
+  height: 10px;
+}
+
+.loyalty-mission-list .loyalty-mission-footer {
+  display: block;
+  font-size: .76rem;
+  line-height: 1.5;
+}
+
+.loyalty-mission-list .loyalty-expiry-note {
+  overflow: visible;
+  font-size: .7rem;
+  line-height: 1.4;
+  text-overflow: clip;
+  white-space: normal;
+}
+
+.loyalty-mission-list .loyalty-mission-action {
+  grid-row: auto;
+  min-height: 42px;
+  padding: 8px 12px;
+  font-size: .78rem;
+}
+
+.loyalty-history-item {
+  padding: 16px;
+}
+
+.loyalty-history-item strong {
+  font-size: .88rem;
+  line-height: 1.45;
+}
+
+.loyalty-history-item small {
+  font-size: .76rem;
+  line-height: 1.4;
+}
+
+.loyalty-history-item > span {
+  font-size: .9rem;
+}
+
+.loyalty-customer-nav a:focus-visible,
+.customer-loyalty-showcase .loyalty-empty-action:focus-visible {
+  outline: 3px solid var(--dashboard-focus);
+  outline-offset: 3px;
+}
+
+@media (max-width: 760px) {
+  .loyalty-mission-list > .customer-coupon-card.loyalty-mission-card {
+    flex-basis: 100%;
+  }
+}
+
+@media (max-width: 480px) {
+  .customer-loyalty-showcase .customer-coupon-empty {
+    padding: 15px;
+  }
+
+  .loyalty-mission-list > .customer-coupon-card.loyalty-mission-card {
+    padding: 15px;
+  }
+
+  .loyalty-mission-list .loyalty-mission-card-layout:not(.is-compact) {
+    grid-template-columns: 40px minmax(0, 1fr);
+    gap: 10px;
+  }
+
+  .loyalty-mission-list .loyalty-mission-card-layout:not(.is-compact) .loyalty-mission-thumb {
+    width: 40px;
+    height: 40px;
+  }
+
+  .loyalty-mission-list .loyalty-mission-action {
+    grid-column: 1 / -1;
+  }
+}
