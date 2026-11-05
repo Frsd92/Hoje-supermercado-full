@@ -12580,6 +12580,57 @@ button.metric-mini:focus-visible {
   }
 }
 
+.dashboard-account-nav-error {
+  grid-column: 1 / -1;
+  padding: 2px 8px 5px;
+  color: #ffc2b8;
+  font-size: .72rem;
+  line-height: 1.4;
+}
+
+.dashboard-account-nav-badge {
+  flex: 0 0 auto;
+  margin-left: auto;
+  padding: 3px 7px;
+  border: 1px solid rgba(255, 255, 255, .18);
+  border-radius: 999px;
+  color: #24200f;
+  background: #f5c518;
+  font-size: .62rem;
+  font-weight: 850;
+  line-height: 1.15;
+}
+
+.dashboard-shell[data-dashboard-theme="light"] .dashboard-account-nav-error {
+  color: #a1261c;
+}
+
+.dashboard-shell[data-dashboard-theme="light"] .dashboard-account-nav-badge {
+  border-color: #e8c64b;
+}
+
+.dashboard-shell[data-dashboard-theme="dark"] .profile-photo-button:not(:disabled) {
+  border-color: #5da875;
+  color: #f4fff6;
+  background: linear-gradient(135deg, #246d3d, #185832);
+  box-shadow: 0 8px 18px rgba(0, 0, 0, .24), inset 0 1px 0 rgba(255, 255, 255, .12);
+}
+
+.dashboard-shell[data-dashboard-theme="dark"] .profile-photo-button:hover:not(:disabled) {
+  border-color: #87d49e;
+  color: #fff;
+  background: linear-gradient(135deg, #2d824b, #1d6b3b);
+}
+
+.dashboard-shell[data-dashboard-theme="dark"] .profile-photo-button:focus-visible {
+  outline-color: #a5e8b4;
+  outline-offset: 3px;
+}
+
+.shopping-section-focus {
+  margin-top: 20px;
+}
+
 @media (max-width: 480px) {
   .customer-loyalty-showcase .customer-coupon-empty {
     padding: 15px;
@@ -12911,6 +12962,12 @@ button.metric-mini:focus-visible {
   display: flex;
   flex-direction: column;
   gap: 8px;
+}
+
+.dashboard-account-nav-badge {
+  margin-left: 0;
+  padding: 2px 6px;
+  font-size: .58rem;
 }
 
 .shopping-list-tab {

@@ -2,7 +2,18 @@ import { getServerSession } from 'next-auth';
 import { authOptions } from '@/auth';
 import { prisma } from '@/lib/prisma';
 
-const dashboardBadgeIds = new Set(['buy-again', 'shopping-lists']);
+const dashboardBadgeIds = new Set([
+  'orders',
+  'buy-again',
+  'shopping-lists',
+  'coupons',
+  'loyalty',
+  'favorites',
+  'budget',
+  'profile',
+  'addresses',
+  'payment-methods',
+]);
 
 async function getCustomerEmail() {
   const session = await getServerSession(authOptions);

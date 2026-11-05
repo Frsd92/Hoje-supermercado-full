@@ -75,21 +75,21 @@ const navigationGroups = [
   {
     label: 'Minhas compras',
     items: [
-      { label: 'Meus Pedidos', href: '/dashboard/orders', icon: ShoppingBag },
+      { label: 'Meus Pedidos', href: '/dashboard/orders', icon: ShoppingBag, badgeId: 'orders' },
       { label: 'Comprar novamente', href: '/dashboard/reorder', icon: RotateCcw, badgeId: 'buy-again' },
       { label: 'Listas de compras', href: '/dashboard/lists', icon: ListPlus, badgeId: 'shopping-lists' },
-      { label: 'Meus cupons', href: '/dashboard/cupons', icon: TicketPercent },
-      { label: 'Missões e pontos', href: '/dashboard/fidelidade', icon: Award },
-      { label: 'Favoritos', href: '/dashboard/favorites', icon: Star },
-      { label: 'Orçamento', href: '/dashboard/budget', icon: CircleDollarSign },
+      { label: 'Meus cupons', href: '/dashboard/cupons', icon: TicketPercent, badgeId: 'coupons' },
+      { label: 'Missões e pontos', href: '/dashboard/fidelidade', icon: Award, badgeId: 'loyalty' },
+      { label: 'Favoritos', href: '/dashboard/favorites', icon: Star, badgeId: 'favorites' },
+      { label: 'Orçamento', href: '/dashboard/budget', icon: CircleDollarSign, badgeId: 'budget' },
     ],
   },
   {
     label: 'Minha conta',
     items: [
-      { label: 'Perfil', href: '/dashboard/profile', icon: UserRound },
-      { label: 'Endereços', href: '/dashboard/addresses', icon: MapPin },
-      { label: 'Formas de pagamento', href: '/dashboard/payment-methods', icon: CreditCard },
+      { label: 'Perfil', href: '/dashboard/profile', icon: UserRound, badgeId: 'profile' },
+      { label: 'Endereços', href: '/dashboard/addresses', icon: MapPin, badgeId: 'addresses' },
+      { label: 'Formas de pagamento', href: '/dashboard/payment-methods', icon: CreditCard, badgeId: 'payment-methods' },
       { label: 'Configurações', href: '/dashboard/settings', icon: Settings },
     ],
   },
@@ -463,6 +463,11 @@ export default function DashboardLayout({ children }) {
   useEffect(() => {
     if (sessionStatus !== 'authenticated') return undefined;
     let active = true;
+    const handleBadgeDismissed = (event) => {
+      const badgeIds = Array.isArray(event.detail?.dismissedBadges) ? event.detail.dismissedBadges : [];
+      setDismissedDashboardBadges((current) => [...new Set([...current, ...badgeIds])]);
+    };
+    window.addEventListener('dashboard-badges-dismissed', handleBadgeDismissed);
     fetch('/api/customer-onboarding', { cache: 'no-store', credentials: 'include' })
       .then(async (response) => {
         const data = await response.json();
@@ -477,6 +482,7 @@ export default function DashboardLayout({ children }) {
       });
     return () => {
       active = false;
+      window.removeEventListener('dashboard-badges-dismissed', handleBadgeDismissed);
     };
   }, [sessionStatus, session?.user?.email]);
 
@@ -1174,6 +1180,7 @@ export default function DashboardLayout({ children }) {
                             if (!response.ok) throw new Error(data.error || 'Não foi possível salvar esta alteração.');
                             if (!Array.isArray(data.dismissedBadges)) throw new Error('A resposta das novidades está inválida.');
                             setDismissedDashboardBadges(data.dismissedBadges);
+                            window.dispatchEvent(new CustomEvent('dashboard-badges-dismissed', { detail: data }));
                             router.push(href);
                           } catch (error) {
                             console.error('Não foi possível salvar a novidade visualizada no painel:', error);

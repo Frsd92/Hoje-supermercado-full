@@ -375,7 +375,7 @@ export default function ShoppingPage({ mode = 'all' }) {
         <div className="shopping-hero-icon" aria-hidden="true">{mode === 'lists' ? <ListPlus size={25} /> : mode === 'reorder' ? <RotateCcw size={25} /> : <ShoppingBasket size={25} />}</div>
         <div>
           <p className="shopping-eyebrow">Praticidade para sua rotina</p>
-          <h1>{mode === 'lists' ? 'Listas de compras' : mode === 'reorder' ? 'Comprar novamente' : 'Suas compras, do seu jeito'}</h1>
+          <h1 id="shopping-page-title">{mode === 'lists' ? 'Listas de compras' : mode === 'reorder' ? 'Comprar novamente' : 'Suas compras, do seu jeito'}</h1>
           <p>{mode === 'lists'
             ? 'Organize seus produtos favoritos e deixe sua próxima compra mais rápida.'
             : mode === 'reorder'
@@ -384,9 +384,9 @@ export default function ShoppingPage({ mode = 'all' }) {
         </div>
       </header>
 
-      <nav className="shopping-shortcuts" aria-label="Nesta página">
-        <Link href="/dashboard/reorder" aria-current={mode === 'reorder' ? 'page' : undefined}><RotateCcw size={17} /> Comprar novamente <ChevronRight size={16} /></Link>
-        <Link href="/dashboard/lists" aria-current={mode === 'lists' ? 'page' : undefined}><ListPlus size={18} /> Listas de compras <ChevronRight size={16} /></Link>
+      <nav className="shopping-shortcuts" aria-label="Outras ferramentas de compra">
+        {(mode === 'all' || mode === 'lists') && <Link href="/dashboard/reorder"><RotateCcw size={17} /> Ver compras anteriores <ChevronRight size={16} /></Link>}
+        {(mode === 'all' || mode === 'reorder') && <Link href="/dashboard/lists"><ListPlus size={18} /> Abrir listas de compras <ChevronRight size={16} /></Link>}
       </nav>
 
       {(actionError || notice) && (
@@ -397,15 +397,15 @@ export default function ShoppingPage({ mode = 'all' }) {
         </div>
       )}
 
-      {showReorder && <section id="reorder" className="shopping-section" aria-labelledby="reorder-title">
-        <div className="shopping-section-heading">
+      {showReorder && <section id="reorder" className={`shopping-section${mode === 'reorder' ? ' shopping-section-focus' : ''}`} aria-labelledby={mode === 'reorder' ? 'shopping-page-title' : 'reorder-title'}>
+        {mode === 'all' && <div className="shopping-section-heading">
           <div className="shopping-section-icon" aria-hidden="true"><RotateCcw size={20} /></div>
           <div>
             <p className="shopping-eyebrow">Menos etapas, mais tempo para você</p>
             <h2 id="reorder-title">Comprar novamente</h2>
             <p>Produtos e valores são atualizados conforme o catálogo e o estoque de hoje.</p>
           </div>
-        </div>
+        </div>}
 
         {eligibleOrders.length === 0 ? (
           <div className="shopping-empty">
@@ -454,15 +454,15 @@ export default function ShoppingPage({ mode = 'all' }) {
         )}
       </section>}
 
-      {showLists && <section id="lists" className="shopping-section shopping-lists-section" aria-labelledby="lists-title">
-        <div className="shopping-section-heading">
+      {showLists && <section id="lists" className={`shopping-section shopping-lists-section${mode === 'lists' ? ' shopping-section-focus' : ''}`} aria-labelledby={mode === 'lists' ? 'shopping-page-title' : 'lists-title'}>
+        {mode === 'all' && <div className="shopping-section-heading">
           <div className="shopping-section-icon" aria-hidden="true"><ListPlus size={21} /></div>
           <div>
             <p className="shopping-eyebrow">Organize o que não pode faltar</p>
             <h2 id="lists-title">Listas de compras</h2>
             <p>Monte listas para sua casa, receitas ou próximas compras. Elas ficam salvas na sua conta.</p>
           </div>
-        </div>
+        </div>}
 
         <form className="shopping-create-form" onSubmit={(event) => { event.preventDefault(); createList(); }}>
           <label className="shopping-sr-only" htmlFor="shopping-list-name">Nome da nova lista</label>
