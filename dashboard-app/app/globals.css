@@ -3691,6 +3691,15 @@ body {
 .erp-bling-message.error { border-color: #fecaca; color: #991b1b; background: #fff7f7; }
 .erp-bling-message.success { border-color: #bbf7d0; color: #166534; background: #f0fdf4; }
 .erp-bling-message svg { flex: 0 0 auto; }
+.erp-merchant-results { display: grid; gap: 8px; }
+.erp-merchant-results h3 { margin: 0; color: #183d29; font-size: .88rem; }
+.erp-merchant-results ul { display: grid; gap: 6px; margin: 0; padding-left: 20px; color: #64748b; font-size: .76rem; line-height: 1.5; }
+.erp-merchant-spinning { animation: erp-merchant-spin 1s linear infinite; }
+.erp-product-detail { grid-template-columns: minmax(0, 1fr) minmax(0, 1fr); }
+@keyframes erp-merchant-spin { to { transform: rotate(360deg); } }
+@media (max-width: 700px) {
+  .erp-product-detail { grid-template-columns: 1fr; }
+}
 .erp-order-document-actions button { width: 100%; }
 .erp-order-document-actions .secondary-cta { display: flex; align-items: center; justify-content: flex-start; gap: 8px; min-height: 46px; padding: 10px 12px; border: 1px solid #b9d4c0; border-radius: 9px; color: #1c4b2e; background: #eef7f0; box-shadow: 0 2px 6px rgba(24, 54, 36, .08); font: inherit; font-size: .76rem; font-weight: 800; text-align: left; text-decoration: none; }
 .erp-order-document-actions .secondary-cta::before { content: none; }

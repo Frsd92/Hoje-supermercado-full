@@ -6,11 +6,12 @@ import { serializePublicProductRecord } from './public-product-record.js';
 
 const productsFile = path.join(process.cwd(), 'data', 'products.json');
 
-export async function readLegacyProducts() {
+export async function readLegacyProducts({ strict = false } = {}) {
   try {
     const products = JSON.parse(await fs.readFile(productsFile, 'utf8'));
     return Array.isArray(products) ? products : [];
-  } catch {
+  } catch (error) {
+    if (strict) throw error;
     return [];
   }
 }
@@ -48,15 +49,16 @@ export function serializeProduct(record) {
   };
 }
 
-export async function getProductCatalog(client = prisma) {
+export async function getProductCatalog(client = prisma, { strict = false } = {}) {
   let databaseProducts = [];
   try {
     databaseProducts = (await client.product.findMany()).map(serializeProduct);
   } catch (error) {
+    if (strict) throw error;
     console.error('Não foi possível carregar o catálogo persistido:', error);
   }
 
-  const legacyProducts = await readLegacyProducts();
+  const legacyProducts = await readLegacyProducts({ strict });
   const productsById = new Map(legacyProducts.map((product) => [String(product.id), product]));
   databaseProducts.forEach((product) => productsById.set(String(product.id), product));
   return [...productsById.values()];

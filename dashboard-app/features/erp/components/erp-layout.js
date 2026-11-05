@@ -42,7 +42,10 @@ const erpNavigationGroups = [
   },
   {
     label: 'Integrações',
-    items: [{ label: 'Bling', href: '/erp/integrations/bling', icon: PlugZap }],
+    items: [
+      { label: 'Bling', href: '/erp/integrations/bling', icon: PlugZap },
+      { label: 'Google Merchant', href: '/erp/integrations/google-merchant', icon: ShoppingCart },
+    ],
   },
   {
     label: 'Financeiro',

@@ -23,6 +23,7 @@ import {
   requiresInventoryExpiry,
 } from '@/features/erp/api/inventory-lots';
 import { getProductCatalog, getPublicProductCatalog, readLegacyProducts, serializeProduct } from '@/features/erp/api/product-catalog';
+import { publicProductImage } from '@/features/erp/api/product-image-url';
 import { getProductOrganizationError } from '@/features/erp/product-organization';
 import { getAvailableProductSubstitutes, isProductAvailableForQuantity } from '@/features/shopping/product-substitutes';
 import { prisma } from '@/lib/prisma';
@@ -295,15 +296,6 @@ function ensurePriceHistory(product) {
     ...product,
     priceHistory: Array.isArray(product.priceHistory) ? product.priceHistory : [],
   };
-}
-
-function publicProductImage(product) {
-  const image = typeof product.image === 'string' ? product.image : '';
-  const imageHash = /^[a-f0-9]{32}$/i.test(product.imageHash) ? product.imageHash : '';
-  if (!imageHash && !/^data:image\/(?:png|jpeg|webp);base64,/i.test(image)) return image;
-
-  const version = `${imageHash || createHash('md5').update(image).digest('hex')}-webp-256-v2`;
-  return `/api/products?purpose=image&id=${encodeURIComponent(product.id)}&v=${version}`;
 }
 
 export async function OPTIONS(request) {
