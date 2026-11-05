@@ -2286,6 +2286,15 @@ function inicializarCarrinho() {
             value: total,
             currency: 'BRL',
           });
+          if (window.hojeGoogleMerchant?.renderOptIn) {
+            window.hojeGoogleMerchant.renderOptIn({
+              orderId: data.order.id,
+              email: sessaoLoja.user?.email,
+              orderDate: data.order.createdAtIso,
+            });
+          } else {
+            console.error('A integração de Avaliações do Consumidor do Google não foi carregada.');
+          }
         }
         tentativaCheckoutId = '';
         assinaturaTentativaCheckout = '';

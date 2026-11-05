@@ -15,6 +15,7 @@ await Promise.all([
   cp(path.join(storeDirectory, 'category.js'), path.join(publicDirectory, 'category.js')),
   cp(path.join(storeDirectory, 'analytics-consent.js'), path.join(publicDirectory, 'analytics-consent.js')),
   cp(path.join(storeDirectory, 'store-presence.js'), path.join(publicDirectory, 'store-presence.js')),
+  cp(path.join(storeDirectory, 'google-merchant.js'), path.join(publicDirectory, 'google-merchant.js')),
   cp(path.join(appDirectory, 'lib', 'content-moderation.js'), path.join(publicDirectory, 'content-moderation.js')),
   cp(path.join(storeDirectory, 'script.js'), path.join(publicDirectory, 'script.js')),
   cp(path.join(storeDirectory, 'store-assistant.js'), path.join(publicDirectory, 'store-assistant.js')),
