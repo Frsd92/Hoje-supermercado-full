@@ -1492,6 +1492,45 @@ body {
   letter-spacing: 0.01em;
 }
 
+.all-categories {
+  flex: 0 0 auto;
+  justify-content: center;
+  line-height: 1.25;
+  text-align: center;
+  transition: background-color .18s ease, box-shadow .18s ease, transform .18s ease;
+}
+
+.all-categories:hover {
+  background: linear-gradient(135deg, #176b36 0%, #0d4f27 100%);
+  box-shadow: 0 10px 18px rgba(26, 122, 60, .24);
+  transform: translateY(-1px);
+}
+
+.all-categories:focus-visible {
+  outline: 3px solid #f5c518;
+  outline-offset: 3px;
+}
+
+.all-categories [data-lucide] {
+  flex: 0 0 auto;
+}
+
+.categories-bar {
+  scrollbar-width: thin;
+  scrollbar-color: rgba(26, 122, 60, .35) transparent;
+  scroll-padding-inline: 10px;
+}
+
+.categories-bar:focus-within {
+  scroll-behavior: smooth;
+}
+
+.categories-bar a:focus-visible,
+.categories-menu a:focus-visible {
+  outline: 3px solid #f5c518;
+  outline-offset: 2px;
+}
+
 /* ===================================================== */
 /* LAYOUT DE 3 COLUNAS: sidebar + conteúdo + painel direito */
 /* ===================================================== */
@@ -3733,11 +3772,9 @@ body {
   color: #1a7a3c;
 }
 
-.categories-menu a:hover,
-.categories-menu a:focus-visible {
+.categories-menu a:hover {
   color: #145c32;
   background: rgba(26, 122, 60, 0.08);
-  outline: none;
 }
 
 /* ===================================================== */
@@ -4372,19 +4409,34 @@ body {
     padding: 8px 10px;
     -webkit-overflow-scrolling: touch;
     overscroll-behavior-x: contain;
+    scroll-snap-type: x proximity;
   }
 
-  .categories-bar a,
-  .all-categories {
+  .categories-bar > * {
+    flex: 0 0 auto;
+    scroll-snap-align: start;
+  }
+
+  .categories-bar a {
     min-height: 40px;
     padding: 8px 10px;
     font-size: 12px;
   }
 
+  .categories-bar .all-categories {
+    flex: 0 0 auto;
+    min-width: max-content;
+    min-height: 48px;
+    padding: 10px 14px;
+    font-size: 13px;
+    gap: 8px;
+    white-space: nowrap;
+  }
+
   .categories-menu {
     top: calc(100% + 4px);
-    left: 10px;
-    width: min(360px, calc(100vw - 20px));
+    left: max(10px, env(safe-area-inset-left));
+    width: min(360px, calc(100vw - 20px - env(safe-area-inset-left) - env(safe-area-inset-right)));
     grid-template-columns: 1fr;
     max-height: min(70dvh, 520px);
     -webkit-overflow-scrolling: touch;
@@ -5076,6 +5128,10 @@ body {
   .all-categories {
     min-width: 48px;
     min-height: 48px;
+  }
+
+  .categories-bar .all-categories {
+    min-width: max-content;
   }
 
   .topbar-item,
