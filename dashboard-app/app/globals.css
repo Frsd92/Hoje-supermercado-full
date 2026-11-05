@@ -12348,6 +12348,238 @@ button.metric-mini:focus-visible {
   }
 }
 
+.dashboard-account-nav {
+  display: grid;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+  width: min(100%, 520px);
+  gap: 5px;
+  padding: 5px;
+  overflow: visible;
+  border: 1px solid #35483b;
+  border-radius: 15px;
+  background: #17231c;
+  box-shadow: 0 8px 20px rgba(0, 0, 0, .14);
+  scrollbar-width: none;
+}
+
+.dashboard-account-nav::-webkit-scrollbar {
+  display: none;
+}
+
+.dashboard-account-nav a {
+  min-width: 0;
+  min-height: 46px;
+  padding: 8px 10px;
+  border: 1px solid transparent;
+  color: #c4d2c8;
+  font-size: .79rem;
+  line-height: 1.25;
+  text-align: center;
+  white-space: normal;
+}
+
+.dashboard-account-nav a:hover {
+  border-color: #3b5945;
+  color: #eff8f1;
+  background: #22372a;
+}
+
+.dashboard-account-nav a.active {
+  border-color: #31834a;
+  color: #fff;
+  background: #20733c;
+  box-shadow: 0 5px 12px rgba(17, 107, 50, .26);
+}
+
+.profile-page-shell {
+  gap: 18px;
+}
+
+.profile-page-header {
+  position: relative;
+  isolation: isolate;
+  justify-content: flex-start;
+  gap: 16px;
+  min-height: 132px;
+  padding: 24px clamp(18px, 3vw, 32px);
+  overflow: hidden;
+  border-color: #315841;
+  color: #edf5ef;
+  background:
+    radial-gradient(circle at 100% 0, rgba(55, 128, 77, .22), transparent 36%),
+    linear-gradient(135deg, #17271f, #101b16);
+  box-shadow: 0 16px 36px rgba(0, 0, 0, .16), inset 0 1px 0 rgba(255, 255, 255, .04);
+}
+
+.profile-page-header::after {
+  position: absolute;
+  z-index: -1;
+  inset: 0 auto 0 0;
+  width: 4px;
+  background: linear-gradient(180deg, #43b66b, #f0c75d);
+  content: "";
+}
+
+.profile-page-header-icon {
+  display: grid;
+  flex: 0 0 50px;
+  width: 50px;
+  height: 50px;
+  place-items: center;
+  border: 1px solid #3c6849;
+  border-radius: 15px;
+  color: #b6efc1;
+  background: #203a2a;
+}
+
+.profile-page-header-copy {
+  min-width: 0;
+}
+
+.profile-page-header .dashboard-page-eyebrow {
+  margin-bottom: 7px;
+  color: #93dfaa;
+}
+
+.profile-page-header h1 {
+  color: #f5faf6;
+  font-size: clamp(1.7rem, 3vw, 2.2rem);
+  line-height: 1.15;
+  letter-spacing: -.035em;
+}
+
+.profile-page-header p {
+  max-width: 58ch;
+  margin-top: 7px;
+  color: #c1d0c5;
+  font-size: .92rem;
+  line-height: 1.5;
+}
+
+.dashboard-shell[data-dashboard-theme="light"] .dashboard-account-nav {
+  border-color: #d7e5da;
+  background: #eef4ef;
+  box-shadow: 0 6px 16px rgba(16, 60, 32, .06);
+}
+
+.dashboard-shell[data-dashboard-theme="light"] .dashboard-account-nav a {
+  color: #45574a;
+}
+
+.dashboard-shell[data-dashboard-theme="light"] .dashboard-account-nav a:hover {
+  border-color: #d2e4d6;
+  color: #155e32;
+  background: #e2efe5;
+}
+
+.dashboard-shell[data-dashboard-theme="light"] .dashboard-account-nav a.active {
+  border-color: #176b3a;
+  color: #fff;
+  background: #176b3a;
+}
+
+.dashboard-shell[data-dashboard-theme="light"] .profile-page-header {
+  border-color: #d3e4d7;
+  color: #24372d;
+  background:
+    radial-gradient(circle at 100% 0, rgba(52, 168, 83, .09), transparent 36%),
+    linear-gradient(135deg, #fff, #f4f8f4);
+  box-shadow: 0 14px 34px rgba(21, 61, 38, .08), inset 0 1px 0 #fff;
+}
+
+.dashboard-shell[data-dashboard-theme="light"] .profile-page-header-icon {
+  border-color: #cce3d1;
+  color: #176b3a;
+  background: #eaf5ec;
+}
+
+.dashboard-shell[data-dashboard-theme="light"] .profile-page-header .dashboard-page-eyebrow {
+  color: #16783e;
+}
+
+.dashboard-shell[data-dashboard-theme="light"] .profile-page-header h1 {
+  color: #1d3125;
+}
+
+.dashboard-shell[data-dashboard-theme="light"] .profile-page-header p {
+  color: #52635a;
+}
+
+@media (max-width: 520px) {
+  .profile-page-shell {
+    gap: 14px;
+  }
+
+  .dashboard-account-nav {
+    width: 100%;
+    gap: 3px;
+    padding: 4px;
+    border-radius: 13px;
+  }
+
+  .dashboard-account-nav a {
+    flex-direction: column;
+    gap: 4px;
+    min-height: 58px;
+    padding: 7px 4px;
+    border-radius: 9px;
+    font-size: .7rem;
+    line-height: 1.2;
+  }
+
+  .dashboard-account-nav a svg {
+    width: 17px;
+    height: 17px;
+  }
+
+  .profile-page-header {
+    min-height: 0;
+    align-items: flex-start;
+    gap: 12px;
+    padding: 21px 17px;
+    border-radius: 18px;
+  }
+
+  .profile-page-header-icon {
+    flex-basis: 42px;
+    width: 42px;
+    height: 42px;
+    border-radius: 13px;
+  }
+
+  .profile-page-header h1 {
+    font-size: 1.55rem;
+  }
+
+  .profile-page-header p {
+    margin-top: 6px;
+    font-size: .83rem;
+  }
+}
+
+@media (max-width: 350px) {
+  .dashboard-account-nav a {
+    font-size: .65rem;
+  }
+
+  .profile-page-header {
+    gap: 9px;
+    padding: 18px 14px;
+  }
+
+  .profile-page-header-icon {
+    flex-basis: 38px;
+    width: 38px;
+    height: 38px;
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .dashboard-account-nav a {
+    transition: none;
+  }
+}
+
 @media (max-width: 480px) {
   .customer-loyalty-showcase .customer-coupon-empty {
     padding: 15px;

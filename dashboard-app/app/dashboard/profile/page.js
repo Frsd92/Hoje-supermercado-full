@@ -266,15 +266,18 @@ export default function ProfilePage() {
   const profileCpfIsInvalid = profileCpfDigits.length === 11 && !isValidCpf(profileCpfDigits);
 
   return (
-    <div className="section-shell">
+    <div className="section-shell profile-page-shell">
       <AccountPageNav current="profile" />
-      <div className="section-header">
-        <div>
+      <header className="section-header profile-page-header">
+        <div className="profile-page-header-icon" aria-hidden="true">
+          <UserRound size={23} />
+        </div>
+        <div className="profile-page-header-copy">
           <span className="dashboard-page-eyebrow">Minha conta</span>
           <h1>Meu Perfil</h1>
-          <p>Mantenha seus dados atualizados para uma experiência de compra mais simples e segura.</p>
+          <p>Seus dados pessoais em um só lugar. Mantenha-os atualizados para facilitar suas compras.</p>
         </div>
-      </div>
+      </header>
 
       <div className="profile-shell">
         <div className="profile-picture-box">
