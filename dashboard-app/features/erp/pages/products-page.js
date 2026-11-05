@@ -44,10 +44,12 @@ export default function ERPProductsPage() {
   const ncmValidationController = useRef(null);
   const [newTag, setNewTag] = useState('');
   const [saving, setSaving] = useState(false);
+  const [productLoading, setProductLoading] = useState(false);
   const [auditEntries, setAuditEntries] = useState([]);
   const [auditLoading, setAuditLoading] = useState(false);
   const [auditError, setAuditError] = useState('');
   const [auditRefresh, setAuditRefresh] = useState(0);
+  const [auditRequested, setAuditRequested] = useState(false);
   const barcodeLookupController = useRef(null);
   const lastBarcodeLookup = useRef('');
   const isEditing = Boolean(editId);
@@ -326,20 +328,26 @@ export default function ERPProductsPage() {
   }, [barcodeSearch, lookupProductByBarcode]);
   useEffect(() => {
     const searchParams = new URLSearchParams(window.location.search);
-    setEditId(searchParams.get('edit') || '');
+    const requestedEditId = searchParams.get('edit') || '';
+    setEditId(requestedEditId);
+    setProductLoading(Boolean(requestedEditId));
     if (searchParams.get('tab') === 'estoque') setActiveTab('Estoque');
   }, []);
   useEffect(() => {
     if (!editId) return;
-    fetch('/api/products', { cache: 'no-store' })
+    const controller = new AbortController();
+    setProductLoading(true);
+    fetch(`/api/products?purpose=erp-edit&id=${encodeURIComponent(editId)}`, {
+      cache: 'no-store',
+      signal: controller.signal,
+    })
       .then(async (response) => {
         const data = await response.json();
         if (!response.ok) throw new Error(data.error || 'Não foi possível carregar o produto.');
         return data;
       })
-      .then(({ products = [] }) => {
-        const savedProduct = products.find((item) => item.id === editId);
-        if (!savedProduct) return setFeedback('Produto não encontrado.');
+      .then(({ product: savedProduct }) => {
+        if (!savedProduct) throw new Error('Produto não encontrado.');
         const savedCost = Number(savedProduct.cost) || 0;
         const savedPrice = Number(savedProduct.price) || 0;
         const savedMarkup = savedProduct.markupPercent ?? (savedCost ? ((savedPrice - savedCost) / savedCost) * 100 : '');
@@ -351,10 +359,16 @@ export default function ERPProductsPage() {
         setProduct({ ...emptyProduct, ...savedProduct, subcategory, saleUnit, fractionalSale: saleUnit === 'Quilograma', price: formatBRL(savedPrice), cost: formatBRL(savedCost), promotionalPrice: savedProduct.promotionalPrice ? formatBRL(savedProduct.promotionalPrice) : '', markupPercent: savedMarkup === '' ? '' : Number(savedMarkup).toFixed(2), discount: String(savedProduct.discount ?? 0), quantity: String(savedProduct.quantity ?? 0), categories: savedProduct.categories || [], barcodes: savedProduct.barcodes || (savedProduct.barcode ? [savedProduct.barcode] : []), featuredPriceTypes: savedProduct.featuredPriceTypes || [], tags: savedProduct.tags || [], suppliers: savedProduct.suppliers || [] });
         setBlingSync({ status: savedProduct.blingSyncStatus || 'not_synced', error: savedProduct.blingSyncError || '' });
       })
-      .catch(() => setFeedback('Não foi possível carregar o produto.'));
+      .catch((error) => {
+        if (error.name !== 'AbortError') setFeedback(error.message || 'Não foi possível carregar o produto.');
+      })
+      .finally(() => {
+        if (!controller.signal.aborted) setProductLoading(false);
+      });
+    return () => controller.abort();
   }, [editId]);
   useEffect(() => {
-    if (!editId) return;
+    if (!editId || !auditRequested) return;
     let active = true;
     setAuditLoading(true);
     setAuditError('');
@@ -371,7 +385,7 @@ export default function ERPProductsPage() {
         if (active) setAuditLoading(false);
       });
     return () => { active = false; };
-  }, [editId, auditRefresh]);
+  }, [editId, auditRefresh, auditRequested]);
   useEffect(() => {
     const pricing = calculateProductPricing(product);
     setProduct((current) => ({
@@ -485,7 +499,8 @@ export default function ERPProductsPage() {
   }} onBlur={type === 'currency' ? () => update(key, formatBRL(parseBRL(product[key]))) : undefined} /></label>;
   const selectedSuggestionCategory = product.categories.find((category) => markupSuggestions[category]);
   return <form className="shopify-product-page" onSubmit={saveProduct}>
-    <header className="product-editor-header"><div className="product-editor-heading"><a href="/erp/products" className="back-link"><ArrowLeft size={17} /></a><div><span className="eyebrow">Cadastro de produto</span><h1>{isEditing ? 'Alterar cadastro' : 'Cadastrar produto'}</h1></div></div><button className="primary-cta" disabled={saving}><Save size={15} /> {saving ? 'Salvando...' : isEditing ? 'Salvar alterações' : 'Salvar produto'}</button></header>
+    <header className="product-editor-header"><div className="product-editor-heading"><a href="/erp/products" className="back-link"><ArrowLeft size={17} /></a><div><span className="eyebrow">Cadastro de produto</span><h1>{isEditing ? 'Alterar cadastro' : 'Cadastrar produto'}</h1></div></div><button className="primary-cta" disabled={saving || productLoading}><Save size={15} /> {productLoading ? 'Carregando produto...' : saving ? 'Salvando...' : isEditing ? 'Salvar alterações' : 'Salvar produto'}</button></header>
+    {productLoading && <p className="product-editor-loading" role="status">Carregando os dados deste produto...</p>}
     <div className="product-editor-tabs">{tabs.map((tab) => <button type="button" key={tab} className={activeTab === tab ? 'active' : ''} onClick={() => setActiveTab(tab)}>{tab}</button>)}</div>
     <div className="product-editor-layout"><main className="product-editor-main">
       {activeTab === 'Geral' && <>
@@ -711,7 +726,7 @@ export default function ERPProductsPage() {
       {activeTab === 'Loja' && <><section className="editor-card"><h2>Imagem da loja</h2><div className="media-dropzone"><ImagePlus size={28} /><strong>Selecione uma imagem</strong><span>A imagem será exibida na loja.</span><input type="file" accept="image/*" onChange={readImage} /></div>{product.image && <div className="media-preview-grid"><img src={product.image} alt="Prévia do produto" /></div>}</section><section className="editor-card"><h2>Tags e fornecedores</h2><div className="editor-inline"><input value={newTag} onChange={(event) => setNewTag(event.target.value)} placeholder="Ex.: sem lactose" /><button type="button" className="editor-link" onClick={() => addListValue('tags', newTag, setNewTag)}><Plus size={15} /> Adicionar tag</button></div><div className="editor-chip-list">{product.tags.map((tag) => <span key={tag}>{tag}<button type="button" onClick={() => removeListValue('tags', tag)} aria-label={`Remover tag ${tag}`}><Trash2 size={13} /></button></span>)}</div><p className="editor-hint">Fornecedores alternativos e dados de compra podem ser adicionados depois no mesmo cadastro.</p></section></>}
       {activeTab === 'SEO' && <section className="editor-card"><h2>SEO e descoberta</h2>{field('Título SEO', 'seoTitle')}{field('URL amigável', 'seoSlug')}<label>Meta descrição<textarea value={product.metaDescription || ''} onChange={(event) => update('metaDescription', event.target.value)} rows="4" /></label>{field('Palavras-chave', 'seoKeywords')}</section>}
     </main><aside className="product-editor-side"><section className="editor-card"><h2>Resumo</h2><p className="editor-hint">Preencha as abas para manter preço, estoque, logística e vitrine consistentes.</p><span className="status-pill ok">{product.status}</span></section></aside></div>
-    {isEditing && <section className="editor-card product-audit-history"><h2>Auditoria do produto</h2><p>Histórico persistente de cadastro e alterações, com responsável, data e valores registrados.</p>{auditLoading && <p>Carregando auditoria...</p>}{auditError && <p role="alert">{auditError}</p>}{!auditLoading && !auditError && auditEntries.length === 0 && <p>Nenhum registro de auditoria disponível para este produto.</p>}{auditEntries.map((entry) => { const fields = entry.changes && typeof entry.changes === 'object' ? Object.entries(entry.changes) : Object.entries(entry.snapshot || {}); return <details className="product-audit-entry" key={entry.id}><summary><strong>{auditActionLabels[entry.action] || entry.action}</strong><span>{formatAuditDate(entry.occurredAt)} · {entry.actor}</span></summary>{entry.note && <p>{entry.note}</p>}{fields.length > 0 && <dl>{fields.map(([key, value]) => <div key={key}><dt>{auditFieldLabels[key] || key}</dt>{entry.changes ? <dd>De: {formatAuditValue(value?.before)} <span aria-hidden="true">→</span> Para: {formatAuditValue(value?.after)}</dd> : <dd>{formatAuditValue(value)}</dd>}</div>)}</dl>}</details>; })}</section>}
+    {isEditing && <section className="editor-card product-audit-history"><h2>Auditoria do produto</h2><p>Histórico persistente de cadastro e alterações, com responsável, data e valores registrados.</p>{!auditRequested && <button type="button" className="editor-link" onClick={() => setAuditRequested(true)}>Carregar histórico de auditoria</button>}{auditLoading && <p>Carregando auditoria...</p>}{auditError && <p role="alert">{auditError}</p>}{auditRequested && !auditLoading && !auditError && auditEntries.length === 0 && <p>Nenhum registro de auditoria disponível para este produto.</p>}{auditEntries.map((entry) => { const fields = entry.changes && typeof entry.changes === 'object' ? Object.entries(entry.changes) : Object.entries(entry.snapshot || {}); return <details className="product-audit-entry" key={entry.id}><summary><strong>{auditActionLabels[entry.action] || entry.action}</strong><span>{formatAuditDate(entry.occurredAt)} · {entry.actor}</span></summary>{entry.note && <p>{entry.note}</p>}{fields.length > 0 && <dl>{fields.map(([key, value]) => <div key={key}><dt>{auditFieldLabels[key] || key}</dt>{entry.changes ? <dd>De: {formatAuditValue(value?.before)} <span aria-hidden="true">→</span> Para: {formatAuditValue(value?.after)}</dd> : <dd>{formatAuditValue(value)}</dd>}</div>)}</dl>}</details>; })}</section>}
     {feedback && <div className={`editor-saved ${createdProductReference || (isEditing && ['failed', 'uncertain'].includes(blingSync.status)) ? 'error' : ''}`} role={createdProductReference || (isEditing && ['failed', 'uncertain'].includes(blingSync.status)) ? 'alert' : 'status'}>
       {createdProductReference || (isEditing && ['failed', 'uncertain'].includes(blingSync.status)) ? <AlertCircle size={15} /> : <Check size={15} />} {feedback}
       {createdProductReference && <>

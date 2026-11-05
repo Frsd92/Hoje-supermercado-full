@@ -17,7 +17,7 @@ export default function ProductCatalogPage() {
 
   useEffect(() => {
     let active = true;
-    fetch('/api/products', { cache: 'no-store' })
+    fetch('/api/products?purpose=erp-list', { cache: 'no-store' })
       .then(async (response) => {
         const data = await response.json();
         if (!response.ok) throw new Error(data.error || 'Não foi possível carregar os produtos.');

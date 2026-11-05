@@ -1,0 +1,66 @@
+import assert from 'node:assert/strict';
+import test from 'node:test';
+import { getProductById, serializeErpProductListRecord } from './product-catalog.js';
+
+test('loads one product by its public ID without querying the complete catalog', async () => {
+  let query;
+  const product = await getProductById('store-product-1', {
+    product: {
+      async findFirst(value) {
+        query = value;
+        return {
+          id: 'database-id',
+          externalId: 'store-product-1',
+          title: 'Produto',
+          description: 'Descrição',
+          price: '12.50',
+          cost: '8.00',
+          discount: '0',
+          quantity: '4',
+          barcode: '789123',
+          productBarcodes: [{ code: '789123' }, { code: '789456' }],
+          categories: ['Mercearia'],
+          metadata: { saleUnit: 'Unidade', promotionalPrice: 10 },
+          image: '/produto.webp',
+          status: 'Ativo',
+          expiry: null,
+          createdAt: new Date('2026-01-01T00:00:00.000Z'),
+          updatedAt: new Date('2026-01-02T00:00:00.000Z'),
+        };
+      },
+    },
+  });
+
+  assert.deepEqual(query.where.OR, [{ externalId: 'store-product-1' }, { id: 'store-product-1' }]);
+  assert.deepEqual(query.include.productBarcodes, { select: { code: true } });
+  assert.equal(product.id, 'store-product-1');
+  assert.deepEqual(product.barcodes, ['789123', '789456']);
+  assert.equal(product.saleUnit, 'Unidade');
+});
+
+test('serializes ERP list rows with public image URLs instead of inline image data', () => {
+  const product = serializeErpProductListRecord({
+    id: 'database-id',
+    externalId: 'store-product-1',
+    title: 'Produto',
+    price: '12.50',
+    cost: '8.00',
+    quantity: '4',
+    sku: 'SKU-1',
+    barcode: '789123',
+    brand: 'Marca',
+    subcategory: 'Alimentos',
+    status: 'Ativo',
+    categories: ['Mercearia'],
+    metadata: { saleUnit: 'Unidade', barcodes: ['789123', '789456'] },
+    image: '',
+    imageHash: 'a'.repeat(32),
+  });
+
+  assert.equal(product.id, 'store-product-1');
+  assert.equal(product.image, `/api/products?purpose=image&id=store-product-1&v=${'a'.repeat(32)}-webp-256-v2`);
+  assert.deepEqual(product.barcodes, ['789123', '789456']);
+  assert.equal(product.saleUnit, 'Unidade');
+  assert.equal('promotionalPrice' in product, false);
+  assert.equal('imageHash' in product, false);
+});

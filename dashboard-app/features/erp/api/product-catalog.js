@@ -1,7 +1,8 @@
 import { promises as fs } from 'node:fs';
 import path from 'node:path';
-import { prisma } from '@/lib/prisma';
+import { prisma } from '../../../lib/prisma.js';
 import { parseShelfLifeDays } from './inventory-lots.js';
+import { publicProductImage } from './product-image-url.js';
 import { serializePublicProductRecord } from './public-product-record.js';
 
 const productsFile = path.join(process.cwd(), 'data', 'products.json');
@@ -32,6 +33,9 @@ export function serializeProduct(record) {
     quantity: Number(record.quantity),
     sku: record.sku || '',
     barcode: record.barcode || '',
+    barcodes: Array.isArray(record.productBarcodes) && record.productBarcodes.length
+      ? record.productBarcodes.map(({ code }) => code)
+      : Array.isArray(metadata.barcodes) ? metadata.barcodes : record.barcode ? [record.barcode] : [],
     brand: record.brand || '',
     supplier: record.supplier || '',
     subcategory: record.subcategory || '',
@@ -47,6 +51,89 @@ export function serializeProduct(record) {
     createdAt: record.createdAt?.toISOString() || null,
     updatedAt: record.updatedAt?.toISOString() || null,
   };
+}
+
+export function serializeErpProductListRecord(record) {
+  const metadata = record.metadata && typeof record.metadata === 'object' && !Array.isArray(record.metadata)
+    ? record.metadata
+    : {};
+  const product = {
+    id: record.externalId || record.id,
+    title: record.title,
+    price: Number(record.price),
+    cost: Number(record.cost),
+    quantity: Number(record.quantity),
+    sku: record.sku || '',
+    barcode: record.barcode || '',
+    barcodes: Array.isArray(metadata.barcodes) ? metadata.barcodes : record.barcode ? [record.barcode] : [],
+    brand: record.brand || '',
+    subcategory: record.subcategory || '',
+    saleUnit: metadata.saleUnit || record.saleUnit || '',
+    image: record.image || '',
+    imageHash: record.imageHash || '',
+    status: record.status,
+    categories: record.categories || [],
+  };
+  product.image = publicProductImage(product);
+  delete product.imageHash;
+  return product;
+}
+
+export async function getProductById(id, client = prisma) {
+  const productId = String(id || '').trim();
+  if (!productId) return null;
+
+  const record = await client.product.findFirst({
+    where: { OR: [{ externalId: productId }, { id: productId }] },
+    include: { productBarcodes: { select: { code: true } } },
+  });
+  if (record) return serializeProduct(record);
+
+  const legacyProducts = await readLegacyProducts();
+  return legacyProducts.find((product) => String(product.id) === productId) || null;
+}
+
+export async function getErpProductList(client = prisma) {
+  const records = await client.$queryRaw`
+    SELECT
+      "id",
+      "externalId",
+      "title",
+      "price",
+      "cost",
+      "quantity",
+      "sku",
+      "barcode",
+      "brand",
+      "subcategory",
+      "status",
+      "categories",
+      "metadata",
+      CASE
+        WHEN "image" ~* '^data:image/(png|jpeg|webp);base64,' THEN ''
+        ELSE COALESCE("image", '')
+      END AS "image",
+      CASE
+        WHEN "image" ~* '^data:image/(png|jpeg|webp);base64,' THEN MD5("image")
+        ELSE ''
+      END AS "imageHash"
+    FROM "Product"
+    ORDER BY "title" ASC
+  `;
+  const legacyProducts = await readLegacyProducts();
+  const productsById = new Map(legacyProducts.map((product) => {
+    const listProduct = serializeErpProductListRecord({
+      ...product,
+      externalId: product.id,
+      metadata: {
+        barcodes: product.barcodes,
+        saleUnit: product.saleUnit,
+      },
+    });
+    return [String(product.id), listProduct];
+  }));
+  records.map(serializeErpProductListRecord).forEach((product) => productsById.set(String(product.id), product));
+  return [...productsById.values()];
 }
 
 export async function getProductCatalog(client = prisma, { strict = false } = {}) {

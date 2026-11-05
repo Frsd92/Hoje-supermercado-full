@@ -22,7 +22,14 @@ import {
   resolveInventoryExpiry,
   requiresInventoryExpiry,
 } from '@/features/erp/api/inventory-lots';
-import { getProductCatalog, getPublicProductCatalog, readLegacyProducts, serializeProduct } from '@/features/erp/api/product-catalog';
+import {
+  getErpProductList,
+  getProductById,
+  getProductCatalog,
+  getPublicProductCatalog,
+  readLegacyProducts,
+  serializeProduct,
+} from '@/features/erp/api/product-catalog';
 import { publicProductImage } from '@/features/erp/api/product-image-url';
 import { getProductOrganizationError } from '@/features/erp/product-organization';
 import { getAvailableProductSubstitutes, isProductAvailableForQuantity } from '@/features/shopping/product-substitutes';
@@ -305,6 +312,49 @@ export async function OPTIONS(request) {
 export async function GET(request) {
   const searchParams = new URL(request.url).searchParams;
   const purpose = searchParams.get('purpose');
+  if (purpose === 'erp-edit') {
+    const session = await getServerSession(authOptions);
+    if (!hasErpAccess(session?.user)) {
+      return Response.json({ error: 'Acesso negado.' }, { status: 403, headers: corsHeaders(request) });
+    }
+    const productId = searchParams.get('id')?.trim();
+    if (!productId) {
+      return Response.json({ error: 'Informe o produto que será alterado.' }, { status: 400, headers: corsHeaders(request) });
+    }
+    try {
+      const product = await getProductById(productId);
+      if (!product) {
+        return Response.json({ error: 'Produto não encontrado.' }, { status: 404, headers: corsHeaders(request) });
+      }
+      return Response.json({ product }, {
+        headers: { ...corsHeaders(request), 'Cache-Control': 'private, no-store, max-age=0' },
+      });
+    } catch (error) {
+      console.error(`Não foi possível carregar o produto ${productId} para edição:`, error);
+      return Response.json({ error: 'Não foi possível carregar o produto. Verifique a conexão e tente novamente.' }, {
+        status: 500,
+        headers: corsHeaders(request),
+      });
+    }
+  }
+  if (purpose === 'erp-list') {
+    const session = await getServerSession(authOptions);
+    if (!hasErpAccess(session?.user)) {
+      return Response.json({ error: 'Acesso negado.' }, { status: 403, headers: corsHeaders(request) });
+    }
+    try {
+      const products = await getErpProductList();
+      return Response.json({ products }, {
+        headers: { ...corsHeaders(request), 'Cache-Control': 'private, no-store, max-age=0' },
+      });
+    } catch (error) {
+      console.error('Não foi possível carregar a listagem rápida do catálogo ERP:', error);
+      return Response.json({ error: 'Não foi possível carregar os produtos. Verifique a conexão e tente novamente.' }, {
+        status: 500,
+        headers: corsHeaders(request),
+      });
+    }
+  }
   if (purpose === 'image') {
     const productId = searchParams.get('id');
     const version = searchParams.get('v');
@@ -334,7 +384,12 @@ export async function GET(request) {
     const currentVersion = image
       ? `${createHash('md5').update(image).digest('hex')}-webp-256-v2`
       : '';
-    if (product?.status !== 'Ativo' || !imageMatch || currentVersion !== version) {
+    let canViewInactiveImage = false;
+    if (product?.status !== 'Ativo') {
+      const session = await getServerSession(authOptions);
+      canViewInactiveImage = hasErpAccess(session?.user);
+    }
+    if ((!canViewInactiveImage && product?.status !== 'Ativo') || !imageMatch || currentVersion !== version) {
       return Response.json({ error: 'Imagem do produto não encontrada.' }, {
         status: 404,
         headers: corsHeaders(request),
@@ -701,11 +756,8 @@ export async function PUT(request) {
     const productId = String(product?.id || '').trim();
     if (!productId) return Response.json({ error: 'Selecione um produto válido.' }, { status: 400, headers: corsHeaders(request) });
 
-    const products = await getProductCatalog();
-    const productIndex = products.findIndex((item) => String(item.id) === productId);
-    if (productIndex < 0) return Response.json({ error: 'Produto não encontrado.' }, { status: 404, headers: corsHeaders(request) });
-
-    const currentProduct = products[productIndex];
+    const currentProduct = await getProductById(productId);
+    if (!currentProduct) return Response.json({ error: 'Produto não encontrado.' }, { status: 404, headers: corsHeaders(request) });
     let offerFields;
     if (product.flashOfferEnabled === false) {
       offerFields = { flashOfferEnabled: false };
@@ -766,11 +818,8 @@ export async function PUT(request) {
   const organizationError = getProductOrganizationError({ ...product, categories });
   if (organizationError) return Response.json({ error: organizationError }, { status: 400, headers: corsHeaders(request) });
 
-  const products = await getProductCatalog();
-  const productIndex = products.findIndex((item) => String(item.id) === productId);
-  if (productIndex < 0) return Response.json({ error: 'Produto não encontrado.' }, { status: 404, headers: corsHeaders(request) });
-
-  const currentProduct = products[productIndex];
+  const currentProduct = await getProductById(productId);
+  if (!currentProduct) return Response.json({ error: 'Produto não encontrado.' }, { status: 404, headers: corsHeaders(request) });
   const priceHistory = appendPriceHistory(currentProduct, { price, cost, discount }, actor);
   const savedProduct = {
     ...currentProduct,
@@ -793,9 +842,8 @@ export async function PUT(request) {
     updatedBy: actor,
     priceHistory,
   };
-  const duplicate = matchingDuplicate(savedProduct, products, productId);
+  const duplicate = matchingDuplicate(savedProduct, await readLegacyProducts(), productId);
   if (duplicate) return Response.json({ error: duplicate.message }, { status: 409, headers: corsHeaders(request) });
-  products[productIndex] = savedProduct;
   try {
     const saved = await saveProduct(savedProduct, { actor, action: 'UPDATE', before: currentProduct });
     savedProduct.blingSync = await syncSavedProduct(saved.id);
@@ -820,8 +868,7 @@ export async function DELETE(request) {
   const productId = String(id || '').trim();
   if (!productId) return Response.json({ error: 'Informe o produto que será excluído.' }, { status: 400, headers: corsHeaders(request) });
 
-  const products = await getProductCatalog();
-  const product = products.find((item) => String(item.id) === productId);
+  const product = await getProductById(productId);
   if (!product) return Response.json({ error: 'Produto não encontrado.' }, { status: 404, headers: corsHeaders(request) });
   try {
     const result = await deleteProduct(productId, actor);
