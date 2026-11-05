@@ -184,9 +184,21 @@ async function merchantRequest(config, token, pathname, { method = 'GET', body }
     ...(body ? { body: JSON.stringify(body) } : {}),
     cache: 'no-store',
   });
-  const data = response.status === 204 ? null : await response.json().catch(() => ({}));
+  const responseBody = response.status === 204 ? '' : await response.text();
+  let data = null;
+  if (responseBody) {
+    try {
+      data = JSON.parse(responseBody);
+    } catch {
+      data = null;
+    }
+  }
   if (!response.ok) {
-    const message = data?.error?.message || `A Merchant API respondeu HTTP ${response.status}.`;
+    const apiMessage = data?.error?.message
+      || (responseBody && !data ? responseBody.replace(/\s+/g, ' ').trim().slice(0, 300) : '');
+    const message = apiMessage
+      ? `A Merchant API respondeu HTTP ${response.status} em ${method} ${pathname}: ${apiMessage}`
+      : `A Merchant API respondeu HTTP ${response.status} em ${method} ${pathname}.`;
     throw new Error(message);
   }
   return data;
