@@ -5520,6 +5520,7 @@ button.metric-mini:focus-visible {
   gap: 18px;
   background: linear-gradient(180deg, rgba(17, 24, 32, 0.98), rgba(11, 17, 22, 0.96));
   color: #f8fafc;
+  scroll-margin-top: 88px;
 }
 
 .address-form p {

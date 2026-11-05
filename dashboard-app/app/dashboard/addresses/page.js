@@ -29,6 +29,7 @@ export default function AddressesPage() {
   const [isSavingAddress, setIsSavingAddress] = useState(false);
   const cepLookupTimer = useRef(null);
   const cepLookupController = useRef(null);
+  const addressFormRef = useRef(null);
 
   const cancelCepLookup = () => {
     window.clearTimeout(cepLookupTimer.current);
@@ -99,6 +100,18 @@ export default function AddressesPage() {
     window.clearTimeout(cepLookupTimer.current);
     cepLookupController.current?.abort();
   }, []);
+
+  useEffect(() => {
+    if (!isFormOpen || !window.matchMedia('(max-width: 760px)').matches) return undefined;
+    const frame = window.requestAnimationFrame(() => {
+      const formElement = addressFormRef.current;
+      if (!formElement) return;
+      const prefersReducedMotion = window.matchMedia('(prefers-reduced-motion: reduce)').matches;
+      formElement.scrollIntoView({ behavior: prefersReducedMotion ? 'instant' : 'smooth', block: 'start' });
+      formElement.querySelector('input[name="cep"]')?.focus({ preventScroll: true });
+    });
+    return () => window.cancelAnimationFrame(frame);
+  }, [isFormOpen]);
 
   const persistAddresses = async (nextAddresses) => {
     const response = await fetch(addressesApi, {
@@ -341,7 +354,7 @@ export default function AddressesPage() {
       </aside>
 
       {isFormOpen && (
-        <form className="address-form panel-box" onSubmit={saveAddress}>
+        <form ref={addressFormRef} className="address-form panel-box" onSubmit={saveAddress}>
           <div className="panel-header compact">
             <div>
               <h3>{editingId ? 'Editar endereço' : 'Adicionar endereço'}</h3>
