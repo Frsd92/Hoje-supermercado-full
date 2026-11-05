@@ -24,6 +24,7 @@ import {
 } from '@/features/erp/api/inventory-lots';
 import { getProductCatalog, getPublicProductCatalog, readLegacyProducts, serializeProduct } from '@/features/erp/api/product-catalog';
 import { getProductOrganizationError } from '@/features/erp/product-organization';
+import { getAvailableProductSubstitutes, isProductAvailableForQuantity } from '@/features/shopping/product-substitutes';
 import { prisma } from '@/lib/prisma';
 
 const allowedOrigins = new Set(['http://localhost:8010', 'http://localhost:5500', 'http://127.0.0.1:5500', 'null']);
@@ -376,6 +377,92 @@ export async function GET(request) {
         'X-Content-Type-Options': 'nosniff',
       },
     });
+  }
+
+  if (purpose === 'substitutes') {
+    let requestedItems;
+    try {
+      requestedItems = JSON.parse(searchParams.get('items') || 'null');
+    } catch {
+      requestedItems = null;
+    }
+    if (!Array.isArray(requestedItems) || requestedItems.length < 1 || requestedItems.length > 10) {
+      return Response.json({ error: 'Produto ou quantidade inválida.' }, {
+        status: 400,
+        headers: corsHeaders(request),
+      });
+    }
+    const items = requestedItems.map((item) => ({
+      id: String(item?.id || '').trim(),
+      title: String(item?.title || '').trim().slice(0, 160),
+      category: String(item?.category || '').trim().slice(0, 80),
+      quantity: Number(item?.quantity),
+      saleUnit: item?.saleUnit === 'Quilograma' ? 'Quilograma' : 'Unidade',
+      key: String(item?.key || '').slice(0, 160),
+    }));
+    if (items.some((item) => (
+      !item.id
+      || !item.key
+      || !Number.isFinite(item.quantity)
+      || item.quantity <= 0
+      || item.quantity > 9999
+    ))) {
+      return Response.json({ error: 'Produto ou quantidade inválida.' }, {
+        status: 400,
+        headers: corsHeaders(request),
+      });
+    }
+    const excludedIds = String(searchParams.get('exclude') || '')
+      .split(',')
+      .map((id) => id.trim())
+      .filter(Boolean)
+      .slice(0, 100);
+
+    try {
+      const products = await getProductCatalog();
+      const substitutions = items.map((item) => {
+        const source = products.find((product) => String(product.id) === item.id) || null;
+        const comparisonSource = source || {
+          id: item.id,
+          title: item.title,
+          categories: item.category ? [item.category] : [],
+          subcategory: item.category,
+        };
+        const substitutes = getAvailableProductSubstitutes({
+          source: comparisonSource,
+          products: products.filter((product) => (
+            (product.saleUnit === 'Quilograma' ? 'Quilograma' : 'Unidade') === item.saleUnit
+          )),
+          quantity: item.quantity,
+          excludedIds,
+        }).map((product) => ({
+          id: product.id,
+          title: product.title,
+          categories: Array.isArray(product.categories) ? product.categories : [],
+          category: product.categories?.[0] || product.department || item.category,
+          image: publicProductImage(product),
+          price: Number(product.price) || 0,
+          salePrice: calculateSalePrice(product),
+          saleUnit: product.saleUnit === 'Quilograma' ? 'Quilograma' : 'Unidade',
+        }));
+        return {
+          key: item.key,
+          sourceAvailable: source ? isProductAvailableForQuantity(source, item.quantity) : false,
+          substitutes,
+        };
+      });
+      return Response.json({
+        items: substitutions,
+      }, {
+        headers: { ...corsHeaders(request), 'Cache-Control': 'private, no-store, max-age=0' },
+      });
+    } catch (error) {
+      console.error('Não foi possível sugerir substitutos para o carrinho:', error);
+      return Response.json({ error: 'Não foi possível verificar a disponibilidade dos produtos.' }, {
+        status: 500,
+        headers: corsHeaders(request),
+      });
+    }
   }
 
   if (purpose === 'shopping') {

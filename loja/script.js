@@ -1518,6 +1518,7 @@ function abrirCarrinho() {
     cartPanel.classList.add('open');
     cartPanel.removeAttribute('inert');
     cartPanel.setAttribute('aria-hidden', 'false');
+    renderizarCarrinho(false);
     document.getElementById('cart-close')?.focus();
   }
   if (cartBackdrop) cartBackdrop.classList.add('open');
@@ -1597,6 +1598,9 @@ function renderizarCarrinho(persistir = true) {
     return;
   }
 
+  if (document.getElementById('cart-panel')?.classList.contains('open')) {
+    requestCartSubstitutes(itens);
+  }
   if (cartItems) cartItems.innerHTML = itens.map(item => `
     <div class="cart-item" data-name="${escapeStoreHtml(item.nome)}">
       <div class="cart-item-thumb">
@@ -1620,7 +1624,9 @@ function renderizarCarrinho(persistir = true) {
         </button>
       </div>
     </div>
+    ${renderCartSubstitutionPanel(item)}
   `).join('');
+  agendarAtualizacaoIconesLucide();
 
   if (summaryEl) {
     summaryEl.innerHTML = `
@@ -1644,6 +1650,11 @@ function renderizarCarrinho(persistir = true) {
 function limparCarrinho() {
   carrinhoRevision += 1;
   carrinhoItens = [];
+  cartSubstituteQueue.clear();
+  if (cartSubstituteBatchTimer !== null) {
+    window.clearTimeout(cartSubstituteBatchTimer);
+    cartSubstituteBatchTimer = null;
+  }
   const couponInput = document.getElementById('coupon-input');
   const feedback = document.getElementById('coupon-feedback');
 
@@ -2454,6 +2465,18 @@ function inicializarCarrinho() {
       const action = target.dataset.action;
       const nome = target.dataset.name;
 
+      if (action === 'replace') {
+        replaceCartItem(nome, target.dataset.substituteId);
+        return;
+      }
+      if (action === 'retry-substitutes') {
+        const item = carrinhoItens.find((cartItem) => normalizarCatalogo(cartItem.nome) === normalizarCatalogo(nome));
+        if (item) {
+          requestCartSubstitutes([item], true);
+          renderizarCarrinho(false);
+        }
+        return;
+      }
       if (!nome) return;
 
       if (action === 'increment') {
@@ -2493,6 +2516,155 @@ function chaveCategoriaLoja(valor) {
 function escapeStoreHtml(value) {
   const entities = { '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' };
   return String(value ?? '').replace(/[&<>"']/g, (character) => entities[character]);
+}
+
+function substitutionCacheKey(item) {
+  return JSON.stringify([String(item.id), Number(item.qty)]);
+}
+
+function renderCartSubstitutionPanel(item) {
+  const key = substitutionCacheKey(item);
+  const state = cartSubstituteCache.get(key);
+  const name = escapeStoreHtml(item.nome);
+  if (!state || state.status === 'loading') {
+    return `<section class="cart-substitute-state" role="status">Conferindo a disponibilidade de ${name}…</section>`;
+  }
+  if (state.status === 'error') {
+    return `<section class="cart-substitute-state is-error" role="group" aria-label="Verificação de disponibilidade">
+      <p>Não foi possível verificar se ${name} está disponível.</p>
+      <button type="button" class="cart-substitute-retry" data-action="retry-substitutes" data-name="${name}">Tentar novamente</button>
+    </section>`;
+  }
+  if (state.sourceAvailable) return '';
+
+  const cartProductIds = new Set(
+    carrinhoItens
+      .filter((cartItem) => cartItem !== item)
+      .map((cartItem) => String(cartItem.id)),
+  );
+  const alternatives = (state.substitutes || [])
+    .filter((product) => !cartProductIds.has(String(product.id)));
+  return `<section class="cart-substitute-panel" role="group" aria-label="Substitutos para ${name}">
+    <div class="cart-substitute-heading">
+      <span class="cart-substitute-icon" aria-hidden="true"><i data-lucide="replace"></i></span>
+      <div>
+        <strong>Este produto está indisponível</strong>
+        <p>Se quiser, escolha uma alternativa. Nada será trocado sem sua confirmação.</p>
+      </div>
+    </div>
+    ${alternatives.length ? `<ul class="cart-substitute-list">${alternatives.map((product) => {
+      const currentPrice = Number(product.salePrice ?? product.price) || 0;
+      const difference = currentPrice - item.preco;
+      const differenceLabel = Math.abs(difference) < 0.005
+        ? 'Mesmo preço'
+        : `${difference > 0 ? '+' : '−'}${formatarPreco(Math.abs(difference))}`;
+      const productName = escapeStoreHtml(product.title);
+      return `<li class="cart-substitute-option">
+        <div class="cart-substitute-image">${product.image
+          ? `<img src="${escapeStoreHtml(product.image)}" alt="" width="44" height="44" loading="lazy">`
+          : '<i data-lucide="shopping-basket" aria-hidden="true"></i>'}</div>
+        <div class="cart-substitute-info">
+          <strong>${productName}</strong>
+          <span>${formatarPreco(currentPrice)}${product.saleUnit === 'Quilograma' ? ' / kg' : ' / un.'}</span>
+        </div>
+        <span class="cart-substitute-difference">${differenceLabel}</span>
+        <button type="button" class="cart-substitute-choose" data-action="replace" data-name="${name}" data-substitute-id="${escapeStoreHtml(product.id)}" aria-label="Trocar ${name} por ${productName}">Trocar</button>
+      </li>`;
+    }).join('')}</ul>` : '<p class="cart-substitute-empty">Não encontramos uma alternativa disponível agora. Você pode remover o produto do carrinho.</p>'}
+  </section>`;
+}
+
+function flushCartSubstituteRequests() {
+  cartSubstituteBatchTimer = null;
+  const activeKeys = new Set(carrinhoItens.map(substitutionCacheKey));
+  const pending = [...cartSubstituteQueue.entries()].filter(([key]) => activeKeys.has(key));
+  cartSubstituteQueue.clear();
+  for (let index = 0; index < pending.length; index += 8) {
+    const batch = pending.slice(index, index + 8);
+    const requestedItems = batch.map(([key, item]) => ({
+      key,
+      id: String(item.id),
+      title: item.nome,
+      category: item.categoria,
+      quantity: item.qty,
+      saleUnit: item.saleUnit,
+    }));
+    const params = new URLSearchParams({
+      purpose: 'substitutes',
+      items: JSON.stringify(requestedItems),
+      exclude: [...new Set(carrinhoItens.map((item) => String(item.id)))].slice(0, 100).join(','),
+    });
+    const request = fetch(`/api/products?${params}`, { cache: 'no-store' })
+      .then(async (response) => {
+        const data = await response.json();
+        if (!response.ok) throw new Error(data.error || 'Não foi possível verificar a disponibilidade.');
+        if (!Array.isArray(data.items)) throw new Error('A resposta de disponibilidade está inválida.');
+        const results = new Map(data.items.map((item) => [item.key, item]));
+        batch.forEach(([key]) => {
+          const result = results.get(key);
+          if (!result || typeof result.sourceAvailable !== 'boolean' || !Array.isArray(result.substitutes)) {
+            throw new Error('A resposta de disponibilidade está incompleta.');
+          }
+          cartSubstituteCache.set(key, {
+            status: 'ready',
+            sourceAvailable: result.sourceAvailable,
+            substitutes: result.substitutes,
+            checkedAt: Date.now(),
+          });
+        });
+      })
+      .catch((error) => {
+        console.error('Não foi possível verificar substitutos para o carrinho:', error);
+        batch.forEach(([key]) => cartSubstituteCache.set(key, { status: 'error', checkedAt: Date.now() }));
+      })
+      .finally(() => {
+        batch.forEach(([key]) => cartSubstituteRequests.delete(key));
+        renderizarCarrinho(false);
+      });
+    batch.forEach(([key]) => cartSubstituteRequests.set(key, request));
+  }
+}
+
+function requestCartSubstitutes(items, retry = false) {
+  items.forEach((item) => {
+    const key = substitutionCacheKey(item);
+    const cached = cartSubstituteCache.get(key);
+    if (!retry && cached && cached.status !== 'error' && Date.now() - cached.checkedAt < 30000) return;
+    if (cartSubstituteRequests.has(key)) return;
+
+    cartSubstituteCache.set(key, { status: 'loading', checkedAt: Date.now() });
+    cartSubstituteQueue.set(key, item);
+  });
+  if (cartSubstituteQueue.size && cartSubstituteBatchTimer === null) {
+    cartSubstituteBatchTimer = window.setTimeout(flushCartSubstituteRequests, 0);
+  }
+}
+
+function replaceCartItem(sourceName, substituteId) {
+  const sourceIndex = carrinhoItens.findIndex((item) => normalizarCatalogo(item.nome) === normalizarCatalogo(sourceName));
+  if (sourceIndex < 0) return;
+  const sourceItem = carrinhoItens[sourceIndex];
+  const state = cartSubstituteCache.get(substitutionCacheKey(sourceItem));
+  const substitute = state?.substitutes?.find((product) => String(product.id) === String(substituteId));
+  if (!substitute) {
+    console.error('A alternativa selecionada não está mais disponível nas sugestões carregadas.');
+    return;
+  }
+
+  const replacement = normalizarProdutoParaCarrinho(substitute);
+  if (!replacement || replacement.saleUnit !== sourceItem.saleUnit) {
+    console.error('Não foi possível preparar a alternativa selecionada para o carrinho.', substitute);
+    return;
+  }
+  replacement.qty = sourceItem.qty;
+  carrinhoItens.splice(sourceIndex, 1, replacement);
+  cartSubstituteCache.delete(substitutionCacheKey(sourceItem));
+  cartSubstituteCache.delete(substitutionCacheKey(replacement));
+  carrinhoRevision += 1;
+  atualizarCartoesDoProduto(sourceItem, null);
+  atualizarCartoesDoProduto(replacement, replacement);
+  renderizarCarrinho();
+  exibirConfirmacaoCarrinho(`${replacement.nome} substituiu ${sourceItem.nome}`);
 }
 
 function renderProductImage(image, title) {
@@ -2610,6 +2782,10 @@ function criarCardDoCatalogo(product) {
 const PRODUTOS_POR_LOTE = 8;
 let produtosCatalogo = [];
 let catalogoCarregado = false;
+const cartSubstituteCache = new Map();
+const cartSubstituteRequests = new Map();
+const cartSubstituteQueue = new Map();
+let cartSubstituteBatchTimer = null;
 let estadosDosCarrosseis = new Map();
 let observadorDeCarrosseis;
 
