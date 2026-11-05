@@ -2539,11 +2539,6 @@ body {
   text-decoration: line-through;
 }
 
-.product-rating {
-  font-size: 12px;
-  color: #666;
-}
-
 /* ----- Coluna 3: Painel lateral direito ----- */
 .right-panel {
   width: 260px;
@@ -3675,8 +3670,7 @@ body {
 .search-results .product-name,
 .search-results .product-actions,
 .search-results .tag,
-.search-results .fav-btn,
-.search-results .product-rating {
+.search-results .fav-btn {
   display: none;
 }
 
