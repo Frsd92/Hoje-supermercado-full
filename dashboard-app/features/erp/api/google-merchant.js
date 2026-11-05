@@ -224,7 +224,7 @@ async function listProductsForSource(config, token) {
   do {
     const query = new URLSearchParams({ pageSize: '1000' });
     if (pageToken) query.set('pageToken', pageToken);
-    const page = await merchantRequest(config, token, `${config.accountId}/products?${query}`);
+    const page = await merchantRequest(config, token, `accounts/${config.accountId}/products?${query}`);
     products.push(...(Array.isArray(page?.products) ? page.products : []));
     pageToken = page?.nextPageToken || '';
   } while (pageToken);
@@ -236,7 +236,7 @@ async function removeStaleProducts(config, token, expectedOfferIds) {
   const staleProducts = existingProducts.filter((product) => !expectedOfferIds.has(product.offerId));
   const results = await mapWithConcurrency(staleProducts, 5, async (product) => {
     const inputId = encodeBase64Url(`${product.contentLanguage}~${product.feedLabel}~${product.offerId}`);
-    const inputName = `${config.accountId}/productInputs/${inputId}`;
+    const inputName = `accounts/${config.accountId}/productInputs/${inputId}`;
     const query = new URLSearchParams({ dataSource: config.dataSource });
     await merchantRequest(config, token, `${inputName}?${query}`, { method: 'DELETE' });
     return product.offerId;
@@ -268,7 +268,7 @@ export async function syncGoogleMerchantProducts(products, { config = getGoogleM
         await merchantRequest(
           config,
           token,
-          `${config.accountId}/productInputs:insert?${new URLSearchParams({ dataSource: config.dataSource })}`,
+          `accounts/${config.accountId}/productInputs:insert?${new URLSearchParams({ dataSource: config.dataSource })}`,
           { method: 'POST', body: input },
         );
         return null;
