@@ -458,6 +458,7 @@ export default function ERPProductsPage() {
         verifiedData: data.product?.blingSyncVerifiedData || null,
       };
       setBlingSync((current) => ({ ...sync, verifiedData: sync.verifiedData ?? current.verifiedData ?? null }));
+      window.dispatchEvent(new Event('erp-product-sync-updated'));
       if (!isEditing) {
         const productReference = String(data.product?.id || '').trim();
         if (productReference) {
@@ -503,6 +504,7 @@ export default function ERPProductsPage() {
       if (!response.ok && !data.sync) throw new Error(data.error || 'Não foi possível sincronizar o produto.');
       const sync = data.sync;
       setBlingSync((current) => ({ ...sync, verifiedData: sync.verifiedData ?? current.verifiedData ?? null }));
+      window.dispatchEvent(new Event('erp-product-sync-updated'));
       setFeedback(['synced', 'partial'].includes(sync.status)
         ? sync.error
           ? `Sincronização parcial concluída: ${sync.error}`

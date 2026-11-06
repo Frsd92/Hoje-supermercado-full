@@ -1,3 +1,4 @@
+import { Prisma } from '@prisma/client';
 import { getServerSession } from 'next-auth';
 import { authOptions } from '@/auth';
 import { hasErpAccess } from '@/features/erp/access';
@@ -10,7 +11,7 @@ export async function GET() {
   if (!hasErpAccess(session?.user)) return Response.json({ error: 'Acesso negado.' }, { status: 403 });
 
   try {
-    const [pendingOrders, pendingServiceRequests, pendingRefundRequests] = await Promise.all([
+    const [pendingOrders, pendingServiceRequests, pendingRefundRequests, pendingBlingProducts] = await Promise.all([
       prisma.order.findMany({
         where: { status: 'Recebido' },
         select: { id: true },
@@ -29,11 +30,20 @@ export async function GET() {
           },
         },
       }),
+      prisma.product.count({
+        where: {
+          OR: [
+            { blingSyncStatus: { not: 'synced' } },
+            { blingSyncVerifiedData: { equals: Prisma.DbNull } },
+          ],
+        },
+      }),
     ]);
 
     return Response.json({
       pendingOrderIds: pendingOrders.map(({ id }) => id),
       pendingCustomerActionCount: pendingServiceRequests + pendingRefundRequests,
+      pendingBlingProductCount: pendingBlingProducts,
     }, {
       headers: { 'Cache-Control': 'private, no-store, max-age=0' },
     });

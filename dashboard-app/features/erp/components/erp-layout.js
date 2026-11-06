@@ -79,7 +79,7 @@ const erpNavigationGroups = [
 
 export default function ERPLayout({ children }) {
   const pathname = usePathname();
-  const [actionCounts, setActionCounts] = useState({ customers: 0, orders: 0, newCustomers: 0, newOrders: 0 });
+  const [actionCounts, setActionCounts] = useState({ customers: 0, orders: 0, products: 0, newCustomers: 0, newOrders: 0 });
   const [financeExpanded, setFinanceExpanded] = useState(() => pathname.startsWith('/erp/financeiro'));
 
   useEffect(() => {
@@ -117,7 +117,9 @@ export default function ERPLayout({ children }) {
         if (!signupResponse.ok) throw new Error(signupData.error || 'Não foi possível verificar novos cadastros.');
         if (!changeResponse.ok) throw new Error(changeData.error || 'Não foi possível verificar alterações cadastrais.');
         if (!orderResponse.ok) throw new Error(orderData.error || 'Não foi possível verificar novos pedidos.');
-        if (!Array.isArray(actionData.pendingOrderIds) || !Number.isFinite(actionData.pendingCustomerActionCount)) {
+        if (!Array.isArray(actionData.pendingOrderIds)
+          || !Number.isFinite(actionData.pendingCustomerActionCount)
+          || !Number.isFinite(actionData.pendingBlingProductCount)) {
           throw new Error('A resposta de ações pendentes está inválida.');
         }
         if (!Array.isArray(signupData.signups) || !signupData.checkedAt) throw new Error('A resposta de novos cadastros está inválida.');
@@ -160,6 +162,7 @@ export default function ERPLayout({ children }) {
               currentIds.length + currentChangeIds.length,
               visibleOrderArrivals,
             ),
+            products: actionData.pendingBlingProductCount,
             newCustomers: currentIds.length + currentChangeIds.length,
             newOrders: visibleOrderArrivals.filter((id) => !acknowledgedOrderIds.includes(id)).length,
           });
@@ -202,6 +205,7 @@ export default function ERPLayout({ children }) {
     window.addEventListener('erp-orders-acknowledged', acknowledgeOrders);
     window.addEventListener('erp-orders-updated', refresh);
     window.addEventListener('erp-customer-actions-updated', refresh);
+    window.addEventListener('erp-product-sync-updated', refresh);
     return () => {
       active = false;
       window.clearInterval(interval);
@@ -209,6 +213,7 @@ export default function ERPLayout({ children }) {
       window.removeEventListener('erp-orders-acknowledged', acknowledgeOrders);
       window.removeEventListener('erp-orders-updated', refresh);
       window.removeEventListener('erp-customer-actions-updated', refresh);
+      window.removeEventListener('erp-product-sync-updated', refresh);
     };
   }, [pathname]);
 
@@ -235,10 +240,16 @@ export default function ERPLayout({ children }) {
             {expanded && <div className="erp-nav-group-items" id={isFinance ? 'erp-finance-nav-items' : undefined}>
               {group.items.map(({ label, href, icon: Icon }) => {
                 const active = pathname === href || (href !== '/erp' && href !== '/erp/financeiro' && pathname.startsWith(href));
-                const pendingActions = label === 'Pedidos' ? actionCounts.orders : label === 'Clientes' ? actionCounts.customers : 0;
+                const pendingActions = label === 'Pedidos'
+                  ? actionCounts.orders
+                  : label === 'Clientes'
+                    ? actionCounts.customers
+                    : label === 'Produtos' ? actionCounts.products : 0;
                 const actionLabel = label === 'Pedidos'
                   ? `${pendingActions} pedido(s) novo(s) ou ação(ões) relacionada(s) a pedidos`
-                  : `${pendingActions} cadastro(s) novo(s), alteração(ões) cadastral(is) ou solicitação(ões) de cliente para consultar`;
+                  : label === 'Produtos'
+                    ? `${pendingActions} produto(s) aguardando sincronização ou confirmação no Bling`
+                    : `${pendingActions} cadastro(s) novo(s), alteração(ões) cadastral(is) ou solicitação(ões) de cliente para consultar`;
                 const content = <><Icon size={17} aria-hidden="true" /><span>{label}</span>{pendingActions > 0 && <><span className="erp-nav-badge" aria-hidden="true">{pendingActions}</span><span className="visually-hidden">{actionLabel}</span></>}</>;
                 const className = `erp-nav-item ${active ? 'active' : ''}`;
                 return <Link key={label} href={href} className={className} aria-current={active ? 'page' : undefined}>{content}</Link>;
