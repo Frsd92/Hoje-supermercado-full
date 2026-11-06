@@ -2526,6 +2526,7 @@ function normalizarCatalogo(valor) {
 function chaveCategoriaLoja(valor) {
   const chave = normalizarCatalogo(valor).trim().replace(/[\s_-]+/g, '');
   if (['pet', 'pets', 'petshop', 'petshops'].includes(chave)) return 'petshop';
+  if (chave === 'produtosdelimpeza') return 'limpeza';
   if (chave === 'bebidas' || chave === 'sucoserefrigerantes') return 'sucos';
   if (chave === 'bebidasalcoolicas') return 'alcoolicas';
   return chave;
