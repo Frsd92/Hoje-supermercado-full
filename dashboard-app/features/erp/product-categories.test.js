@@ -5,6 +5,8 @@ import { productCategoryGroups, productMainCategories } from './product-categori
 test('provides the renamed drink category and requested main categories', () => {
   assert.ok(productMainCategories.includes('Sucos e Refrigerantes'));
   assert.ok(productMainCategories.includes('Água'));
+  assert.ok(productMainCategories.includes('Churrasco'));
+  assert.ok(productMainCategories.includes('Coca-Cola'));
   assert.ok(!productMainCategories.includes('Bebidas'));
   assert.deepEqual(productCategoryGroups.find(({ id }) => id === 'brands').categories, [
     'Triex',
@@ -19,5 +21,7 @@ test('provides the renamed drink category and requested main categories', () => 
     'Stella',
     'Casillero del Diablo',
     'Casa Valduga',
+    'Coca-Cola',
   ]);
+  assert.ok(productCategoryGroups.find(({ id }) => id === 'departments').categories.includes('Churrasco'));
 });
