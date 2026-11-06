@@ -1631,7 +1631,9 @@ body {
 }
 
 .categories-bar a.has-active-flash-offers [data-lucide],
-.categories-menu a.has-active-flash-offers [data-lucide] {
+.categories-menu a.has-active-flash-offers [data-lucide],
+.categories-bar a.has-active-day-offers [data-lucide],
+.categories-menu a.has-active-day-offers [data-lucide] {
   color: #e29b00;
   animation: flash-offer-zap-pulse .48s ease-in-out infinite;
   transform-origin: center;
@@ -4841,7 +4843,9 @@ body {
 
 @media (prefers-reduced-motion: reduce) {
   .categories-bar a.has-active-flash-offers [data-lucide],
-  .categories-menu a.has-active-flash-offers [data-lucide] {
+  .categories-menu a.has-active-flash-offers [data-lucide],
+  .categories-bar a.has-active-day-offers [data-lucide],
+  .categories-menu a.has-active-day-offers [data-lucide] {
     animation: none;
     opacity: 1;
     transform: none;

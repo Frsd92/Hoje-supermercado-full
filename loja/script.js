@@ -2762,15 +2762,25 @@ function renderProductBadges(product) {
   return badges.length ? `<div class="product-badges" aria-label="Destaques do produto">${badges.join('')}</div>` : '';
 }
 
-function setFlashOfferNavigationActive(active) {
-  document.querySelectorAll('a[href*="categoria=ofertas-relampago"]').forEach((link) => {
-    link.classList.toggle('has-active-flash-offers', active);
-    if (active) link.setAttribute('aria-label', 'Ofertas Relâmpago, ofertas ativas');
+function setOfferNavigationActive(category, active, activeClass, label) {
+  document.querySelectorAll('a[href]').forEach((link) => {
+    if (new URL(link.href, window.location.origin).searchParams.get('categoria') !== category) return;
+    link.classList.toggle(activeClass, active);
+    if (active) link.setAttribute('aria-label', label);
     else link.removeAttribute('aria-label');
   });
 }
 
+function setFlashOfferNavigationActive(active) {
+  setOfferNavigationActive('ofertas-relampago', active, 'has-active-flash-offers', 'Ofertas Relâmpago, ofertas ativas');
+}
+
+function setDayOfferNavigationActive(active) {
+  setOfferNavigationActive('ofertas', active, 'has-active-day-offers', 'Ofertas do dia, ofertas ativas');
+}
+
 window.setFlashOfferNavigationActive = setFlashOfferNavigationActive;
+window.setDayOfferNavigationActive = setDayOfferNavigationActive;
 
 function renderProductDepartmentBadge(product) {
   const department = String(product.department || '').trim();
@@ -2915,6 +2925,7 @@ function renderFlashOfferPanel(products) {
     && Date.parse(product.flashOfferEndsAt) > now
   ));
   setFlashOfferNavigationActive(activeOffers.length > 0);
+  setDayOfferNavigationActive(products.some((product) => produtoTemSeloDeVitrine(product, 'Oferta')));
   const scheduledOffers = products.filter((product) => (
     Number.isFinite(Date.parse(product.flashOfferScheduledStart))
     && Date.parse(product.flashOfferScheduledStart) > now

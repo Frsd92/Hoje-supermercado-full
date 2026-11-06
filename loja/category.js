@@ -186,6 +186,7 @@ async function loadCategory() {
     )).sort((first, second) => getTimestamp(first.flashOfferEndsAt) - getTimestamp(second.flashOfferEndsAt))
     : products.filter((product) => product.categories?.some((item) => categoryKey(item) === categoryKey(category))
       || categoryKey(product.department || '') === categoryKey(category));
+  window.setDayOfferNavigationActive?.(category === 'ofertas' && filteredProducts.length > 0);
   const hasActiveFlashOffers = products.some((product) => (
     product.flashOfferActive === true
     && getTimestamp(product.flashOfferEndsAt) > Date.now()
