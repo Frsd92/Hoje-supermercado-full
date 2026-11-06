@@ -11,6 +11,7 @@ import {
 } from '@/features/erp/api/product-pricing';
 import { findProductIdentityConflict, getProductAuditChanges, productAuditSnapshot, productIdentityKeys } from '@/features/erp/api/product-audit';
 import { normalizeProductCest } from '@/features/erp/api/product-cest';
+import { normalizeProductMainCategories } from '@/features/erp/product-organization';
 import { syncProductToBling } from '@/features/erp/api/bling-products';
 import { validateChangedProductNcm } from '@/features/erp/api/product-ncm';
 import {
@@ -98,7 +99,7 @@ function productDatabaseData(product) {
     image: product.image ? String(product.image) : null,
     status: product.status || 'Ativo',
     expiry: expiry && !Number.isNaN(expiry.getTime()) ? expiry : null,
-    categories: Array.isArray(product.categories) ? product.categories : [],
+    categories: normalizeProductMainCategories(product.categories),
     createdBy: product.createdBy ? String(product.createdBy) : null,
     metadata,
   };
@@ -673,9 +674,7 @@ export async function POST(request) {
   const quantityMilliUnits = inventoryQuantityMilliUnits(product?.quantity ?? 0);
   const shelfLifeDays = parseShelfLifeDays(product?.shelfLifeDays);
   const expiryMode = product?.expiryMode || (shelfLifeDays ? 'days' : 'date');
-  const categories = Array.isArray(product?.categories)
-    ? [...new Set(product.categories.map((category) => String(category).trim()).filter(Boolean))]
-    : [];
+  const categories = normalizeProductMainCategories(product?.categories);
   const status = ['Ativo', 'Rascunho', 'Arquivado'].includes(product?.status) ? product.status : 'Ativo';
   if (!title || !Number.isFinite(price) || price <= 0 || !Number.isFinite(cost) || cost < 0 || !Number.isFinite(discount) || discount < 0 || discount > 100 || !Number.isFinite(quantity) || quantity < 0 || quantityMilliUnits === null || !categories.length) return Response.json({ error: 'Informe nome, preço, custo, desconto válido, estoque com até três casas decimais e ao menos uma categoria.' }, { status: 400, headers: corsHeaders(request) });
   if (shelfLifeDays === undefined) return Response.json({ error: 'Informe um prazo de validade em dias entre 1 e 36.500.' }, { status: 400, headers: corsHeaders(request) });
@@ -809,9 +808,7 @@ export async function PUT(request) {
   const quantity = Number(product?.quantity || 0);
   const quantityMilliUnits = inventoryQuantityMilliUnits(product?.quantity ?? 0);
   const shelfLifeDays = parseShelfLifeDays(product?.shelfLifeDays);
-  const categories = Array.isArray(product?.categories)
-    ? [...new Set(product.categories.map((category) => String(category).trim()).filter(Boolean))]
-    : [];
+  const categories = normalizeProductMainCategories(product?.categories);
   const status = ['Ativo', 'Rascunho', 'Arquivado'].includes(product?.status) ? product.status : 'Ativo';
   if (!productId || !title || !Number.isFinite(price) || price <= 0 || !Number.isFinite(cost) || cost < 0 || !Number.isFinite(discount) || discount < 0 || discount > 100 || !Number.isFinite(quantity) || quantity < 0 || quantityMilliUnits === null || !categories.length) return Response.json({ error: 'Informe nome, preço, custo, desconto válido, estoque com até três casas decimais e ao menos uma categoria.' }, { status: 400, headers: corsHeaders(request) });
   if (shelfLifeDays === undefined) return Response.json({ error: 'Informe um prazo de validade em dias entre 1 e 36.500.' }, { status: 400, headers: corsHeaders(request) });

@@ -20,6 +20,19 @@ test('serializes only public catalog fields and an image fingerprint', () => {
     imageHash: 'a'.repeat(32),
   });
 
+  test('normalizes the legacy beverage category for public store consumers', () => {
+    const product = serializePublicProductRecord({
+      id: 'database-id',
+      title: 'Refrigerante',
+      price: '5.00',
+      discount: '0',
+      status: 'Ativo',
+      categories: ['Bebidas'],
+    });
+
+    assert.deepEqual(product.categories, ['Sucos e Refrigerantes']);
+  });
+
   assert.deepEqual(product, {
     saleUnit: 'Unidade',
     flashOfferEnabled: false,

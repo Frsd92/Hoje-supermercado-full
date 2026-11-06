@@ -6,6 +6,8 @@ test('maps existing ERP catalog categories to the requested balance groups', () 
   assert.equal(getInventoryCountCategory({ categories: ['Vinhos'] }), 'Vinhos');
   assert.equal(getInventoryCountCategory({ categories: ['Pet Shop'] }), 'Petshop');
   assert.equal(getInventoryCountCategory({ categories: ['Bebidas'] }), 'Bebidas sem álcool');
+  assert.equal(getInventoryCountCategory({ categories: ['Sucos e Refrigerantes'] }), 'Bebidas sem álcool');
+  assert.equal(getInventoryCountCategory({ categories: ['Água'] }), 'Bebidas sem álcool');
   assert.equal(getInventoryCountCategory({ categories: ['Laticínios'] }), 'Laticínio');
   assert.equal(getInventoryCountCategory({ categories: ['Açougue'] }), 'Carne');
   assert.equal(getInventoryCountCategory({ categories: ['Produtos de Limpeza'] }), 'Limpeza');

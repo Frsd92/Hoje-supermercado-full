@@ -8,8 +8,7 @@ export const loyaltyMissionDestinationOptions = [
   { value: '/categoria.html?categoria=laticinios', label: 'Laticínios' },
   { value: '/categoria.html?categoria=mercearia', label: 'Mercearia' },
   { value: '/categoria.html?categoria=bomboniere', label: 'Bomboniere' },
-  { value: '/categoria.html?categoria=sucos', label: 'Sucos e refrigerantes' },
-  { value: '/categoria.html?categoria=bebidas', label: 'Bebidas' },
+  { value: '/categoria.html?categoria=sucos', label: 'Sucos e Refrigerantes' },
   { value: '/categoria.html?categoria=alcoolicas', label: 'Bebidas alcoólicas' },
   { value: '/categoria.html?categoria=vinhos', label: 'Vinhos' },
   { value: '/categoria.html?categoria=limpeza', label: 'Limpeza' },
@@ -23,8 +22,17 @@ const allowedDestinationPaths = new Set(
   loyaltyMissionDestinationOptions.filter(({ value }) => value).map(({ value }) => value),
 );
 
-export function normalizeLoyaltyMissionDestinationPath(value) {
+const legacyDestinationPaths = new Map([
+  ['/categoria.html?categoria=bebidas', '/categoria.html?categoria=sucos'],
+]);
+
+export function canonicalizeLoyaltyMissionDestinationPath(value) {
   const destinationPath = String(value ?? '').trim();
+  return legacyDestinationPaths.get(destinationPath) || destinationPath;
+}
+
+export function normalizeLoyaltyMissionDestinationPath(value) {
+  const destinationPath = canonicalizeLoyaltyMissionDestinationPath(value);
   if (!destinationPath) return null;
   if (!allowedDestinationPaths.has(destinationPath)) {
     throw new RangeError('Selecione uma página de destino válida.');
@@ -33,5 +41,6 @@ export function normalizeLoyaltyMissionDestinationPath(value) {
 }
 
 export function getLoyaltyMissionDestinationHref(value) {
-  return allowedDestinationPaths.has(value) ? value : '/index.html';
+  const destinationPath = canonicalizeLoyaltyMissionDestinationPath(value);
+  return allowedDestinationPaths.has(destinationPath) ? destinationPath : '/index.html';
 }

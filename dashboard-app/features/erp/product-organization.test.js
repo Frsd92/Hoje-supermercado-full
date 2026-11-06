@@ -1,9 +1,23 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
-import { getProductOrganizationError, normalizeProductOrganizationValue, usesHortifrutiOrganization } from './product-organization.js';
+import {
+  getProductOrganizationError,
+  normalizeProductMainCategories,
+  normalizeProductMainCategory,
+  normalizeProductOrganizationValue,
+  usesHortifrutiOrganization,
+} from './product-organization.js';
 
 test('normalizes Portuguese labels consistently', () => {
   assert.equal(normalizeProductOrganizationValue('  HORTIFRÚTI  '), 'hortifruti');
+});
+
+test('renames the legacy beverage category and deduplicates it with the new label', () => {
+  assert.equal(normalizeProductMainCategory('Bebidas'), 'Sucos e Refrigerantes');
+  assert.deepEqual(normalizeProductMainCategories(['Bebidas', 'Sucos e Refrigerantes', 'Mercearia']), [
+    'Sucos e Refrigerantes',
+    'Mercearia',
+  ]);
 });
 
 test('requires the Hortifruti primary category and department', () => {

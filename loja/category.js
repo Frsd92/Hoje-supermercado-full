@@ -8,7 +8,7 @@ const categoryLabels = {
   mercearia: 'Mercearia',
   bomboniere: 'Bomboniere',
   sucos: 'Sucos e Refrigerantes',
-  bebidas: 'Bebidas',
+  bebidas: 'Sucos e Refrigerantes',
   alcoolicas: 'Bebidas Alcoólicas',
   vinhos: 'Vinhos',
   limpeza: 'Limpeza',
@@ -29,7 +29,7 @@ function getCategory(productName) {
   if (/cafe|pao|bolacha|biscoito|padaria/.test(name)) return 'padaria';
   if (/vinho/.test(name)) return 'vinhos';
   if (/cerveja|vinho|whisky|vodka|gin|rum|tequila|licor|conhaque|espumante|alcool/.test(name)) return 'alcoolicas';
-  if (/coca|refrigerante|suco|bebida/.test(name)) return 'bebidas';
+  if (/coca|refrigerante|suco|bebida/.test(name)) return 'sucos';
   if (/detergente|sabao|amaciante|veja|omo|limpeza|agua sanitaria/.test(name)) return 'limpeza';
   if (/racao|pet|cachorro|gato/.test(name)) return 'pet';
   if (/arroz|feijao|macarrao|farinha|acucar|molho/.test(name)) return 'mercearia';

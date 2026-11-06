@@ -3,6 +3,7 @@ import path from 'node:path';
 import { prisma } from '../../../lib/prisma.js';
 import { parseShelfLifeDays } from './inventory-lots.js';
 import { publicProductImage } from './product-image-url.js';
+import { normalizeProductMainCategories } from '../product-organization.js';
 import { serializePublicProductRecord } from './public-product-record.js';
 
 const productsFile = path.join(process.cwd(), 'data', 'products.json');
@@ -10,7 +11,12 @@ const productsFile = path.join(process.cwd(), 'data', 'products.json');
 export async function readLegacyProducts({ strict = false } = {}) {
   try {
     const products = JSON.parse(await fs.readFile(productsFile, 'utf8'));
-    return Array.isArray(products) ? products : [];
+    return Array.isArray(products)
+      ? products.map((product) => ({
+        ...product,
+        categories: normalizeProductMainCategories(product.categories),
+      }))
+      : [];
   } catch (error) {
     if (strict) throw error;
     return [];
@@ -46,7 +52,7 @@ export function serializeProduct(record) {
     blingSyncError: record.blingSyncError || '',
     blingSyncedAt: record.blingSyncedAt?.toISOString() || null,
     expiry: record.expiry?.toISOString() || '',
-    categories: record.categories || [],
+    categories: normalizeProductMainCategories(record.categories),
     createdBy: record.createdBy || '',
     createdAt: record.createdAt?.toISOString() || null,
     updatedAt: record.updatedAt?.toISOString() || null,
@@ -72,7 +78,7 @@ export function serializeErpProductListRecord(record) {
     image: record.image || '',
     imageHash: record.imageHash || '',
     status: record.status,
-    categories: record.categories || [],
+    categories: normalizeProductMainCategories(record.categories),
   };
   product.image = publicProductImage(product);
   delete product.imageHash;
@@ -125,6 +131,7 @@ export async function getErpProductList(client = prisma) {
     const listProduct = serializeErpProductListRecord({
       ...product,
       externalId: product.id,
+      categories: normalizeProductMainCategories(product.categories),
       metadata: {
         barcodes: product.barcodes,
         saleUnit: product.saleUnit,
@@ -183,7 +190,10 @@ export async function getPublicProductCatalog(client = prisma) {
     console.error('Não foi possível carregar o catálogo público persistido:', error);
   }
 
-  const legacyProducts = await readLegacyProducts();
+  const legacyProducts = (await readLegacyProducts()).map((product) => ({
+    ...product,
+    categories: normalizeProductMainCategories(product.categories),
+  }));
   const productsById = new Map(legacyProducts.map((product) => [String(product.id), product]));
   databaseProducts.forEach((product) => productsById.set(String(product.id), product));
   return [...productsById.values()];

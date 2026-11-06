@@ -8,7 +8,7 @@ import {
   loyaltyMissionRuleOptions,
   loyaltyPointExpiryOptions,
 } from '@/features/loyalty/mission-rules.js';
-import { loyaltyMissionDestinationOptions } from '@/features/loyalty/mission-destinations.js';
+import { canonicalizeLoyaltyMissionDestinationPath, loyaltyMissionDestinationOptions } from '@/features/loyalty/mission-destinations.js';
 import { couponBenefitOptions, getCouponBenefitLabel } from '@/features/coupons/coupon-benefits.js';
 
 const currencyFormatter = new Intl.NumberFormat('pt-BR', { style: 'currency', currency: 'BRL' });
@@ -141,7 +141,7 @@ export default function LoyaltyPage() {
       targetAmount: String(Number(mission.targetAmount) || 0),
       targetCount: String(mission.targetCount),
       category: mission.category || '',
-      destinationPath: mission.destinationPath || '',
+      destinationPath: canonicalizeLoyaltyMissionDestinationPath(mission.destinationPath || ''),
       pointsReward: String(mission.pointsReward),
       rewardLimit: mission.rewardLimit === null ? '' : String(mission.rewardLimit),
       recurrence: mission.recurrence,

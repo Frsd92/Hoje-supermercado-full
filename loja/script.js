@@ -1493,8 +1493,12 @@ function inferirCategoria(nome) {
     return 'Laticínios';
   }
 
+  if (texto.includes('vinho')) return 'Vinhos';
+  if (texto.includes('cerveja') || texto.includes('whisky') || texto.includes('vodka') || texto.includes('gin') || texto.includes('rum')) {
+    return 'Bebidas Alcoólicas';
+  }
   if (texto.includes('coca') || texto.includes('refrigerante') || texto.includes('suco') || texto.includes('bebida')) {
-    return 'Bebidas';
+    return 'Sucos e Refrigerantes';
   }
 
   if (texto.includes('arroz') || texto.includes('feijão') || texto.includes('macarrão') || texto.includes('açúcar') || texto.includes('farinha') || texto.includes('tempero')) {
@@ -1939,8 +1943,12 @@ function adicionarCategoriasProdutos(cards = document.querySelectorAll('.product
       categoria = 'Verdura';
     } else if (nomeNormalizado.includes('leite') || nomeNormalizado.includes('queijo') || nomeNormalizado.includes('iogurte') || nomeNormalizado.includes('latic')) {
       categoria = 'Laticínios';
-    } else if (nomeNormalizado.includes('coca') || nomeNormalizado.includes('refrigerante') || nomeNormalizado.includes('suco') || nomeNormalizado.includes('bebida') || nomeNormalizado.includes('cerveja') || nomeNormalizado.includes('vinho')) {
-      categoria = 'Bebidas';
+    } else if (nomeNormalizado.includes('vinho')) {
+      categoria = 'Vinhos';
+    } else if (nomeNormalizado.includes('cerveja') || nomeNormalizado.includes('whisky') || nomeNormalizado.includes('vodka') || nomeNormalizado.includes('gin') || nomeNormalizado.includes('rum')) {
+      categoria = 'Bebidas Alcoólicas';
+    } else if (nomeNormalizado.includes('coca') || nomeNormalizado.includes('refrigerante') || nomeNormalizado.includes('suco') || nomeNormalizado.includes('bebida')) {
+      categoria = 'Sucos e Refrigerantes';
     } else if (nomeNormalizado.includes('arroz') || nomeNormalizado.includes('feijão') || nomeNormalizado.includes('macarrão') || nomeNormalizado.includes('farinha') || nomeNormalizado.includes('açúcar') || nomeNormalizado.includes('molho')) {
       categoria = 'Mercearia';
     } else if (nomeNormalizado.includes('detergente') || nomeNormalizado.includes('sabão') || nomeNormalizado.includes('amaciante') || nomeNormalizado.includes('veja') || nomeNormalizado.includes('omo') || nomeNormalizado.includes('limpeza') || nomeNormalizado.includes('água sanitária')) {
@@ -2518,6 +2526,7 @@ function normalizarCatalogo(valor) {
 function chaveCategoriaLoja(valor) {
   const chave = normalizarCatalogo(valor).trim().replace(/[\s_-]+/g, '');
   if (['pet', 'pets', 'petshop', 'petshops'].includes(chave)) return 'petshop';
+  if (chave === 'bebidas' || chave === 'sucoserefrigerantes') return 'sucos';
   if (chave === 'bebidasalcoolicas') return 'alcoolicas';
   return chave;
 }

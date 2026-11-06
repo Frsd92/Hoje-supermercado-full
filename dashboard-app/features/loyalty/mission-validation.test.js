@@ -4,7 +4,10 @@ import {
   validateLoyaltyMissionPayload,
   validateLoyaltyRewardPayload,
 } from './mission-validation.js';
-import { getLoyaltyMissionDestinationHref } from './mission-destinations.js';
+import {
+  canonicalizeLoyaltyMissionDestinationPath,
+  getLoyaltyMissionDestinationHref,
+} from './mission-destinations.js';
 
 const baseMission = {
   name: 'Compras da semana',
@@ -43,6 +46,18 @@ test('validates optional store destinations and defaults the customer action to 
     () => validateLoyaltyMissionPayload({ ...baseMission, destinationPath: 'https://example.com' }),
     /página de destino válida/,
   );
+});
+
+test('migrates the former beverage destination to Sucos e Refrigerantes', () => {
+  const legacyDestination = '/categoria.html?categoria=bebidas';
+  const currentDestination = '/categoria.html?categoria=sucos';
+
+  assert.equal(canonicalizeLoyaltyMissionDestinationPath(legacyDestination), currentDestination);
+  assert.equal(
+    validateLoyaltyMissionPayload({ ...baseMission, destinationPath: legacyDestination }).destinationPath,
+    currentDestination,
+  );
+  assert.equal(getLoyaltyMissionDestinationHref(legacyDestination), currentDestination);
 });
 
 test('accepts, clears, and preserves optional mission thumbnails', () => {

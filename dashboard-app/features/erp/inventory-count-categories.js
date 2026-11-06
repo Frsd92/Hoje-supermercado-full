@@ -84,6 +84,11 @@ export function getInventoryCountCategory(product) {
   const isBeverageCategory = matchesTerm([primaryCategory], [
     'bebida',
     'bebidas',
+    'sucos e refrigerantes',
+    'suco',
+    'sucos',
+    'agua',
+    'aguas',
     'bebida sem alcool',
     'bebidas sem alcool',
     'bebida nao alcoolica',

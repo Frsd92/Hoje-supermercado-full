@@ -6,14 +6,14 @@ import { useCallback, useEffect, useRef, useState } from 'react';
 import { formatAuditValue } from '../api/product-audit.js';
 import { normalizeProductBarcode } from '../api/product-barcode-lookup.js';
 import { normalizeProductCest } from '../api/product-cest.js';
-import { getProductOrganizationError, normalizeProductOrganizationValue, usesHortifrutiOrganization } from '../product-organization.js';
+import { getProductOrganizationError, normalizeProductMainCategories, normalizeProductOrganizationValue, usesHortifrutiOrganization } from '../product-organization.js';
+import { productCategoryGroups, productMainCategories } from '../product-categories.js';
 import { calculateProductPricing, formatBRL, parseBRL, parsePercent, priceFromMarkup, roundMoney } from './product-pricing.js';
 import { encodeProductImage } from './product-image.js';
 
-const categories = ['Hortifruti', 'Açougue', 'Padaria', 'Mercearia', 'Bebidas', 'Vinhos', 'Bebidas Alcoólicas', 'Cervejas', 'Produtos de Limpeza', 'Lavanderia', 'Pet Shop', 'Higiene Pessoal', 'Bomboniere', 'Laticínios', 'Bebês'];
 const emptyProduct = { title: '', description: '', price: '', cost: '', promotionalPrice: '', discount: '', profitMarginPercent: '', profitMarginValue: '', markupPercent: '', suggestedMarkup: '', priceType: 'Normal', featuredPriceTypes: [], barcodes: [], barcode: '', sku: '', ncm: '', cest: '', expiry: '', lot: '', manufactureDate: '', controlsLot: false, controlsExpiry: false, minimumShelfLife: '', serialNumber: '', quantity: '0', minStock: '0', maxStock: '', location: '', weight: '', height: '', width: '', length: '', packageWeight: '', packageType: '', transportUnit: '', fragile: false, refrigerated: false, frozen: false, roomTemperature: true, specialCare: false, saleUnit: 'Unidade', fractionalSale: false, brand: '', manufacturer: '', supplier: '', suppliers: [], categories: [], department: '', subcategory: '', tags: [], collection: '', productType: '', perishable: false, seasonal: false, exclusive: false, promotionStart: '', promotionEnd: '', promotionLimit: '', promotionStock: '', promotionType: '', image: '', status: 'Ativo' };
-const markupSuggestions = { 'Mercearia': '20% a 35%', 'Cervejas': '15% a 25%', 'Bebidas': '30% a 45%', 'Laticínios': '25% a 40%', 'Bebidas Alcoólicas': '40% a 60%', 'Vinhos': '50% a 80%', 'Bomboniere': '45% a 65%', 'Açougue': '35% a 55%', 'Hortifruti': '55% a 80%', 'Padaria': '100% a 150%', 'Produtos de Limpeza': '35% a 45%', 'Lavanderia': '25% a 35%', 'Higiene Pessoal': '35% a 50%', 'Bebês': '15% a 30%', 'Pet Shop': '35% a 55%' };
-const markupStrategy = { 'Mercearia': 'Giro alto e preço competitivo.', 'Cervejas': 'Produto isca e volume.', 'Bebidas': 'Giro alto e custo de refrigeração.', 'Laticínios': 'Giro rápido e validade rigorosa.', 'Bebidas Alcoólicas': 'Menor giro e maior valor agregado.', 'Vinhos': 'Experiência de compra e maior valor.', 'Bomboniere': 'Compra por impulso.', 'Açougue': 'Cobre operação, energia e quebra.', 'Hortifruti': 'Protege contra desperdício.', 'Padaria': 'Cobre transformação e mão de obra.', 'Produtos de Limpeza': 'Giro médio e concorrência moderada.', 'Lavanderia': 'Marcas fortes e alta comparação.', 'Higiene Pessoal': 'Concorrência e giro médios.', 'Bebês': 'Produto ímã, margem competitiva.', 'Pet Shop': 'Ração gira; acessórios têm maior margem.' };
+const markupSuggestions = { 'Mercearia': '20% a 35%', 'Cervejas': '15% a 25%', 'Sucos e Refrigerantes': '30% a 45%', 'Água': '20% a 35%', 'Laticínios': '25% a 40%', 'Bebidas Alcoólicas': '40% a 60%', 'Vinhos': '50% a 80%', 'Bomboniere': '45% a 65%', 'Açougue': '35% a 55%', 'Hortifruti': '55% a 80%', 'Padaria': '100% a 150%', 'Produtos de Limpeza': '35% a 45%', 'Lavanderia': '25% a 35%', 'Higiene Pessoal': '35% a 50%', 'Bebês': '15% a 30%', 'Pet Shop': '35% a 55%' };
+const markupStrategy = { 'Mercearia': 'Giro alto e preço competitivo.', 'Cervejas': 'Produto isca e volume.', 'Sucos e Refrigerantes': 'Giro alto e custo de refrigeração.', 'Água': 'Categoria de giro alto e margem competitiva.', 'Laticínios': 'Giro rápido e validade rigorosa.', 'Bebidas Alcoólicas': 'Menor giro e maior valor agregado.', 'Vinhos': 'Experiência de compra e maior valor.', 'Bomboniere': 'Compra por impulso.', 'Açougue': 'Cobre operação, energia e quebra.', 'Hortifruti': 'Protege contra desperdício.', 'Padaria': 'Cobre transformação e mão de obra.', 'Produtos de Limpeza': 'Giro médio e concorrência moderada.', 'Lavanderia': 'Marcas fortes e alta comparação.', 'Higiene Pessoal': 'Concorrência e giro médios.', 'Bebês': 'Produto ímã, margem competitiva.', 'Pet Shop': 'Ração gira; acessórios têm maior margem.' };
 const isKilogramSaleUnit = (value) => /^(kg|quilo|quilograma)s?$/i.test(String(value || '').trim());
 const auditFieldLabels = { title: 'Nome', description: 'Descrição', price: 'Preço', cost: 'Custo', discount: 'Desconto', quantity: 'Estoque', sku: 'SKU', barcode: 'Código de barras', barcodes: 'Códigos de barras', ncm: 'NCM', cest: 'CEST', brand: 'Marca', manufacturer: 'Fabricante', supplier: 'Fornecedor', suppliers: 'Fornecedores', subcategory: 'Categoria', categories: 'Categorias', image: 'Imagem', status: 'Status', expiry: 'Validade', shelfLifeDays: 'Prazo padrão de validade (dias)', saleUnit: 'Unidade de venda', priceHistory: 'Histórico de preços', createdAt: 'Criado em', createdBy: 'Criado por', updatedAt: 'Atualizado em', updatedBy: 'Atualizado por' };
 const auditActionLabels = { CREATE: 'Produto cadastrado', UPDATE: 'Produto atualizado', DELETE: 'Produto excluído', LEGACY_BASELINE: 'Snapshot inicial legado', LEGACY_PRICE_HISTORY: 'Registro legado de preço' };
@@ -27,6 +27,7 @@ export default function ERPProductsPage() {
   const [retryingBling, setRetryingBling] = useState(false);
   const [createdProductReference, setCreatedProductReference] = useState('');
   const [activeTab, setActiveTab] = useState('Geral');
+  const [categorySearch, setCategorySearch] = useState('');
   const [newBarcode, setNewBarcode] = useState('');
   const [barcodeSearch, setBarcodeSearch] = useState('');
   const [barcodeLookupStatus, setBarcodeLookupStatus] = useState('idle');
@@ -53,6 +54,14 @@ export default function ERPProductsPage() {
   const barcodeLookupController = useRef(null);
   const lastBarcodeLookup = useRef('');
   const isEditing = Boolean(editId);
+  const normalizedCategorySearch = normalizeProductOrganizationValue(categorySearch);
+  const filteredCategoryGroups = productCategoryGroups
+    .map((group) => ({
+      ...group,
+      categories: group.categories.filter((category) => normalizeProductOrganizationValue(category).includes(normalizedCategorySearch)),
+    }))
+    .filter((group) => group.categories.length > 0);
+  const visibleCategoryCount = filteredCategoryGroups.reduce((total, group) => total + group.categories.length, 0);
   const update = (key, value) => setProduct((current) => {
     const next = { ...current, [key]: value };
     const cost = parseBRL(key === 'cost' ? value : current.cost);
@@ -200,7 +209,12 @@ export default function ERPProductsPage() {
       setNcmBusy(false);
     }
   };
-  const toggleCategory = (category) => update('categories', product.categories.includes(category) ? product.categories.filter((item) => item !== category) : [...product.categories, category]);
+  const toggleCategory = (category) => {
+    const currentCategories = normalizeProductMainCategories(product.categories);
+    update('categories', currentCategories.includes(category)
+      ? currentCategories.filter((item) => item !== category)
+      : [...currentCategories, category]);
+  };
   const togglePriceType = (type) => update('featuredPriceTypes', product.featuredPriceTypes.includes(type) ? product.featuredPriceTypes.filter((item) => item !== type) : [...product.featuredPriceTypes, type]);
   const addListValue = (key, value, clear) => { const normalized = String(value || '').trim(); if (!normalized) return; update(key, [...new Set([...(product[key] || []), normalized])]); clear(''); };
   const removeListValue = (key, value) => setProduct((current) => {
@@ -356,7 +370,7 @@ export default function ERPProductsPage() {
           && normalizeProductOrganizationValue(savedProduct.subcategory) === 'hortifruti'
           ? savedProduct.productType || ''
           : savedProduct.subcategory || '';
-        setProduct({ ...emptyProduct, ...savedProduct, subcategory, saleUnit, fractionalSale: saleUnit === 'Quilograma', price: formatBRL(savedPrice), cost: formatBRL(savedCost), promotionalPrice: savedProduct.promotionalPrice ? formatBRL(savedProduct.promotionalPrice) : '', markupPercent: savedMarkup === '' ? '' : Number(savedMarkup).toFixed(2), discount: String(savedProduct.discount ?? 0), quantity: String(savedProduct.quantity ?? 0), categories: savedProduct.categories || [], barcodes: savedProduct.barcodes || (savedProduct.barcode ? [savedProduct.barcode] : []), featuredPriceTypes: savedProduct.featuredPriceTypes || [], tags: savedProduct.tags || [], suppliers: savedProduct.suppliers || [] });
+        setProduct({ ...emptyProduct, ...savedProduct, subcategory, saleUnit, fractionalSale: saleUnit === 'Quilograma', price: formatBRL(savedPrice), cost: formatBRL(savedCost), promotionalPrice: savedProduct.promotionalPrice ? formatBRL(savedProduct.promotionalPrice) : '', markupPercent: savedMarkup === '' ? '' : Number(savedMarkup).toFixed(2), discount: String(savedProduct.discount ?? 0), quantity: String(savedProduct.quantity ?? 0), categories: normalizeProductMainCategories(savedProduct.categories), barcodes: savedProduct.barcodes || (savedProduct.barcode ? [savedProduct.barcode] : []), featuredPriceTypes: savedProduct.featuredPriceTypes || [], tags: savedProduct.tags || [], suppliers: savedProduct.suppliers || [] });
         setBlingSync({ status: savedProduct.blingSyncStatus || 'not_synced', error: savedProduct.blingSyncError || '' });
       })
       .catch((error) => {
@@ -561,8 +575,22 @@ export default function ERPProductsPage() {
           <h2>Organização</h2>
           <div className="editor-form-grid three">{field('Departamento', 'department', 'text', { placeholder: 'Ex.: Hortifruti', required: requiresHortifrutiOrganization })}{field('Categoria (ex.: Fruta)', 'subcategory', 'text', { placeholder: 'Ex.: Fruta', required: requiresHortifrutiOrganization })}{field('Coleção', 'collection')}{field('Tipo de produto', 'productType')}{field('Fornecedor principal', 'supplier')}{field('Status', 'status')}</div>
           {requiresHortifrutiOrganization && <p className="product-organization-help"><strong>Organização de Hortifruti:</strong> selecione Hortifruti em Categorias, preencha Departamento como Hortifruti e informe uma categoria específica, como Fruta ou Verdura. Esse campo define o rótulo exibido no produto.</p>}
-          <p className="editor-hint">Categorias principais</p>
-          <div className="category-checklist">{categories.map((category) => <label key={category}><input type="checkbox" checked={product.categories.includes(category)} onChange={() => toggleCategory(category)} /> {category}</label>)}</div>
+          <div className="organization-category-header">
+            <div><h3>Categorias principais</h3><p>Organize por departamento e marca. Você pode selecionar mais de uma opção.</p></div>
+            <label htmlFor="product-category-search">Buscar categoria
+              <input id="product-category-search" type="search" value={categorySearch} onChange={(event) => setCategorySearch(event.target.value)} placeholder="Ex.: Hortifruti, Nestlé" />
+            </label>
+          </div>
+          <p className="organization-category-count" role="status" aria-live="polite">
+            {product.categories.length} selecionada(s) · {visibleCategoryCount} de {productMainCategories.length} opções
+          </p>
+          <div className="organization-category-groups" role="group" aria-label="Categorias principais">
+            {filteredCategoryGroups.map((group) => <fieldset className="organization-category-group" key={group.id}>
+              <legend>{group.label}</legend>
+              <div className="category-checklist">{group.categories.map((category) => <label key={category}><input type="checkbox" checked={product.categories.includes(category)} onChange={() => toggleCategory(category)} /> <span>{category}</span></label>)}</div>
+            </fieldset>)}
+            {visibleCategoryCount === 0 && <p className="organization-category-empty" role="status">Nenhuma categoria encontrada. Tente outro termo.</p>}
+          </div>
         </section>
       </>}
       {activeTab === 'Fiscal' && <section className="editor-card">

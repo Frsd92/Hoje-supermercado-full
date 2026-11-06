@@ -1,3 +1,5 @@
+import { normalizeProductMainCategories } from '../product-organization.js';
+
 export function serializePublicProductRecord(record) {
   const metadata = record.metadata && typeof record.metadata === 'object' && !Array.isArray(record.metadata)
     ? record.metadata
@@ -10,7 +12,7 @@ export function serializePublicProductRecord(record) {
     price: Number(record.price),
     discount: Number(record.discount) || 0,
     status: record.status,
-    categories: record.categories || [],
+    categories: normalizeProductMainCategories(record.categories),
     brand: record.brand || '',
     subcategory: record.subcategory || '',
     image: record.image || '',

@@ -7,6 +7,18 @@ export function normalizeProductOrganizationValue(value) {
     .toLowerCase();
 }
 
+export function normalizeProductMainCategory(value) {
+  const category = String(value || '').trim();
+  return normalizeProductOrganizationValue(category) === 'bebidas'
+    ? 'Sucos e Refrigerantes'
+    : category;
+}
+
+export function normalizeProductMainCategories(categories) {
+  if (!Array.isArray(categories)) return [];
+  return [...new Set(categories.map(normalizeProductMainCategory).filter(Boolean))];
+}
+
 export function usesHortifrutiOrganization(product) {
   const hasHortifrutiCategory = Array.isArray(product?.categories)
     && product.categories.some((category) => normalizeProductOrganizationValue(category) === 'hortifruti');
