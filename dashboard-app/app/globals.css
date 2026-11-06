@@ -7850,7 +7850,7 @@ button.metric-mini:focus-visible {
 .product-pricing-grid > label { min-width: 0; }
 .editor-card label.editor-field-with-badge { gap: 6px; }
 .editor-field-heading { display: flex; min-height: 28px; justify-content: space-between; align-items: center; gap: 5px; }
-.editor-field-heading > span:first-child { min-width: 0; }
+.editor-field-heading > span:first-child { min-width: 0; white-space: nowrap; }
 .editor-field-heading .bling-field-badge { flex: 0 0 auto; margin: 0; padding: 2px 6px; font-size: .58rem; white-space: nowrap; }
 .product-pricing-help { margin: 7px 0 0; color: #64748b; font-size: .7rem; line-height: 1.5; }
 .product-pricing-card .effective-price-note { grid-template-columns: minmax(0, 1fr) auto; align-items: center; margin: 18px 0 0; border: 1px solid #bfdbfe; }

@@ -520,13 +520,15 @@ export default function ERPProductsPage() {
   const calculatedFields = ['profitMarginPercent', 'profitMarginValue'];
   const requiresHortifrutiOrganization = usesHortifrutiOrganization(product);
   const blingBadgeLabels = { confirmed: 'Confirmado no Bling', pending: 'Pendente no Bling', divergent: 'Divergente no Bling', missing: 'Não informado' };
-  const renderBlingFieldBadge = (fieldKey, value) => {
+  const compactBlingBadgeLabels = { confirmed: 'Confirmado', pending: 'Pendente', divergent: 'Divergente', missing: 'Não informado' };
+  const renderBlingFieldBadge = (fieldKey, value, compact = false) => {
     const comparableValue = fieldKey === 'price' ? parseBRL(value) : value;
     const status = getBlingFieldSyncStatus(blingSync.verifiedData, fieldKey, comparableValue);
-    return <span className={`bling-field-badge ${status}`} title={status === 'confirmed' ? 'O valor foi relido e confirmado no Bling.' : undefined}>{blingBadgeLabels[status]}</span>;
+    const accessibleLabel = blingBadgeLabels[status];
+    return <span className={`bling-field-badge ${status}`} aria-label={accessibleLabel} title={status === 'confirmed' ? 'O valor foi relido e confirmado no Bling.' : accessibleLabel}>{compact ? compactBlingBadgeLabels[status] : accessibleLabel}</span>;
   };
   const field = (label, key, type = 'text', inputProps = {}) => <label className={['title', 'price'].includes(key) ? 'editor-field-with-badge' : undefined}>{['title', 'price'].includes(key)
-    ? <span className="editor-field-heading"><span>{label}</span>{renderBlingFieldBadge(key, product[key])}</span>
+    ? <span className="editor-field-heading"><span>{label}</span>{renderBlingFieldBadge(key, product[key], true)}</span>
     : label}<input {...inputProps} type={type === 'currency' ? 'text' : type} inputMode={inputProps.inputMode || (type === 'currency' ? 'decimal' : undefined)} value={product[key] ?? ''} readOnly={Boolean(inputProps.readOnly) || calculatedFields.includes(key)} onChange={(event) => {
     const value = event.target.value;
     if (key === 'promotionalPrice') updatePromotionalPrice(value);
