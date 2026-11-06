@@ -1630,8 +1630,8 @@ body {
   box-shadow: 0 10px 18px rgba(26, 122, 60, 0.05);
 }
 
-.categories-bar a.has-active-flash-offers [data-lucide],
-.categories-menu a.has-active-flash-offers [data-lucide] {
+.categories-bar a.has-active-flash-offers:not(.offer-animation-paused) [data-lucide],
+.categories-menu a.has-active-flash-offers:not(.offer-animation-paused) [data-lucide] {
   color: #e29b00;
 }
 
@@ -1641,8 +1641,8 @@ body {
   transform-origin: center;
 }
 
-.categories-bar a.has-active-day-offers [data-lucide],
-.categories-menu a.has-active-day-offers [data-lucide] {
+.categories-bar a.has-active-day-offers:not(.offer-animation-paused) [data-lucide],
+.categories-menu a.has-active-day-offers:not(.offer-animation-paused) [data-lucide] {
   color: #dc2626;
 }
 
