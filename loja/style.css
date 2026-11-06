@@ -1630,6 +1630,18 @@ body {
   box-shadow: 0 10px 18px rgba(26, 122, 60, 0.05);
 }
 
+.categories-bar a.has-active-flash-offers [data-lucide],
+.categories-menu a.has-active-flash-offers [data-lucide] {
+  color: #e29b00;
+  animation: flash-offer-zap-pulse .48s ease-in-out infinite;
+  transform-origin: center;
+}
+
+@keyframes flash-offer-zap-pulse {
+  0%, 100% { opacity: 1; transform: scale(1); }
+  50% { opacity: .35; transform: scale(1.2); }
+}
+
 .all-categories {
   background: linear-gradient(135deg, #1a7a3c 0%, #0f5a2c 100%);
   color: white;
@@ -4828,6 +4840,13 @@ body {
 }
 
 @media (prefers-reduced-motion: reduce) {
+  .categories-bar a.has-active-flash-offers [data-lucide],
+  .categories-menu a.has-active-flash-offers [data-lucide] {
+    animation: none;
+    opacity: 1;
+    transform: none;
+  }
+
   .btn-finalizar::before {
     animation: none;
   }

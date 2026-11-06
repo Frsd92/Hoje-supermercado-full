@@ -186,6 +186,11 @@ async function loadCategory() {
     )).sort((first, second) => getTimestamp(first.flashOfferEndsAt) - getTimestamp(second.flashOfferEndsAt))
     : products.filter((product) => product.categories?.some((item) => categoryKey(item) === categoryKey(category))
       || categoryKey(product.department || '') === categoryKey(category));
+  const hasActiveFlashOffers = products.some((product) => (
+    product.flashOfferActive === true
+    && getTimestamp(product.flashOfferEndsAt) > Date.now()
+  ));
+  window.setFlashOfferNavigationActive?.(hasActiveFlashOffers);
 
   const container = document.getElementById('category-products');
   filteredProducts.forEach((product) => {

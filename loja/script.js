@@ -2762,6 +2762,16 @@ function renderProductBadges(product) {
   return badges.length ? `<div class="product-badges" aria-label="Destaques do produto">${badges.join('')}</div>` : '';
 }
 
+function setFlashOfferNavigationActive(active) {
+  document.querySelectorAll('a[href*="categoria=ofertas-relampago"]').forEach((link) => {
+    link.classList.toggle('has-active-flash-offers', active);
+    if (active) link.setAttribute('aria-label', 'Ofertas Relâmpago, ofertas ativas');
+    else link.removeAttribute('aria-label');
+  });
+}
+
+window.setFlashOfferNavigationActive = setFlashOfferNavigationActive;
+
 function renderProductDepartmentBadge(product) {
   const department = String(product.department || '').trim();
   if (!department) return '';
@@ -2904,6 +2914,7 @@ function renderFlashOfferPanel(products) {
     && Number.isFinite(Date.parse(product.flashOfferEndsAt))
     && Date.parse(product.flashOfferEndsAt) > now
   ));
+  setFlashOfferNavigationActive(activeOffers.length > 0);
   const scheduledOffers = products.filter((product) => (
     Number.isFinite(Date.parse(product.flashOfferScheduledStart))
     && Date.parse(product.flashOfferScheduledStart) > now
