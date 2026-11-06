@@ -138,21 +138,25 @@ function matchingDuplicate(product, products, excludedId = '') {
 }
 
 async function saveProduct(product, { actor, action, before = null }) {
-  try {
-    await validateChangedProductNcm(product, before);
-  } catch (error) {
-    error.status = 422;
-    throw error;
+  const ncmValidation = await validateChangedProductNcm(product, before);
+  if (ncmValidation.status === 'pending') {
+    console.warn('O produto será salvo com a validação do NCM pendente porque a tabela oficial está indisponível.');
   }
-  const externalId = String(product.id || '').trim();
-  const data = productDatabaseData(product);
-  const keys = productIdentityKeys(product);
+  const productToSave = {
+    ...product,
+    ncmValidationStatus: ncmValidation.status === 'unchanged'
+      ? product.ncmValidationStatus || before?.ncmValidationStatus || 'pending'
+      : ncmValidation.status,
+  };
+  const externalId = String(productToSave.id || '').trim();
+  const data = productDatabaseData(productToSave);
+  const keys = productIdentityKeys(productToSave);
   return prisma.$transaction(async (transaction) => {
     const existing = externalId
       ? await transaction.product.findFirst({ where: { OR: [{ externalId }, { id: externalId }] } })
       : null;
     if (existing) {
-      const submittedQuantity = inventoryQuantityMilliUnits(product.quantity);
+      const submittedQuantity = inventoryQuantityMilliUnits(productToSave.quantity);
       const currentQuantity = inventoryQuantityMilliUnits(existing.quantity);
       if (submittedQuantity === null || submittedQuantity !== currentQuantity) {
         throw new InventoryQuantityMismatchError();
@@ -205,12 +209,12 @@ async function saveProduct(product, { actor, action, before = null }) {
     if (!existing && Number(data.quantity) > 0) {
       const initialLot = await addInventoryLot(transaction, {
         productId: saved.id,
-        lotCode: product.lot,
+        lotCode: productToSave.lot,
         quantity: data.quantity,
-        expiry: product.expiry,
-        manufactureDate: product.manufactureDate,
-        shelfLifeDays: product.expiryMode === 'days' ? product.shelfLifeDays : null,
-        location: product.location,
+        expiry: productToSave.expiry,
+        manufactureDate: productToSave.manufactureDate,
+        shelfLifeDays: productToSave.expiryMode === 'days' ? productToSave.shelfLifeDays : null,
+        location: productToSave.location,
         actor,
         source: 'OPENING_STOCK',
         sourceReference: 'product-registration',
@@ -234,7 +238,7 @@ async function saveProduct(product, { actor, action, before = null }) {
         })),
       });
     }
-    const auditedProduct = { ...serializeProduct(saved), id: product.id || saved.id };
+    const auditedProduct = { ...serializeProduct(saved), id: productToSave.id || saved.id };
     const changes = auditBefore
       ? getProductAuditChanges(auditBefore, auditedProduct)
       : undefined;
@@ -730,9 +734,10 @@ export async function POST(request) {
   }
   const duplicate = matchingDuplicate(savedProduct, await getProductCatalog());
   if (duplicate) return Response.json({ error: duplicate.message }, { status: 409, headers: corsHeaders(request) });
+  let savedProductRecord;
   try {
-    const saved = await saveProduct(savedProduct, { actor, action: 'CREATE' });
-    savedProduct.blingSync = await syncSavedProduct(saved.id);
+    savedProductRecord = await saveProduct(savedProduct, { actor, action: 'CREATE' });
+    savedProduct.blingSync = await syncSavedProduct(savedProductRecord.id);
   } catch (error) {
     console.error('Não foi possível salvar o produto no catálogo:', error);
     if (error?.status === 422) return Response.json({ error: error.message }, { status: 422, headers: corsHeaders(request) });
@@ -742,6 +747,7 @@ export async function POST(request) {
     if (error?.code === 'P2002') return Response.json({ error: 'Já existe um produto com estes dados. Abra o cadastro existente para editá-lo.' }, { status: 409, headers: corsHeaders(request) });
     return Response.json({ error: 'Não foi possível salvar o produto. Verifique a conexão com o banco de dados.' }, { status: 500, headers: corsHeaders(request) });
   }
+  savedProduct.ncmValidationStatus = savedProductRecord.metadata?.ncmValidationStatus || 'not_applicable';
   return Response.json({ product: savedProduct }, { status: 201, headers: corsHeaders(request) });
 }
 
@@ -841,9 +847,10 @@ export async function PUT(request) {
   };
   const duplicate = matchingDuplicate(savedProduct, await readLegacyProducts(), productId);
   if (duplicate) return Response.json({ error: duplicate.message }, { status: 409, headers: corsHeaders(request) });
+  let savedProductRecord;
   try {
-    const saved = await saveProduct(savedProduct, { actor, action: 'UPDATE', before: currentProduct });
-    savedProduct.blingSync = await syncSavedProduct(saved.id);
+    savedProductRecord = await saveProduct(savedProduct, { actor, action: 'UPDATE', before: currentProduct });
+    savedProduct.blingSync = await syncSavedProduct(savedProductRecord.id);
   } catch (error) {
     console.error('Não foi possível atualizar o produto no catálogo:', error);
     if (error?.status === 422) return Response.json({ error: error.message }, { status: 422, headers: corsHeaders(request) });
@@ -853,6 +860,7 @@ export async function PUT(request) {
     if (error?.code === 'P2002') return Response.json({ error: 'Já existe um produto com estes dados. Abra o cadastro existente para editá-lo.' }, { status: 409, headers: corsHeaders(request) });
     return Response.json({ error: 'Não foi possível atualizar o produto. Verifique a conexão com o banco de dados.' }, { status: 500, headers: corsHeaders(request) });
   }
+  savedProduct.ncmValidationStatus = savedProductRecord.metadata?.ncmValidationStatus || 'not_applicable';
   return Response.json({ product: savedProduct }, { headers: corsHeaders(request) });
 }
 

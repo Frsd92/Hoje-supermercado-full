@@ -50,11 +50,15 @@ export default function RegisterLotPage() {
       setProducts(data.products);
 
       const requestedProductId = new URLSearchParams(window.location.search).get('productId');
+      const ncmValidationPending = new URLSearchParams(window.location.search).get('ncmValidation') === 'pending';
       if (requestedProductId) {
         const product = data.products.find((item) => item.id === requestedProductId || item.externalId === requestedProductId);
         if (!product) throw new Error('O produto informado não foi encontrado. Selecione outro produto para registrar o lote.');
         setLotForm(createEmptyLotForm(product));
         setProductSearch(product.title);
+        if (ncmValidationPending) {
+          setFeedback('Produto salvo, mas o NCM ainda não pôde ser verificado na tabela oficial. Confira o código e valide novamente quando a consulta estiver disponível.');
+        }
       }
     } catch (loadError) {
       console.error('Não foi possível carregar os produtos para registrar o lote:', loadError);

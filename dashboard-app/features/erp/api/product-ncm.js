@@ -64,7 +64,7 @@ export async function fetchOfficialNcmTable(fetcher = fetch) {
     try {
       const response = await fetcher(officialNcmUrl, {
         headers: { Accept: 'application/json' },
-        next: { revalidate: 86_400 },
+        cache: 'no-store',
         signal: AbortSignal.timeout(15_000),
       });
       if (!response.ok) {
@@ -98,15 +98,24 @@ export async function validateActiveNcm(value) {
     : { valid: false, code, description: '', error: 'Este código não consta como vigente na tabela oficial da NCM.' };
 }
 
-export async function validateChangedProductNcm(product, before) {
+export async function validateChangedProductNcm(product, before, validate = validateActiveNcm) {
   const code = String(product.ncm || '').trim();
-  if (!code || code === String(before?.ncm || '').trim()) return;
-  const result = await validateActiveNcm(code);
+  if (!code) return { status: 'not_applicable' };
+  if (code === String(before?.ncm || '').trim()) return { status: 'unchanged' };
+
+  let result;
+  try {
+    result = await validate(code);
+  } catch (error) {
+    if (error?.status === 502) return { status: 'pending' };
+    throw error;
+  }
   if (!result.valid) {
     const error = new Error(result.error);
     error.status = 422;
     throw error;
   }
+  return { status: 'verified' };
 }
 
 export const officialNcmSourceUrl = officialNcmUrl;

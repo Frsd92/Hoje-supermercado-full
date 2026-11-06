@@ -444,6 +444,9 @@ export default function ERPProductsPage() {
       const response = await fetch('/api/products', { method: isEditing ? 'PUT' : 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ ...product, cest, fractionalSale: product.saleUnit === 'Quilograma', price, cost, promotionalPrice, profitMarginPercent: effectivePrice > 0 ? Number(((profitMarginValue / effectivePrice) * 100).toFixed(2)) : 0, profitMarginValue, markupPercent, barcodes: productBarcodes, barcode: productBarcodes[0] || '', discount, quantity: isEditing ? Number(product.quantity || 0) : 0 }) });
       const data = await response.json();
       if (!response.ok) throw new Error(data.error || 'Não foi possível salvar o produto.');
+      const ncmPendingWarning = data.product?.ncmValidationStatus === 'pending'
+        ? 'Produto salvo, mas o NCM ainda não pôde ser verificado na tabela oficial. Confira o código e valide novamente quando a consulta estiver disponível.'
+        : '';
       const sync = data.product?.blingSync || {
         status: data.product?.blingSyncStatus || 'not_synced',
         error: data.product?.blingSyncError || '',
@@ -453,27 +456,31 @@ export default function ERPProductsPage() {
         const productReference = String(data.product?.id || '').trim();
         if (productReference) {
           if (sync.status === 'synced') {
-            window.location.assign(`/erp/registrar-lote?productId=${encodeURIComponent(productReference)}`);
+            const lotRegistrationUrl = new URL('/erp/registrar-lote', window.location.origin);
+            lotRegistrationUrl.searchParams.set('productId', productReference);
+            if (ncmPendingWarning) lotRegistrationUrl.searchParams.set('ncmValidation', 'pending');
+            window.location.assign(lotRegistrationUrl.toString());
             return;
           }
           setCreatedProductReference(productReference);
           setProduct(emptyProduct);
-          setFeedback(sync.error
+          setFeedback([sync.error
             ? `Produto cadastrado no Hoje, mas a sincronização com o Bling não foi concluída: ${sync.error}`
-            : 'Produto cadastrado no Hoje. A sincronização com o Bling ainda não foi confirmada.');
+            : 'Produto cadastrado no Hoje. A sincronização com o Bling ainda não foi confirmada.', ncmPendingWarning].filter(Boolean).join(' '));
           return;
         }
         setProduct(emptyProduct);
-        setFeedback('Produto cadastrado. Acesse Registrar lote para informar o estoque inicial.');
+        setFeedback(['Produto cadastrado. Acesse Registrar lote para informar o estoque inicial.', ncmPendingWarning].filter(Boolean).join(' '));
         return;
       }
       setProduct((current) => ({ ...current, ...data.product, price: formatBRL(data.product.price), cost: formatBRL(data.product.cost), promotionalPrice: formatBRL(data.product.promotionalPrice ?? data.product.price) }));
       setAuditRefresh((current) => current + 1);
-      setFeedback(['synced', 'partial'].includes(sync.status)
+      const syncFeedback = ['synced', 'partial'].includes(sync.status)
         ? sync.error
           ? `Produto atualizado. Sincronização parcial com o Bling: ${sync.error}`
           : 'Produto atualizado e sincronizado com o Bling.'
-        : `Produto atualizado no Hoje, mas a sincronização com o Bling não foi concluída: ${sync.error || 'verifique o status e tente novamente.'}`);
+        : `Produto atualizado no Hoje, mas a sincronização com o Bling não foi concluída: ${sync.error || 'verifique o status e tente novamente.'}`;
+      setFeedback([syncFeedback, ncmPendingWarning].filter(Boolean).join(' '));
     } catch (error) {
       setFeedback(error.message || 'Não foi possível salvar o produto.');
     } finally {

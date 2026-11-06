@@ -40,6 +40,41 @@ test('rejects invalid changed product NCM values and skips unchanged values', as
   await validateChangedProductNcm({ ncm: '' }, { ncm: '01012100' });
 });
 
+test('allows saving a changed NCM as pending when the official source is unavailable', async () => {
+  const validation = await validateChangedProductNcm(
+    { ncm: '01012100' },
+    null,
+    async () => {
+      const error = new Error('Official NCM source unavailable');
+      error.status = 502;
+      throw error;
+    },
+  );
+
+  assert.deepEqual(validation, { status: 'pending' });
+});
+
+test('still rejects a changed NCM explicitly reported as inactive', async () => {
+  await assert.rejects(
+    validateChangedProductNcm(
+      { ncm: '01012100' },
+      null,
+      async () => ({ valid: false, error: 'NCM inativo' }),
+    ),
+    (error) => error.status === 422 && error.message === 'NCM inativo',
+  );
+});
+
+test('marks a changed NCM verified when the official validator confirms it', async () => {
+  const validation = await validateChangedProductNcm(
+    { ncm: '01012100' },
+    null,
+    async () => ({ valid: true }),
+  );
+
+  assert.deepEqual(validation, { status: 'verified' });
+});
+
 test('retries transient failures from the official NCM source', async () => {
   let attempts = 0;
   const result = await fetchOfficialNcmTable(async () => {
@@ -50,6 +85,17 @@ test('retries transient failures from the official NCM source', async () => {
 
   assert.equal(attempts, 2);
   assert.equal(result, table);
+});
+
+test('does not cache temporary responses from the official NCM source', async () => {
+  let requestOptions;
+  await fetchOfficialNcmTable(async (_url, options) => {
+    requestOptions = options;
+    return { ok: true, json: async () => table };
+  });
+
+  assert.equal(requestOptions.cache, 'no-store');
+  assert.equal('next' in requestOptions, false);
 });
 
 test('does not retry permanent client errors from the official NCM source', async () => {
