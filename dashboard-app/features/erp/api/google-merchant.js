@@ -56,6 +56,20 @@ function productOfferId(product) {
   return `hj-${createHash('sha256').update(String(product.id)).digest('hex').slice(0, 40)}`;
 }
 
+export function normalizeMerchantProductInput(input) {
+  const attributes = input?.productAttributes;
+  if (!attributes || !Object.hasOwn(attributes, 'gtin')) return input;
+
+  const { gtin, ...remainingAttributes } = attributes;
+  return {
+    ...input,
+    productAttributes: {
+      ...remainingAttributes,
+      ...(remainingAttributes.gtins || !gtin ? {} : { gtins: [gtin] }),
+    },
+  };
+}
+
 export function mapMerchantProduct(product, { storeUrl, now = Date.now() } = {}) {
   if (product.status !== 'Ativo') return { skipReason: 'Produto inativo no catálogo.' };
   if (!String(product.id || '').trim()) return { skipReason: 'Produto sem identificador estável no catálogo.' };
@@ -181,7 +195,7 @@ async function merchantRequest(config, token, pathname, { method = 'GET', body }
       Authorization: `Bearer ${token}`,
       ...(body ? { 'Content-Type': 'application/json' } : {}),
     },
-    ...(body ? { body: JSON.stringify(body) } : {}),
+    ...(body ? { body: JSON.stringify(normalizeMerchantProductInput(body)) } : {}),
     cache: 'no-store',
   });
   const responseBody = response.status === 204 ? '' : await response.text();

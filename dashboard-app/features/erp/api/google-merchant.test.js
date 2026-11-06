@@ -1,6 +1,6 @@
 import assert from 'node:assert/strict';
 import test from 'node:test';
-import { mapMerchantProduct, validateGtin } from './google-merchant.js';
+import { mapMerchantProduct, normalizeMerchantProductInput, validateGtin } from './google-merchant.js';
 
 const validProduct = {
   id: 'product-123',
@@ -59,4 +59,20 @@ test('skips products with invalid GTIN instead of sending a misleading identifie
   }, { storeUrl: 'https://www.hojesupermercado.com.br' });
 
   assert.match(mapped.skipReason, /Código de barras inválido/);
+});
+
+test('normalizes legacy singular GTIN before sending a Merchant product input', () => {
+  const normalized = normalizeMerchantProductInput({
+    offerId: 'legacy-product',
+    productAttributes: {
+      title: 'Produto legado',
+      gtin: '4006381333931',
+    },
+  });
+
+  assert.deepEqual(normalized.productAttributes, {
+    title: 'Produto legado',
+    gtins: ['4006381333931'],
+  });
+  assert.equal('gtin' in normalized.productAttributes, false);
 });
