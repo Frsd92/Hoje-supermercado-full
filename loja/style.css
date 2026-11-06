@@ -1637,7 +1637,7 @@ body {
 
 .categories-bar a.has-active-flash-offers:not(.offer-animation-paused) [data-lucide],
 .categories-menu a.has-active-flash-offers:not(.offer-animation-paused) [data-lucide] {
-  animation: offer-icon-pulse 2.4s ease-in-out infinite;
+  animation: offer-icon-pulse 1.4s ease-in-out infinite;
   transform-origin: center;
 }
 
@@ -1648,13 +1648,13 @@ body {
 
 .categories-bar a.has-active-day-offers:not(.offer-animation-paused) [data-lucide],
 .categories-menu a.has-active-day-offers:not(.offer-animation-paused) [data-lucide] {
-  animation: offer-icon-pulse 2.4s ease-in-out infinite;
+  animation: offer-icon-pulse 1.4s ease-in-out infinite;
   transform-origin: center;
 }
 
 @keyframes offer-icon-pulse {
   0%, 100% { opacity: 1; transform: scale(1); }
-  50% { opacity: .78; transform: scale(1.06); }
+  50% { opacity: .58; transform: scale(1.14); }
 }
 
 .all-categories {
