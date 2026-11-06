@@ -6,6 +6,7 @@ import { useCallback, useEffect, useRef, useState } from 'react';
 import { formatAuditValue } from '../api/product-audit.js';
 import { normalizeProductBarcode } from '../api/product-barcode-lookup.js';
 import { normalizeProductCest } from '../api/product-cest.js';
+import { getBlingFieldSyncStatus } from '../api/bling-product-verification.js';
 import { getProductOrganizationError, normalizeProductMainCategories, normalizeProductOrganizationValue, usesHortifrutiOrganization } from '../product-organization.js';
 import { productCategoryGroups, productMainCategories } from '../product-categories.js';
 import { calculateProductPricing, formatBRL, parseBRL, parsePercent, priceFromMarkup, roundMoney } from './product-pricing.js';
@@ -371,7 +372,11 @@ export default function ERPProductsPage() {
           ? savedProduct.productType || ''
           : savedProduct.subcategory || '';
         setProduct({ ...emptyProduct, ...savedProduct, subcategory, saleUnit, fractionalSale: saleUnit === 'Quilograma', price: formatBRL(savedPrice), cost: formatBRL(savedCost), promotionalPrice: savedProduct.promotionalPrice ? formatBRL(savedProduct.promotionalPrice) : '', markupPercent: savedMarkup === '' ? '' : Number(savedMarkup).toFixed(2), discount: String(savedProduct.discount ?? 0), quantity: String(savedProduct.quantity ?? 0), categories: normalizeProductMainCategories(savedProduct.categories), barcodes: savedProduct.barcodes || (savedProduct.barcode ? [savedProduct.barcode] : []), featuredPriceTypes: savedProduct.featuredPriceTypes || [], tags: savedProduct.tags || [], suppliers: savedProduct.suppliers || [] });
-        setBlingSync({ status: savedProduct.blingSyncStatus || 'not_synced', error: savedProduct.blingSyncError || '' });
+        setBlingSync({
+          status: savedProduct.blingSyncStatus || 'not_synced',
+          error: savedProduct.blingSyncError || '',
+          verifiedData: savedProduct.blingSyncVerifiedData || null,
+        });
       })
       .catch((error) => {
         if (error.name !== 'AbortError') setFeedback(error.message || 'Não foi possível carregar o produto.');
@@ -450,8 +455,9 @@ export default function ERPProductsPage() {
       const sync = data.product?.blingSync || {
         status: data.product?.blingSyncStatus || 'not_synced',
         error: data.product?.blingSyncError || '',
+        verifiedData: data.product?.blingSyncVerifiedData || null,
       };
-      setBlingSync(sync);
+      setBlingSync((current) => ({ ...sync, verifiedData: sync.verifiedData ?? current.verifiedData ?? null }));
       if (!isEditing) {
         const productReference = String(data.product?.id || '').trim();
         if (productReference) {
@@ -496,7 +502,7 @@ export default function ERPProductsPage() {
       const data = await response.json();
       if (!response.ok && !data.sync) throw new Error(data.error || 'Não foi possível sincronizar o produto.');
       const sync = data.sync;
-      setBlingSync(sync);
+      setBlingSync((current) => ({ ...sync, verifiedData: sync.verifiedData ?? current.verifiedData ?? null }));
       setFeedback(['synced', 'partial'].includes(sync.status)
         ? sync.error
           ? `Sincronização parcial concluída: ${sync.error}`
@@ -513,7 +519,13 @@ export default function ERPProductsPage() {
   const priceTypes = ['Promoção', 'Oferta', 'Clube Hoje', 'Super Hoje'];
   const calculatedFields = ['profitMarginPercent', 'profitMarginValue'];
   const requiresHortifrutiOrganization = usesHortifrutiOrganization(product);
-  const field = (label, key, type = 'text', inputProps = {}) => <label>{label}<input {...inputProps} type={type === 'currency' ? 'text' : type} inputMode={inputProps.inputMode || (type === 'currency' ? 'decimal' : undefined)} value={product[key] ?? ''} readOnly={Boolean(inputProps.readOnly) || calculatedFields.includes(key)} onChange={(event) => {
+  const blingBadgeLabels = { confirmed: 'Confirmado no Bling', pending: 'Pendente no Bling', divergent: 'Divergente no Bling', missing: 'Não informado' };
+  const renderBlingFieldBadge = (fieldKey, value) => {
+    const comparableValue = fieldKey === 'price' ? parseBRL(value) : value;
+    const status = getBlingFieldSyncStatus(blingSync.verifiedData, fieldKey, comparableValue);
+    return <span className={`bling-field-badge ${status}`} title={status === 'confirmed' ? 'O valor foi relido e confirmado no Bling.' : undefined}>{blingBadgeLabels[status]}</span>;
+  };
+  const field = (label, key, type = 'text', inputProps = {}) => <label>{label}{['title', 'price'].includes(key) && renderBlingFieldBadge(key, product[key])}<input {...inputProps} type={type === 'currency' ? 'text' : type} inputMode={inputProps.inputMode || (type === 'currency' ? 'decimal' : undefined)} value={product[key] ?? ''} readOnly={Boolean(inputProps.readOnly) || calculatedFields.includes(key)} onChange={(event) => {
     const value = event.target.value;
     if (key === 'promotionalPrice') updatePromotionalPrice(value);
     else update(key, value);
@@ -562,6 +574,7 @@ export default function ERPProductsPage() {
           <label>Descrição<textarea value={product.description} onChange={(event) => update('description', event.target.value)} rows="4" /></label>
           <div className="editor-form-grid three">
             <label>SKU
+              {renderBlingFieldBadge('sku', product.sku)}
               <div className="editor-inline">
                 <input value={product.sku || ''} onChange={(event) => update('sku', event.target.value)} placeholder="Informe manualmente ou gere um código" />
                 <button type="button" className="editor-link" onClick={generateSku}><Barcode size={15} /> Gerar SKU</button>
@@ -577,6 +590,7 @@ export default function ERPProductsPage() {
             <button type="button" className="editor-link" onClick={() => addListValue('barcodes', newBarcode, setNewBarcode)}><Plus size={15} /> Adicionar</button>
           </div>
           <div className="editor-chip-list">{product.barcodes.map((code) => <span key={code}>{code}<button type="button" onClick={() => removeListValue('barcodes', code)} aria-label={`Remover código ${code}`}><Trash2 size={13} /></button></span>)}</div>
+          {renderBlingFieldBadge('barcode', product.barcodes?.[0] || product.barcode)}
         </section>
         <section className="editor-card">
           <h2>Organização</h2>
@@ -605,6 +619,7 @@ export default function ERPProductsPage() {
         <p className="editor-hint">Informe o NCM confirmado para este produto. A validação consulta a tabela vigente oficial do Siscomex/Classif; a descrição ajuda a conferir, mas não substitui a classificação do contador.</p>
         <div className="editor-form-grid">
           <label>NCM
+            {renderBlingFieldBadge('ncm', product.ncm)}
             <input
               value={product.ncm || ''}
               onChange={(event) => {
@@ -700,7 +715,7 @@ export default function ERPProductsPage() {
         <h2>Sincronização com Bling</h2>
         <p className="editor-hint">Ao salvar o produto, o ERP envia o cadastro para a conta Bling conectada. A autorização do usuário precisa incluir acesso a Produtos.</p>
         {isEditing && <div className={`product-bling-sync-status ${blingSync.status}`} role="status">
-          <strong>Status: {blingSync.status === 'synced' ? 'Sincronizado' : blingSync.status === 'partial' ? 'Parcial' : blingSync.status === 'syncing' ? 'Sincronizando' : blingSync.status === 'uncertain' ? 'Resultado incerto' : 'Pendente / falhou'}</strong>
+          <strong>Status: {['synced', 'partial'].includes(blingSync.status) && !blingSync.verifiedData ? 'Aguardando confirmação' : blingSync.status === 'synced' ? 'Confirmado no Bling' : blingSync.status === 'partial' ? 'Parcial / confira os campos' : blingSync.status === 'syncing' ? 'Sincronizando' : blingSync.status === 'uncertain' ? 'Resultado incerto' : 'Pendente / falhou'}</strong>
           {blingSync.error && <span>{blingSync.error}</span>}
           <button type="button" className="editor-link" onClick={() => void retryBlingSync()} disabled={retryingBling || blingSync.status === 'syncing'}>
             {retryingBling ? 'Sincronizando…' : blingSync.status === 'uncertain' ? 'Verificar no Bling' : 'Sincronizar novamente'}

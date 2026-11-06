@@ -167,6 +167,7 @@ model Product {
   blingSyncError       String?
   blingSyncedAt        DateTime?
   blingSyncStartedAt   DateTime?
+  blingSyncVerifiedData Json?
   createdAt            DateTime              @default(now())
   updatedAt            DateTime              @updatedAt
   favorites            Favorite[]

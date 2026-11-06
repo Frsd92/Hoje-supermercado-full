@@ -8001,6 +8001,11 @@ button.metric-mini:focus-visible {
 .product-bling-sync-status { display: flex; flex-direction: column; align-items: flex-start; gap: 8px; padding: 12px; border: 1px solid #d1d5db; border-radius: 8px; }
 .product-bling-sync-status.synced { border-color: #86efac; background: #f0fdf4; }
 .product-bling-sync-status.partial, .product-bling-sync-status.failed, .product-bling-sync-status.uncertain { border-color: #fca5a5; background: #fef2f2; }
+.bling-field-badge { display: inline-flex; width: fit-content; margin: 4px 0; padding: 3px 7px; border: 1px solid #cbd5e1; border-radius: 999px; background: #f8fafc; color: #475569; font-size: .65rem; font-weight: 700; line-height: 1.3; }
+.bling-field-badge.confirmed, .bling-field-badge.synced { border-color: #86efac; background: #f0fdf4; color: #166534; }
+.bling-field-badge.pending, .bling-field-badge.syncing { border-color: #fcd34d; background: #fffbeb; color: #92400e; }
+.bling-field-badge.divergent, .bling-field-badge.partial, .bling-field-badge.failed, .bling-field-badge.uncertain { border-color: #fca5a5; background: #fef2f2; color: #991b1b; }
+.product-catalog-identity > span:last-child > .bling-field-badge { display: flex; margin-top: 6px; }
 .erp-customers-page { max-width: 1320px; margin: 0 auto; }
 .erp-customer-header { display: flex; justify-content: space-between; align-items: flex-end; gap: 16px; margin-bottom: 18px; }
 .erp-customer-header h1 { margin: 7px 0 4px; }

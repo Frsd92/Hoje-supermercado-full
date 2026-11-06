@@ -51,6 +51,7 @@ export function serializeProduct(record) {
     blingSyncStatus: record.blingSyncStatus || 'not_synced',
     blingSyncError: record.blingSyncError || '',
     blingSyncedAt: record.blingSyncedAt?.toISOString() || null,
+    blingSyncVerifiedData: record.blingSyncVerifiedData || null,
     expiry: record.expiry?.toISOString() || '',
     categories: normalizeProductMainCategories(record.categories),
     createdBy: record.createdBy || '',
@@ -78,6 +79,9 @@ export function serializeErpProductListRecord(record) {
     image: record.image || '',
     imageHash: record.imageHash || '',
     status: record.status,
+    blingSyncStatus: record.blingSyncStatus || 'not_synced',
+    blingSyncError: record.blingSyncError || '',
+    blingSyncVerifiedData: record.blingSyncVerifiedData || null,
     categories: normalizeProductMainCategories(record.categories),
   };
   product.image = publicProductImage(product);
@@ -115,6 +119,9 @@ export async function getErpProductList(client = prisma) {
       "status",
       "categories",
       "metadata",
+      "blingSyncStatus",
+      "blingSyncError",
+      "blingSyncVerifiedData",
       CASE
         WHEN "image" ~* '^data:image/(png|jpeg|webp);base64,' THEN ''
         ELSE COALESCE("image", '')

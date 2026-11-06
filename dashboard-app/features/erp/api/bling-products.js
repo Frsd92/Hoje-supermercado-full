@@ -2,6 +2,7 @@ import 'server-only';
 import { prisma } from '@/lib/prisma';
 import { blingRequest, BlingIntegrationError } from './bling.js';
 import { buildBlingProductPayload } from './bling-product-payload.js';
+import { verifyBlingProductPayload } from './bling-product-verification.js';
 import { validateActiveNcm } from './product-ncm.js';
 
 const maximumBlingErrorLength = 500;
@@ -26,6 +27,7 @@ async function persistSyncResult(productId, update) {
       blingSyncStatus: true,
       blingSyncError: true,
       blingSyncedAt: true,
+      blingSyncVerifiedData: true,
     },
   });
 }
@@ -68,7 +70,8 @@ export async function syncProductToBling(productId) {
     };
   }
 
-  let createAccepted = false;
+  let mutationAccepted = false;
+  let resolvedBlingProductId = product.blingProductId || null;
   try {
     const origin = process.env.NEXTAUTH_URL || process.env.BLING_REDIRECT_URI || '';
     let payloadData;
@@ -114,18 +117,29 @@ export async function syncProductToBling(productId) {
         method: 'POST',
         body: JSON.stringify(payload),
       });
-      createAccepted = true;
     }
+    mutationAccepted = true;
     blingProductId = result?.data?.id || blingProductId;
+    resolvedBlingProductId = blingProductId || resolvedBlingProductId;
     if (!blingProductId) {
       const matches = await findBlingProductByCode(code);
       if (matches.length === 1) blingProductId = matches[0].id;
+      resolvedBlingProductId = blingProductId || resolvedBlingProductId;
     }
     if (!blingProductId) {
       throw new BlingIntegrationError('O Bling aceitou a operação, mas não retornou o ID do produto. Confira o código no Bling antes de tentar novamente.', 502, { uncertain: true });
     }
 
-    const warning = warnings.join(' ');
+    const readBack = await blingRequest(`/produtos/${encodeURIComponent(blingProductId)}`);
+    if (!readBack?.data || typeof readBack.data !== 'object') {
+      throw new BlingIntegrationError('O Bling aceitou o envio, mas não retornou os dados do produto para confirmação. Confira o cadastro no Bling.', 502, { uncertain: true });
+    }
+    const { verifiedData, mismatches } = verifyBlingProductPayload(payload, readBack.data);
+    const mismatchLabels = { title: 'nome', sku: 'SKU', price: 'preço', barcode: 'código de barras', ncm: 'NCM' };
+    const verificationWarning = mismatches.length
+      ? `O Bling não confirmou: ${mismatches.map((field) => mismatchLabels[field] || field).join(', ')}.`
+      : '';
+    const warning = [warnings.join(' '), verificationWarning].filter(Boolean).join(' ');
     const status = warning ? 'partial' : 'synced';
     const saved = await persistSyncResult(product.id, {
       blingProductId: String(blingProductId),
@@ -133,26 +147,29 @@ export async function syncProductToBling(productId) {
       blingSyncError: warning,
       blingSyncedAt: new Date(),
       blingSyncStartedAt: null,
+      blingSyncVerifiedData: verifiedData,
     });
     return {
       status: saved.blingSyncStatus,
       error: saved.blingSyncError,
       blingProductId: saved.blingProductId,
       syncedAt: saved.blingSyncedAt?.toISOString() || null,
+      verifiedData: saved.blingSyncVerifiedData,
     };
   } catch (error) {
-    const uncertain = (error instanceof BlingIntegrationError && error.uncertain)
-      || (createAccepted && !product.blingProductId);
+    const uncertain = (error instanceof BlingIntegrationError && error.uncertain) || mutationAccepted;
     const message = String(error?.message || 'Não foi possível sincronizar o produto com o Bling.').slice(0, maximumBlingErrorLength);
     const saved = await persistSyncResult(product.id, {
       blingSyncStatus: uncertain ? 'uncertain' : 'failed',
       blingSyncError: message,
       blingSyncStartedAt: null,
+      ...(resolvedBlingProductId ? { blingProductId: String(resolvedBlingProductId) } : {}),
     });
     return {
       status: saved.blingSyncStatus,
       error: saved.blingSyncError,
       blingProductId: saved.blingProductId,
+      verifiedData: saved.blingSyncVerifiedData,
     };
   }
 }

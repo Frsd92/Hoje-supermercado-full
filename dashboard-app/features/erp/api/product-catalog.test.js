@@ -21,6 +21,10 @@ test('loads one product by its public ID without querying the complete catalog',
           productBarcodes: [{ code: '789123' }, { code: '789456' }],
           categories: ['Mercearia'],
           metadata: { saleUnit: 'Unidade', promotionalPrice: 10 },
+          blingProductId: 'bling-123',
+          blingSyncStatus: 'synced',
+          blingSyncError: '',
+          blingSyncVerifiedData: { fields: { ncm: '10063021' } },
           image: '/produto.webp',
           status: 'Ativo',
           expiry: null,
@@ -36,6 +40,7 @@ test('loads one product by its public ID without querying the complete catalog',
   assert.equal(product.id, 'store-product-1');
   assert.deepEqual(product.barcodes, ['789123', '789456']);
   assert.equal(product.saleUnit, 'Unidade');
+  assert.deepEqual(product.blingSyncVerifiedData, { fields: { ncm: '10063021' } });
 });
 
 test('serializes ERP list rows with public image URLs instead of inline image data', () => {
@@ -51,6 +56,9 @@ test('serializes ERP list rows with public image URLs instead of inline image da
     brand: 'Marca',
     subcategory: 'Alimentos',
     status: 'Ativo',
+    blingSyncStatus: 'partial',
+    blingSyncError: 'NCM não informado.',
+    blingSyncVerifiedData: { fields: { sku: 'SKU-1' } },
     categories: ['Mercearia'],
     metadata: { saleUnit: 'Unidade', barcodes: ['789123', '789456'] },
     image: '',
@@ -61,6 +69,8 @@ test('serializes ERP list rows with public image URLs instead of inline image da
   assert.equal(product.image, `/api/products?purpose=image&id=store-product-1&v=${'a'.repeat(32)}-webp-256-v2`);
   assert.deepEqual(product.barcodes, ['789123', '789456']);
   assert.equal(product.saleUnit, 'Unidade');
+  assert.equal(product.blingSyncStatus, 'partial');
+  assert.deepEqual(product.blingSyncVerifiedData, { fields: { sku: 'SKU-1' } });
   assert.equal('promotionalPrice' in product, false);
   assert.equal('imageHash' in product, false);
 });

@@ -48,10 +48,12 @@ const privateProductFields = new Set([
   'shelfLifeDays',
   'expiryMode',
   'blingProductId',
+  'blingSync',
   'blingSyncStatus',
   'blingSyncError',
   'blingSyncedAt',
   'blingSyncStartedAt',
+  'blingSyncVerifiedData',
 ]);
 
 function corsHeaders(request) {
@@ -71,7 +73,7 @@ function productMetadata(product) {
     'id', 'title', 'description', 'price', 'cost', 'discount', 'quantity',
     'sku', 'barcode', 'brand', 'supplier', 'subcategory', 'image', 'status',
     'expiry', 'expiryMode', 'categories', 'createdBy', 'createdAt', 'updatedAt',
-    'blingProductId', 'blingSyncStatus', 'blingSyncError', 'blingSyncedAt', 'blingSyncStartedAt',
+    'blingProductId', 'blingSync', 'blingSyncStatus', 'blingSyncError', 'blingSyncedAt', 'blingSyncStartedAt', 'blingSyncVerifiedData',
   ]) delete metadata[field];
   return metadata;
 }

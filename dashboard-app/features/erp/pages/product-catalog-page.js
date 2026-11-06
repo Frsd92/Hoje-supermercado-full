@@ -100,8 +100,20 @@ export default function ProductCatalogPage() {
           const cost = Number(product.cost) || 0;
           const margin = price > 0 ? Math.round(((price - cost) / price) * 100) : 0;
           const identity = product.id || product.sku || product.title;
+          const syncStatus = ['synced', 'partial'].includes(product.blingSyncStatus) && !product.blingSyncVerifiedData
+            ? 'pending'
+            : product.blingSyncStatus || 'not_synced';
+          const syncLabel = {
+            synced: 'Confirmado no Bling',
+            partial: 'Parcial no Bling',
+            syncing: 'Sincronizando',
+            uncertain: 'Verificar no Bling',
+            failed: 'Pendente no Bling',
+            not_synced: 'Pendente no Bling',
+            pending: 'Aguardando confirmação',
+          }[syncStatus] || 'Pendente no Bling';
           return <tr key={product.id}>
-            <td><div className="product-catalog-identity"><span className="erp-product-thumbnail">{product.image ? <img src={product.image} alt="" loading="lazy" decoding="async" /> : <Package size={18} aria-hidden="true" />}</span><span><strong>{product.title}</strong><small>{product.sku || product.id} · {product.brand || 'Sem marca'}</small></span></div></td>
+            <td><div className="product-catalog-identity"><span className="erp-product-thumbnail">{product.image ? <img src={product.image} alt="" loading="lazy" decoding="async" /> : <Package size={18} aria-hidden="true" />}</span><span><strong>{product.title}</strong><small>{product.sku || product.id} · {product.brand || 'Sem marca'}</small><span className={`bling-field-badge ${syncStatus}`} title={product.blingSyncError || undefined}>{syncLabel}</span></span></div></td>
             <td>{product.categories?.join(', ') || '—'}</td>
             <td><strong>{product.quantity || 0}{product.saleUnit === 'Quilograma' ? ' kg' : ''}</strong><small>{product.subcategory || 'Sem subcategoria'}</small></td>
             <td>{currency(cost)}{product.saleUnit === 'Quilograma' ? ' / kg' : ''}</td>
