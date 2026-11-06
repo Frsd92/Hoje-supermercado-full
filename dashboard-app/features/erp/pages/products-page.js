@@ -525,7 +525,9 @@ export default function ERPProductsPage() {
     const status = getBlingFieldSyncStatus(blingSync.verifiedData, fieldKey, comparableValue);
     return <span className={`bling-field-badge ${status}`} title={status === 'confirmed' ? 'O valor foi relido e confirmado no Bling.' : undefined}>{blingBadgeLabels[status]}</span>;
   };
-  const field = (label, key, type = 'text', inputProps = {}) => <label>{label}{['title', 'price'].includes(key) && renderBlingFieldBadge(key, product[key])}<input {...inputProps} type={type === 'currency' ? 'text' : type} inputMode={inputProps.inputMode || (type === 'currency' ? 'decimal' : undefined)} value={product[key] ?? ''} readOnly={Boolean(inputProps.readOnly) || calculatedFields.includes(key)} onChange={(event) => {
+  const field = (label, key, type = 'text', inputProps = {}) => <label className={['title', 'price'].includes(key) ? 'editor-field-with-badge' : undefined}>{['title', 'price'].includes(key)
+    ? <span className="editor-field-heading"><span>{label}</span>{renderBlingFieldBadge(key, product[key])}</span>
+    : label}<input {...inputProps} type={type === 'currency' ? 'text' : type} inputMode={inputProps.inputMode || (type === 'currency' ? 'decimal' : undefined)} value={product[key] ?? ''} readOnly={Boolean(inputProps.readOnly) || calculatedFields.includes(key)} onChange={(event) => {
     const value = event.target.value;
     if (key === 'promotionalPrice') updatePromotionalPrice(value);
     else update(key, value);
@@ -723,7 +725,75 @@ export default function ERPProductsPage() {
         </div>}
         {!isEditing && <p className="editor-hint">A sincronização será tentada após o primeiro salvamento.</p>}
       </section>}
-      {activeTab === 'Preço' && <><section className="editor-card"><h2>Preços e markup</h2><div className="editor-form-grid three">{field(product.saleUnit === 'Quilograma' ? 'Custo por kg' : 'Custo de compra', 'cost', 'currency')}{field(product.saleUnit === 'Quilograma' ? 'Preço de venda por kg' : 'Preço de venda', 'price', 'currency')}{field(product.saleUnit === 'Quilograma' ? 'Preço promocional por kg' : 'Preço promocional', 'promotionalPrice', 'currency')}{field('Desconto (%)', 'discount', 'number')}{field('Margem de lucro (%)', 'profitMarginPercent', 'number')}{field('Margem de lucro (R$)', 'profitMarginValue', 'currency')}{field('Markup (%)', 'markupPercent', 'text', { inputMode: 'decimal' })}</div><div className="effective-price-note">Preço efetivo considerado: <strong>{product.effectivePrice || 'informe os preços'}</strong><small>Usa o preço promocional quando informado; caso contrário, usa o preço de venda.</small></div><p className="editor-hint">O markup calcula automaticamente: custo de compra × (1 + markup ÷ 100) = preço de venda. Promoção e desconto atualizam a margem com base no preço efetivo.</p><div className="markup-suggestion"><strong>Sugestão para {selectedSuggestionCategory || 'a categoria selecionada'}</strong><span>Markup sugerido: {product.suggestedMarkup || 'selecione uma categoria'}</span><small>{markupStrategy[selectedSuggestionCategory] || 'Escolha uma categoria para receber uma referência de precificação.'}</small></div><label>Tipo de preço<select value={product.priceType} onChange={(event) => update('priceType', event.target.value)}><option>Normal</option>{priceTypes.map((type) => <option key={type}>{type}</option>)}</select></label><div className="product-classification-guide"><p><strong>Tipo de preço:</strong> classifica a estratégia comercial. Ele, sozinho, não altera o valor nem cria um selo na loja.</p><p><strong>Tipos de vitrine:</strong> definem os selos que aparecem no card do produto.</p><ul><li><strong>Oferta:</strong> selo no card, carrossel “Ofertas em destaque” e página de ofertas.</li><li><strong>Promoção, Clube Hoje e Super Hoje:</strong> exibem os respectivos selos no card.</li></ul></div><p className="editor-hint">Tipos de vitrine — selecione todos os selos que devem aparecer no produto.</p><div className="price-type-bubbles">{priceTypes.map((type) => <button type="button" key={type} className={product.featuredPriceTypes.includes(type) ? 'active' : ''} onClick={() => togglePriceType(type)}>{type}</button>)}</div></section><section className="editor-card"><h2>Promoção</h2><div className="editor-form-grid three">{field('Data inicial', 'promotionStart', 'date')}{field('Data final', 'promotionEnd', 'date')}{field('Limite por cliente', 'promotionLimit', 'number')}{field('Estoque promocional', 'promotionStock', 'number')}{field('Tipo de promoção', 'promotionType')}</div></section></>}
+      {activeTab === 'Preço' && <>
+        <section className="editor-card product-pricing-card" aria-labelledby="product-pricing-heading">
+          <header className="product-pricing-heading">
+            <div>
+              <h2 id="product-pricing-heading">Preços e markup</h2>
+              <p>Defina o custo e os valores de venda. Margem e preço efetivo são calculados automaticamente.</p>
+            </div>
+            <span className="product-pricing-auto-label"><Check size={14} aria-hidden="true" /> Cálculos automáticos</span>
+          </header>
+          <section className="product-pricing-group" aria-labelledby="product-pricing-values-heading">
+            <h3 id="product-pricing-values-heading">Valores do produto</h3>
+            <div className="product-pricing-grid">
+              {field(product.saleUnit === 'Quilograma' ? 'Custo por kg' : 'Custo de compra', 'cost', 'currency')}
+              {field(product.saleUnit === 'Quilograma' ? 'Preço de venda por kg' : 'Preço de venda', 'price', 'currency')}
+              {field(product.saleUnit === 'Quilograma' ? 'Preço promocional por kg' : 'Preço promocional', 'promotionalPrice', 'currency')}
+            </div>
+          </section>
+          <section className="product-pricing-group" aria-labelledby="product-pricing-margin-heading">
+            <h3 id="product-pricing-margin-heading">Desconto e rentabilidade</h3>
+            <div className="product-pricing-grid secondary">
+              {field('Desconto (%)', 'discount', 'number', { min: '0', max: '100', step: '0.01', 'aria-describedby': 'product-discount-help' })}
+              {field('Margem de lucro (%)', 'profitMarginPercent', 'number', { 'aria-label': 'Margem de lucro em percentual, calculada automaticamente' })}
+              {field('Margem de lucro (R$)', 'profitMarginValue', 'currency', { 'aria-label': 'Margem de lucro em reais, calculada automaticamente' })}
+              {field('Markup (%)', 'markupPercent', 'text', { inputMode: 'decimal', 'aria-describedby': 'product-markup-help' })}
+            </div>
+            <p id="product-discount-help" className="product-pricing-help">O desconto é aplicado ao preço de venda quando não há preço promocional.</p>
+          </section>
+          <div className="effective-price-note" role="status" aria-live="polite">
+            <span>Preço efetivo considerado</span>
+            <strong>{product.effectivePrice || 'Informe o custo e o preço de venda'}</strong>
+            <small>É o valor usado para calcular a margem e enviar o preço ao Bling.</small>
+          </div>
+          <p id="product-markup-help" className="product-pricing-help">
+            Markup é calculado sobre o custo: custo × (1 + markup ÷ 100) = preço de venda. Ao alterar o preço manualmente, o markup é atualizado.
+          </p>
+          <div className="markup-suggestion" role="note">
+            <strong>Sugestão para {selectedSuggestionCategory || 'a categoria selecionada'}</strong>
+            <span>Markup sugerido: {product.suggestedMarkup || 'selecione uma categoria'}</span>
+            <small>{markupStrategy[selectedSuggestionCategory] || 'Escolha uma categoria para receber uma referência de precificação.'}</small>
+          </div>
+          <div className="product-pricing-group product-showcase-group">
+            <h3>Vitrine e classificação</h3>
+            <label>Tipo de preço
+              <select value={product.priceType} onChange={(event) => update('priceType', event.target.value)}>
+                <option>Normal</option>{priceTypes.map((type) => <option key={type}>{type}</option>)}
+              </select>
+            </label>
+            <div className="product-classification-guide">
+              <p><strong>Tipo de preço:</strong> classifica a estratégia comercial, mas não cria sozinho um selo na loja.</p>
+              <p><strong>Selos da vitrine:</strong> escolha os que devem aparecer no card do produto.</p>
+              <ul><li><strong>Oferta:</strong> aparece no card, no carrossel de ofertas e na página de ofertas.</li><li><strong>Promoção, Clube Hoje e Super Hoje:</strong> exibem os selos correspondentes no card.</li></ul>
+            </div>
+            <div className="price-type-bubbles" role="group" aria-label="Selos de preço para a vitrine">
+              {priceTypes.map((type) => <button type="button" key={type} className={product.featuredPriceTypes.includes(type) ? 'active' : ''} aria-pressed={product.featuredPriceTypes.includes(type)} onClick={() => togglePriceType(type)}>{type}</button>)}
+            </div>
+          </div>
+        </section>
+        <section className="editor-card product-promotion-card">
+          <h2>Período e limites da promoção</h2>
+          <p className="editor-hint">Opcional. Defina quando a promoção vale e quais limites se aplicam.</p>
+          <div className="editor-form-grid three">
+            {field('Data inicial', 'promotionStart', 'date')}
+            {field('Data final', 'promotionEnd', 'date')}
+            {field('Limite por cliente', 'promotionLimit', 'number')}
+            {field('Estoque promocional', 'promotionStock', 'number')}
+            {field('Tipo de promoção', 'promotionType')}
+          </div>
+        </section>
+      </>}
       {activeTab === 'Estoque' && <><section className="editor-card">
         <h2>Estoque e rastreabilidade</h2>
         <div className="editor-form-grid three">
