@@ -31,7 +31,8 @@ test('maps an active product with stable offer ID, canonical URLs, stock and sal
   assert.equal(mapped.input.productAttributes.availability, 'IN_STOCK');
   assert.deepEqual(mapped.input.productAttributes.price, { amountMicros: '10000000', currencyCode: 'BRL' });
   assert.deepEqual(mapped.input.productAttributes.salePrice, { amountMicros: '8000000', currencyCode: 'BRL' });
-  assert.equal(mapped.input.productAttributes.gtin, '4006381333931');
+  assert.deepEqual(mapped.input.productAttributes.gtins, ['4006381333931']);
+  assert.equal('gtin' in mapped.input.productAttributes, false);
   assert.equal(mapped.input.productAttributes.link, 'https://www.hojesupermercado.com.br/produto?id=product-123');
   assert.equal(mapped.input.productAttributes.imageLink, 'https://www.hojesupermercado.com.br/imagens/produtos/produto.webp');
 });
@@ -47,6 +48,7 @@ test('maps empty stock as out of stock and omits unavailable identifiers', () =>
   assert.equal(mapped.input.productAttributes.availability, 'OUT_OF_STOCK');
   assert.equal(mapped.input.productAttributes.identifierExists, false);
   assert.equal('gtin' in mapped.input.productAttributes, false);
+  assert.equal('gtins' in mapped.input.productAttributes, false);
   assert.equal('salePrice' in mapped.input.productAttributes, false);
 });
 

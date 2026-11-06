@@ -100,7 +100,7 @@ export function mapMerchantProduct(product, { storeUrl, now = Date.now() } = {})
   };
   if (salePrice < price) attributes.salePrice = priceAttribute(salePrice);
   if (product.brand) attributes.brand = String(product.brand).trim();
-  if (barcode) attributes.gtin = barcode.replace(/\D/g, '');
+  if (barcode) attributes.gtins = [barcode.replace(/\D/g, '')];
   else attributes.identifierExists = false;
 
   const productType = [
