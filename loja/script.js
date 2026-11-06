@@ -2762,10 +2762,47 @@ function renderProductBadges(product) {
   return badges.length ? `<div class="product-badges" aria-label="Destaques do produto">${badges.join('')}</div>` : '';
 }
 
+const offerNavigationPauseKey = 'hoje-offer-navigation-paused:';
+
+function isOfferNavigationPaused(category) {
+  try {
+    return window.sessionStorage.getItem(`${offerNavigationPauseKey}${category}`) === 'true';
+  } catch (error) {
+    console.warn('Não foi possível consultar a pausa das animações de ofertas nesta sessão:', error.message);
+    return false;
+  }
+}
+
+document.addEventListener('click', (event) => {
+  const link = event.target.closest('a[href]');
+  if (!link) return;
+
+  const category = new URL(link.href, window.location.origin).searchParams.get('categoria');
+  const activeOfferClass = category === 'ofertas'
+    ? 'has-active-day-offers'
+    : category === 'ofertas-relampago'
+      ? 'has-active-flash-offers'
+      : '';
+  if (!activeOfferClass || !link.classList.contains(activeOfferClass)) return;
+
+  try {
+    window.sessionStorage.setItem(`${offerNavigationPauseKey}${category}`, 'true');
+  } catch (error) {
+    console.warn('Não foi possível salvar a pausa da animação de oferta nesta sessão:', error.message);
+  }
+  document.querySelectorAll('a[href]').forEach((offerLink) => {
+    if (new URL(offerLink.href, window.location.origin).searchParams.get('categoria') === category) {
+      offerLink.classList.add('offer-animation-paused');
+    }
+  });
+});
+
 function setOfferNavigationActive(category, active, activeClass, label) {
+  const paused = isOfferNavigationPaused(category);
   document.querySelectorAll('a[href]').forEach((link) => {
     if (new URL(link.href, window.location.origin).searchParams.get('categoria') !== category) return;
     link.classList.toggle(activeClass, active);
+    link.classList.toggle('offer-animation-paused', paused);
     if (active) link.setAttribute('aria-label', label);
     else link.removeAttribute('aria-label');
   });
