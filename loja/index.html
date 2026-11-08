@@ -89,15 +89,26 @@
       </div>
     </div>
 
-    <div class="topbar-item login-trigger" id="login-trigger" role="button" tabindex="0" aria-label="Entrar ou abrir minha conta">
-      <i data-lucide="user"></i>
-      <div class="topbar-text">
-        <strong id="store-user-name" data-hj-suppress>Olá, faça seu login</strong>
-        <span id="store-user-status">ou cadastre-se</span>
-      </div>
-    </div>
+    <details class="store-account-menu">
+      <summary class="topbar-item login-trigger" id="login-trigger" aria-label="Entrar ou abrir minha conta">
+        <i data-lucide="user" aria-hidden="true"></i>
+        <div class="topbar-text">
+          <strong id="store-user-name" data-hj-suppress>Olá, faça seu login</strong>
+          <span id="store-user-status">ou cadastre-se</span>
+        </div>
+        <i class="store-account-chevron" data-lucide="chevron-down" aria-hidden="true"></i>
+      </summary>
+      <nav class="store-account-links" id="store-account-links" aria-label="Atalhos da minha conta" hidden>
+        <a href="/dashboard/orders"><i data-lucide="package-check" aria-hidden="true"></i>Meus pedidos</a>
+        <a href="/dashboard/addresses"><i data-lucide="map-pin" aria-hidden="true"></i>Meus endereços</a>
+        <a href="/dashboard/favorites"><i data-lucide="heart" aria-hidden="true"></i>Meus favoritos</a>
+        <a href="/dashboard/lists"><i data-lucide="list-checks" aria-hidden="true"></i>Minhas listas</a>
+        <a href="/dashboard/profile"><i data-lucide="user-round" aria-hidden="true"></i>Meu perfil</a>
+        <a href="/dashboard" class="store-account-dashboard-link" data-store-dashboard-dedicated><i data-lucide="layout-dashboard" aria-hidden="true"></i>Acesse o dashboard completo</a>
+      </nav>
+    </details>
 
-    <a class="topbar-item store-favorites-link" href="/dashboard/favorites" aria-label="Abrir meus favoritos">
+    <a class="topbar-item store-favorites-link" href="/dashboard/favorites" aria-label="Abrir meus favoritos" hidden>
       <i data-lucide="heart"></i>
       <div class="topbar-text">
         <strong>Meus favoritos</strong>
@@ -1655,6 +1666,7 @@
           <div class="social-icons footer-help-links">
             <a href="/sobre-nos.html#ajuda">Central de ajuda</a>
             <a href="/dashboard/orders">Meus pedidos</a>
+            <a href="/dashboard" data-store-dashboard-dedicated>Acesse o dashboard</a>
           </div>
 
           <div class="newsletter">

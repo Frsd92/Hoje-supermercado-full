@@ -1091,13 +1091,17 @@ async function carregarSessaoDaLoja({ atualizarDadosRelacionados = true } = {}) 
     const nameElement = document.getElementById('store-user-name');
     const statusElement = document.getElementById('store-user-status');
     const favoritesElement = document.getElementById('store-favorites-count');
+    const accountLinks = document.getElementById('store-account-links');
+    const favoritesLink = document.querySelector('.store-favorites-link');
 
     if (sessaoLoja.authenticated) {
       const primeiroNome = sessaoLoja.user?.name?.split(' ')[0] || 'cliente';
       if (nameElement) nameElement.textContent = `Olá, ${primeiroNome}`;
-      if (statusElement) statusElement.textContent = 'Abrir meu painel';
+      if (statusElement) statusElement.textContent = 'Minha conta';
       document.getElementById('login-trigger')?.classList.add('is-authenticated');
-      document.getElementById('login-trigger')?.setAttribute('aria-label', 'Abrir meu painel');
+      document.getElementById('login-trigger')?.setAttribute('aria-label', 'Abrir atalhos da minha conta');
+      if (accountLinks) accountLinks.hidden = false;
+      if (favoritesLink) favoritesLink.hidden = false;
       if (favoritesElement) favoritesElement.textContent = 'Favoritos carregando...';
     } else {
       revisaoFavoritosLoja += 1;
@@ -1106,6 +1110,9 @@ async function carregarSessaoDaLoja({ atualizarDadosRelacionados = true } = {}) 
       if (statusElement) statusElement.textContent = 'ou cadastre-se';
       document.getElementById('login-trigger')?.classList.remove('is-authenticated');
       document.getElementById('login-trigger')?.setAttribute('aria-label', 'Ir para o login do dashboard');
+      if (accountLinks) accountLinks.hidden = true;
+      document.querySelector('.store-account-menu')?.removeAttribute('open');
+      if (favoritesLink) favoritesLink.hidden = true;
       if (favoritesElement) favoritesElement.textContent = 'Entre para favoritar';
       document.querySelectorAll('.product-card').forEach((card) => {
         const button = card.querySelector('.fav-btn');
@@ -1133,6 +1140,17 @@ async function carregarSessaoDaLoja({ atualizarDadosRelacionados = true } = {}) 
   } catch (error) {
     erroSessaoDaLoja = error.message || 'Sessão indisponível.';
     sessaoLoja = { authenticated: false, user: null };
+    const nameElement = document.getElementById('store-user-name');
+    const statusElement = document.getElementById('store-user-status');
+    if (nameElement) nameElement.textContent = 'Olá, faça seu login';
+    if (statusElement) statusElement.textContent = 'ou cadastre-se';
+    document.getElementById('login-trigger')?.classList.remove('is-authenticated');
+    document.getElementById('login-trigger')?.setAttribute('aria-label', 'Ir para o login do dashboard');
+    const accountLinks = document.getElementById('store-account-links');
+    if (accountLinks) accountLinks.hidden = true;
+    document.querySelector('.store-account-menu')?.removeAttribute('open');
+    const favoritesLink = document.querySelector('.store-favorites-link');
+    if (favoritesLink) favoritesLink.hidden = true;
     checkoutMissionEmail = '';
     checkoutMissionSnapshot = null;
     atualizarPreferenciaPagamentoLoja();
@@ -1969,8 +1987,8 @@ function adicionarCategoriasProdutos(cards = document.querySelectorAll('.product
   });
 }
 
-function abrirLoginDashboard() {
-  const returnUrl = encodeURIComponent(window.location.href);
+function abrirLoginDashboard(callbackUrl = window.location.href) {
+  const returnUrl = encodeURIComponent(callbackUrl);
   const url = sessaoLoja.authenticated
     ? '/dashboard'
     : `/login?callbackUrl=${returnUrl}`;
@@ -2333,17 +2351,123 @@ function inicializarCarrinho() {
     });
   }
 
-  if (loginTrigger) {
-    loginTrigger.addEventListener('click', abrirLoginDashboard);
-    loginTrigger.addEventListener('keydown', (event) => {
-      if (event.key === 'Enter' || event.key === ' ') {
-        event.preventDefault();
-        abrirLoginDashboard();
-      }
-    });
+  let accountDialog = document.getElementById('store-account-dialog');
+  if (!accountDialog) {
+    accountDialog = document.createElement('dialog');
+    accountDialog.id = 'store-account-dialog';
+    accountDialog.className = 'store-account-dialog';
+    accountDialog.setAttribute('aria-labelledby', 'store-account-dialog-title');
+    accountDialog.innerHTML = `
+      <div class="store-account-dialog-content">
+        <header class="store-account-dialog-header">
+          <div>
+            <span class="settings-kicker">Minha conta</span>
+            <h2 id="store-account-dialog-title">Minha conta</h2>
+          </div>
+          <button id="store-account-dialog-close" class="store-account-dialog-close" type="button" aria-label="Fechar minha conta">×</button>
+        </header>
+        <iframe id="store-account-frame" title="Área da minha conta" src="about:blank" loading="lazy" referrerpolicy="strict-origin-when-cross-origin"></iframe>
+      </div>`;
+    document.body.append(accountDialog);
   }
 
-  carregarSessaoDaLoja();
+  const accountFrame = accountDialog.querySelector('#store-account-frame');
+  const accountDialogTitle = accountDialog.querySelector('#store-account-dialog-title');
+  const accountDialogClose = accountDialog.querySelector('#store-account-dialog-close');
+  const isAccountRoute = (url) => url.origin === window.location.origin
+    && (url.pathname === '/dashboard' || url.pathname.startsWith('/dashboard/'));
+  const openAccountPanel = (href, title) => {
+    const targetUrl = new URL(href, window.location.origin);
+    if (!isAccountRoute(targetUrl)) {
+      console.error('Atalho da conta aponta para uma rota inválida:', href);
+      return;
+    }
+
+    if (accountDialogTitle) accountDialogTitle.textContent = title;
+    if (accountFrame) accountFrame.src = `${targetUrl.pathname}${targetUrl.search}${targetUrl.hash}`;
+    if (!accountDialog.open) accountDialog.showModal();
+    accountDialogClose?.focus();
+    document.querySelector('.store-account-menu')?.removeAttribute('open');
+  };
+
+  if (loginTrigger) {
+    loginTrigger.addEventListener('click', (event) => {
+      if (sessaoLoja.authenticated && loginTrigger.closest('details.store-account-menu')) return;
+      event.preventDefault();
+      if (!sessaoLoja.authenticated) {
+        abrirLoginDashboard();
+        return;
+      }
+      openAccountPanel('/dashboard/orders', 'Meus pedidos');
+    });
+    if (!loginTrigger.closest('details.store-account-menu')) {
+      loginTrigger.addEventListener('keydown', (event) => {
+        if (event.key !== 'Enter' && event.key !== ' ') return;
+        event.preventDefault();
+        loginTrigger.click();
+      });
+    }
+  }
+
+  document.addEventListener('click', (event) => {
+    if (!(event.target instanceof Element)) return;
+    const link = event.target.closest('a[href]');
+    if (!link || link.hasAttribute('data-store-dashboard-dedicated')) return;
+
+    const targetUrl = new URL(link.href, window.location.origin);
+    if (targetUrl.origin !== window.location.origin
+      || (targetUrl.pathname !== '/dashboard'
+        && targetUrl.pathname !== '/dashboard/'
+        && !targetUrl.pathname.startsWith('/dashboard/'))) return;
+
+    event.preventDefault();
+    if (!sessaoLoja.authenticated) {
+      const callbackUrl = new URL(window.location.href);
+      callbackUrl.searchParams.set(
+        'storeAccount',
+        `${targetUrl.pathname}${targetUrl.search}${targetUrl.hash}`,
+      );
+      abrirLoginDashboard(callbackUrl.href);
+      return;
+    }
+    const title = link.getAttribute('aria-label') || link.textContent.trim() || 'Minha conta';
+    openAccountPanel(targetUrl.href, title);
+  });
+
+  accountDialogClose?.addEventListener('click', () => accountDialog.close());
+  accountDialog.addEventListener('close', () => {
+    if (accountFrame) accountFrame.src = 'about:blank';
+  });
+
+  const pendingAccountPath = new URLSearchParams(window.location.search).get('storeAccount');
+  if (pendingAccountPath) {
+    const pendingAccountUrl = new URL(pendingAccountPath, window.location.origin);
+    const callbackUrl = new URL(window.location.href);
+    callbackUrl.searchParams.delete('storeAccount');
+    window.history.replaceState(
+      window.history.state,
+      '',
+      `${callbackUrl.pathname}${callbackUrl.search}${callbackUrl.hash}`,
+    );
+    if (isAccountRoute(pendingAccountUrl)) {
+      void carregarSessaoDaLoja().then(() => {
+        if (!sessaoLoja.authenticated) return;
+        const pageTitle = {
+          '/dashboard/orders': 'Meus pedidos',
+          '/dashboard/addresses': 'Meus endereços',
+          '/dashboard/favorites': 'Meus favoritos',
+          '/dashboard/lists': 'Minhas listas',
+          '/dashboard/profile': 'Meu perfil',
+        }[pendingAccountUrl.pathname] || 'Minha conta';
+        openAccountPanel(pendingAccountUrl.href, pageTitle);
+      });
+    } else {
+      console.error('A conta solicitada após o login aponta para uma rota inválida:', pendingAccountPath);
+      carregarSessaoDaLoja();
+    }
+  } else {
+    carregarSessaoDaLoja();
+  }
   window.setInterval(() => {
     if (document.visibilityState === 'visible' && sessaoLoja.authenticated) carregarCarrinhoDaApi();
   }, 15000);
