@@ -1497,6 +1497,10 @@
   top: auto;
 }
 
+.store-header-shell > .topbar {
+  z-index: 1005;
+}
+
 body {
   background:
     radial-gradient(circle at top left, rgba(25, 122, 60, 0.18), transparent 20%),
