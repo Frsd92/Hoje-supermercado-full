@@ -168,44 +168,45 @@
   display: none;
 }
 
-.store-account-dialog {
-  width: min(1400px, calc(100vw - 32px));
-  height: min(900px, calc(100vh - 32px));
-  max-width: none;
-  max-height: none;
-  margin: auto;
-  padding: 0;
+.store-account-section {
+  display: flex;
+  flex: 1 1 100%;
+  flex-direction: column;
+  min-width: 0;
   overflow: hidden;
-  border: 0;
+  border: 1px solid #e0e7e2;
   border-radius: 20px;
   background: #f5f7f6;
-  box-shadow: 0 24px 80px rgba(8, 24, 15, .32);
+  box-shadow: 0 16px 40px rgba(8, 24, 15, .12);
 }
 
-.store-account-dialog::backdrop {
-  background: rgba(8, 24, 15, .62);
-  backdrop-filter: blur(4px);
+.store-account-section[hidden] {
+  display: none;
 }
 
-.store-account-dialog-content {
+.content-wrapper.store-account-view-open > .store-section-shortcuts,
+.content-wrapper.store-account-view-open > .sidebar,
+.content-wrapper.store-account-view-open > .main-content,
+.content-wrapper.store-account-view-open > .right-panel {
+  display: none;
+}
+
+.content-wrapper.store-account-view-open > .store-account-section {
+  display: flex;
+}
+
+.store-account-section-header {
   display: flex;
   width: 100%;
-  height: 100%;
-  flex-direction: column;
-}
-
-.store-account-dialog-header {
-  display: flex;
-  min-height: 76px;
   align-items: center;
   justify-content: space-between;
   gap: 20px;
-  padding: 12px 24px;
+  padding: 16px 24px;
   border-bottom: 1px solid #e0e7e2;
   background: #fff;
 }
 
-.store-account-dialog-header .settings-kicker {
+.store-account-section-header .settings-kicker {
   display: block;
   margin-bottom: 3px;
   color: #1a7a3c;
@@ -215,40 +216,39 @@
   text-transform: uppercase;
 }
 
-.store-account-dialog-header h2 {
+.store-account-section-header h1 {
+  margin: 0;
   color: #173c26;
   font-size: 18px;
 }
 
-.store-account-dialog-close {
-  display: grid;
-  width: 40px;
-  height: 40px;
+.store-account-section-back {
+  min-height: 42px;
+  padding: 0 16px;
   flex: 0 0 auto;
-  place-items: center;
-  border: 0;
-  border-radius: 50%;
+  border: 1px solid #c9d8cd;
+  border-radius: 10px;
   background: #eef4f0;
   color: #173c26;
   cursor: pointer;
-  font-size: 28px;
-  line-height: 1;
+  font: inherit;
+  font-weight: 700;
 }
 
-.store-account-dialog-close:hover,
-.store-account-dialog-close:focus-visible {
+.store-account-section-back:hover,
+.store-account-section-back:focus-visible {
   background: #dcebe1;
 }
 
-.store-account-dialog-close:focus-visible {
+.store-account-section-back:focus-visible {
   outline: 2px solid #1a7a3c;
   outline-offset: 2px;
 }
 
-.store-account-dialog iframe {
+.store-account-section iframe {
   width: 100%;
-  min-height: 0;
-  flex: 1;
+  height: min(78vh, 900px);
+  min-height: 640px;
   border: 0;
   background: #f5f7f6;
 }
@@ -2050,16 +2050,18 @@ body {
 }
 
 @media (max-width: 640px) {
-  .store-account-dialog {
-    width: 100vw;
-    height: 100vh;
-    height: 100dvh;
-    border-radius: 0;
+  .store-account-section {
+    border-radius: 14px;
   }
 
-  .store-account-dialog-header {
-    min-height: 64px;
-    padding: 10px 16px;
+  .store-account-section-header {
+    gap: 12px;
+    padding: 12px 14px;
+  }
+
+  .store-account-section iframe {
+    height: 78vh;
+    min-height: 600px;
   }
 
   .topbar {

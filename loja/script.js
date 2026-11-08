@@ -2351,43 +2351,40 @@ function inicializarCarrinho() {
     });
   }
 
-  let accountDialog = document.getElementById('store-account-dialog');
-  if (!accountDialog) {
-    accountDialog = document.createElement('dialog');
-    accountDialog.id = 'store-account-dialog';
-    accountDialog.className = 'store-account-dialog';
-    accountDialog.setAttribute('aria-labelledby', 'store-account-dialog-title');
-    accountDialog.innerHTML = `
-      <div class="store-account-dialog-content">
-        <header class="store-account-dialog-header">
-          <div>
-            <span class="settings-kicker">Minha conta</span>
-            <h2 id="store-account-dialog-title">Minha conta</h2>
-          </div>
-          <button id="store-account-dialog-close" class="store-account-dialog-close" type="button" aria-label="Fechar minha conta">×</button>
-        </header>
-        <iframe id="store-account-frame" title="Área da minha conta" src="about:blank" loading="lazy" referrerpolicy="strict-origin-when-cross-origin"></iframe>
-      </div>`;
-    document.body.append(accountDialog);
-  }
-
-  const accountFrame = accountDialog.querySelector('#store-account-frame');
-  const accountDialogTitle = accountDialog.querySelector('#store-account-dialog-title');
-  const accountDialogClose = accountDialog.querySelector('#store-account-dialog-close');
+  const accountSection = document.getElementById('store-account-section');
+  const accountSectionTitle = document.getElementById('store-account-section-title');
+  const accountSectionBack = document.getElementById('store-account-section-back');
+  const accountFrame = document.getElementById('store-account-frame');
+  const contentWrapper = document.querySelector('.content-wrapper');
   const isAccountRoute = (url) => url.origin === window.location.origin
     && (url.pathname === '/dashboard' || url.pathname.startsWith('/dashboard/'));
-  const openAccountPanel = (href, title) => {
+  const openAccountSection = (href, title) => {
     const targetUrl = new URL(href, window.location.origin);
     if (!isAccountRoute(targetUrl)) {
       console.error('Atalho da conta aponta para uma rota inválida:', href);
       return;
     }
 
-    if (accountDialogTitle) accountDialogTitle.textContent = title;
-    if (accountFrame) accountFrame.src = `${targetUrl.pathname}${targetUrl.search}${targetUrl.hash}`;
-    if (!accountDialog.open) accountDialog.showModal();
-    accountDialogClose?.focus();
+    if (!accountSection || !contentWrapper || !accountFrame) {
+      console.error('Não foi possível exibir a área do cliente dentro da loja.');
+      return;
+    }
+
+    if (accountSectionTitle) accountSectionTitle.textContent = title;
+    accountFrame.title = `${title} - área do cliente`;
+    accountFrame.src = `${targetUrl.pathname}${targetUrl.search}${targetUrl.hash}`;
+    accountSection.hidden = false;
+    contentWrapper.classList.add('store-account-view-open');
     document.querySelector('.store-account-menu')?.removeAttribute('open');
+    accountSection.scrollIntoView({ block: 'start' });
+  };
+
+  const closeAccountSection = () => {
+    if (!accountSection || !contentWrapper) return;
+    accountSection.hidden = true;
+    contentWrapper.classList.remove('store-account-view-open');
+    if (accountFrame) accountFrame.src = 'about:blank';
+    loginTrigger?.focus();
   };
 
   if (loginTrigger) {
@@ -2398,7 +2395,7 @@ function inicializarCarrinho() {
         abrirLoginDashboard();
         return;
       }
-      openAccountPanel('/dashboard/orders', 'Meus pedidos');
+      openAccountSection('/dashboard/orders', 'Meus pedidos');
     });
     if (!loginTrigger.closest('details.store-account-menu')) {
       loginTrigger.addEventListener('keydown', (event) => {
@@ -2431,13 +2428,10 @@ function inicializarCarrinho() {
       return;
     }
     const title = link.getAttribute('aria-label') || link.textContent.trim() || 'Minha conta';
-    openAccountPanel(targetUrl.href, title);
+    openAccountSection(targetUrl.href, title);
   });
 
-  accountDialogClose?.addEventListener('click', () => accountDialog.close());
-  accountDialog.addEventListener('close', () => {
-    if (accountFrame) accountFrame.src = 'about:blank';
-  });
+  accountSectionBack?.addEventListener('click', closeAccountSection);
 
   const pendingAccountPath = new URLSearchParams(window.location.search).get('storeAccount');
   if (pendingAccountPath) {
@@ -2459,7 +2453,7 @@ function inicializarCarrinho() {
           '/dashboard/lists': 'Minhas listas',
           '/dashboard/profile': 'Meu perfil',
         }[pendingAccountUrl.pathname] || 'Minha conta';
-        openAccountPanel(pendingAccountUrl.href, pageTitle);
+        openAccountSection(pendingAccountUrl.href, pageTitle);
       });
     } else {
       console.error('A conta solicitada após o login aponta para uma rota inválida:', pendingAccountPath);
