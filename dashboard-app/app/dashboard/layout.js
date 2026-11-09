@@ -1152,21 +1152,32 @@ export default function DashboardLayout({ children }) {
   }, [storeExperience]);
 
   const handleStoreAccountNavigation = useCallback((event) => {
-    if (!storeExperience || !(event.target instanceof Element)) return;
+    if (!storeExperience || !(event.target instanceof Element)
+      || event.defaultPrevented
+      || event.button !== 0
+      || event.metaKey
+      || event.ctrlKey
+      || event.shiftKey
+      || event.altKey) return;
     const link = event.target.closest('a[href]');
     if (!link || link.target === '_blank') return;
 
     const targetUrl = new URL(link.href, window.location.origin);
-    if (targetUrl.origin !== window.location.origin
-      || targetUrl.pathname === '/dashboard'
-      || targetUrl.pathname.startsWith('/dashboard/')) return;
+    if (targetUrl.origin !== window.location.origin) return;
+
+    if (targetUrl.pathname === '/dashboard' || targetUrl.pathname.startsWith('/dashboard/')) {
+      event.preventDefault();
+      targetUrl.searchParams.set('storeExperience', '1');
+      router.push(`${targetUrl.pathname}${targetUrl.search}${targetUrl.hash}`);
+      return;
+    }
 
     event.preventDefault();
     window.parent.postMessage(
       { type: 'hoje-store-account-navigate', path: `${targetUrl.pathname}${targetUrl.search}${targetUrl.hash}` },
       window.location.origin,
     );
-  }, [storeExperience]);
+  }, [router, storeExperience]);
 
   return (
     <div

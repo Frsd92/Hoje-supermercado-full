@@ -1609,7 +1609,7 @@
         <div>
           <span class="settings-kicker">Sua conta no Hoje</span>
           <h1 id="store-account-section-title" tabindex="-1">Minha conta</h1>
-          <p>Pedidos, favoritos e seus dados de entrega em um só lugar.</p>
+          <p>Acompanhe seus pedidos, benefícios e dados da conta em um só lugar.</p>
         </div>
         <div class="store-account-section-actions">
           <button id="store-account-signout" class="store-account-section-signout" type="button" disabled>Sair</button>
@@ -1617,11 +1617,33 @@
         </div>
       </header>
       <nav id="store-account-section-nav" class="store-account-section-nav" aria-label="Seções da minha conta">
-        <a href="/dashboard/orders" data-account-path="/dashboard/orders"><i data-lucide="package-check" aria-hidden="true"></i> Pedidos</a>
-        <a href="/dashboard/favorites" data-account-path="/dashboard/favorites"><i data-lucide="heart" aria-hidden="true"></i> Favoritos</a>
-        <a href="/dashboard/lists" data-account-path="/dashboard/lists"><i data-lucide="list-checks" aria-hidden="true"></i> Listas</a>
-        <a href="/dashboard/addresses" data-account-path="/dashboard/addresses"><i data-lucide="map-pin" aria-hidden="true"></i> Endereços</a>
-        <a href="/dashboard/profile" data-account-path="/dashboard/profile"><i data-lucide="user-round" aria-hidden="true"></i> Perfil</a>
+        <div class="store-account-nav-group" role="group" aria-labelledby="store-account-nav-overview">
+          <span id="store-account-nav-overview" class="store-account-nav-group-label">Visão geral</span>
+          <div class="store-account-nav-links">
+            <a href="/dashboard" data-account-path="/dashboard"><i data-lucide="house" aria-hidden="true"></i> Início</a>
+          </div>
+        </div>
+        <div class="store-account-nav-group" role="group" aria-labelledby="store-account-nav-shopping">
+          <span id="store-account-nav-shopping" class="store-account-nav-group-label">Minhas compras</span>
+          <div class="store-account-nav-links">
+            <a href="/dashboard/orders" data-account-path="/dashboard/orders"><i data-lucide="package-check" aria-hidden="true"></i> Meus pedidos</a>
+            <a href="/dashboard/reorder" data-account-path="/dashboard/reorder"><i data-lucide="rotate-ccw" aria-hidden="true"></i> Comprar novamente</a>
+            <a href="/dashboard/lists" data-account-path="/dashboard/lists"><i data-lucide="list-checks" aria-hidden="true"></i> Listas de compras</a>
+            <a href="/dashboard/cupons" data-account-path="/dashboard/cupons"><i data-lucide="ticket-percent" aria-hidden="true"></i> Meus cupons</a>
+            <a href="/dashboard/fidelidade" data-account-path="/dashboard/fidelidade"><i data-lucide="award" aria-hidden="true"></i> Missões e pontos</a>
+            <a href="/dashboard/favorites" data-account-path="/dashboard/favorites"><i data-lucide="star" aria-hidden="true"></i> Favoritos</a>
+            <a href="/dashboard/budget" data-account-path="/dashboard/budget"><i data-lucide="circle-dollar-sign" aria-hidden="true"></i> Orçamento</a>
+          </div>
+        </div>
+        <div class="store-account-nav-group" role="group" aria-labelledby="store-account-nav-account">
+          <span id="store-account-nav-account" class="store-account-nav-group-label">Minha conta</span>
+          <div class="store-account-nav-links">
+            <a href="/dashboard/profile" data-account-path="/dashboard/profile"><i data-lucide="user-round" aria-hidden="true"></i> Perfil</a>
+            <a href="/dashboard/addresses" data-account-path="/dashboard/addresses"><i data-lucide="map-pin" aria-hidden="true"></i> Endereços</a>
+            <a href="/dashboard/payment-methods" data-account-path="/dashboard/payment-methods"><i data-lucide="credit-card" aria-hidden="true"></i> Formas de pagamento</a>
+            <a href="/dashboard/settings" data-account-path="/dashboard/settings"><i data-lucide="settings" aria-hidden="true"></i> Configurações</a>
+          </div>
+        </div>
       </nav>
       <p id="store-account-loading" class="store-account-loading" role="status">Carregando sua conta...</p>
       <iframe id="store-account-frame" title="Área da minha conta" src="about:blank" loading="lazy" referrerpolicy="strict-origin-when-cross-origin"></iframe>

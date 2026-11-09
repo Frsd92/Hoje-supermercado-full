@@ -2362,7 +2362,8 @@ function inicializarCarrinho() {
     && (url.pathname === '/dashboard' || url.pathname.startsWith('/dashboard/'));
   const updateAccountNavigation = (pathname) => {
     accountNavigation?.querySelectorAll('a[data-account-path]').forEach((link) => {
-      const active = pathname === link.dataset.accountPath;
+      const linkPath = link.dataset.accountPath;
+      const active = pathname === linkPath || (linkPath !== '/dashboard' && pathname.startsWith(`${linkPath}/`));
       link.classList.toggle('active', active);
       if (active) link.setAttribute('aria-current', 'page');
       else link.removeAttribute('aria-current');
