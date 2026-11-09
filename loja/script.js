@@ -2352,13 +2352,47 @@ function inicializarCarrinho() {
   }
 
   const accountSection = document.getElementById('store-account-section');
-  const accountSectionTitle = document.getElementById('store-account-section-title');
   const accountSectionBack = document.getElementById('store-account-section-back');
+  const accountSignout = document.getElementById('store-account-signout');
   const accountFrame = document.getElementById('store-account-frame');
+  const accountNavigation = document.getElementById('store-account-section-nav');
   const contentWrapper = document.querySelector('.content-wrapper');
+  let accountFrameResizeObserver;
   const isAccountRoute = (url) => url.origin === window.location.origin
     && (url.pathname === '/dashboard' || url.pathname.startsWith('/dashboard/'));
-  const openAccountSection = (href, title) => {
+  const updateAccountNavigation = (pathname) => {
+    accountNavigation?.querySelectorAll('a[data-account-path]').forEach((link) => {
+      const active = pathname === link.dataset.accountPath;
+      link.classList.toggle('active', active);
+      if (active) link.setAttribute('aria-current', 'page');
+      else link.removeAttribute('aria-current');
+    });
+  };
+  const resizeAccountFrame = () => {
+    const frameDocument = accountFrame?.contentDocument;
+    if (!frameDocument || accountSection?.hidden) return;
+    const height = Math.max(
+      frameDocument.documentElement?.scrollHeight || 0,
+      frameDocument.body?.scrollHeight || 0,
+    );
+    if (height > 0) accountFrame.style.height = `${height}px`;
+  };
+  accountFrame?.addEventListener('load', () => {
+    if (accountSection?.hidden || accountFrame.getAttribute('src') === 'about:blank') return;
+    const frameDocument = accountFrame.contentDocument;
+    if (!frameDocument) {
+      console.error('Não foi possível ajustar a altura da área do cliente.');
+      return;
+    }
+    accountFrameResizeObserver?.disconnect();
+    if ('ResizeObserver' in window) {
+      accountFrameResizeObserver = new ResizeObserver(resizeAccountFrame);
+      accountFrameResizeObserver.observe(frameDocument.documentElement);
+      if (frameDocument.body) accountFrameResizeObserver.observe(frameDocument.body);
+    }
+    requestAnimationFrame(resizeAccountFrame);
+  });
+  const openAccountSection = (href) => {
     const targetUrl = new URL(href, window.location.origin);
     if (!isAccountRoute(targetUrl)) {
       console.error('Atalho da conta aponta para uma rota inválida:', href);
@@ -2370,22 +2404,72 @@ function inicializarCarrinho() {
       return;
     }
 
-    if (accountSectionTitle) accountSectionTitle.textContent = title;
-    accountFrame.title = `${title} - área do cliente`;
+    targetUrl.searchParams.set('storeExperience', '1');
+    updateAccountNavigation(targetUrl.pathname);
+    accountFrame.title = 'Minha conta Hoje';
+    accountFrame.style.height = '';
+    accountFrame.style.visibility = 'hidden';
+    accountSection.dataset.loading = 'true';
+    if (accountSignout) accountSignout.disabled = true;
     accountFrame.src = `${targetUrl.pathname}${targetUrl.search}${targetUrl.hash}`;
     accountSection.hidden = false;
     contentWrapper.classList.add('store-account-view-open');
     document.querySelector('.store-account-menu')?.removeAttribute('open');
     accountSection.scrollIntoView({ block: 'start' });
+    document.getElementById('store-account-section-title')?.focus({ preventScroll: true });
   };
 
   const closeAccountSection = () => {
     if (!accountSection || !contentWrapper) return;
     accountSection.hidden = true;
     contentWrapper.classList.remove('store-account-view-open');
-    if (accountFrame) accountFrame.src = 'about:blank';
+    accountFrameResizeObserver?.disconnect();
+    if (accountFrame) {
+      accountFrame.src = 'about:blank';
+      accountFrame.style.visibility = 'hidden';
+    }
+    if (accountSection) delete accountSection.dataset.loading;
+    if (accountSignout) accountSignout.disabled = true;
     loginTrigger?.focus();
   };
+
+  accountSectionBack?.addEventListener('click', closeAccountSection);
+  accountSignout?.addEventListener('click', () => {
+    if (!accountFrame?.contentWindow || accountSignout.disabled) {
+      console.error('Não foi possível sair da conta: a área do cliente ainda não está pronta.');
+      return;
+    }
+    accountFrame.contentWindow.postMessage({ type: 'hoje-store-account-logout' }, window.location.origin);
+  });
+  window.addEventListener('message', (event) => {
+    if (event.origin !== window.location.origin || event.source !== accountFrame?.contentWindow) return;
+    if (event.data?.type === 'hoje-store-account-ready') {
+      accountFrame.style.visibility = 'visible';
+      delete accountSection.dataset.loading;
+      if (accountSignout) accountSignout.disabled = false;
+      return;
+    }
+    if (event.data?.type === 'hoje-store-account-route' && typeof event.data.path === 'string') {
+      const currentUrl = new URL(event.data.path, window.location.origin);
+      if (isAccountRoute(currentUrl)) updateAccountNavigation(currentUrl.pathname);
+      return;
+    }
+    if (event.data?.type === 'hoje-store-account-logout-complete') {
+      closeAccountSection();
+      void carregarSessaoDaLoja();
+      return;
+    }
+    if (event.data?.type !== 'hoje-store-account-navigate' || typeof event.data.path !== 'string') return;
+
+    const targetUrl = new URL(event.data.path, window.location.origin);
+    if (targetUrl.origin !== window.location.origin || isAccountRoute(targetUrl)) return;
+    if (targetUrl.pathname === '/' || targetUrl.pathname === '/index.html') {
+      closeAccountSection();
+      window.scrollTo({ top: 0, behavior: 'smooth' });
+      return;
+    }
+    window.location.assign(targetUrl.href);
+  });
 
   if (loginTrigger) {
     loginTrigger.addEventListener('click', (event) => {
@@ -2395,7 +2479,7 @@ function inicializarCarrinho() {
         abrirLoginDashboard();
         return;
       }
-      openAccountSection('/dashboard/orders', 'Meus pedidos');
+      openAccountSection('/dashboard/orders');
     });
     if (!loginTrigger.closest('details.store-account-menu')) {
       loginTrigger.addEventListener('keydown', (event) => {
@@ -2427,11 +2511,8 @@ function inicializarCarrinho() {
       abrirLoginDashboard(callbackUrl.href);
       return;
     }
-    const title = link.getAttribute('aria-label') || link.textContent.trim() || 'Minha conta';
-    openAccountSection(targetUrl.href, title);
+    openAccountSection(targetUrl.href);
   });
-
-  accountSectionBack?.addEventListener('click', closeAccountSection);
 
   const pendingAccountPath = new URLSearchParams(window.location.search).get('storeAccount');
   if (pendingAccountPath) {
@@ -2446,14 +2527,7 @@ function inicializarCarrinho() {
     if (isAccountRoute(pendingAccountUrl)) {
       void carregarSessaoDaLoja().then(() => {
         if (!sessaoLoja.authenticated) return;
-        const pageTitle = {
-          '/dashboard/orders': 'Meus pedidos',
-          '/dashboard/addresses': 'Meus endereços',
-          '/dashboard/favorites': 'Meus favoritos',
-          '/dashboard/lists': 'Minhas listas',
-          '/dashboard/profile': 'Meu perfil',
-        }[pendingAccountUrl.pathname] || 'Minha conta';
-        openAccountSection(pendingAccountUrl.href, pageTitle);
+        openAccountSection(pendingAccountUrl.href);
       });
     } else {
       console.error('A conta solicitada após o login aponta para uma rota inválida:', pendingAccountPath);

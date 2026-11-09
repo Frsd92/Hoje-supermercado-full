@@ -12646,6 +12646,104 @@ button.metric-mini:focus-visible {
   }
 }
 
+.dashboard-shell[data-account-mode="store"] {
+  display: block;
+  min-height: 0;
+  color-scheme: light;
+  color: #24372d;
+  background: #fff;
+}
+
+.dashboard-shell[data-account-mode="store"]::before,
+.dashboard-shell[data-account-mode="store"] .sidebar,
+.dashboard-shell[data-account-mode="store"] .topbar,
+.dashboard-shell[data-account-mode="store"] .dashboard-account-nav {
+  display: none !important;
+}
+
+.dashboard-shell[data-account-mode="store"] .content {
+  width: 100%;
+  min-height: 0;
+  padding: 0;
+  background: #fff;
+}
+
+.dashboard-shell[data-account-mode="store"] .page-container,
+.dashboard-shell[data-account-mode="store"] .dashboard-page {
+  width: 100%;
+  max-width: none;
+  min-height: 0;
+  margin: 0;
+  padding: clamp(18px, 2.4vw, 32px);
+  border: 0;
+  border-radius: 0;
+  background: #fff;
+  box-shadow: none;
+}
+
+.dashboard-shell[data-account-mode="store"] .section-shell {
+  gap: 18px;
+}
+
+.dashboard-shell[data-account-mode="store"] .orders-showcase .orders-header {
+  min-height: 0;
+  padding: 20px 22px;
+  border-color: #e0e9e2;
+  border-radius: 15px;
+  color: #24372d;
+  background: #f6faf7;
+  box-shadow: none;
+}
+
+.dashboard-shell[data-account-mode="store"] .orders-showcase .orders-header::after {
+  display: none;
+}
+
+.dashboard-shell[data-account-mode="store"] .orders-showcase .orders-header h1 {
+  color: #183b28;
+  font-size: clamp(1.7rem, 3vw, 2.1rem);
+}
+
+.dashboard-shell[data-account-mode="store"] .orders-showcase .orders-header p {
+  color: #607066;
+}
+
+.dashboard-shell[data-account-mode="store"] .orders-showcase .orders-kicker {
+  color: #176b3a;
+  letter-spacing: .1em;
+}
+
+.dashboard-shell[data-account-mode="store"] .orders-header-mark {
+  border-color: #d7e5da;
+  color: #42584a;
+  background: #fff;
+}
+
+.dashboard-shell[data-account-mode="store"] .orders-header-dot {
+  background: #25844b;
+  box-shadow: 0 0 0 4px rgba(37, 132, 75, .12);
+}
+
+.dashboard-shell[data-account-mode="store"] .orders-showcase .orders-panel {
+  padding: 14px;
+  border-color: #e1e9e3;
+  border-radius: 14px;
+  background: #fff;
+  box-shadow: none;
+}
+
+@media (max-width: 640px) {
+  .dashboard-shell[data-account-mode="store"] .page-container,
+  .dashboard-shell[data-account-mode="store"] .dashboard-page {
+    padding: 16px;
+  }
+
+  .dashboard-shell[data-account-mode="store"] .orders-showcase .orders-header {
+    gap: 12px;
+    padding: 17px;
+  }
+}
+
 .dashboard-account-nav-error {
   grid-column: 1 / -1;
   padding: 2px 8px 5px;

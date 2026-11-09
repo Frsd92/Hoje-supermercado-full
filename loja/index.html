@@ -1607,11 +1607,23 @@
     <section id="store-account-section" class="store-account-section" aria-labelledby="store-account-section-title" hidden>
       <header class="store-account-section-header">
         <div>
-          <span class="settings-kicker">Área do cliente</span>
-          <h1 id="store-account-section-title">Minha conta</h1>
+          <span class="settings-kicker">Sua conta no Hoje</span>
+          <h1 id="store-account-section-title" tabindex="-1">Minha conta</h1>
+          <p>Pedidos, favoritos e seus dados de entrega em um só lugar.</p>
         </div>
-        <button id="store-account-section-back" class="store-account-section-back" type="button">Voltar à loja</button>
+        <div class="store-account-section-actions">
+          <button id="store-account-signout" class="store-account-section-signout" type="button" disabled>Sair</button>
+          <button id="store-account-section-back" class="store-account-section-back" type="button"><i data-lucide="store" aria-hidden="true"></i> Continuar comprando</button>
+        </div>
       </header>
+      <nav id="store-account-section-nav" class="store-account-section-nav" aria-label="Seções da minha conta">
+        <a href="/dashboard/orders" data-account-path="/dashboard/orders"><i data-lucide="package-check" aria-hidden="true"></i> Pedidos</a>
+        <a href="/dashboard/favorites" data-account-path="/dashboard/favorites"><i data-lucide="heart" aria-hidden="true"></i> Favoritos</a>
+        <a href="/dashboard/lists" data-account-path="/dashboard/lists"><i data-lucide="list-checks" aria-hidden="true"></i> Listas</a>
+        <a href="/dashboard/addresses" data-account-path="/dashboard/addresses"><i data-lucide="map-pin" aria-hidden="true"></i> Endereços</a>
+        <a href="/dashboard/profile" data-account-path="/dashboard/profile"><i data-lucide="user-round" aria-hidden="true"></i> Perfil</a>
+      </nav>
+      <p id="store-account-loading" class="store-account-loading" role="status">Carregando sua conta...</p>
       <iframe id="store-account-frame" title="Área da minha conta" src="about:blank" loading="lazy" referrerpolicy="strict-origin-when-cross-origin"></iframe>
     </section>
 

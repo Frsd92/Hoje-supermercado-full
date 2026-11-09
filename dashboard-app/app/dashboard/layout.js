@@ -118,6 +118,7 @@ export default function DashboardLayout({ children }) {
   const { data: session, status: sessionStatus } = useSession();
   const [search, setSearch] = useState('');
   const [theme, setTheme] = useState('dark');
+  const [storeExperience, setStoreExperience] = useState(false);
   const [searchFocused, setSearchFocused] = useState(false);
   const [cartCount, setCartCount] = useState(0);
   const [cartItems, setCartItems] = useState([]);
@@ -1111,11 +1112,72 @@ export default function DashboardLayout({ children }) {
     .join('')
     .toUpperCase() || 'U';
 
+  useEffect(() => {
+    setStoreExperience(new URLSearchParams(window.location.search).get('storeExperience') === '1');
+  }, []);
+
+  useEffect(() => {
+    if (!storeExperience) return;
+    window.parent.postMessage(
+      { type: 'hoje-store-account-route', path: pathname },
+      window.location.origin,
+    );
+  }, [pathname, storeExperience]);
+
+  useEffect(() => {
+    if (!storeExperience) return undefined;
+
+    window.parent.postMessage(
+      { type: 'hoje-store-account-ready' },
+      window.location.origin,
+    );
+
+    const handleStoreAccountMessage = async (event) => {
+      if (event.origin !== window.location.origin || event.source !== window.parent) return;
+      if (event.data?.type !== 'hoje-store-account-logout') return;
+
+      try {
+        await signOut({ redirect: false });
+        window.parent.postMessage(
+          { type: 'hoje-store-account-logout-complete' },
+          window.location.origin,
+        );
+      } catch (error) {
+        console.error('Não foi possível encerrar a sessão da área integrada:', error);
+      }
+    };
+
+    window.addEventListener('message', handleStoreAccountMessage);
+    return () => window.removeEventListener('message', handleStoreAccountMessage);
+  }, [storeExperience]);
+
+  const handleStoreAccountNavigation = useCallback((event) => {
+    if (!storeExperience || !(event.target instanceof Element)) return;
+    const link = event.target.closest('a[href]');
+    if (!link || link.target === '_blank') return;
+
+    const targetUrl = new URL(link.href, window.location.origin);
+    if (targetUrl.origin !== window.location.origin
+      || targetUrl.pathname === '/dashboard'
+      || targetUrl.pathname.startsWith('/dashboard/')) return;
+
+    event.preventDefault();
+    window.parent.postMessage(
+      { type: 'hoje-store-account-navigate', path: `${targetUrl.pathname}${targetUrl.search}${targetUrl.hash}` },
+      window.location.origin,
+    );
+  }, [storeExperience]);
+
   return (
-    <div className="dashboard-shell" data-dashboard-theme={theme} data-hj-suppress>
+    <div
+      className="dashboard-shell"
+      data-dashboard-theme={storeExperience ? 'light' : theme}
+      data-account-mode={storeExperience ? 'store' : undefined}
+      data-hj-suppress
+    >
       <Script src="/analytics-consent.js" strategy="afterInteractive" />
-      <a className="dashboard-skip-link" href="#dashboard-main-content">Pular para o conteúdo principal</a>
-      <aside className="sidebar" aria-label="Painel do cliente">
+      {!storeExperience && <a className="dashboard-skip-link" href="#dashboard-main-content">Pular para o conteúdo principal</a>}
+      {!storeExperience && <aside className="sidebar" aria-label="Painel do cliente">
         <div>
           <div className="brand-wrap">
             <a className="brand-home-link" href="/" aria-label="Hoje Supermercado — voltar para a loja">
@@ -1223,10 +1285,10 @@ export default function DashboardLayout({ children }) {
             </span>
           </button>
         </div>
-      </aside>
+      </aside>}
 
-      <main className="content">
-        <header className="topbar">
+      <main className={`content${storeExperience ? ' store-account-content' : ''}`}>
+        {!storeExperience && <header className="topbar">
           <div className="left">
             <div className="topbar-search-wrap">
               <div className={`topbar-search ${searchFocused ? 'is-focused' : ''}`}>
@@ -1413,14 +1475,19 @@ export default function DashboardLayout({ children }) {
               <span>Loja</span>
             </a>
           </div>
-        </header>
+        </header>}
 
-        <div className="page-container dashboard-page" id="dashboard-main-content" tabIndex="-1">
+        <div
+          className={`page-container dashboard-page${storeExperience ? ' store-account-page' : ''}`}
+          id="dashboard-main-content"
+          tabIndex="-1"
+          onClickCapture={handleStoreAccountNavigation}
+        >
           {children}
         </div>
       </main>
 
-      {cartOpen && <div className="cart-backdrop open" onMouseDown={(event) => { if (event.target === event.currentTarget) closeCart(); }}>
+      {cartOpen && !storeExperience && <div className="cart-backdrop open" onMouseDown={(event) => { if (event.target === event.currentTarget) closeCart(); }}>
         <aside ref={cartPanelRef} tabIndex="-1" className="cart-panel open" role="dialog" aria-modal="true" aria-labelledby="cart-panel-title" onMouseDown={(event) => event.stopPropagation()}>
           <div className="cart-panel-header"><div className="cart-panel-title-wrap"><span className="cart-panel-icon"><ShoppingCart size={18} /></span><h3 id="cart-panel-title">Meu Carrinho ({cartCount} {cartCount === 1 ? 'item' : 'itens'})</h3></div><button type="button" className="cart-close" aria-label="Fechar carrinho" onClick={closeCart}>×</button></div>
           <p className="cart-subtitle">Revise seus itens antes de finalizar</p>
