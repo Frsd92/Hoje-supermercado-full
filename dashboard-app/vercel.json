@@ -6,7 +6,7 @@
     },
     {
       "path": "/api/cron/expire-pending-payments",
-      "schedule": "* * * * *"
+      "schedule": "0 10 * * *"
     }
   ]
 }
