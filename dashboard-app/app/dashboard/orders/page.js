@@ -1,13 +1,14 @@
 'use client';
 
 import { Check, Copy, FileText, PackageOpen, Printer, Search, X } from 'lucide-react';
-import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
+import { Fragment, useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { getOrderStatus, orderStages } from '../order-status';
 import { sortOrdersNewestFirst } from '@/lib/order-sort';
 import OrderReceipt from '@/features/orders/order-receipt';
 import { refundRequestStatusLabels } from '@/features/orders/order-refund-utils';
 import { isCardPaymentMethod } from '@/features/payments/card-methods';
 import { parseReceiptAmount } from '@/features/orders/order-receipt-data';
+import { getPixCodeExpiry, isPixCodeExpired } from '@/features/orders/pix-expiration.mjs';
 import CustomerDeliveryTracking from '@/components/customer-delivery-tracking';
 import {
   canRequestOrderService,
@@ -97,7 +98,8 @@ export default function OrdersPage() {
   const [serviceRequestNotice, setServiceRequestNotice] = useState('');
   const [orderCopyFeedback, setOrderCopyFeedback] = useState({});
   const [copiedPixOrderId, setCopiedPixOrderId] = useState('');
-  const [pixCopyError, setPixCopyError] = useState('');
+  const [pixCopyError, setPixCopyError] = useState({});
+  const [currentTime, setCurrentTime] = useState(() => Date.now());
   const [checkingPaymentOrderId, setCheckingPaymentOrderId] = useState('');
   const [paymentCheckFeedback, setPaymentCheckFeedback] = useState({});
   const paymentChecksInFlightRef = useRef(new Set());
@@ -171,6 +173,31 @@ export default function OrdersPage() {
   }, [retryCount]);
 
   useEffect(() => {
+    const now = Date.now();
+    const nextPixExpiry = orders.reduce((nextExpiry, order) => {
+      if (order.paymentStatus !== 'pending' || order.paymentMethod !== 'pix') return nextExpiry;
+      const expiry = getPixCodeExpiry(order.paymentDetails?.pixExpiresAt);
+      return expiry !== null && expiry > now && (nextExpiry === null || expiry < nextExpiry)
+        ? expiry
+        : nextExpiry;
+    }, null);
+    if (nextPixExpiry === null) return undefined;
+
+    const timeout = window.setTimeout(
+      () => setCurrentTime(Date.now()),
+      Math.min(nextPixExpiry - now + 10, 2147483647),
+    );
+    const refreshWhenVisible = () => {
+      if (document.visibilityState === 'visible') setCurrentTime(Date.now());
+    };
+    document.addEventListener('visibilitychange', refreshWhenVisible);
+    return () => {
+      window.clearTimeout(timeout);
+      document.removeEventListener('visibilitychange', refreshWhenVisible);
+    };
+  }, [currentTime, orders]);
+
+  useEffect(() => {
     const dialog = receiptDialogRef.current;
     if (receiptOrder && dialog && !dialog.open) dialog.showModal();
   }, [receiptOrder]);
@@ -202,14 +229,21 @@ export default function OrdersPage() {
   const copyPixCode = async (order) => {
     const pixCode = order.paymentDetails?.pixQrCode;
     if (!pixCode) return;
+    if (isPixCodeExpired(order.paymentDetails?.pixExpiresAt)) {
+      setPixCopyError((current) => ({ ...current, [order.id]: 'Este código Pix expirou e não pode mais ser copiado.' }));
+      return;
+    }
     try {
       await navigator.clipboard.writeText(pixCode);
       setCopiedPixOrderId(order.id);
-      setPixCopyError('');
+      setPixCopyError((current) => ({ ...current, [order.id]: '' }));
     } catch (error) {
       console.error('Não foi possível copiar o código Pix:', error);
       setCopiedPixOrderId('');
-      setPixCopyError('Não foi possível copiar automaticamente. Selecione e copie o código Pix abaixo.');
+      setPixCopyError((current) => ({
+        ...current,
+        [order.id]: 'Não foi possível copiar automaticamente. Selecione o código Pix para copiá-lo.',
+      }));
     }
   };
 
@@ -449,11 +483,18 @@ export default function OrdersPage() {
               const info = getOrderStatus(order.status);
               const currentStage = orderStages.indexOf(order.status);
               const itemCount = order.items?.length || 0;
+              const pixCode = order.paymentMethod === 'pix' ? order.paymentDetails?.pixQrCode : '';
+              const pixQrCodeUrl = order.paymentDetails?.pixQrCodeUrl;
+              const pixExpiry = getPixCodeExpiry(order.paymentDetails?.pixExpiresAt);
+              const pixCodeExpired = Boolean(pixCode) && isPixCodeExpired(order.paymentDetails?.pixExpiresAt, currentTime);
+              const hasPendingOnlinePayment = order.paymentStatus === 'pending'
+                && (order.paymentMethod === 'pix' || isCardPaymentMethod(order.paymentMethod));
               const refundRequests = order.refundRequests || [];
               const serviceRequests = order.serviceRequests || [];
               const orderActivity = getOrderActivitySummary(serviceRequests, refundRequests);
               return (
-                <div key={order.id} className={`table-row${order.status === 'Cancelado' ? ' cancelled-order-row' : ''}`} role="row">
+                <Fragment key={order.id}>
+                <div className={`table-row${order.status === 'Cancelado' ? ' cancelled-order-row' : ''}`} role="row">
                   <span className="customer-order-reference" role="cell">
                     <span className="customer-order-reference-heading">
                       <strong title={order.id}>
@@ -507,27 +548,6 @@ export default function OrdersPage() {
                         </div>
                       </details>
                     </div>}
-                    {order.paymentStatus === 'pending' && order.paymentMethod === 'pix' && order.paymentDetails?.pixQrCode && <span className="customer-pix-payment">
-                      <strong>Pix aguardando pagamento</strong>
-                      <small>A confirmação é verificada automaticamente enquanto esta tela estiver aberta.</small>
-                      {order.paymentDetails.pixQrCodeUrl && <img src={order.paymentDetails.pixQrCodeUrl} alt={`QR Code Pix do pedido ${order.id}`} />}
-                      <textarea aria-label={`Código Pix do pedido ${order.id}`} value={order.paymentDetails.pixQrCode} readOnly rows={3} />
-                      <button type="button" onClick={() => copyPixCode(order)}>{copiedPixOrderId === order.id ? 'Código Pix copiado' : 'Copiar código Pix'}</button>
-                      {order.paymentDetails.pixExpiresAt && <small>Válido até {new Date(order.paymentDetails.pixExpiresAt).toLocaleString('pt-BR')}</small>}
-                      {pixCopyError && <small role="alert">{pixCopyError}</small>}
-                      <button type="button" disabled={Boolean(checkingPaymentOrderId)} onClick={() => verifyPayment(order)}>
-                        {checkingPaymentOrderId === order.id ? 'Consultando pagamento...' : 'Verificar pagamento'}
-                      </button>
-                      {paymentCheckFeedback[order.id] && <small role={paymentCheckFeedback[order.id].error ? 'alert' : 'status'}>{paymentCheckFeedback[order.id].message}</small>}
-                    </span>}
-                    {order.paymentStatus === 'pending' && (order.paymentMethod === 'pix' || isCardPaymentMethod(order.paymentMethod)) && !order.paymentDetails?.pixQrCode && <span className="customer-pix-payment" role="status">
-                      <strong>Pagamento aguardando confirmação</strong>
-                      <small>A confirmação é verificada automaticamente enquanto esta tela estiver aberta. Não tente pagar novamente.</small>
-                      <button type="button" disabled={Boolean(checkingPaymentOrderId)} onClick={() => verifyPayment(order)}>
-                        {checkingPaymentOrderId === order.id ? 'Consultando pagamento...' : 'Verificar pagamento'}
-                      </button>
-                      {paymentCheckFeedback[order.id] && <small role={paymentCheckFeedback[order.id].error ? 'alert' : 'status'}>{paymentCheckFeedback[order.id].message}</small>}
-                    </span>}
                   </span>
                   <span className="order-status-cell" role="cell">
                     <span className={`status-badge ${info.tone}`}><span className="order-status-light" aria-hidden="true" />{info.label}</span>
@@ -554,6 +574,41 @@ export default function OrdersPage() {
                   <span role="cell" data-label="Itens">{itemCount}</span>
                   <span role="cell" data-label="Total">{order.total || 'R$ 0,00'}<small className="customer-order-payment-status">Pagamento: {paymentStatusLabels[order.paymentStatus] || order.paymentStatus || 'Não informado'}</small></span>
                 </div>
+                {hasPendingOnlinePayment && <div className="customer-order-payment-row" role="row" aria-label={`Pagamento do pedido ${order.id}`}>
+                  <div role="cell">
+                    <section className={`customer-pix-payment${pixCodeExpired ? ' is-expired' : ''}`} aria-label={`Detalhes do pagamento do pedido ${order.id}`}>
+                      <div className="customer-pix-heading">
+                        <strong>{pixCodeExpired ? 'Código Pix expirado' : pixCode ? 'Pix aguardando pagamento' : 'Pagamento aguardando confirmação'}</strong>
+                        <small>A confirmação é verificada automaticamente enquanto esta tela estiver aberta.</small>
+                      </div>
+                      {pixCodeExpired
+                        ? <p className="customer-pix-expired-notice">Este QR Code e o código Pix venceram e foram desativados. Verifique o status do pagamento antes de tentar novamente.</p>
+                        : pixCode
+                          ? <div className={`customer-pix-content${pixQrCodeUrl ? '' : ' without-qr'}`}>
+                            {pixQrCodeUrl && <img src={pixQrCodeUrl} alt={`QR Code Pix do pedido ${order.id}`} />}
+                            <div className="customer-pix-code-details">
+                              <label>
+                                <span>Código Pix copia e cola</span>
+                                <textarea aria-label={`Código Pix do pedido ${order.id}`} value={pixCode} readOnly rows={3} />
+                              </label>
+                              <button type="button" onClick={() => copyPixCode(order)}>{copiedPixOrderId === order.id ? 'Código Pix copiado' : 'Copiar código Pix'}</button>
+                              {pixCopyError[order.id] && <small role="alert">{pixCopyError[order.id]}</small>}
+                            </div>
+                          </div>
+                          : <p className="customer-pix-pending-notice">O pedido foi recebido e o pagamento ainda não foi confirmado. Não tente pagar novamente enquanto o status estiver sendo consultado.</p>}
+                      {pixExpiry !== null && <small className="customer-pix-expiration">
+                        {pixCodeExpired ? 'Expirou em' : 'Válido até'} {new Date(pixExpiry).toLocaleString('pt-BR')}
+                      </small>}
+                      <div className="customer-pix-actions">
+                        <button type="button" className="customer-pix-verify-button" disabled={Boolean(checkingPaymentOrderId)} onClick={() => verifyPayment(order)}>
+                          {checkingPaymentOrderId === order.id ? 'Consultando pagamento...' : 'Verificar pagamento'}
+                        </button>
+                        {paymentCheckFeedback[order.id] && <small role={paymentCheckFeedback[order.id].error ? 'alert' : 'status'}>{paymentCheckFeedback[order.id].message}</small>}
+                      </div>
+                    </section>
+                  </div>
+                </div>}
+                </Fragment>
               );
             })}
           </div>
