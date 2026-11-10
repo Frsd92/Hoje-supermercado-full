@@ -47,6 +47,7 @@ export async function GET() {
           id: true,
           createdAt: true,
           status: true,
+          paymentStatus: true,
           total: true,
           items: { select: { id: true, name: true, productId: true, quantity: true } },
         },

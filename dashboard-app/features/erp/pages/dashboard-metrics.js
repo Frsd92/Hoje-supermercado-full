@@ -86,7 +86,10 @@ export function deriveDashboardMetrics({ products = [], orders = [], customers =
   const currentMonth = now.getMonth();
   const currentYear = now.getFullYear();
   const activeOrders = orders.filter((order) => normalizeText(order.status) !== 'cancelado');
-  const monthOrders = activeOrders.filter((order) => {
+  const realizedOrders = activeOrders.filter((order) => (
+    !['pending', 'failed', 'canceled', 'expired'].includes(normalizeText(order.paymentStatus))
+  ));
+  const monthOrders = realizedOrders.filter((order) => {
     const date = parseOrderDate(order.createdAt);
     return date && date.getFullYear() === currentYear && date.getMonth() === currentMonth;
   });
@@ -114,7 +117,7 @@ export function deriveDashboardMetrics({ products = [], orders = [], customers =
     orderCount: 0,
   }));
   const salesByDate = new Map(recentDailySales.map((day) => [day.date, day]));
-  activeOrders.forEach((order) => {
+  realizedOrders.forEach((order) => {
     const date = parseOrderDate(order.createdAt);
     if (!date) return;
     const day = salesByDate.get(makeDayDate(date).getTime());

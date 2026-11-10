@@ -12,9 +12,9 @@ test('derives commercial and operational indicators from current ERP data', () =
       { id: 'p4', title: 'Produto inativo', status: 'Inativo', quantity: 0, cost: 5 },
     ],
     orders: [
-      { status: 'Concluido', createdAt: '03/10/2026 10:00', total: 'R$ 150,00', items: [{ productId: 'p1', quantity: 2 }] },
-      { status: 'Recebido', createdAt: '2026-10-02T12:00:00', total: 'R$ 50,00', items: [{ productId: 'p2', quantity: 1 }] },
-      { status: 'Cancelado', createdAt: '2026-10-03T10:00:00', total: 'R$ 500,00', items: [{ productId: 'p1', quantity: 1 }] },
+      { status: 'Concluido', paymentStatus: 'paid', createdAt: '03/10/2026 10:00', total: 'R$ 150,00', items: [{ productId: 'p1', quantity: 2 }] },
+      { status: 'Recebido', paymentStatus: 'manual', createdAt: '2026-10-02T12:00:00', total: 'R$ 50,00', items: [{ productId: 'p2', quantity: 1 }] },
+      { status: 'Cancelado', paymentStatus: 'paid', createdAt: '2026-10-03T10:00:00', total: 'R$ 500,00', items: [{ productId: 'p1', quantity: 1 }] },
     ],
     customers: [{ status: 'Ativo' }, { status: 'Ativo' }, { status: 'Inativo' }],
     lots: [
@@ -40,6 +40,23 @@ test('derives commercial and operational indicators from current ERP data', () =
   assert.equal(metrics.expiredLotsCount, 1);
   assert.equal(metrics.expiringLotsInSevenDaysCount, 1);
   assert.equal(metrics.expiringLotsInThirtyDaysCount, 2);
+});
+
+test('excludes pending and expired online orders from revenue, ticket and daily sales', () => {
+  const metrics = deriveDashboardMetrics({
+    now: new Date(2026, 10, 9, 12),
+    orders: [
+      { id: 'paid', status: 'Recebido', paymentStatus: 'paid', createdAt: '2026-11-09T10:00:00', total: 'R$ 42,00' },
+      { id: 'pending', status: 'Recebido', paymentStatus: 'pending', createdAt: '2026-11-09T11:00:00', total: 'R$ 17,98' },
+      { id: 'expired', status: 'Cancelado', paymentStatus: 'expired', createdAt: '2026-11-09T12:00:00', total: 'R$ 35,00' },
+    ],
+  });
+
+  assert.equal(metrics.monthlyRevenue, 42);
+  assert.equal(metrics.monthOrderCount, 1);
+  assert.equal(metrics.averageTicket, 42);
+  assert.deepEqual(metrics.recentDailyMetrics.at(-1), { revenue: 42, averageTicket: 42 });
+  assert.equal(metrics.pendingOrderCount, 2);
 });
 
 test('creates a scaled sparkline only when there is real chart data', () => {
