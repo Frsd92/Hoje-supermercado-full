@@ -498,10 +498,12 @@ function garantirSeletorPagamento(finalizeButton) {
     const hint = document.createElement('small');
     hint.className = 'checkout-field-hint';
     hint.textContent = 'Obrigatória para concluir o pedido.';
-    const checkoutPanel = finalizeButton.closest('.cart-panel')?.querySelector('.cart-panel-footer-content')
-      || finalizeButton.parentElement;
-    checkoutPanel.insertBefore(label, finalizeButton);
-    checkoutPanel.insertBefore(hint, finalizeButton);
+    const checkoutPanel = finalizeButton.closest('.cart-panel-footer-content');
+    if (checkoutPanel) {
+      checkoutPanel.append(label, hint);
+    } else {
+      finalizeButton.before(label, hint);
+    }
     return select;
 }
 
