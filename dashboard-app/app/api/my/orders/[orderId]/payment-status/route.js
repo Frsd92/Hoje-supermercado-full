@@ -33,6 +33,7 @@ export async function POST(_request, { params }) {
       select: {
         id: true,
         total: true,
+        status: true,
         paymentMethod: true,
         paymentStatus: true,
         paymentDetails: true,
@@ -41,7 +42,7 @@ export async function POST(_request, { params }) {
       },
     });
     if (!order) return Response.json({ error: 'Pedido não encontrado na sua conta.' }, { status: 404 });
-    if ((order.paymentMethod !== 'pix' && !isCardPaymentMethod(order.paymentMethod)) || !order.pagarmeOrderId) {
+    if ((order.paymentMethod !== 'pix' && order.paymentMethod !== 'combinado' && !isCardPaymentMethod(order.paymentMethod)) || !order.pagarmeOrderId) {
       return Response.json({ error: 'Este pedido não possui uma cobrança online para consultar.' }, { status: 409 });
     }
     if (order.paymentStatus !== 'pending') {

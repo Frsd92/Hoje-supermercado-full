@@ -1,6 +1,10 @@
 import assert from 'node:assert/strict';
 import test from 'node:test';
-import { getPendingPaymentStatus, shouldCancelOrderForPaymentStatus, shouldReconcilePendingPayment } from './pending-payment-policy.mjs';
+import {
+  getPendingPaymentStatus,
+  shouldCancelOrderForPaymentStatus,
+  shouldReconcilePendingPayment,
+} from './pending-payment-policy.mjs';
 
 const expiresAt = '2026-11-10T00:00:00Z';
 
@@ -37,4 +41,9 @@ test('cancels only unpaid orders still waiting for acceptance', () => {
   assert.equal(shouldCancelOrderForPaymentStatus('failed', 'Recebido'), true);
   assert.equal(shouldCancelOrderForPaymentStatus('paid', 'Recebido'), false);
   assert.equal(shouldCancelOrderForPaymentStatus('expired', 'Separacao'), false);
+});
+
+test('expires combined payments when the embedded Pix code has expired', () => {
+  assert.equal(getPendingPaymentStatus('pending', 'combinado', '2025-01-01T00:00:00Z', Date.parse('2025-01-01T01:00:00Z')), 'expired');
+  assert.equal(getPendingPaymentStatus('pending', 'combinado', '2025-01-01T02:00:00Z', Date.parse('2025-01-01T01:00:00Z')), 'pending');
 });

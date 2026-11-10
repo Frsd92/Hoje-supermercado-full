@@ -27,6 +27,7 @@ import {
   isKnownCardType,
   isVoucherPaymentMethod,
 } from '@/features/payments/card-methods';
+import { parsePaymentAmountToCents } from '@/features/payments/split-payment.mjs';
 import {
   Bell,
   Award,
@@ -57,6 +58,11 @@ import {
 } from 'lucide-react';
 
 const cartCurrencyFormatter = new Intl.NumberFormat('pt-BR', { style: 'currency', currency: 'BRL' });
+const combinedPaymentMethodOptions = [
+  { value: 'pix', label: 'Pix' },
+  { value: 'cartao_credito', label: 'Cartão de crédito' },
+  { value: 'cartao_debito', label: 'Cartão de débito' },
+];
 const deliveryFeeExplanation = 'Pense na taxa de entrega como economia: você não gasta com combustível, estacionamento ou trânsito, e ainda ganha tempo livre enquanto nós fazemos o trabalho pesado por você.';
 const serviceFeeExplanation = "Nossa taxa de serviço é destinada aos nossos separadores especializados. Eles funcionam como seus 'olhos' na loja, escolhendo a dedo as frutas mais frescas, as melhores carnes e os produtos com maior validade, embalando tudo com o máximo de cuidado.";
 
@@ -129,6 +135,10 @@ export default function DashboardLayout({ children }) {
   const [selectedAddressId, setSelectedAddressId] = useState('');
   const [deliveryAddressOpen, setDeliveryAddressOpen] = useState(false);
   const [paymentMethod, setPaymentMethod] = useState(null);
+  const [combinedPayments, setCombinedPayments] = useState([
+    { method: 'pix', amount: '', savedCardId: '' },
+    { method: 'cartao_credito', amount: '', savedCardId: '' },
+  ]);
   const [pagarmeConfig, setPagarmeConfig] = useState({ pixAvailable: false, cardAvailable: false, savedCardAvailable: false, voucherAvailable: false, publicKey: '' });
   const [pagarmeConfigReady, setPagarmeConfigReady] = useState(false);
   const [savedCards, setSavedCards] = useState([]);
@@ -171,6 +181,14 @@ export default function DashboardLayout({ children }) {
     }),
     [cartItems, activeCouponDiscountPercent, appliedCouponCode, normalizedCoupon, couponBenefitType, checkoutFees],
   );
+  const combinedPaymentTotalCents = Math.round(cartTotals.total * 100);
+  const combinedPaymentAmounts = combinedPayments.map((line) => parsePaymentAmountToCents(line.amount));
+  const combinedPaymentAmountSumCents = combinedPaymentAmounts.every(Number.isSafeInteger)
+    ? combinedPaymentAmounts.reduce((sum, amount) => sum + amount, 0)
+    : null;
+  const combinedPaymentAmountsValid = combinedPaymentAmounts.every((amount) => Number.isSafeInteger(amount) && amount > 0)
+    && combinedPaymentAmountSumCents === combinedPaymentTotalCents
+    && new Set(combinedPayments.map((line) => line.method)).size === combinedPayments.length;
   const closestCheckoutMission = useMemo(() => {
     const selected = getClosestAvailableMission(checkoutMission?.missions);
     if (!selected) return null;
@@ -926,35 +944,64 @@ export default function DashboardLayout({ children }) {
     if (addressLoadError) return setCheckoutStatus(`Não foi possível confirmar seus endereços: ${addressLoadError}`);
     if (!selectedDeliveryAddress) return setCheckoutStatus('Cadastre um endereço no painel do cliente antes de concluir a compra.');
     if (!isPaymentMethod(paymentMethod)) return setCheckoutStatus('Defina uma forma de pagamento em Formas de pagamento antes de finalizar.');
-    if (isVoucherPaymentMethod(paymentMethod) && !pagarmeConfig.voucherAvailable) {
-      return setCheckoutStatus('VA/VR ainda não estão habilitados para pagamento online. A modalidade Voucher precisa ser ativada na Pagar.me Gateway.');
+    const combinedPayment = paymentMethod === 'combinado';
+    const combinedCardLines = combinedPayment ? combinedPayments.filter((line) => line.method !== 'pix') : [];
+    if (combinedPayment) {
+      if (!combinedPaymentAmountsValid) {
+        return setCheckoutStatus(`As duas parcelas devem somar exatamente ${cartCurrencyFormatter.format(cartTotals.total)}. Ajuste os valores antes de continuar.`);
+      }
+      if (combinedPayments.some((line) => isVoucherPaymentMethod(line.method))) {
+        return setCheckoutStatus('Voucher não pode ser combinado com outra forma de pagamento.');
+      }
+      if (combinedPayments.some((line) => line.method === 'pix') && !pagarmeConfig.pixAvailable) {
+        return setCheckoutStatus('O Pix está temporariamente indisponível. Escolha outra forma de pagamento ou tente mais tarde.');
+      }
+      if (combinedCardLines.length && savedCardLoading) {
+        return setCheckoutStatus('Estamos verificando seus cartões salvos. Aguarde um instante.');
+      }
+      if (combinedCardLines.length && savedCardError) {
+        return setCheckoutStatus('Não foi possível verificar seus cartões salvos. Tente novamente antes de finalizar.');
+      }
+      for (const line of combinedCardLines) {
+        const cards = activeSavedCards.filter((card) => isCardTypeCompatible(card.type, line.method));
+        if (!cards.some((card) => card.id === line.savedCardId) && !cards.length) {
+          return setCheckoutStatus(`Salve um cartão de ${line.method === 'cartao_debito' ? 'débito' : 'crédito'} em Formas de pagamento antes de finalizar.`);
+        }
+      }
+      if (combinedCardLines.length && !pagarmeConfig.savedCardAvailable) {
+        return setCheckoutStatus('O pagamento com cartão está temporariamente indisponível. Tente mais tarde.');
+      }
+    } else {
+      if (isVoucherPaymentMethod(paymentMethod) && !pagarmeConfig.voucherAvailable) {
+        return setCheckoutStatus('VA/VR ainda não estão habilitados para pagamento online. A modalidade Voucher precisa ser ativada na Pagar.me Gateway.');
+      }
+      const cardPaymentSelected = isCardPaymentMethod(paymentMethod);
+      if (paymentMethod === 'pix' && !pagarmeConfig.pixAvailable) {
+        return setCheckoutStatus('O Pix está temporariamente indisponível. Escolha outra forma de pagamento ou tente mais tarde.');
+      }
+      if (cardPaymentSelected && savedCardLoading) {
+        return setCheckoutStatus('Estamos verificando seus cartões salvos. Aguarde um instante.');
+      }
+      if (cardPaymentSelected && savedCardError) {
+        return setCheckoutStatus('Não foi possível verificar seus cartões salvos. Tente novamente antes de finalizar.');
+      }
+      if (cardPaymentSelected && !selectedSavedCard) {
+        const typeLabel = paymentMethod === 'cartao_debito'
+          ? 'débito'
+          : paymentMethod === 'vale_alimentacao'
+            ? 'vale-alimentação'
+            : paymentMethod === 'vale_refeicao'
+              ? 'vale-refeição'
+              : 'crédito';
+        return setCheckoutStatus(activeSavedCards.length
+          ? `Não há cartão de ${typeLabel} compatível na sua carteira. Cadastre um cartão desse tipo em Formas de pagamento.`
+          : 'Salve um cartão em Formas de pagamento antes de finalizar.');
+      }
+      if (cardPaymentSelected && !pagarmeConfig.savedCardAvailable) {
+        return setCheckoutStatus('O pagamento com cartão está temporariamente indisponível. Tente mais tarde.');
+      }
     }
-    const cardPaymentSelected = isCardPaymentMethod(paymentMethod);
-    if (paymentMethod === 'pix' && !pagarmeConfig.pixAvailable) {
-      return setCheckoutStatus('O Pix está temporariamente indisponível. Escolha outra forma de pagamento ou tente mais tarde.');
-    }
-    if (cardPaymentSelected && savedCardLoading) {
-      return setCheckoutStatus('Estamos verificando seus cartões salvos. Aguarde um instante.');
-    }
-    if (cardPaymentSelected && savedCardError) {
-      return setCheckoutStatus('Não foi possível verificar seus cartões salvos. Tente novamente antes de finalizar.');
-    }
-    if (cardPaymentSelected && !selectedSavedCard) {
-      const typeLabel = paymentMethod === 'cartao_debito'
-        ? 'débito'
-        : paymentMethod === 'vale_alimentacao'
-          ? 'vale-alimentação'
-          : paymentMethod === 'vale_refeicao'
-            ? 'vale-refeição'
-            : 'crédito';
-      return setCheckoutStatus(activeSavedCards.length
-        ? `Não há cartão de ${typeLabel} compatível na sua carteira. Cadastre um cartão desse tipo em Formas de pagamento.`
-        : 'Salve um cartão em Formas de pagamento antes de finalizar.');
-    }
-    if (cardPaymentSelected && !pagarmeConfig.savedCardAvailable) {
-      return setCheckoutStatus('O pagamento com cartão está temporariamente indisponível. Tente mais tarde.');
-    }
-    if (paymentMethod === 'pix' || cardPaymentSelected) {
+    if (combinedPayment || paymentMethod === 'pix' || isCardPaymentMethod(paymentMethod)) {
       const cpf = String(profileCpf).replace(/\D/g, '');
       const phone = String(profilePhone).replace(/\D/g, '').replace(/^55(?=\d{10,11}$)/, '');
       if (cpf.length !== 11 || ![10, 11].includes(phone.length)) {
@@ -965,6 +1012,13 @@ export default function DashboardLayout({ children }) {
     setCheckoutStatus('');
     setCheckoutOrderId('');
     setCpfNoteDialogOpen(true);
+  };
+
+  const updateCombinedPayment = (index, updates) => {
+    setCombinedPayments((current) => current.map((line, lineIndex) => (
+      lineIndex === index ? { ...line, ...updates } : line
+    )));
+    setCheckoutStatus('');
   };
 
   const submitPurchase = async (includeCpfOnReceipt) => {
@@ -995,8 +1049,19 @@ export default function DashboardLayout({ children }) {
           addressId: selectedAddressId,
           addressDetails: selectedDeliveryAddress,
           paymentMethod,
+          ...(paymentMethod === 'combinado' ? {
+            combinedPayments: combinedPayments.map((line) => {
+              const compatibleCards = activeSavedCards.filter((card) => isCardTypeCompatible(card.type, line.method));
+              const selectedCard = compatibleCards.find((card) => card.id === line.savedCardId) || compatibleCards[0];
+              return {
+                method: line.method,
+                amountCents: parsePaymentAmountToCents(line.amount),
+                ...(line.method === 'pix' ? {} : { savedCardId: selectedCard?.id || '' }),
+              };
+            }),
+          } : {}),
           checkoutRequestId,
-          useSavedCard: chargeSavedCard,
+          useSavedCard: paymentMethod === 'combinado' ? false : chargeSavedCard,
           savedCardId: chargeSavedCard ? selectedSavedCard?.id : undefined,
           includeCpfOnReceipt,
           couponCode: coupon.trim().toUpperCase(),
@@ -1629,7 +1694,9 @@ export default function DashboardLayout({ children }) {
                 <option value="" disabled>Selecione sua forma de pagamento</option>
                 {PAYMENT_METHODS.map((method) => {
                   const unavailable = pagarmeConfigReady && (
-                    method.value === 'pix'
+                    method.value === 'combinado'
+                      ? !pagarmeConfig.pixAvailable && !pagarmeConfig.savedCardAvailable
+                      : method.value === 'pix'
                       ? !pagarmeConfig.pixAvailable
                       : method.voucher
                         ? !pagarmeConfig.voucherAvailable
@@ -1649,6 +1716,76 @@ export default function DashboardLayout({ children }) {
                 })}
               </select>
             </label>
+            {paymentMethod === 'combinado' && <>
+              <p className="checkout-field-hint" role="status">
+                Divida o total entre duas formas online. Cartões são autorizados primeiro e só capturados quando todas as parcelas forem confirmadas; se houver Pix, ele será pago por último. Voucher não pode ser combinado.
+              </p>
+              <div className="checkout-split-payment">
+                {combinedPayments.map((line, index) => {
+                  const otherMethod = combinedPayments[1 - index]?.method;
+                  const compatibleCardsForLine = activeSavedCards.filter((card) => isCardTypeCompatible(card.type, line.method));
+                  const selectedCardForLine = compatibleCardsForLine.find((card) => card.id === line.savedCardId)
+                    || compatibleCardsForLine[0]
+                    || null;
+                  return <fieldset className="checkout-split-payment-line" key={`split-payment-${index}`}>
+                    <legend>{index === 0 ? 'Primeira forma' : 'Segunda forma'}</legend>
+                    <label className="delivery-address-field" htmlFor={`checkout-split-method-${index}`}>Forma de pagamento</label>
+                    <select
+                      id={`checkout-split-method-${index}`}
+                      value={line.method}
+                      onChange={(event) => {
+                        const method = event.target.value;
+                        const defaultCard = activeSavedCards.find((card) => isCardTypeCompatible(card.type, method));
+                        updateCombinedPayment(index, {
+                          method,
+                          savedCardId: method === 'pix' ? '' : defaultCard?.id || '',
+                        });
+                      }}
+                    >
+                      {combinedPaymentMethodOptions
+                        .filter((option) => option.value === line.method || option.value !== otherMethod)
+                        .map((option) => <option value={option.value} key={option.value}>{option.label}</option>)}
+                    </select>
+                    <label className="delivery-address-field" htmlFor={`checkout-split-amount-${index}`}>Valor nesta forma</label>
+                    <input
+                      id={`checkout-split-amount-${index}`}
+                      type="text"
+                      inputMode="decimal"
+                      autoComplete="off"
+                      placeholder="Ex.: 51,25"
+                      value={line.amount}
+                      onChange={(event) => updateCombinedPayment(index, { amount: event.target.value })}
+                    />
+                    {line.method !== 'pix' && <>
+                      {savedCardLoading && <small className="checkout-field-hint" role="status">Verificando cartões salvos...</small>}
+                      {savedCardError && <small className="checkout-field-hint" role="alert">{savedCardError}</small>}
+                      {!savedCardLoading && !savedCardError && !selectedCardForLine && <small className="checkout-field-hint" role="alert">
+                        Salve um cartão de {line.method === 'cartao_debito' ? 'débito' : 'crédito'} em <Link href="/dashboard/payment-methods">Formas de pagamento</Link>.
+                      </small>}
+                      {selectedCardForLine && <label className="delivery-address-field checkout-saved-card-select" htmlFor={`checkout-split-card-${index}`}>
+                        Cartão salvo
+                        <select
+                          id={`checkout-split-card-${index}`}
+                          value={selectedCardForLine.id}
+                          onChange={(event) => updateCombinedPayment(index, { savedCardId: event.target.value })}
+                        >
+                          {compatibleCardsForLine.map((card) => <option value={card.id} key={card.id}>
+                            {card.brand} •••• {card.lastFourDigits}
+                          </option>)}
+                        </select>
+                      </label>}
+                    </>}
+                  </fieldset>;
+                })}
+                <p className={`checkout-split-payment-total${combinedPaymentAmountsValid ? ' valid' : ' invalid'}`} role="status" aria-live="polite">
+                  Soma das parcelas: {combinedPaymentAmountSumCents === null
+                    ? 'preencha os dois valores'
+                    : cartCurrencyFormatter.format(combinedPaymentAmountSumCents / 100)}
+                  {' · '}Total do pedido: {cartCurrencyFormatter.format(combinedPaymentTotalCents / 100)}
+                  {!combinedPaymentAmountsValid && <strong> A soma precisa ser exata para continuar.</strong>}
+                </p>
+              </div>
+            </>}
             {(paymentMethod === 'pix' || isCardPaymentMethod(paymentMethod)) && <div className="checkout-field-hint" role="status">
               <p>Pagamento online exige CPF e celular com DDD.</p>
               {profileCpf.replace(/\D/g, '').length !== 11 || ![10, 11].includes(profilePhone.replace(/\D/g, '').replace(/^55(?=\d{10,11}$)/, '').length)
@@ -1701,6 +1838,7 @@ export default function DashboardLayout({ children }) {
               type="submit"
               disabled={checkoutLoading
                 || !cartItems.length
+                || (paymentMethod === 'combinado' && !combinedPaymentAmountsValid)
                 || Boolean(session?.user?.email && (addressesLoading || addressLoadError || !selectedDeliveryAddress))}
             >
               {checkoutLoading ? 'Finalizando...' : 'Finalizar Pedido'}

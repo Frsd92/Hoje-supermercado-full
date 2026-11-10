@@ -2,6 +2,10 @@ import assert from 'node:assert/strict';
 import test from 'node:test';
 import {
   buildPagarmeOrderPayload,
+  capturePagarmeCharge,
+  captureReadyCombinedPayments,
+  cancelCombinedPaymentOrder,
+  cancelPagarmeCharge,
   createPagarmeCustomerCard,
   getPagarmeCustomerCards,
   getPagarmePaymentSnapshot,
@@ -9,6 +13,7 @@ import {
   getPagarmeRefundedCents,
   isValidCpf,
   pagarmeRequest,
+  refundPagarmeOrderCharges,
   refundPagarmeCharge,
   splitBrazilianMobilePhone,
 } from './pagarme.js';
@@ -146,6 +151,89 @@ test('requires the Pagar.me card token and billing address without accepting raw
   assert.equal(payload.payments[0].credit_card.card_token, 'token_abc123');
   assert.equal(serialized.includes('4111111111111111'), false);
   assert.equal(serialized.includes('cvv'), false);
+});
+
+test('builds exact split payments with card authorization before Pix', () => {
+  const payload = buildPagarmeOrderPayload({
+    orderId: 'PED-SPLIT',
+    items: [{ name: 'Cesta', price: 'R$ 102,50', quantity: 1, productCode: 'CESTA' }],
+    total: 'R$ 102,50',
+    customer: {
+      name: 'Cliente Hoje',
+      email: 'cliente@example.com',
+      cpf: '52998224725',
+      phone: '11987654321',
+    },
+    paymentMethod: 'combinado',
+    savedCardCustomerId: 'cus_customer123',
+    combinedPayments: [
+      { method: 'pix', amountCents: 5125 },
+      { method: 'cartao_credito', amountCents: 5125, savedCardId: 'card_saved123' },
+    ],
+    address: {
+      street: 'Rua Um',
+      number: '10',
+      neighborhood: 'Centro',
+      city: 'São Paulo',
+      stateCode: 'SP',
+      cep: '01001-000',
+    },
+  });
+
+  assert.equal(payload.customer_id, 'cus_customer123');
+  assert.deepEqual(payload.payments.map(({ payment_method, amount }) => [payment_method, amount]), [
+    ['credit_card', 5125],
+    ['pix', 5125],
+  ]);
+  assert.equal(payload.payments[0].credit_card.operation_type, 'auth_only');
+  assert.equal(payload.payments[1].pix.expires_in, 3600);
+});
+
+test('authorizes debit cards for split payments and rejects mismatched or unsupported split lines', () => {
+  const base = {
+    orderId: 'PED-SPLIT-DEBIT',
+    items: [{ name: 'Cesta', price: 'R$ 100,00', quantity: 1, productCode: 'CESTA' }],
+    total: 'R$ 100,00',
+    customer: {
+      name: 'Cliente Hoje',
+      email: 'cliente@example.com',
+      cpf: '52998224725',
+      phone: '11987654321',
+    },
+    paymentMethod: 'combinado',
+    savedCardCustomerId: 'cus_customer123',
+    address: {
+      street: 'Rua Um',
+      number: '10',
+      neighborhood: 'Centro',
+      city: 'São Paulo',
+      stateCode: 'SP',
+      cep: '01001-000',
+    },
+  };
+  const payload = buildPagarmeOrderPayload({
+    ...base,
+    combinedPayments: [
+      { method: 'cartao_debito', amountCents: 6000, savedCardId: 'card_debit123' },
+      { method: 'pix', amountCents: 4000 },
+    ],
+  });
+
+  assert.equal(payload.payments[0].debit_card.capture, false);
+  assert.throws(() => buildPagarmeOrderPayload({
+    ...base,
+    combinedPayments: [
+      { method: 'pix', amountCents: 5001 },
+      { method: 'cartao_credito', amountCents: 4998, savedCardId: 'card_credit123' },
+    ],
+  }), /exatamente igual/);
+  assert.throws(() => buildPagarmeOrderPayload({
+    ...base,
+    combinedPayments: [
+      { method: 'vale_refeicao', amountCents: 5000, savedCardId: 'card_voucher123' },
+      { method: 'pix', amountCents: 5000 },
+    ],
+  }), /Voucher não pode ser combinado/);
 });
 
 test('builds a saved-card order using only the customer and card references', () => {
@@ -357,6 +445,120 @@ test('maps provider payment and refund results', () => {
   assert.equal(getPagarmePaymentStatus({ status: 'paid' }), 'paid');
   assert.equal(getPagarmePaymentStatus({ status: 'expired' }), 'expired');
   assert.equal(getPagarmePaymentStatus({ charges: [{ status: 'expired' }] }), 'expired');
+});
+
+test('does not treat one paid split charge as a fully paid order', () => {
+  assert.equal(getPagarmePaymentStatus({
+    status: 'paid',
+    amount: 10250,
+    charges: [{ amount: 5125, status: 'paid' }, { amount: 5125, status: 'authorized_pending_capture' }],
+  }), 'pending');
+  assert.equal(getPagarmePaymentStatus({
+    status: 'paid',
+    amount: 10250,
+    charges: [{ amount: 5125, status: 'paid' }, { amount: 5125, status: 'captured' }],
+  }), 'paid');
+});
+
+test('captures authorized card charges only after the Pix split is paid', async () => {
+  const calls = [];
+  const order = {
+    id: 'or_split',
+    charges: [
+      { id: 'ch_card', payment_method: 'credit_card', amount: 5125, status: 'authorized_pending_capture' },
+      { id: 'ch_pix', payment_method: 'pix', amount: 5125, status: 'paid' },
+    ],
+  };
+  const capturedOrder = await captureReadyCombinedPayments('PED-SPLIT', order, {
+    captureCharge: async (...args) => calls.push(args),
+    getOrder: async (id) => ({ id, status: 'paid' }),
+  });
+  assert.deepEqual(calls, [['ch_card', 5125, 'CAP-PED-SPLIT-ch_card']]);
+  assert.equal(capturedOrder.status, 'paid');
+
+  const pendingOrder = await captureReadyCombinedPayments('PED-SPLIT', {
+    ...order,
+    charges: [order.charges[0], { ...order.charges[1], status: 'pending' }],
+  }, {
+    captureCharge: async (...args) => calls.push(args),
+    getOrder: async (id) => ({ id }),
+  });
+  assert.equal(pendingOrder.charges[1].status, 'pending');
+  assert.equal(calls.length, 1);
+});
+
+test('captures and releases Pagar.me charges with idempotent request keys', async () => {
+  const requests = [];
+  const fetchImpl = async (url, options) => {
+    requests.push({ url, options });
+    return { ok: true, json: async () => ({ id: 'ch_123' }) };
+  };
+  await capturePagarmeCharge('ch_123', 2500, 'CAP-1', { secretKey: 'sk_test', fetchImpl });
+  await cancelPagarmeCharge('ch_456', 'VOID-1', { secretKey: 'sk_test', fetchImpl });
+  assert.equal(requests[0].url, 'https://api.pagar.me/core/v5/charges/ch_123/capture');
+  assert.equal(requests[0].options.method, 'PUT');
+  assert.deepEqual(JSON.parse(requests[0].options.body), { amount: 2500 });
+  assert.equal(requests[0].options.headers['Idempotency-Key'], 'CAP-1');
+  assert.equal(requests[1].url, 'https://api.pagar.me/core/v5/charges/ch_456');
+  assert.equal(requests[1].options.method, 'DELETE');
+  assert.equal(requests[1].options.headers['Idempotency-Key'], 'VOID-1');
+});
+
+test('cancels card authorizations and refunds captured split payments after cancellation', async () => {
+  const canceled = [];
+  const refunded = [];
+  const order = {
+    id: 'or_split',
+    charges: [
+      { id: 'ch_card', payment_method: 'credit_card', amount: 5125, status: 'authorized_pending_capture' },
+      { id: 'ch_pix', payment_method: 'pix', amount: 5125, status: 'paid', canceled_amount: 0 },
+    ],
+  };
+  await cancelCombinedPaymentOrder('PED-SPLIT', order, {
+    cancelCharge: async (...args) => canceled.push(args),
+    refundCharge: async (...args) => refunded.push(args),
+    getOrder: async (id) => ({ id }),
+  });
+  assert.deepEqual(canceled, [['ch_card', 'SPLIT-CANCEL-PED-SPLIT-ch_card']]);
+  assert.deepEqual(refunded, [['ch_pix', 5125, 'SPLIT-REFUND-PED-SPLIT-ch_pix']]);
+});
+
+test('rejects malformed captured charges instead of silently skipping a split refund', async () => {
+  await assert.rejects(() => cancelCombinedPaymentOrder('PED-SPLIT', {
+    id: 'or_split',
+    charges: [{ id: 'ch_pix', payment_method: 'pix', amount: 0, status: 'paid' }],
+  }), /cobrança inválida para estorno/);
+});
+
+test('distributes a split refund over captured charges and reuses stable idempotency keys', async () => {
+  let order = {
+    id: 'or_split',
+    charges: [
+      { id: 'ch_card', payment_method: 'credit_card', amount: 5125, status: 'paid', canceled_amount: 0 },
+      { id: 'ch_pix', payment_method: 'pix', amount: 5125, status: 'paid', canceled_amount: 0 },
+    ],
+  };
+  const refunds = [];
+  const result = await refundPagarmeOrderCharges('or_split', 7000, 'REF-123', {
+    getOrder: async () => order,
+    refundCharge: async (chargeId, amount, key) => {
+      refunds.push({ chargeId, amount, key });
+      order = {
+        ...order,
+        charges: order.charges.map((charge) => charge.id === chargeId
+          ? { ...charge, canceled_amount: charge.canceled_amount + amount }
+          : charge),
+      };
+      return { status: 'canceled' };
+    },
+  });
+
+  assert.deepEqual(refunds, [
+    { chargeId: 'ch_card', amount: 5125, key: 'REF-123-ch_card' },
+    { chargeId: 'ch_pix', amount: 1875, key: 'REF-123-ch_pix' },
+  ]);
+  assert.equal(result.refundedCents, 7000);
+  assert.equal(result.refundedForRequestCents, 7000);
 });
 
 test('sends partial Pagar.me refunds as charge cancellations in cents', async () => {

@@ -27,10 +27,11 @@ import {
 } from '../../features/payments/card-methods.js';
 
 test('exposes only payment methods available to customers', () => {
-  assert.deepEqual(PAYMENT_METHODS.map(({ value }) => value), ['pix', 'cartao_credito', 'cartao_debito', 'vale_alimentacao', 'vale_refeicao']);
+  assert.deepEqual(PAYMENT_METHODS.map(({ value }) => value), ['pix', 'cartao_credito', 'cartao_debito', 'vale_alimentacao', 'vale_refeicao', 'combinado']);
   assert.doesNotMatch(PAYMENT_METHODS.map(({ label, description }) => `${label} ${description}`).join(' '), /pagar[.]me/i);
   assert.equal(PAYMENT_METHODS.find(({ value }) => value === 'cartao_credito').label, 'Cartão de crédito');
   assert.equal(PAYMENT_METHODS.find(({ value }) => value === 'cartao_debito').label, 'Cartão de débito');
+  assert.equal(PAYMENT_METHODS.find(({ value }) => value === 'combinado').label, 'Pix + cartão');
   assert.equal(PAYMENT_METHODS.find(({ value }) => value === 'pix').recommended, true);
   assert.match(PAYMENT_METHODS.find(({ value }) => value === 'pix').description, /QR Code.*Pix copia e cola/);
   assert.equal(DEFAULT_PAYMENT_METHOD, 'pix');
@@ -38,6 +39,7 @@ test('exposes only payment methods available to customers', () => {
   assert.equal(isPaymentMethod('cartao'), true);
   assert.equal(isPaymentMethod('vale_alimentacao'), true);
   assert.equal(isPaymentMethod('vale_refeicao'), true);
+  assert.equal(isPaymentMethod('combinado'), true);
   assert.deepEqual(CARD_PAYMENT_METHODS, ['cartao_credito', 'cartao_debito']);
   assert.deepEqual(VOUCHER_PAYMENT_METHODS, ['vale_alimentacao', 'vale_refeicao']);
   assert.deepEqual(SAVED_CARD_TYPES, ['credit', 'debit', 'food_voucher', 'meal_voucher']);

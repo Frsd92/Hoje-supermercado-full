@@ -22,8 +22,7 @@ const paymentLabels = {
   cartao_debito: 'Cartão de débito',
   vale_alimentacao: 'Vale-alimentação',
   vale_refeicao: 'Vale-refeição',
-  dinheiro: 'Dinheiro',
-  outro: 'Outro / combinar',
+  combinado: 'Pix + cartão',
 };
 const paymentStatusLabels = {
   pending: 'Aguardando pagamento',
@@ -46,9 +45,11 @@ const paymentStatusTones = {
   manual: 'manual',
 };
 const paymentBlocksOrderProgress = (order) => order?.status === 'Recebido'
-  && (order.paymentMethod === 'pix' || isCardPaymentMethod(order.paymentMethod))
-  && order.paymentStatus !== 'manual'
-  && !['paid', 'partially_refunded'].includes(order.paymentStatus);
+  && ((order.paymentMethod === 'pix'
+    || order.paymentMethod === 'combinado'
+    || isCardPaymentMethod(order.paymentMethod))
+    && order.paymentStatus !== 'manual'
+    && !['paid', 'partially_refunded'].includes(order.paymentStatus));
 const currencyFormatter = new Intl.NumberFormat('pt-BR', { style: 'currency', currency: 'BRL' });
 const formatInvoiceCpf = (value) => {
   const digits = String(value || '').replace(/\D/g, '');
@@ -498,7 +499,7 @@ export default function ERPOrdersPage() {
       </section>
       {newOrders.length > 0 && <section className="erp-new-orders-alert">
         <div><strong>Novos pedidos aguardando atenção</strong><span>
-          {newOrdersAwaitingPayment > 0 && `${newOrdersAwaitingPayment} aguardando pagamento. `}
+          {newOrdersAwaitingPayment > 0 && `${newOrdersAwaitingPayment} aguardando confirmação integral do pagamento. `}
           {newOrdersPaymentNeedsAttention > 0 && `${newOrdersPaymentNeedsAttention} com pagamento recusado, cancelado ou não confirmado; confira antes de separar. `}
           {newOrdersReadyForReview > 0 && `${newOrdersReadyForReview} liberado(s) para conferência e separação.`}
         </span></div>
@@ -568,6 +569,17 @@ export default function ERPOrdersPage() {
           <div className="erp-order-customer"><UserRound size={15} /><strong>{selected.customerName || 'Cliente não identificado'}</strong><span>{selected.customerEmail}</span></div>
           <div className="erp-order-address"><MapPin size={15} /><span>{selected.address || 'Endereço não informado'}</span></div>
           <div className="erp-order-address"><CreditCard size={15} /><span>Forma: {paymentLabels[selected.paymentMethod] || 'Não informada'} · Pagamento: <strong>{paymentStatusLabels[selected.paymentStatus] || 'Não informado'}</strong></span></div>
+          {selected.paymentMethod === 'combinado' && selected.paymentDetails?.payments?.length > 0 && <div className="erp-order-payment-lines" aria-label="Parcelas do pagamento combinado">
+            {selected.paymentDetails.payments.map((payment, index) => {
+              const methodLabels = { pix: 'Pix', credit_card: 'Cartão de crédito', debit_card: 'Cartão de débito', cartao_credito: 'Cartão de crédito', cartao_debito: 'Cartão de débito' };
+              const amount = Number(payment.amountCents) / 100;
+              return <p key={`${payment.chargeId || payment.method}-${index}`}>
+                <strong>{methodLabels[payment.method] || payment.method}</strong>
+                {Number.isFinite(amount) && amount > 0 ? ` · R$ ${amount.toFixed(2).replace('.', ',')}` : ''}
+                {payment.status ? ` · ${payment.status === 'authorized_pending_capture' ? 'Autorizado, aguardando captura' : payment.status === 'paid' || payment.status === 'captured' ? 'Confirmado' : 'Aguardando'}` : ''}
+              </p>;
+            })}
+          </div>}
           {selected.status === 'Em transito' && <section className="erp-delivery-tracking-control" aria-labelledby="erp-delivery-tracking-title">
             <h4 id="erp-delivery-tracking-title">Rastreamento ao vivo</h4>
             <p>Gere um link individual e envie ao entregador para compartilhar o GPS pelo celular.</p>
@@ -590,7 +602,9 @@ export default function ERPOrdersPage() {
           {selectedPaymentBlocksProgress && <p className="erp-order-payment-blocked" role="status">
             <AlertCircle size={16} aria-hidden="true" />
             {selected.paymentStatus === 'pending'
-              ? 'Pedido recebido, mas ainda não pago. A separação só será liberada após a confirmação do pagamento.'
+              ? selected.paymentMethod === 'combinado'
+                ? 'O pagamento combinado ainda não foi integralmente confirmado. A separação só será liberada após a confirmação de todas as parcelas.'
+                : 'Pedido recebido, mas ainda não pago. A separação só será liberada após a confirmação do pagamento.'
               : `${paymentStatusLabels[selected.paymentStatus] || 'Pagamento não confirmado'}. A separação permanece bloqueada.`}
           </p>}
           <div className="erp-order-address erp-order-invoice-cpf">

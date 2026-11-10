@@ -1,7 +1,7 @@
 import { randomUUID } from 'crypto';
 import { serializeRefundRequest } from '@/features/erp/api/order-serialization';
 import { amountToCents, refundRequestStatus, validateRefundAmount } from '@/features/orders/order-refund-utils';
-import { PagarmeApiError, refundPagarmeCharge } from '@/features/payments/pagarme';
+import { PagarmeApiError, refundPagarmeOrderCharges } from '@/features/payments/pagarme';
 import { prisma } from '@/lib/prisma';
 
 export async function processPagarmeRefund(refundId, actor, note) {
@@ -15,6 +15,7 @@ export async function processPagarmeRefund(refundId, actor, note) {
             id: true,
             total: true,
             paymentStatus: true,
+            pagarmeOrderId: true,
             pagarmeChargeId: true,
             refundedAmount: true,
             refundRequests: { select: { id: true, amount: true, status: true } },
@@ -29,7 +30,7 @@ export async function processPagarmeRefund(refundId, actor, note) {
   if (!refundRequest) return Response.json({ error: 'Solicitação de estorno não encontrada.' }, { status: 404 });
 
   const order = refundRequest.order;
-  if (!order.pagarmeChargeId || !['paid', 'partially_refunded'].includes(order.paymentStatus)) return null;
+  if (!order.pagarmeOrderId || !['paid', 'partially_refunded'].includes(order.paymentStatus)) return null;
   if (![refundRequestStatus.requested, refundRequestStatus.gatewayFailed, refundRequestStatus.approvedWaitingGateway].includes(refundRequest.status)) {
     return Response.json({ error: 'Esta solicitação já está sendo processada ou foi concluída.' }, { status: 409 });
   }
@@ -78,14 +79,14 @@ export async function processPagarmeRefund(refundId, actor, note) {
 
   const amountCents = amountToCents(refundRequest.amount);
   try {
-    const gatewayCharge = await refundPagarmeCharge(
-      order.pagarmeChargeId,
+    const gatewayResult = await refundPagarmeOrderCharges(
+      order.pagarmeOrderId,
       amountCents,
-      randomUUID(),
+      `REF-${refundRequest.id}`,
     );
-    const canceledCents = Number(gatewayCharge.canceled_amount) || 0;
+    const canceledCents = gatewayResult.refundedCents;
     const expectedCents = amountToCents(order.refundedAmount) + amountCents;
-    const gatewayStatus = String(gatewayCharge.status || '').toLowerCase();
+    const gatewayStatus = String(gatewayResult.order?.status || '').toLowerCase();
     const confirmed = canceledCents >= expectedCents && !['pending', 'pending_refund', 'processing'].includes(gatewayStatus);
 
     const result = await prisma.$transaction(async (transaction) => {

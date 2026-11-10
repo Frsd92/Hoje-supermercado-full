@@ -43,9 +43,9 @@ export async function POST(request, { params }) {
         },
       });
       if (!order) return { error: 'O pedido não foi encontrado na sua conta.', status: 404 };
-      if ((order.paymentMethod === 'pix' || isCardPaymentMethod(order.paymentMethod))
-        && order.paymentStatus !== 'manual'
-        && !['paid', 'partially_refunded'].includes(order.paymentStatus)) {
+      if ((order.paymentMethod === 'pix' || order.paymentMethod === 'combinado' || isCardPaymentMethod(order.paymentMethod))
+          && order.paymentStatus !== 'manual'
+          && !['paid', 'partially_refunded'].includes(order.paymentStatus)) {
         return { error: 'Só é possível solicitar estorno depois que o pagamento estiver confirmado.', status: 409 };
       }
 

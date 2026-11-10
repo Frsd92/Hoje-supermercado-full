@@ -2338,6 +2338,7 @@ body {
 .checkout-saved-card-error button:focus-visible,
 .checkout-saved-card-error a:focus-visible { outline: 3px solid rgba(143, 33, 27, 0.28); outline-offset: 3px; }
 .customer-order-payment-status { display: block; margin-top: 5px; color: #64748b; font-size: 11px; }
+.customer-order-payment-waiting { display: block; max-width: 190px; color: #8a5700; font-size: .66rem; line-height: 1.4; }
 .customer-pix-payment { display: grid; gap: 8px; width: min(100%, 360px); margin-top: 10px; padding: 12px; border: 1px solid #b9ddc3; border-radius: 12px; color: #174b2a; background: #f0faf2; }
 .customer-pix-payment img { width: min(100%, 190px); height: auto; border-radius: 8px; background: #fff; }
 .customer-pix-payment textarea { width: 100%; resize: vertical; padding: 9px; border: 1px solid #cbd5e1; border-radius: 8px; color: #1f2937; background: #fff; font-size: 11px; }
@@ -9586,6 +9587,17 @@ button.metric-mini:focus-visible {
 .erp-delivery-tracking-link button { color: #24583c; background: #fff; border-color: #b9d4c0; }
 .erp-delivery-tracking-control .erp-delivery-tracking-error { color: #991b1b; }
 .erp-delivery-tracking-control .erp-delivery-tracking-notice { color: #166534; }
+.checkout-split-payment { display: grid; gap: 10px; margin-top: 10px; }
+.checkout-split-payment-line { display: grid; gap: 7px; min-width: 0; margin: 0; padding: 12px; border: 1px solid var(--border-color, #d7dee8); border-radius: 10px; }
+.checkout-split-payment-line legend { padding: 0 5px; color: var(--text-color, #334155); font-size: .8rem; font-weight: 800; }
+.checkout-split-payment-line select, .checkout-split-payment-line input { width: 100%; min-height: 40px; padding: 8px 10px; border: 1px solid var(--border-color, #cbd5e1); border-radius: 8px; color: var(--text-color, #263445); background: var(--surface-color, #fff); font: inherit; font-size: .8rem; }
+.checkout-split-payment-total { margin: 0; padding: 9px 10px; border-radius: 8px; font-size: .75rem; line-height: 1.45; }
+.checkout-split-payment-total.valid { color: #166534; background: #f0faf2; }
+.checkout-split-payment-total.invalid { color: #8a5700; background: #fff7e6; }
+.checkout-split-payment-total strong { display: block; margin-top: 3px; }
+.erp-order-payment-lines { display: grid; gap: 4px; padding: 8px 10px; border: 1px solid #d8e2ee; border-radius: 8px; background: #f8fafc; }
+.erp-order-payment-lines p { margin: 0; color: #475569; font-size: .7rem; line-height: 1.4; }
+.customer-split-payment-lines { margin: 0; padding: 0 0 0 18px; color: #475569; font-size: .72rem; line-height: 1.5; }
 .erp-order-customer, .erp-order-address { display: flex; align-items: center; gap: 8px; padding: 10px 0; color: #475569; font-size: .74rem; }
 .erp-order-customer { flex-wrap: wrap; border-bottom: 1px solid #e2e8f0; }
 .erp-order-customer span { width: 100%; margin-left: 23px; color: #64748b; }
@@ -9598,6 +9610,7 @@ button.metric-mini:focus-visible {
 .erp-order-fefo-note { border: 1px solid #cfe7d5; background: #f2faf4; color: #27603a; }
 .erp-order-payment-blocked { display: flex; align-items: flex-start; gap: 8px; margin: 12px 0 0; padding: 11px 12px; border: 1px solid #f2c56b; border-left: 4px solid #d99000; border-radius: 8px; color: #6b3d00; background: #fff6df; font-size: .74rem; font-weight: 750; line-height: 1.5; }
 .erp-order-payment-blocked svg { flex: 0 0 auto; margin-top: 1px; }
+.erp-order-payment-confirmation { margin: 0; padding: 8px 10px; border-radius: 7px; color: #166534; background: #f0faf2; font-size: .68rem; line-height: 1.45; }
 .erp-order-action-error { border: 1px solid #fecaca; background: #fff7f7; color: #b91c1c; }
 .erp-order-fefo-note svg, .erp-order-action-error svg { flex: 0 0 auto; margin-top: 1px; }
 .erp-advance-button { width: 100%; margin-top: 16px; font-size: .75rem; }

@@ -28,7 +28,7 @@ const paymentStatusLabels = {
   canceled: 'Pagamento cancelado',
   partially_refunded: 'Estorno parcial',
   refunded: 'Estornado',
-  manual: 'Pagamento combinado com a loja',
+  manual: 'Pagamento manual registrado',
 };
 
 const tabs = [
@@ -176,7 +176,7 @@ export default function OrdersPage() {
   useEffect(() => {
     const now = Date.now();
     const nextPixExpiry = orders.reduce((nextExpiry, order) => {
-      if (order.paymentStatus !== 'pending' || order.paymentMethod !== 'pix') return nextExpiry;
+      if (order.paymentStatus !== 'pending' || !['pix', 'combinado'].includes(order.paymentMethod)) return nextExpiry;
       const expiry = getPixCodeExpiry(order.paymentDetails?.pixExpiresAt);
       return expiry !== null && expiry > now && (nextExpiry === null || expiry < nextExpiry)
         ? expiry
@@ -484,12 +484,12 @@ export default function OrdersPage() {
               const info = getOrderStatus(order.status);
               const currentStage = orderStages.indexOf(order.status);
               const itemCount = order.items?.length || 0;
-              const pixCode = order.paymentMethod === 'pix' ? order.paymentDetails?.pixQrCode : '';
+              const pixCode = ['pix', 'combinado'].includes(order.paymentMethod) ? order.paymentDetails?.pixQrCode : '';
               const pixQrCodeUrl = order.paymentDetails?.pixQrCodeUrl;
               const pixExpiry = getPixCodeExpiry(order.paymentDetails?.pixExpiresAt);
               const pixCodeExpired = Boolean(pixCode) && isPixCodeExpired(order.paymentDetails?.pixExpiresAt, currentTime);
               const hasPendingOnlinePayment = order.paymentStatus === 'pending'
-                && (order.paymentMethod === 'pix' || isCardPaymentMethod(order.paymentMethod));
+                && (order.paymentMethod === 'pix' || order.paymentMethod === 'combinado' || isCardPaymentMethod(order.paymentMethod));
               const refundRequests = order.refundRequests || [];
               const serviceRequests = order.serviceRequests || [];
               const orderActivity = getOrderActivitySummary(serviceRequests, refundRequests);
@@ -580,9 +580,27 @@ export default function OrdersPage() {
                   <div role="cell">
                     <section className={`customer-pix-payment${pixCodeExpired ? ' is-expired' : ''}`} aria-label={`Detalhes do pagamento do pedido ${order.id}`}>
                       <div className="customer-pix-heading">
-                        <strong>{pixCodeExpired ? 'Código Pix expirado' : pixCode ? 'Pix aguardando pagamento' : 'Pagamento aguardando confirmação'}</strong>
-                        <small>A confirmação é verificada automaticamente enquanto esta tela estiver aberta.</small>
+                        <strong>{pixCodeExpired ? 'Código Pix expirado' : pixCode ? order.paymentMethod === 'combinado' ? 'Pix da compra combinada aguardando pagamento' : 'Pix aguardando pagamento' : 'Pagamento aguardando confirmação'}</strong>
+                        <small>{order.paymentMethod === 'combinado'
+                          ? 'O cartão foi autorizado; a captura e a separação só acontecem depois que todas as parcelas forem confirmadas.'
+                          : 'A confirmação é verificada automaticamente enquanto esta tela estiver aberta.'}</small>
                       </div>
+                      {order.paymentMethod === 'combinado' && order.paymentDetails?.payments?.length > 0 && <ul className="customer-split-payment-lines">
+                        {order.paymentDetails.payments.map((payment, index) => {
+                          const labels = { pix: 'Pix', credit_card: 'Cartão de crédito', debit_card: 'Cartão de débito', cartao_credito: 'Cartão de crédito', cartao_debito: 'Cartão de débito' };
+                          const amount = Number(payment.amountCents) / 100;
+                          const status = payment.status === 'authorized_pending_capture'
+                            ? 'autorizado, aguardando captura'
+                            : payment.status === 'paid' || payment.status === 'captured'
+                              ? 'confirmado'
+                              : 'aguardando';
+                          return <li key={`${payment.chargeId || payment.method}-${index}`}>
+                            {labels[payment.method] || payment.method}
+                            {Number.isFinite(amount) && amount > 0 ? ` · ${currencyFormatter.format(amount)}` : ''}
+                            {` · ${status}`}
+                          </li>;
+                        })}
+                      </ul>}
                       {pixCodeExpired
                         ? <p className="customer-pix-expired-notice">Este QR Code e o código Pix venceram e foram desativados. Verifique o status do pagamento antes de tentar novamente.</p>
                         : pixCode

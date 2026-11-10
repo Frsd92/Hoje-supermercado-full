@@ -8,7 +8,13 @@ import {
   orderServiceRequestStatus,
   orderServiceRequestType,
 } from '@/features/orders/order-service-request-utils';
-import { getRemainingRefundCents, refundRequestStatus } from '@/features/orders/order-refund-utils';
+import { amountToCents, getRemainingRefundCents, refundRequestStatus } from '@/features/orders/order-refund-utils';
+import {
+  cancelCombinedPaymentOrder,
+  getPagarmeOrder,
+  getPagarmePaymentSnapshot,
+  getPagarmeRefundedCents,
+} from '@/features/payments/pagarme';
 import { isCardPaymentMethod } from '@/features/payments/card-methods';
 import { deactivateDeliveryTracking } from '@/features/tracking/delivery-tracking';
 import { prisma } from '@/lib/prisma';
@@ -53,6 +59,7 @@ export async function PATCH(request, { params }) {
               paymentMethod: true,
               total: true,
               refundedAmount: true,
+              pagarmeOrderId: true,
               pagarmeChargeId: true,
               refundRequests: { select: { amount: true, status: true } },
             },
@@ -82,6 +89,7 @@ export async function PATCH(request, { params }) {
         : orderServiceRequestStatus.rejected;
       let refundRequestId = '';
       const onlinePayment = current.order.paymentMethod === 'pix'
+        || current.order.paymentMethod === 'combinado'
         || isCardPaymentMethod(current.order.paymentMethod);
 
       const cancellation = (action === 'approve' || refundOnly)
@@ -142,6 +150,9 @@ export async function PATCH(request, { params }) {
             data: { status: 'Cancelado', updatedBy: actor },
           });
           if (updatedOrder.count !== 1) throw new ServiceRequestConflictError('O pedido foi atualizado durante o atendimento.');
+          if (current.order.paymentMethod === 'combinado' && current.order.paymentStatus === 'pending') {
+            await transaction.couponRedemption.deleteMany({ where: { orderId: current.order.id } });
+          }
           await deactivateDeliveryTracking(transaction, current.order.id);
         }
       }
@@ -168,11 +179,47 @@ export async function PATCH(request, { params }) {
           : current.order.status,
         refundOnly,
         onlinePayment,
+        paymentMethod: current.order.paymentMethod,
         paymentStatus: current.order.paymentStatus,
+        pagarmeOrderId: current.order.pagarmeOrderId,
+        total: current.order.total,
+        orderId: current.order.id,
       };
     }, { isolationLevel: 'Serializable' });
 
     if (result.error) return Response.json({ error: result.error }, { status: result.status });
+    if (result.orderStatus === 'Cancelado'
+      && result.paymentMethod === 'combinado'
+      && result.paymentStatus === 'pending'
+      && result.pagarmeOrderId) {
+      try {
+        const providerOrder = await getPagarmeOrder(result.pagarmeOrderId);
+        const canceledProviderOrder = await cancelCombinedPaymentOrder(result.pagarmeOrderId, providerOrder);
+        const snapshot = getPagarmePaymentSnapshot(canceledProviderOrder, { combinedPayment: true });
+        const refundedCents = getPagarmeRefundedCents(canceledProviderOrder);
+        const totalCents = amountToCents(result.total);
+        result.paymentStatus = refundedCents > 0
+          ? refundedCents >= totalCents ? 'refunded' : 'partially_refunded'
+          : Array.isArray(canceledProviderOrder?.charges) && canceledProviderOrder.charges.length === 0
+            ? 'canceled'
+            : snapshot.paymentStatus;
+        await prisma.order.update({
+          where: { id: result.orderId },
+          data: {
+            paymentStatus: result.paymentStatus,
+            paymentDetails: snapshot.paymentDetails,
+            refundedAmount: (refundedCents / 100).toFixed(2),
+          },
+        });
+      } catch (error) {
+        console.error('Não foi possível cancelar ou estornar as parcelas do pedido combinado:', error);
+        return Response.json({
+          serviceRequest: serializeServiceRequest(result.serviceRequest),
+          orderStatus: result.orderStatus,
+          error: 'O pedido foi cancelado, mas não foi possível liberar todas as cobranças na Pagar.me. Verifique o pagamento no ERP.',
+        }, { status: 502 });
+      }
+    }
     if (result.refundRequestId) {
       const refundResponse = await processPagarmeRefund(result.refundRequestId, actor, note);
       if (!refundResponse) {

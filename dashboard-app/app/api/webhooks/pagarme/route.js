@@ -1,8 +1,14 @@
-import { getPagarmeOrder, getPagarmePaymentSnapshot, getPagarmeRefundedCents, PagarmeApiError } from '@/features/payments/pagarme';
+import {
+  getPagarmeOrder,
+  getPagarmePaymentSnapshot,
+  getPagarmeRefundedCents,
+  PagarmeApiError,
+  settleCombinedPaymentOrder,
+} from '@/features/payments/pagarme';
 import { amountToCents, refundRequestStatus } from '@/features/orders/order-refund-utils';
 import { prisma } from '@/lib/prisma';
 import { issueBlingNfceForPaidOrder } from '@/features/erp/api/bling-nfce';
-import { shouldCancelOrderForPaymentStatus } from '@/features/orders/pending-payment-policy.mjs';
+import { getPendingPaymentStatus, shouldCancelOrderForPaymentStatus } from '@/features/orders/pending-payment-policy.mjs';
 
 const maximumWebhookBytes = 64 * 1024;
 
@@ -25,6 +31,7 @@ export async function POST(request) {
   const eventType = String(event?.type || '').trim();
   const dataId = String(event?.data?.id || '').trim();
   const internalOrderId = String(event?.data?.code || event?.data?.metadata?.internal_order_id || '').trim();
+  const eventOrderId = String(event?.data?.order_id || event?.data?.order?.id || '').trim();
   if (!eventId || eventId.length > 100 || !eventType || eventType.length > 100 || !dataId) {
     return Response.json({ error: 'Notificação incompleta.' }, { status: 400 });
   }
@@ -35,6 +42,7 @@ export async function POST(request) {
       where: {
         OR: [
           { pagarmeOrderId: dataId },
+          ...(eventOrderId ? [{ pagarmeOrderId: eventOrderId }] : []),
           { pagarmeChargeId: dataId },
           ...(internalOrderId ? [{ id: internalOrderId }] : []),
         ],
@@ -77,14 +85,32 @@ export async function POST(request) {
     return Response.json({ received: true });
   }
 
-  const snapshot = getPagarmePaymentSnapshot(providerOrder);
+  if (localOrder.paymentMethod === 'combinado') {
+    try {
+      providerOrder = await settleCombinedPaymentOrder(localOrder.id, providerOrder, {
+        pixExpiresAt: localOrder.paymentDetails?.pixExpiresAt,
+        orderStatus: localOrder.status,
+      });
+    } catch (error) {
+      console.error('Não foi possível capturar ou liberar as parcelas do pagamento combinado:', error);
+      return Response.json({ error: 'Não foi possível concluir o pagamento combinado agora.' }, { status: 503 });
+    }
+  }
+
+  const snapshot = getPagarmePaymentSnapshot(providerOrder, {
+    combinedPayment: localOrder.paymentMethod === 'combinado',
+  });
   const refundedCents = eventType === 'charge.refunded'
     ? getPagarmeRefundedCents(providerOrder)
     : amountToCents(localOrder.refundedAmount);
   const orderTotalCents = amountToCents(localOrder.total);
   const paymentStatus = refundedCents > 0
     ? refundedCents >= orderTotalCents ? 'refunded' : 'partially_refunded'
-    : snapshot.paymentStatus;
+    : getPendingPaymentStatus(
+      snapshot.paymentStatus,
+      localOrder.paymentMethod,
+      snapshot.paymentDetails?.pixExpiresAt || localOrder.paymentDetails?.pixExpiresAt,
+    );
   const refundAmount = (refundedCents / 100).toFixed(2);
 
   try {
@@ -105,9 +131,11 @@ export async function POST(request) {
           pagarmeOrderId: providerOrderId,
           pagarmeChargeId: snapshot.pagarmeChargeId || currentOrder?.pagarmeChargeId || localOrder.pagarmeChargeId,
           paymentStatus,
-          paymentDetails: paymentStatus === 'pending'
+          paymentDetails: localOrder.paymentMethod === 'combinado'
             ? snapshot.paymentDetails || currentOrder?.paymentDetails || localOrder.paymentDetails || undefined
-            : null,
+            : paymentStatus === 'pending'
+              ? snapshot.paymentDetails || currentOrder?.paymentDetails || localOrder.paymentDetails || undefined
+              : null,
           refundedAmount: refundAmount,
           ...(shouldCancelOrderForPaymentStatus(paymentStatus, currentOrder?.status || localOrder.status) ? {
             status: 'Cancelado',

@@ -1,12 +1,18 @@
 import { amountToCents } from './order-refund-utils.js';
-import { getPagarmeOrder, getPagarmePaymentSnapshot, getPagarmePaymentStatus, getPagarmeRefundedCents } from '../payments/pagarme.js';
+import {
+  getPagarmeOrder,
+  getPagarmePaymentSnapshot,
+  getPagarmePaymentStatus,
+  getPagarmeRefundedCents,
+  settleCombinedPaymentOrder,
+} from '../payments/pagarme.js';
 import { getPendingPaymentStatus, shouldCancelOrderForPaymentStatus, shouldReconcilePendingPayment } from './pending-payment-policy.mjs';
 import { CARD_PAYMENT_METHODS, VOUCHER_PAYMENT_METHODS } from '../payments/card-methods.js';
 import { prisma } from '@/lib/prisma';
 import { issueBlingNfceForPaidOrder } from '../erp/api/bling-nfce.js';
 
 const terminalUnpaidStatuses = new Set(['failed', 'canceled', 'expired']);
-const onlinePaymentMethods = ['pix', 'cartao', ...CARD_PAYMENT_METHODS, ...VOUCHER_PAYMENT_METHODS];
+const onlinePaymentMethods = ['pix', 'cartao', 'combinado', ...CARD_PAYMENT_METHODS, ...VOUCHER_PAYMENT_METHODS];
 
 export async function reconcilePendingOrderPayment(order, providerOrder, {
   now = Date.now(),
@@ -18,20 +24,30 @@ export async function reconcilePendingOrderPayment(order, providerOrder, {
     throw new Error('A cobrança consultada não corresponde ao pedido.');
   }
 
+  let providerOrderForSnapshot = providerOrder;
   const providerAmountCents = Number(
-    providerOrder.amount
-    ?? providerOrder.charges?.reduce((total, charge) => total + (Number(charge.amount) || 0), 0),
+    providerOrderForSnapshot.amount
+    ?? providerOrderForSnapshot.charges?.reduce((total, charge) => total + (Number(charge.amount) || 0), 0),
   );
   const orderTotalCents = amountToCents(order.total);
   if (!Number.isSafeInteger(providerAmountCents) || providerAmountCents !== orderTotalCents) {
     throw new Error('O valor da cobrança não corresponde ao total do pedido.');
   }
 
-  const snapshot = getPagarmePaymentSnapshot(providerOrder);
-  const refundedCents = getPagarmeRefundedCents(providerOrder);
+  if (order.paymentMethod === 'combinado') {
+    providerOrderForSnapshot = await settleCombinedPaymentOrder(order.id, providerOrderForSnapshot, {
+      pixExpiresAt: order.paymentDetails?.pixExpiresAt,
+      orderStatus: order.status,
+      now,
+    });
+  }
+  const snapshot = getPagarmePaymentSnapshot(providerOrderForSnapshot, {
+    combinedPayment: order.paymentMethod === 'combinado',
+  });
+  const refundedCents = getPagarmeRefundedCents(providerOrderForSnapshot);
   const providerStatus = refundedCents > 0
     ? refundedCents >= orderTotalCents ? 'refunded' : 'partially_refunded'
-    : getPagarmePaymentStatus(providerOrder);
+    : getPagarmePaymentStatus(providerOrderForSnapshot);
   const paymentDetails = snapshot.paymentDetails || order.paymentDetails || null;
   const paymentStatus = getPendingPaymentStatus(providerStatus, order.paymentMethod, paymentDetails?.pixExpiresAt, now);
 
@@ -63,7 +79,9 @@ export async function reconcilePendingOrderPayment(order, providerOrder, {
       data: {
         pagarmeChargeId: snapshot.pagarmeChargeId || undefined,
         paymentStatus,
-        paymentDetails: paymentStatus === 'pending' ? paymentDetails || undefined : null,
+        paymentDetails: order.paymentMethod === 'combinado'
+          ? paymentDetails || undefined
+          : paymentStatus === 'pending' ? paymentDetails || undefined : null,
         refundedAmount: (refundedCents / 100).toFixed(2),
         ...(shouldCancelOrder
           ? { status: 'Cancelado', updatedBy: 'Expiração/recusa confirmada pela Pagar.me' }
@@ -103,6 +121,7 @@ export async function reconcilePendingOnlinePayments({
     select: {
       id: true,
       total: true,
+      status: true,
       paymentMethod: true,
       paymentStatus: true,
       paymentDetails: true,

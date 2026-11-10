@@ -13,24 +13,28 @@ async function reconcileOrder(orderId, database, fetchGatewayOrder) {
       id: true,
       total: true,
       refundedAmount: true,
+      paymentMethod: true,
       pagarmeOrderId: true,
       pagarmeChargeId: true,
     },
   });
-  if (!order?.pagarmeOrderId || !order.pagarmeChargeId) {
+  if (!order?.pagarmeOrderId || (order.paymentMethod !== 'combinado' && !order.pagarmeChargeId)) {
     throw new Error('Pedido sem identificadores completos da Pagar.me.');
   }
 
   const gatewayOrder = await fetchGatewayOrder(order.pagarmeOrderId);
   const charges = Array.isArray(gatewayOrder?.charges) ? gatewayOrder.charges : [];
   if (String(gatewayOrder?.id || '') !== order.pagarmeOrderId
-    || !charges.some((charge) => String(charge?.id || '') === order.pagarmeChargeId)) {
+    || (order.paymentMethod !== 'combinado'
+      && !charges.some((charge) => String(charge?.id || '') === order.pagarmeChargeId))) {
     throw new Error('A consulta da Pagar.me não corresponde à cobrança do pedido.');
   }
 
   const refundedCents = getPagarmeRefundedCents({
     ...gatewayOrder,
-    charges: charges.filter((charge) => String(charge?.id || '') === order.pagarmeChargeId),
+    charges: order.paymentMethod === 'combinado'
+      ? charges
+      : charges.filter((charge) => String(charge?.id || '') === order.pagarmeChargeId),
   });
   const totalCents = amountToCents(order.total);
   if (refundedCents <= 0 || refundedCents > totalCents) return false;

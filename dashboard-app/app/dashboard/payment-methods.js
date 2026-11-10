@@ -6,6 +6,7 @@ export const PAYMENT_METHODS = [
   { value: 'cartao_debito', label: 'Cartão de débito', description: 'Cartões de débito salvos' },
   { value: 'vale_alimentacao', label: 'VA · Vale-alimentação', description: 'Cartões de vale-alimentação salvos', voucher: true },
   { value: 'vale_refeicao', label: 'VR · Vale-refeição', description: 'Cartões de vale-refeição salvos', voucher: true },
+  { value: 'combinado', label: 'Pix + cartão', description: 'Divida o valor entre duas formas online' },
 ];
 
 export const DEFAULT_PAYMENT_METHOD = 'pix';

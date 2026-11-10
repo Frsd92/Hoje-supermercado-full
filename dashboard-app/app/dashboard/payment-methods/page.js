@@ -26,6 +26,7 @@ const paymentMethodIcons = {
   cartao_debito: CreditCard,
   vale_alimentacao: CreditCard,
   vale_refeicao: CreditCard,
+  combinado: CreditCard,
 };
 
 export default function PaymentMethodsPage() {

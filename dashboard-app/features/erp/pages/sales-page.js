@@ -8,13 +8,12 @@ import { formatSaleDateTime, isSaleDateInRange } from '@/features/erp/api/sales-
 const currencyFormatter = new Intl.NumberFormat('pt-BR', { style: 'currency', currency: 'BRL' });
 const paymentLabels = {
   pix: 'Pix',
+  combinado: 'Pix + cartão',
   cartao: 'Cartão',
   cartao_credito: 'Cartão de crédito',
   cartao_debito: 'Cartão de débito',
   vale_alimentacao: 'Vale-alimentação',
   vale_refeicao: 'Vale-refeição',
-  dinheiro: 'Dinheiro',
-  outro: 'Outro / combinar',
   nao_informado: 'Não informado',
 };
 const paymentStatusLabels = {

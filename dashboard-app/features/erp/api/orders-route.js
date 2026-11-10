@@ -25,8 +25,10 @@ import {
   getPagarmePaymentSnapshot,
   isValidCpf,
   PagarmeApiError,
+  settleCombinedPaymentOrder,
   splitBrazilianMobilePhone,
 } from '@/features/payments/pagarme';
+import { normalizeSplitPaymentLines } from '@/features/payments/split-payment.mjs';
 import {
   getSavedCardType,
   isCardPaymentMethod,
@@ -192,7 +194,24 @@ export async function POST(request) {
   }
   const cardPayment = isCardPaymentMethod(body.paymentMethod);
   const voucherPayment = isVoucherPaymentMethod(body.paymentMethod);
-  if (body.paymentMethod !== 'pix' && !cardPayment) {
+  const combinedPayment = body.paymentMethod === 'combinado';
+  let requestedCombinedPayments = null;
+  if (combinedPayment) {
+    try {
+      if (!Array.isArray(body.combinedPayments)) throw new Error('Escolha exatamente duas formas de pagamento.');
+      const requestedTotalCents = body.combinedPayments.reduce(
+        (sum, line) => sum + (Number.isSafeInteger(line?.amountCents) ? line.amountCents : 0),
+        0,
+      );
+      requestedCombinedPayments = normalizeSplitPaymentLines(body.combinedPayments, requestedTotalCents);
+      if (requestedCombinedPayments.some((line) => line.method !== 'pix' && !line.savedCardId)) {
+        throw new Error('Selecione um cartão salvo para cada parcela em cartão.');
+      }
+    } catch (error) {
+      return Response.json({ error: error.message || 'As parcelas do pagamento combinado são inválidas.' }, { status: 400, headers: corsHeaders(request) });
+    }
+  }
+  if (body.paymentMethod !== 'pix' && !cardPayment && !combinedPayment) {
     return Response.json({ error: 'Selecione uma forma de pagamento válida antes de finalizar.' }, { status: 400, headers: corsHeaders(request) });
   }
   if (voucherPayment && (
@@ -223,7 +242,8 @@ export async function POST(request) {
   if (body.cardToken && !cardPayment) {
     return Response.json({ error: 'O token do cartão só pode ser usado em pagamentos com cartão.' }, { status: 400, headers: corsHeaders(request) });
   }
-  const usesPagarme = body.paymentMethod === 'pix' || cardPayment;
+  const combinedHasCard = Boolean(requestedCombinedPayments?.some((line) => line.method !== 'pix'));
+  const usesPagarme = body.paymentMethod === 'pix' || cardPayment || combinedPayment;
   if (usesPagarme && !process.env.PAGARME_SECRET_KEY) {
     return Response.json({ error: 'O pagamento online ainda não está configurado. Tente novamente mais tarde.' }, { status: 503, headers: corsHeaders(request) });
   }
@@ -237,7 +257,7 @@ export async function POST(request) {
   const email = String(session.user.email || '').trim().toLowerCase();
   if (!email) return Response.json({ error: 'Não foi possível identificar sua conta para validar o endereço.' }, { status: 400, headers: corsHeaders(request) });
   const checkoutRequestId = String(body.checkoutRequestId || '').trim();
-  if ((usesPagarme && !checkoutRequestId) || (checkoutRequestId && !/^[0-9a-f]{8}-[0-9a-f]{4}-[1-8][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i.test(checkoutRequestId))) {
+  if (((usesPagarme || combinedPayment) && !checkoutRequestId) || (checkoutRequestId && !/^[0-9a-f]{8}-[0-9a-f]{4}-[1-8][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i.test(checkoutRequestId))) {
     return Response.json({ error: 'Não foi possível identificar esta tentativa de compra. Atualize o carrinho e tente novamente.' }, { status: 400, headers: corsHeaders(request) });
   }
   if (checkoutRequestId) {
@@ -290,18 +310,27 @@ export async function POST(request) {
     if (!splitBrazilianMobilePhone(customerProfile?.whatsapp)) {
       return Response.json({ error: 'Cadastre um celular com DDD no perfil para pagar com Pix ou cartão.' }, { status: 422, headers: corsHeaders(request) });
     }
-    if (body.useSavedCard && !customerProfile?.pagarmeCustomerId) {
+    if ((body.useSavedCard || combinedHasCard) && !customerProfile?.pagarmeCustomerId) {
       return Response.json({ error: 'Não há cartão salvo disponível. Cadastre um cartão no Dashboard ou informe outro cartão.' }, { status: 422, headers: corsHeaders(request) });
     }
   }
 
-  let selectedSavedCardId = '';
-  if (cardPayment && body.useSavedCard) {
-    selectedSavedCardId = String(
-      body.savedCardId || (body.paymentMethod === 'cartao' ? customerProfile?.pagarmeCardId || '' : ''),
-    );
-    if (!/^card_[A-Za-z0-9]+$/.test(selectedSavedCardId)) {
-      return Response.json({ error: 'Selecione um cartão salvo antes de finalizar.' }, { status: 422, headers: corsHeaders(request) });
+  const selectedCombinedCardIds = new Set();
+  const cardLines = combinedPayment
+    ? requestedCombinedPayments.filter((line) => line.method !== 'pix')
+    : cardPayment && body.useSavedCard
+      ? [{
+        method: body.paymentMethod,
+        savedCardId: body.savedCardId || (body.paymentMethod === 'cartao' ? customerProfile?.pagarmeCardId || '' : ''),
+      }]
+      : [];
+  if (cardLines.length) {
+    for (const line of cardLines) {
+      const savedCardId = String(line.savedCardId || '');
+      if (!/^card_[A-Za-z0-9]+$/.test(savedCardId)) {
+        return Response.json({ error: 'Selecione um cartão salvo para cada parcela em cartão.' }, { status: 422, headers: corsHeaders(request) });
+      }
+      selectedCombinedCardIds.add(savedCardId);
     }
 
     let cardWallet;
@@ -318,12 +347,21 @@ export async function POST(request) {
       console.error('A Pagar.me retornou uma carteira de cartões inválida durante o checkout.');
       return Response.json({ error: 'Não foi possível verificar os cartões salvos.' }, { status: 502, headers: corsHeaders(request) });
     }
-    const selectedCard = cardWallet.data.find((card) => card.id === selectedSavedCardId);
-    if (String(selectedCard?.status || '').toLowerCase() !== 'active') {
-      return Response.json({ error: 'O cartão selecionado não está ativo. Escolha outro cartão.' }, { status: 422, headers: corsHeaders(request) });
+    for (const line of cardLines) {
+      const selectedCard = cardWallet.data.find((card) => card.id === line.savedCardId);
+      if (String(selectedCard?.status || '').toLowerCase() !== 'active') {
+        return Response.json({ error: 'Um dos cartões selecionados não está ativo. Escolha outro cartão.' }, { status: 422, headers: corsHeaders(request) });
+      }
+      if (!isCardTypeCompatible(getSavedCardType(selectedCard), line.method)) {
+        return Response.json({ error: 'O tipo de um cartão selecionado não corresponde à forma de pagamento. Escolha cartões compatíveis.' }, { status: 422, headers: corsHeaders(request) });
+      }
     }
-    if (!isCardTypeCompatible(getSavedCardType(selectedCard), body.paymentMethod)) {
-      return Response.json({ error: 'O tipo do cartão selecionado não corresponde à forma de pagamento. Escolha um cartão de crédito ou débito compatível.' }, { status: 422, headers: corsHeaders(request) });
+  }
+
+  if (!combinedPayment && cardPayment && body.useSavedCard && !selectedCombinedCardIds.size) {
+    const savedCardId = String(body.savedCardId || (body.paymentMethod === 'cartao' ? customerProfile?.pagarmeCardId || '' : ''));
+    if (!/^card_[A-Za-z0-9]+$/.test(savedCardId)) {
+      return Response.json({ error: 'Selecione um cartão salvo antes de finalizar.' }, { status: 422, headers: corsHeaders(request) });
     }
   }
 
@@ -493,6 +531,17 @@ export async function POST(request) {
     }, { status: 400, headers: corsHeaders(request) });
   }
   const paymentMethod = body.paymentMethod;
+  let normalizedCombinedPayments = requestedCombinedPayments;
+  if (combinedPayment) {
+    try {
+      normalizedCombinedPayments = normalizeSplitPaymentLines(
+        requestedCombinedPayments,
+        Math.round(Number(total) * 100),
+      );
+    } catch (error) {
+      return Response.json({ error: error.message || 'As parcelas precisam somar exatamente o total do pedido.' }, { status: 422, headers: corsHeaders(request) });
+    }
+  }
   const orderId = `PED-${randomUUID()}`;
   let pagarmePayload = null;
   if (usesPagarme) {
@@ -510,10 +559,15 @@ export async function POST(request) {
           phone: customerProfile?.whatsapp,
         },
         paymentMethod,
+        combinedPayments: normalizedCombinedPayments || [],
         cardToken: body.cardToken,
         savedCard: body.useSavedCard
-          ? { customerId: customerProfile.pagarmeCustomerId, cardId: selectedSavedCardId }
+          ? {
+            customerId: customerProfile.pagarmeCustomerId,
+            cardId: body.savedCardId || (paymentMethod === 'cartao' ? customerProfile?.pagarmeCardId || '' : ''),
+          }
           : null,
+        savedCardCustomerId: combinedHasCard ? customerProfile?.pagarmeCustomerId : '',
         address: normalizedAddress,
       });
     } catch (error) {
@@ -551,6 +605,15 @@ export async function POST(request) {
           subtotal: Number(subtotal.toFixed(2)),
           paymentMethod,
           paymentStatus: usesPagarme ? 'pending' : 'manual',
+          ...(combinedPayment ? {
+            paymentDetails: {
+              payments: normalizedCombinedPayments.map(({ method, amountCents }) => ({
+                method,
+                amountCents,
+                status: 'pending',
+              })),
+            },
+          } : {}),
           checkoutRequestId: checkoutRequestId || null,
           includeCpfOnReceipt: body.includeCpfOnReceipt,
           invoiceCpf: body.includeCpfOnReceipt ? invoiceCpf : null,
@@ -568,12 +631,18 @@ export async function POST(request) {
       });
     });
     if (!usesPagarme) {
-      return Response.json({ order: serializeOrder(order) }, { status: 201, headers: corsHeaders(request) });
+      return Response.json({
+        order: serializeOrder(order),
+        message: 'Pedido registrado.',
+      }, { status: 201, headers: corsHeaders(request) });
     }
 
     try {
-      const pagarmeOrder = await createPagarmeOrder(pagarmePayload, orderId);
-      const paymentSnapshot = getPagarmePaymentSnapshot(pagarmeOrder);
+      let pagarmeOrder = await createPagarmeOrder(pagarmePayload, orderId);
+      if (combinedPayment) {
+        pagarmeOrder = await settleCombinedPaymentOrder(orderId, pagarmeOrder);
+      }
+      const paymentSnapshot = getPagarmePaymentSnapshot(pagarmeOrder, { combinedPayment });
       if (!paymentSnapshot.pagarmeOrderId) throw new Error('A Pagar.me retornou um pedido sem identificador.');
 
       const updatedOrder = await prisma.$transaction(async (transaction) => {
@@ -612,7 +681,11 @@ export async function POST(request) {
       return Response.json({
         order: serializeOrder(updatedOrder),
         message: paymentSnapshot.paymentStatus === 'pending'
-          ? 'Pedido criado. Conclua o pagamento para liberar a separação.'
+          ? combinedPayment
+            ? normalizedCombinedPayments.some((line) => line.method === 'pix')
+              ? 'O cartão foi autorizado. Conclua o Pix para confirmar o pagamento e liberar a separação.'
+              : 'Os cartões foram autorizados. Estamos concluindo a captura para liberar a separação.'
+            : 'Pedido criado. Conclua o pagamento para liberar a separação.'
           : 'Pagamento confirmado e pedido criado.',
       }, { status: 201, headers: corsHeaders(request) });
     } catch (error) {
@@ -624,7 +697,15 @@ export async function POST(request) {
             where: { id: orderId },
             data: {
               paymentStatus: definitivelyRejected ? 'failed' : 'pending',
-              paymentDetails: null,
+              paymentDetails: combinedPayment
+                ? {
+                  payments: normalizedCombinedPayments.map(({ method, amountCents }) => ({
+                    method,
+                    amountCents,
+                    status: 'pending',
+                  })),
+                }
+                : null,
               ...(definitivelyRejected ? {
                 status: 'Cancelado',
                 updatedBy: 'Recusa confirmada pela Pagar.me',
@@ -708,10 +789,10 @@ export async function PATCH(request) {
     });
     if (!record || record.status !== status) return Response.json({ error: 'Pedido não está no status esperado.' }, { status: 409, headers: corsHeaders(request) });
     if (status === 'Recebido'
-      && (record.paymentMethod === 'pix' || isCardPaymentMethod(record.paymentMethod))
-      && record.paymentStatus !== 'manual'
-      && !['paid', 'partially_refunded'].includes(record.paymentStatus)) {
-      return Response.json({ error: 'A separação só pode começar depois da confirmação do pagamento pela Pagar.me.' }, { status: 409, headers: corsHeaders(request) });
+      && ((record.paymentMethod === 'pix' || record.paymentMethod === 'combinado' || isCardPaymentMethod(record.paymentMethod))
+          && record.paymentStatus !== 'manual'
+          && !['paid', 'partially_refunded'].includes(record.paymentStatus))) {
+      return Response.json({ error: 'A separação só pode começar depois da confirmação integral do pagamento pela Pagar.me.' }, { status: 409, headers: corsHeaders(request) });
     }
     order = serializeOrder(record);
   } catch (error) {
