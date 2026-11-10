@@ -27,6 +27,7 @@ const paymentLabels = {
 };
 const paymentStatusLabels = {
   pending: 'Aguardando pagamento',
+  expired: 'Pagamento expirado',
   paid: 'Pago',
   failed: 'Pagamento não aprovado',
   canceled: 'Pagamento cancelado',
@@ -36,6 +37,7 @@ const paymentStatusLabels = {
 };
 const paymentStatusTones = {
   pending: 'pending',
+  expired: 'failed',
   paid: 'paid',
   failed: 'failed',
   canceled: 'canceled',
@@ -621,7 +623,7 @@ export default function ERPOrdersPage() {
             {selected.blingSyncError && selected.blingSyncStatus === 'failed' && <p className="erp-bling-order-error" role="alert">{selected.blingSyncError}</p>}
             {blingError && <p className="erp-bling-order-error" role="alert"><AlertCircle size={15} />{blingError}</p>}
             {blingNotice && <p className="erp-bling-order-notice" role="status"><CheckCircle2 size={15} />{blingNotice}</p>}
-            {selected.blingSyncStatus !== 'sent' && selected.blingSyncStatus !== 'sending' && selected.paymentStatus !== 'pending' && !(selected.paymentStatus === 'paid' && selected.pagarmeOrderId) && selected.status !== 'Cancelado' && !['failed', 'canceled', 'partially_refunded', 'refunded'].includes(selected.paymentStatus) && <button
+            {selected.blingSyncStatus !== 'sent' && selected.blingSyncStatus !== 'sending' && selected.paymentStatus !== 'pending' && !(selected.paymentStatus === 'paid' && selected.pagarmeOrderId) && selected.status !== 'Cancelado' && !['failed', 'canceled', 'expired', 'partially_refunded', 'refunded'].includes(selected.paymentStatus) && <button
               type="button"
               className="secondary-cta erp-bling-send-button"
               disabled={blingBusy}

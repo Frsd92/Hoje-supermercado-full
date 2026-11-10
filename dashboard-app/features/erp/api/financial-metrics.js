@@ -69,7 +69,7 @@ export function buildAutomaticChartActivity(sourceOrders = [], limit = 100) {
     const refundedAmount = orderAmount === null
       ? 0
       : Math.min(Math.max(0, orderAmount), Math.max(0, parseAmount(order.refundedAmount) || 0));
-    if (['pending', 'failed', 'canceled'].includes(paymentStatus) && refundedAmount === 0) continue;
+    if (['pending', 'failed', 'canceled', 'expired'].includes(paymentStatus) && refundedAmount === 0) continue;
     if (orderAmount === null || orderAmount < 0) continue;
 
     const date = order.createdAt instanceof Date ? order.createdAt : new Date(order.createdAt);
@@ -354,7 +354,7 @@ export function buildFinancialMetrics({
     .filter((order) => {
       const paymentStatus = String(order.paymentStatus || '').toLowerCase();
       const confirmedRefund = Math.max(0, parseAmount(order.refundedAmount) || 0);
-      return !['pending', 'failed', 'canceled'].includes(paymentStatus) || confirmedRefund > 0;
+      return !['pending', 'failed', 'canceled', 'expired'].includes(paymentStatus) || confirmedRefund > 0;
     })
     .map((order, index) => ({
       order,

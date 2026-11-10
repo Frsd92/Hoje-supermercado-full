@@ -215,13 +215,15 @@ export function getPagarmePaymentStatus(order) {
   const orderStatus = String(order?.status || '').toLowerCase();
   if (orderStatus === 'paid') return 'paid';
   if (orderStatus === 'failed') return 'failed';
+  if (orderStatus === 'expired' || orderStatus === 'overdue') return 'expired';
   if (orderStatus === 'canceled' || orderStatus === 'cancelled') return 'canceled';
   if (orderStatus === 'refunded') return 'refunded';
   if (orderStatus === 'partially_refunded') return 'partially_refunded';
 
   const charges = Array.isArray(order?.charges) ? order.charges : [];
   if (charges.some((charge) => String(charge?.status || '').toLowerCase() === 'paid')) return 'paid';
-  if (charges.length && charges.every((charge) => ['failed', 'canceled', 'cancelled'].includes(String(charge?.status || '').toLowerCase()))) {
+  if (charges.length && charges.every((charge) => ['failed', 'canceled', 'cancelled', 'expired', 'overdue'].includes(String(charge?.status || '').toLowerCase()))) {
+    if (charges.some((charge) => ['expired', 'overdue'].includes(String(charge.status).toLowerCase()))) return 'expired';
     return charges.some((charge) => String(charge.status).toLowerCase() === 'failed') ? 'failed' : 'canceled';
   }
   return 'pending';

@@ -355,6 +355,8 @@ test('maps provider payment and refund results', () => {
   });
   assert.equal(getPagarmeRefundedCents(order), 500);
   assert.equal(getPagarmePaymentStatus({ status: 'paid' }), 'paid');
+  assert.equal(getPagarmePaymentStatus({ status: 'expired' }), 'expired');
+  assert.equal(getPagarmePaymentStatus({ charges: [{ status: 'expired' }] }), 'expired');
 });
 
 test('sends partial Pagar.me refunds as charge cancellations in cents', async () => {

@@ -257,6 +257,7 @@ export default function ERPCustomersPage() {
                     partially_refunded: 'Estorno parcial',
                     refunded: 'Estornado',
                     pending: 'Aguardando pagamento',
+                    expired: 'Pagamento expirado',
                     failed: 'Pagamento não aprovado',
                     canceled: 'Pagamento cancelado',
                     manual: 'Pagamento manual / combinado',

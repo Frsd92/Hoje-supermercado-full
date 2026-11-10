@@ -244,7 +244,7 @@ export async function GET() {
       const customerMissions = getCustomerMissionInsights(activeMissionsWithCycle, missionProgress, email);
       const activeOrders = customerOrders.filter((order) => (
         order.status !== 'Cancelado'
-        && !['pending', 'failed', 'canceled'].includes(String(order.paymentStatus || '').toLowerCase())
+        && !['pending', 'failed', 'canceled', 'expired'].includes(String(order.paymentStatus || '').toLowerCase())
       ));
       const datedOrders = activeOrders
         .map((order) => ({ order, date: parseOrderDate(order.createdAt) }))

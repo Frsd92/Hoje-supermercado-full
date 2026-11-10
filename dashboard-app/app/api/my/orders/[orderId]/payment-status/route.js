@@ -1,22 +1,16 @@
 import { getServerSession } from 'next-auth';
 import { authOptions } from '@/auth';
-import { amountToCents } from '@/features/orders/order-refund-utils';
-import {
-  getPagarmeOrder,
-  getPagarmePaymentSnapshot,
-  getPagarmePaymentStatus,
-  getPagarmeRefundedCents,
-  PagarmeApiError,
-} from '@/features/payments/pagarme';
+import { getPagarmeOrder, PagarmeApiError } from '@/features/payments/pagarme';
 import { prisma } from '@/lib/prisma';
 import { isCardPaymentMethod } from '@/features/payments/card-methods';
-import { issueBlingNfceForPaidOrder } from '@/features/erp/api/bling-nfce';
+import { reconcilePendingOrderPayment } from '@/features/orders/pending-payment-reconciliation';
 
 const statusMessages = {
   paid: 'Pagamento confirmado.',
   pending: 'Pagamento aguardando confirmação. Aguarde e consulte novamente; não pague outra vez agora.',
   failed: 'Pagamento não aprovado.',
   canceled: 'Pagamento cancelado.',
+  expired: 'O prazo para pagamento venceu sem confirmação. O pedido foi cancelado; inicie um novo pedido para tentar novamente.',
   refunded: 'Estorno confirmado.',
   partially_refunded: 'Estorno parcial confirmado.',
 };
@@ -75,68 +69,14 @@ export async function POST(_request, { params }) {
       return Response.json({ error: 'A cobrança consultada não corresponde a este pedido.' }, { status: 409 });
     }
 
-    const providerAmountCents = Number(
-      providerOrder.amount
-      ?? providerOrder.charges?.reduce((total, charge) => total + (Number(charge.amount) || 0), 0),
-    );
-    const orderTotalCents = amountToCents(order.total);
-    if (!Number.isSafeInteger(providerAmountCents) || providerAmountCents !== orderTotalCents) {
-      return Response.json({ error: 'O valor da cobrança não corresponde ao total do pedido.' }, { status: 409 });
-    }
-
-    const snapshot = getPagarmePaymentSnapshot(providerOrder);
-    const refundedCents = getPagarmeRefundedCents(providerOrder);
-    const paymentStatus = refundedCents > 0
-      ? refundedCents >= orderTotalCents ? 'refunded' : 'partially_refunded'
-      : getPagarmePaymentStatus(providerOrder);
-
-    const result = await prisma.$transaction(async (transaction) => {
-      const currentOrder = await transaction.order.findFirst({
-        where: {
-          id: order.id,
-          customerEmail: { equals: email, mode: 'insensitive' },
-        },
-        select: {
-          id: true,
-          paymentStatus: true,
-          paymentDetails: true,
-          pagarmeOrderId: true,
-        },
-      });
-      if (!currentOrder) return { error: 'Pedido não encontrado na sua conta.', status: 404 };
-      if (currentOrder.paymentStatus !== 'pending') {
-        return { paymentStatus: currentOrder.paymentStatus, updated: false };
+    let result;
+    try {
+      result = await reconcilePendingOrderPayment(order, providerOrder);
+    } catch (error) {
+      if (/valor da cobrança|não corresponde ao pedido|cobrança do pedido mudou/.test(error.message || '')) {
+        return Response.json({ error: error.message }, { status: 409 });
       }
-      if (currentOrder.pagarmeOrderId !== providerId) {
-        return { error: 'A cobrança do pedido mudou durante a consulta. Atualize a página.' , status: 409 };
-      }
-
-      await transaction.order.update({
-        where: { id: currentOrder.id },
-        data: {
-          pagarmeChargeId: snapshot.pagarmeChargeId || undefined,
-          paymentStatus,
-          paymentDetails: paymentStatus === 'pending'
-            ? snapshot.paymentDetails || currentOrder.paymentDetails || undefined
-            : null,
-          refundedAmount: (refundedCents / 100).toFixed(2),
-        },
-      });
-
-      if (['failed', 'canceled'].includes(paymentStatus)) {
-        await transaction.couponRedemption.deleteMany({ where: { orderId: currentOrder.id } });
-      }
-
-      return { paymentStatus, updated: true };
-    }, { isolationLevel: 'Serializable' });
-
-    if (result.error) return Response.json({ error: result.error }, { status: result.status });
-    if (result.updated && result.paymentStatus === 'paid') {
-      try {
-        await issueBlingNfceForPaidOrder(order.id);
-      } catch (error) {
-        console.error('Não foi possível iniciar a emissão automática da NFC-e após a consulta do pagamento:', error);
-      }
+      throw error;
     }
     return Response.json({
       paymentStatus: result.paymentStatus,

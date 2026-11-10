@@ -129,7 +129,7 @@ export async function GET(request) {
 
   const orders = ordersValue
     .filter((order) => order.status !== 'Cancelado'
-      && !['pending', 'failed', 'canceled'].includes(String(order.paymentStatus || '').toLowerCase()))
+      && !['pending', 'failed', 'canceled', 'expired'].includes(String(order.paymentStatus || '').toLowerCase()))
     .map((order) => {
       const grossTotal = Math.max(0, money(order.total));
       const refundedAmount = Math.min(grossTotal, Math.max(0, money(order.refundedAmount)));

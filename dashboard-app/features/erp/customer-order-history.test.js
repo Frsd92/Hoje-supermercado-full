@@ -61,6 +61,23 @@ test('flags cancellations that lack an explicit cancellation audit event', () =>
   assert.match(order.events.at(-1).note, /não há evento de cancelamento registrado/);
 });
 
+test('describes an expired Pix as an automatic cancellation in order history', () => {
+  const [order] = getCustomerOrderHistory([{
+    id: 'PED-PIX-EXPIRADO',
+    total: 'R$ 50,00',
+    refundedAmount: 0,
+    status: 'Cancelado',
+    paymentStatus: 'expired',
+    paymentMethod: 'pix',
+    updatedBy: 'Expiração/recusa confirmada pela Pagar.me',
+    createdAt: new Date('2026-10-01T10:00:00Z'),
+    updatedAt: new Date('2026-10-02T10:00:00Z'),
+  }]);
+
+  assert.equal(order.events.at(-1).label, 'Cancelado por falta de pagamento no prazo');
+  assert.match(order.events.at(-1).note, /Pix venceu sem confirmação/);
+});
+
 test('does not count requested refunds as confirmed returned value', () => {
   const [order] = getCustomerOrderHistory([{
     id: 'PED-3',

@@ -34,6 +34,7 @@ import {
   isVoucherPaymentMethod,
 } from '@/features/payments/card-methods';
 import { issueBlingNfceForPaidOrder } from './bling-nfce.js';
+import { shouldCancelOrderForPaymentStatus } from '@/features/orders/pending-payment-policy.mjs';
 
 const productsFile = path.join(process.cwd(), 'data', 'products.json');
 const allowedOrigins = new Set(['http://localhost:8010', 'http://localhost:5500', 'http://127.0.0.1:5500', 'null']);
@@ -249,7 +250,7 @@ export async function POST(request) {
         },
       });
       if (existingOrder) {
-        if (['failed', 'canceled'].includes(existingOrder.paymentStatus)) {
+        if (['failed', 'canceled', 'expired'].includes(existingOrder.paymentStatus)) {
           return Response.json({ error: 'Esta tentativa de pagamento não foi aprovada. Confira os dados e inicie uma nova tentativa.' }, { status: 409, headers: corsHeaders(request) });
         }
         return Response.json({
@@ -578,10 +579,16 @@ export async function POST(request) {
       const updatedOrder = await prisma.$transaction(async (transaction) => {
         const savedOrder = await transaction.order.update({
           where: { id: orderId },
-          data: paymentSnapshot,
+          data: {
+            ...paymentSnapshot,
+            ...(shouldCancelOrderForPaymentStatus(paymentSnapshot.paymentStatus, 'Recebido') ? {
+              status: 'Cancelado',
+              updatedBy: 'Recusa/expiração confirmada pela Pagar.me',
+            } : {}),
+          },
           include: { items: true },
         });
-        if (['failed', 'canceled'].includes(paymentSnapshot.paymentStatus) && campaignCoupon) {
+        if (['failed', 'canceled', 'expired'].includes(paymentSnapshot.paymentStatus) && campaignCoupon) {
           await transaction.couponRedemption.deleteMany({ where: { orderId } });
         }
         return savedOrder;
@@ -593,9 +600,11 @@ export async function POST(request) {
           console.error('Não foi possível iniciar a emissão automática da NFC-e após o pagamento no checkout:', error);
         }
       }
-      if (['failed', 'canceled'].includes(paymentSnapshot.paymentStatus)) {
+      if (['failed', 'canceled', 'expired'].includes(paymentSnapshot.paymentStatus)) {
         return Response.json({
-          error: 'O pagamento não foi aprovado. Confira os dados e tente outra forma de pagamento.',
+          error: paymentSnapshot.paymentStatus === 'expired'
+            ? 'O prazo do Pix expirou. Inicie um novo pedido para tentar novamente.'
+            : 'O pagamento não foi aprovado. Confira os dados e tente outra forma de pagamento.',
           order: serializeOrder(updatedOrder),
         }, { status: 402, headers: corsHeaders(request) });
       }
@@ -613,7 +622,14 @@ export async function POST(request) {
         const updatedOrder = await prisma.$transaction(async (transaction) => {
           const savedOrder = await transaction.order.update({
             where: { id: orderId },
-            data: { paymentStatus: definitivelyRejected ? 'failed' : 'pending', paymentDetails: null },
+            data: {
+              paymentStatus: definitivelyRejected ? 'failed' : 'pending',
+              paymentDetails: null,
+              ...(definitivelyRejected ? {
+                status: 'Cancelado',
+                updatedBy: 'Recusa confirmada pela Pagar.me',
+              } : {}),
+            },
             include: { items: true },
           });
           if (definitivelyRejected && campaignCoupon) {

@@ -91,10 +91,14 @@ export function getCustomerOrderHistory(orders) {
         events.push({
           id: `${order.id}-cancelled-status`,
           type: 'cancellation',
-          label: 'Pedido com status cancelado',
+          label: order.paymentStatus === 'expired'
+            ? 'Cancelado por falta de pagamento no prazo'
+            : 'Pedido com status cancelado',
           createdAt: order.updatedAt,
           actor: order.updatedBy || '',
-          note: 'A data exibida é a última atualização do pedido; não há evento de cancelamento registrado para confirmar o momento exato.',
+          note: order.paymentStatus === 'expired'
+            ? `${order.paymentMethod === 'pix' ? 'O prazo do Pix venceu' : 'O prazo de pagamento venceu'} sem confirmação. O pedido foi cancelado automaticamente.`
+            : 'A data exibida é a última atualização do pedido; não há evento de cancelamento registrado para confirmar o momento exato.',
         });
       }
 

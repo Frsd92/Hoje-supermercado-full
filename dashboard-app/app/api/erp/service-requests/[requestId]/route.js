@@ -196,7 +196,7 @@ export async function PATCH(request, { params }) {
     const cancellationMessage = action === 'approve' && result.orderStatus === 'Cancelado'
       ? result.onlinePayment && result.paymentStatus === 'refunded'
         ? 'Pedido cancelado. O pagamento já estava integralmente estornado.'
-        : result.onlinePayment && ['pending', 'failed', 'canceled'].includes(result.paymentStatus)
+        : result.onlinePayment && ['pending', 'failed', 'canceled', 'expired'].includes(result.paymentStatus)
           ? 'Pedido cancelado. O pagamento não estava confirmado, então não houve devolução financeira.'
           : 'Pedido cancelado. Se o pagamento foi feito fora da Pagar.me, a devolução deve ser processada manualmente.'
       : action === 'approve'

@@ -2,6 +2,7 @@ import { getPagarmeOrder, getPagarmePaymentSnapshot, getPagarmeRefundedCents, Pa
 import { amountToCents, refundRequestStatus } from '@/features/orders/order-refund-utils';
 import { prisma } from '@/lib/prisma';
 import { issueBlingNfceForPaidOrder } from '@/features/erp/api/bling-nfce';
+import { shouldCancelOrderForPaymentStatus } from '@/features/orders/pending-payment-policy.mjs';
 
 const maximumWebhookBytes = 64 * 1024;
 
@@ -94,20 +95,28 @@ export async function POST(request) {
       await transaction.pagarmeWebhookEvent.create({
         data: { id: eventId, eventType, orderId: localOrder.id },
       });
+      const currentOrder = await transaction.order.findUnique({
+        where: { id: localOrder.id },
+        select: { status: true, paymentDetails: true, pagarmeChargeId: true },
+      });
       await transaction.order.update({
         where: { id: localOrder.id },
         data: {
           pagarmeOrderId: providerOrderId,
-          pagarmeChargeId: snapshot.pagarmeChargeId || localOrder.pagarmeChargeId,
+          pagarmeChargeId: snapshot.pagarmeChargeId || currentOrder?.pagarmeChargeId || localOrder.pagarmeChargeId,
           paymentStatus,
           paymentDetails: paymentStatus === 'pending'
-            ? snapshot.paymentDetails || localOrder.paymentDetails || undefined
+            ? snapshot.paymentDetails || currentOrder?.paymentDetails || localOrder.paymentDetails || undefined
             : null,
           refundedAmount: refundAmount,
+          ...(shouldCancelOrderForPaymentStatus(paymentStatus, currentOrder?.status || localOrder.status) ? {
+            status: 'Cancelado',
+            updatedBy: 'Recusa/expiração confirmada pela Pagar.me',
+          } : {}),
         },
       });
 
-      if (['failed', 'canceled'].includes(paymentStatus)) {
+      if (['failed', 'canceled', 'expired'].includes(paymentStatus)) {
         await transaction.couponRedemption.deleteMany({ where: { orderId: localOrder.id } });
       }
 

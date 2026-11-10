@@ -24,7 +24,7 @@ function dateTime(value) {
 export function isRealizedCouponOrder(order) {
   if (!order) return false;
   return order.status !== 'Cancelado'
-    && !['pending', 'failed', 'canceled'].includes(String(order.paymentStatus || '').toLowerCase());
+    && !['pending', 'failed', 'canceled', 'expired'].includes(String(order.paymentStatus || '').toLowerCase());
 }
 
 function isProcessingCouponOrder(order) {
@@ -110,7 +110,7 @@ export function summarizeCouponCampaign(campaign, sourceOrders = [], now = new D
   const expiredCount = recipientStatuses.filter((recipient) => recipient.status === 'expired').length;
   const activeOrders = realizedOrders;
   const cancelledOrders = campaignOrders.filter((order) => (
-    order.status === 'Cancelado' || ['failed', 'canceled'].includes(String(order.paymentStatus || '').toLowerCase())
+    order.status === 'Cancelado' || ['failed', 'canceled', 'expired'].includes(String(order.paymentStatus || '').toLowerCase())
   ));
   const revenue = activeOrders.reduce((sum, order) => sum + getNetRevenue(order), 0);
   const discountGiven = activeOrders.reduce((sum, order) => (

@@ -22,6 +22,7 @@ const currencyFormatter = new Intl.NumberFormat('pt-BR', { style: 'currency', cu
 const orderDateFormatter = new Intl.DateTimeFormat('pt-BR', { dateStyle: 'medium' });
 const paymentStatusLabels = {
   pending: 'Aguardando pagamento',
+  expired: 'Pagamento expirado',
   paid: 'Pago',
   failed: 'Pagamento não aprovado',
   canceled: 'Pagamento cancelado',
@@ -551,6 +552,7 @@ export default function OrdersPage() {
                   </span>
                   <span className="order-status-cell" role="cell">
                     <span className={`status-badge ${info.tone}`}><span className="order-status-light" aria-hidden="true" />{info.label}</span>
+                    {order.paymentStatus === 'expired' && <small className="customer-order-cancellation-reason">Cancelado por falta de pagamento no prazo.</small>}
                     {order.status !== 'Cancelado' && <span className="order-progress" role="group" aria-label={`Andamento do pedido ${order.id}: ${info.label}`}>
                       {orderStages.map((stage, index) => {
                         const stageInfo = getOrderStatus(stage);

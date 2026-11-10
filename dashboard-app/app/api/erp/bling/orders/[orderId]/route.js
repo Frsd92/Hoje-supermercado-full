@@ -38,7 +38,7 @@ export async function POST(request, { params }) {
     return Response.json({ error: 'Este pedido já foi enviado ao Bling.' }, { status: 409, headers });
   }
   if (order.status === 'Cancelado'
-    || ['failed', 'canceled', 'partially_refunded', 'refunded'].includes(order.paymentStatus)) {
+    || ['failed', 'canceled', 'expired', 'partially_refunded', 'refunded'].includes(order.paymentStatus)) {
     return Response.json({ error: 'Pedidos cancelados, recusados ou estornados não podem ser enviados ao Bling.' }, { status: 409, headers });
   }
   if (order.paymentStatus === 'pending') {
