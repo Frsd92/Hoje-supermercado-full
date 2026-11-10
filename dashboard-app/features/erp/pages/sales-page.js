@@ -20,6 +20,7 @@ const paymentLabels = {
 const paymentStatusLabels = {
   pending: 'Pendente',
   paid: 'Faturado',
+  expired: 'Expirado',
   failed: 'Recusado',
   canceled: 'Cancelado',
   partially_refunded: 'Estorno parcial',
@@ -56,6 +57,7 @@ export default function SalesPage() {
   const [sales, setSales] = useState([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState('');
+  const [paymentReconciliationWarning, setPaymentReconciliationWarning] = useState(false);
   const [search, setSearch] = useState('');
   const [filter, setFilter] = useState('all');
   const [startDate, setStartDate] = useState('');
@@ -73,6 +75,7 @@ export default function SalesPage() {
         if (!response.ok) throw new Error(result.error || 'Não foi possível carregar as vendas.');
         if (!Array.isArray(result.sales)) throw new Error('A resposta de vendas está inválida.');
         setSales(result.sales);
+        setPaymentReconciliationWarning(result.paymentReconciliationWarning === true);
       } catch (loadError) {
         if (loadError.name !== 'AbortError') setError(loadError.message || 'Não foi possível carregar as vendas.');
       } finally {
@@ -111,6 +114,7 @@ export default function SalesPage() {
     </header>
 
     {error && <div className="financial-error" role="alert"><span>{error}</span><button type="button" onClick={() => setRefreshToken((value) => value + 1)}>Tentar novamente</button></div>}
+    {paymentReconciliationWarning && <div className="financial-error" role="status">Não foi possível confirmar alguns pagamentos online com a Pagar.me. Os status desses pedidos podem continuar temporariamente pendentes; atualize para tentar novamente.</div>}
 
     <div className="sales-page-summary" aria-label="Resumo das vendas">
       <article><span>Pedidos registrados</span><strong>{salesInPeriod.length}</strong><small>{startDate || endDate ? 'No período selecionado' : 'Últimos 500 pedidos'}</small></article>
@@ -137,6 +141,7 @@ export default function SalesPage() {
             <option value="paid">Faturado</option>
             <option value="pending">Pendente</option>
             <option value="manual">Pagamento combinado</option>
+            <option value="expired">Expirado</option>
             <option value="failed">Recusado</option>
             <option value="canceled">Cancelado</option>
             <option value="partially_refunded">Estorno parcial</option>

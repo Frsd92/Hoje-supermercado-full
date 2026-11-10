@@ -1,11 +1,12 @@
 import { amountToCents } from './order-refund-utils.js';
 import { getPagarmeOrder, getPagarmePaymentSnapshot, getPagarmePaymentStatus, getPagarmeRefundedCents } from '../payments/pagarme.js';
-import { isPixCodeExpired } from './pix-expiration.mjs';
-import { getPendingPaymentStatus, shouldCancelOrderForPaymentStatus } from './pending-payment-policy.mjs';
+import { getPendingPaymentStatus, shouldCancelOrderForPaymentStatus, shouldReconcilePendingPayment } from './pending-payment-policy.mjs';
+import { CARD_PAYMENT_METHODS, VOUCHER_PAYMENT_METHODS } from '../payments/card-methods.js';
 import { prisma } from '@/lib/prisma';
 import { issueBlingNfceForPaidOrder } from '../erp/api/bling-nfce.js';
 
 const terminalUnpaidStatuses = new Set(['failed', 'canceled', 'expired']);
+const onlinePaymentMethods = ['pix', 'cartao', ...CARD_PAYMENT_METHODS, ...VOUCHER_PAYMENT_METHODS];
 
 export async function reconcilePendingOrderPayment(order, providerOrder, {
   now = Date.now(),
@@ -88,7 +89,7 @@ export async function reconcilePendingOrderPayment(order, providerOrder, {
   return updateResult;
 }
 
-export async function expirePendingPixPayments({
+export async function reconcilePendingOnlinePayments({
   now = Date.now(),
   prismaClient = prisma,
   getProviderOrder = getPagarmeOrder,
@@ -96,7 +97,7 @@ export async function expirePendingPixPayments({
   const candidates = await prismaClient.order.findMany({
     where: {
       paymentStatus: 'pending',
-      paymentMethod: 'pix',
+      paymentMethod: { in: onlinePaymentMethods },
       pagarmeOrderId: { not: null },
     },
     select: {
@@ -112,7 +113,7 @@ export async function expirePendingPixPayments({
   const result = { checked: 0, expired: 0, updated: 0, errors: [] };
 
   for (const order of candidates) {
-    if (!isPixCodeExpired(order.paymentDetails?.pixExpiresAt, now)) continue;
+    if (!shouldReconcilePendingPayment(order, now)) continue;
     result.checked += 1;
     try {
       const providerOrder = await getProviderOrder(order.pagarmeOrderId);
@@ -120,7 +121,7 @@ export async function expirePendingPixPayments({
       if (reconciliation.updated) result.updated += 1;
       if (reconciliation.updated && reconciliation.paymentStatus === 'expired') result.expired += 1;
     } catch (error) {
-      console.error(`Não foi possível reconciliar o pagamento vencido do pedido ${order.id}:`, error);
+      console.error(`Não foi possível reconciliar o pagamento pendente do pedido ${order.id}:`, error);
       result.errors.push(order.id);
     }
   }

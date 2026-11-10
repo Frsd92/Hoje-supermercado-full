@@ -9183,7 +9183,7 @@ button.metric-mini:focus-visible {
 .cash-flow-type.exit { border-color: #f1c4cb; background: #fff1f2; color: #b4233b; }
 .cash-flow-status.is-paid, .sales-status-paid { border-color: #c6ead5; background: #ecfdf3; color: #087443; }
 .cash-flow-status.is-pending, .sales-status-pending, .sales-status-manual { border-color: #f4d28e; background: #fff7e6; color: #8a5700; }
-.sales-status-failed, .sales-status-canceled, .sales-status-refunded { border-color: #f1c4cb; background: #fff1f2; color: #b4233b; }
+.sales-status-expired, .sales-status-failed, .sales-status-canceled, .sales-status-refunded { border-color: #f1c4cb; background: #fff1f2; color: #b4233b; }
 .cash-flow-value { text-align: right !important; font-variant-numeric: tabular-nums; font-weight: 800 !important; white-space: nowrap; }
 .cash-flow-value.entry { color: #087443 !important; }
 .cash-flow-value.exit { color: #b4233b !important; }

@@ -1,5 +1,5 @@
 import { timingSafeEqual } from 'node:crypto';
-import { expirePendingPixPayments } from '@/features/orders/pending-payment-reconciliation';
+import { reconcilePendingOnlinePayments } from '@/features/orders/pending-payment-reconciliation';
 
 const headers = { 'Cache-Control': 'private, no-store, max-age=0' };
 
@@ -19,10 +19,10 @@ export async function GET(request) {
   }
 
   try {
-    const result = await expirePendingPixPayments();
+    const result = await reconcilePendingOnlinePayments();
     return Response.json(result, { status: result.errors.length ? 502 : 200, headers });
   } catch (error) {
-    console.error('Não foi possível reconciliar os pagamentos Pix pendentes:', error);
+    console.error('Não foi possível reconciliar os pagamentos online pendentes:', error);
     return Response.json({ error: 'Não foi possível reconciliar os pagamentos agora.' }, { status: 500, headers });
   }
 }

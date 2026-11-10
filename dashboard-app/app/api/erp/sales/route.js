@@ -1,6 +1,7 @@
 import { getServerSession } from 'next-auth';
 import { authOptions } from '@/auth';
 import { hasErpAccess } from '@/features/erp/access';
+import { reconcilePendingOnlinePayments } from '@/features/orders/pending-payment-reconciliation';
 import { prisma } from '@/lib/prisma';
 
 const headers = { 'Cache-Control': 'private, no-store, max-age=0' };
@@ -19,6 +20,7 @@ export async function GET() {
   if (!hasErpAccess(session?.user)) return Response.json({ error: 'Acesso negado.' }, { status: 403, headers });
 
   try {
+    const paymentReconciliation = await reconcilePendingOnlinePayments();
     const orders = await prisma.order.findMany({
       take: 500,
       orderBy: { createdAt: 'desc' },
@@ -76,6 +78,7 @@ export async function GET() {
           })),
         };
       }),
+      paymentReconciliationWarning: paymentReconciliation.errors.length > 0,
     }, { headers });
   } catch (error) {
     console.error('Não foi possível carregar as vendas do ERP:', error);

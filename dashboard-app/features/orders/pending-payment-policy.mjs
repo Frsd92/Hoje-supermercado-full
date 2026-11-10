@@ -9,6 +9,10 @@ export function getPendingPaymentStatus(providerStatus, paymentMethod, expiresAt
   return providerStatus;
 }
 
+export function shouldReconcilePendingPayment(order, now = Date.now()) {
+  return order?.paymentMethod !== 'pix' || isPixCodeExpired(order.paymentDetails?.pixExpiresAt, now);
+}
+
 export function shouldCancelOrderForPaymentStatus(paymentStatus, orderStatus) {
   return terminalUnpaidStatuses.has(paymentStatus) && orderStatus === 'Recebido';
 }
