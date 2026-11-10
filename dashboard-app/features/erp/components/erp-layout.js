@@ -2,7 +2,7 @@
 
 import Link from 'next/link';
 import { usePathname } from 'next/navigation';
-import { Activity, Award, BarChart3, Bell, CalendarDays, ChevronDown, CircleDollarSign, ClipboardList, FileText, History, LayoutDashboard, LayoutTemplate, MapPin, Package, PlugZap, Plus, ReceiptText, ShoppingBag, ShoppingCart, TicketPercent, TrendingUp, Truck, Users, Zap } from 'lucide-react';
+import { Activity, Award, BarChart3, Bell, CalendarDays, ChevronDown, CircleDollarSign, ClipboardList, FileText, History, LayoutDashboard, LayoutTemplate, MapPin, Package, PanelLeftClose, PanelLeftOpen, PlugZap, Plus, ReceiptText, ShoppingBag, ShoppingCart, TicketPercent, TrendingUp, Truck, Users, Zap } from 'lucide-react';
 import { useEffect, useState } from 'react';
 import { getErpActionCountsFromSummary } from '../action-notifications.js';
 
@@ -81,6 +81,27 @@ export default function ERPLayout({ children }) {
   const pathname = usePathname();
   const [actionCounts, setActionCounts] = useState({ customers: 0, orders: 0, products: 0, newCustomers: 0, newOrders: 0 });
   const [financeExpanded, setFinanceExpanded] = useState(() => pathname.startsWith('/erp/financeiro'));
+  const [sidebarCollapsed, setSidebarCollapsed] = useState(false);
+  const [sidebarPreferenceLoaded, setSidebarPreferenceLoaded] = useState(false);
+
+  useEffect(() => {
+    try {
+      setSidebarCollapsed(localStorage.getItem('erp-sidebar-collapsed') === 'true');
+    } catch (error) {
+      console.error('Não foi possível carregar a preferência da barra lateral do ERP:', error);
+    } finally {
+      setSidebarPreferenceLoaded(true);
+    }
+  }, []);
+
+  useEffect(() => {
+    if (!sidebarPreferenceLoaded) return;
+    try {
+      localStorage.setItem('erp-sidebar-collapsed', String(sidebarCollapsed));
+    } catch (error) {
+      console.error('Não foi possível salvar a preferência da barra lateral do ERP:', error);
+    }
+  }, [sidebarCollapsed, sidebarPreferenceLoaded]);
 
   useEffect(() => {
     if (pathname.startsWith('/erp/financeiro')) setFinanceExpanded(true);
@@ -219,24 +240,43 @@ export default function ERPLayout({ children }) {
 
   if (pathname === '/erp/login') return children;
 
+  const toggleSidebar = () => {
+    setSidebarCollapsed((collapsed) => !collapsed);
+  };
+
   return (
     <div className="erp-shell">
       <a className="erp-skip-link" href="#erp-main-content">Pular para o conteúdo principal</a>
-      <aside className="erp-sidebar">
-        <Link className="erp-brand" href="/erp" aria-label="Hoje ERP — ir para o dashboard">
-          <img className="erp-brand-mark" src="/imagens/logo/logo-hj.webp" alt="" />
-          <div><span>HOJE</span><strong>ERP Operacional</strong></div>
-        </Link>
-        <nav className="erp-nav" aria-label="Navegação ERP">
+      <aside className={`erp-sidebar${sidebarCollapsed ? ' is-collapsed' : ''}`}>
+        <div className="erp-sidebar-header">
+          <Link className="erp-brand" href="/erp" aria-label="Hoje ERP — ir para o dashboard">
+            <img className="erp-brand-mark" src="/imagens/logo/logo-hj.webp" alt="" />
+            <div><span>HOJE</span><strong>ERP Operacional</strong></div>
+          </Link>
+          <button
+            type="button"
+            className="erp-sidebar-toggle"
+            aria-label={sidebarCollapsed ? 'Expandir menu lateral' : 'Recolher menu lateral'}
+            aria-controls="erp-navigation"
+            aria-expanded={!sidebarCollapsed}
+            title={sidebarCollapsed ? 'Expandir menu lateral' : 'Recolher menu lateral'}
+            onClick={toggleSidebar}
+          >
+            {sidebarCollapsed
+              ? <PanelLeftOpen size={18} aria-hidden="true" />
+              : <PanelLeftClose size={18} aria-hidden="true" />}
+          </button>
+        </div>
+        <nav className="erp-nav" id="erp-navigation" aria-label="Navegação ERP">
           {erpNavigationGroups.map((group) => {
             const isFinance = group.label === 'Financeiro';
-            const expanded = isFinance ? financeExpanded : true;
+            const expanded = isFinance ? financeExpanded || sidebarCollapsed : true;
             return <div className={`erp-nav-group${isFinance ? ' erp-nav-group-finance' : ''}`} key={group.label}>
-            {isFinance
+            {!sidebarCollapsed && (isFinance
               ? <button type="button" className="erp-nav-group-toggle" aria-expanded={expanded} aria-controls="erp-finance-nav-items" onClick={() => setFinanceExpanded((value) => !value)}>
                 <CircleDollarSign size={17} aria-hidden="true" /><span>{group.label}</span><ChevronDown size={15} aria-hidden="true" />
               </button>
-              : <span className="erp-nav-group-label">{group.label}</span>}
+              : <span className="erp-nav-group-label">{group.label}</span>)}
             {expanded && <div className="erp-nav-group-items" id={isFinance ? 'erp-finance-nav-items' : undefined}>
               {group.items.map(({ label, href, icon: Icon }) => {
                 const active = pathname === href || (href !== '/erp' && href !== '/erp/financeiro' && pathname.startsWith(href));
@@ -250,9 +290,9 @@ export default function ERPLayout({ children }) {
                   : label === 'Produtos'
                     ? `${pendingActions} produto(s) aguardando sincronização ou confirmação no Bling`
                     : `${pendingActions} cadastro(s) novo(s), alteração(ões) cadastral(is) ou solicitação(ões) de cliente para consultar`;
-                const content = <><Icon size={17} aria-hidden="true" /><span>{label}</span>{pendingActions > 0 && <><span className="erp-nav-badge" aria-hidden="true">{pendingActions}</span><span className="visually-hidden">{actionLabel}</span></>}</>;
+                const content = <><Icon size={17} aria-hidden="true" /><span className="erp-nav-label">{label}</span>{pendingActions > 0 && <><span className="erp-nav-badge" aria-hidden="true">{pendingActions}</span><span className="visually-hidden">{actionLabel}</span></>}</>;
                 const className = `erp-nav-item ${active ? 'active' : ''}`;
-                return <Link key={label} href={href} className={className} aria-current={active ? 'page' : undefined}>{content}</Link>;
+                return <Link key={label} href={href} className={className} aria-label={sidebarCollapsed ? label : undefined} aria-current={active ? 'page' : undefined} title={sidebarCollapsed ? label : undefined}>{content}</Link>;
               })}
             </div>}
           </div>;

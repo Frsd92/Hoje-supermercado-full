@@ -7919,12 +7919,16 @@ button.metric-mini:focus-visible {
   background: var(--erp-surface);
   display: flex;
   flex-direction: column;
+  transition: width .18s ease, flex-basis .18s ease;
 }
+.erp-sidebar-header { display: flex; align-items: flex-start; justify-content: space-between; gap: 6px; }
 .erp-brand { display: flex; align-items: center; gap: 10px; padding: 8px 10px 24px; border-radius: 10px; color: var(--erp-text); text-decoration: none; }
 .erp-brand-mark { width: 34px; height: 34px; display: block; flex: 0 0 34px; padding: 2px; border: 1px solid var(--erp-border); border-radius: 9px; background: var(--erp-surface); object-fit: contain; }
 .erp-brand span, .erp-brand strong { display: block; }
 .erp-brand span { color: var(--erp-primary); font-size: .62rem; font-weight: 900; letter-spacing: .12em; }
 .erp-brand strong { margin-top: 3px; font-size: .88rem; }
+.erp-sidebar-toggle { display: grid; width: 34px; height: 34px; flex: 0 0 34px; place-items: center; margin: 8px 2px 0 0; border: 1px solid var(--erp-border); border-radius: 9px; background: var(--erp-surface); color: var(--erp-muted); cursor: pointer; }
+.erp-sidebar-toggle:hover { border-color: var(--erp-primary-border); background: var(--erp-surface-soft); color: var(--erp-primary-strong); }
 .erp-nav { display: flex; flex-direction: column; gap: 13px; }
 .erp-nav-group { display: grid; gap: 5px; }
 .erp-nav-group-label { padding: 0 12px; color: var(--erp-muted); font-size: .61rem; font-weight: 850; letter-spacing: .09em; text-transform: uppercase; }
@@ -7946,6 +7950,23 @@ button.metric-mini:focus-visible {
 .erp-order-invoice-cpf small { color: #64748b; }
 .erp-sidebar-footer { display: flex; align-items: center; gap: 7px; margin-top: auto; padding: 12px; color: var(--erp-muted); font-size: .72rem; border-top: 1px solid var(--erp-border); }
 .erp-main { flex: 1; min-width: 0; padding: 26px clamp(18px, 4vw, 54px); }
+@media (min-width: 981px) {
+  .erp-sidebar.is-collapsed { width: 72px; flex-basis: 72px; padding-inline: 10px; }
+  .erp-sidebar.is-collapsed .erp-sidebar-header { flex-direction: column; align-items: center; gap: 10px; }
+  .erp-sidebar.is-collapsed .erp-brand { justify-content: center; padding: 8px 0; }
+  .erp-sidebar.is-collapsed .erp-brand > div,
+  .erp-sidebar.is-collapsed .erp-nav-group-label,
+  .erp-sidebar.is-collapsed .erp-nav-group-toggle,
+  .erp-sidebar.is-collapsed .erp-nav-label,
+  .erp-sidebar.is-collapsed .erp-nav-badge { display: none; }
+  .erp-sidebar.is-collapsed .erp-sidebar-toggle { margin: 0; }
+  .erp-sidebar.is-collapsed .erp-nav { gap: 9px; }
+  .erp-sidebar.is-collapsed .erp-nav-group-items { gap: 5px; }
+  .erp-sidebar.is-collapsed .erp-nav-group-finance > .erp-nav-group-items { padding-left: 0; border-left: 0; }
+  .erp-sidebar.is-collapsed .erp-nav-item { width: 48px; min-height: 44px; justify-content: center; padding: 8px; }
+  .erp-sidebar.is-collapsed .erp-nav-item.active { box-shadow: inset 3px 0 var(--erp-primary); }
+  .erp-sidebar.is-collapsed .erp-sidebar-footer { justify-content: center; padding-inline: 0; }
+}
 .erp-quick-access { display: grid; gap: 11px; }
 .erp-quick-access-heading { display: flex; align-items: baseline; justify-content: space-between; gap: 12px; }
 .erp-quick-access-heading h2 { margin: 0; color: var(--erp-text); font-size: 1rem; }
