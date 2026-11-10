@@ -12,6 +12,7 @@ import {
   refundRequestStatus,
   refundRequestStatusLabels,
 } from '@/features/orders/order-refund-utils';
+import { isCardPaymentMethod } from '@/features/payments/card-methods';
 
 const statuses = ['Todos', 'Recebido', 'Separacao', 'Expedicao', 'Em transito', 'Concluido', 'Cancelado'];
 const paymentLabels = {
@@ -33,6 +34,19 @@ const paymentStatusLabels = {
   refunded: 'Estornado',
   manual: 'Pagamento manual / combinado',
 };
+const paymentStatusTones = {
+  pending: 'pending',
+  paid: 'paid',
+  failed: 'failed',
+  canceled: 'canceled',
+  partially_refunded: 'refunded',
+  refunded: 'refunded',
+  manual: 'manual',
+};
+const paymentBlocksOrderProgress = (order) => order?.status === 'Recebido'
+  && (order.paymentMethod === 'pix' || isCardPaymentMethod(order.paymentMethod))
+  && order.paymentStatus !== 'manual'
+  && !['paid', 'partially_refunded'].includes(order.paymentStatus);
 const currencyFormatter = new Intl.NumberFormat('pt-BR', { style: 'currency', currency: 'BRL' });
 const formatInvoiceCpf = (value) => {
   const digits = String(value || '').replace(/\D/g, '');
@@ -405,6 +419,13 @@ export default function ERPOrdersPage() {
       && refundRequestMatches;
   })), [cpfRequestFilter, orders, query, refundFilter, status]);
 
+  const newOrdersAwaitingPayment = newOrders.filter((order) => (
+    order.paymentStatus === 'pending' && paymentBlocksOrderProgress(order)
+  )).length;
+  const newOrdersPaymentNeedsAttention = newOrders.filter((order) => (
+    paymentBlocksOrderProgress(order) && order.paymentStatus !== 'pending'
+  )).length;
+  const newOrdersReadyForReview = newOrders.length - newOrdersAwaitingPayment;
   const metrics = [
     { label: 'Pedidos recebidos', value: orders.filter((order) => order.status === 'Recebido').length, Icon: ClipboardList, status: 'Recebido' },
     { label: 'Em separacao', value: orders.filter((order) => order.status === 'Separacao').length, Icon: PackageCheck, status: 'Separacao' },
@@ -423,6 +444,7 @@ export default function ERPOrdersPage() {
     setQuery('');
   };
   const refundRequests = orders.flatMap((order) => order.refundRequests || []);
+  const selectedPaymentBlocksProgress = paymentBlocksOrderProgress(selected);
   const refundsAwaitingReview = refundRequests.filter((request) => request.status === refundRequestStatus.requested).length;
   const refundsWaitingGateway = refundRequests.filter((request) => [
     refundRequestStatus.approvedWaitingGateway,
@@ -473,11 +495,17 @@ export default function ERPOrdersPage() {
         <p>O ERP registra pedidos e decisões. Não executa nem confirma devolução financeira antes da integração da gateway.</p>
       </section>
       {newOrders.length > 0 && <section className="erp-new-orders-alert">
-        <div><strong>Novos pedidos aguardando atenção</strong><span>{newOrders.length} pedido(s) recebido(s) aguardando conferência e separação.</span></div>
+        <div><strong>Novos pedidos aguardando atenção</strong><span>
+          {newOrdersAwaitingPayment > 0 && `${newOrdersAwaitingPayment} aguardando pagamento. `}
+          {newOrdersPaymentNeedsAttention > 0 && `${newOrdersPaymentNeedsAttention} com pagamento recusado, cancelado ou não confirmado; confira antes de separar. `}
+          {newOrdersReadyForReview > 0 && `${newOrdersReadyForReview} liberado(s) para conferência e separação.`}
+        </span></div>
         <div className="erp-new-order-list">
           {newOrders.map((order) => <div className="erp-new-order-item" key={order.id}>
             <span><b>{order.id}</b> · {order.customerName || order.customerEmail}</span>
-            <button type="button" onClick={() => { setStatus('Recebido'); setQuery(order.id); }}>Ver separação</button>
+            <button type="button" onClick={() => { setStatus('Recebido'); setQuery(order.id); }}>
+              {paymentBlocksOrderProgress(order) ? 'Ver pagamento' : 'Ver pedido'}
+            </button>
             <button type="button" className="erp-ack-button" onClick={() => acknowledge(order.id)}>Ciente</button>
           </div>)}
         </div>
@@ -507,7 +535,7 @@ export default function ERPOrdersPage() {
           </div>
           {filteredOrders.length
             ? <div className="erp-table-scroll"><table className="erp-table">
-              <thead><tr><th>Código interno</th><th>Cliente</th><th>Data</th><th>Itens</th><th>Total</th><th>CPF solicitado</th><th>Estornos</th><th>Status</th></tr></thead>
+              <thead><tr><th>Código interno</th><th>Cliente</th><th>Data</th><th>Itens</th><th>Total</th><th>CPF solicitado</th><th>Estornos</th><th>Status do pedido e pagamento</th></tr></thead>
               <tbody>{filteredOrders.map((order) => <tr key={order.id} className={selected?.id === order.id ? 'selected-row' : ''} onClick={() => { setSelected(order); setActionError(''); setRefundActionError(''); setRefundActionNotice(''); }}>
                 <td><strong>{order.id}</strong><small>{order.address || 'Endereço não informado'}</small></td>
                 <td>{order.customerName || order.customerEmail || 'Cliente não identificado'}</td>
@@ -516,7 +544,18 @@ export default function ERPOrdersPage() {
                 <td>{order.total || 'R$ 0,00'}</td>
                 <td>{order.includeCpfOnReceipt === true ? <span className="erp-invoice-cpf-requested">Sim</span> : order.includeCpfOnReceipt === false ? 'Não' : '—'}</td>
                 <td>{order.refundRequests?.length ? <span className="erp-refund-count">{order.refundRequests.length} · {order.refundRequests.filter((request) => request.status === refundRequestStatus.requested).length} pendente(s)</span> : '—'}</td>
-                <td><span className="erp-status">{order.status || 'Recebido'}</span><small>{paymentStatusLabels[order.paymentStatus] || 'Pagamento não informado'}</small></td>
+                <td>
+                  <div className="erp-order-status-stack" aria-label={`Etapa do pedido: ${order.status || 'Recebido'}. Pagamento: ${paymentStatusLabels[order.paymentStatus] || 'Pagamento não informado'}.`}>
+                    <span className="erp-order-status-group">
+                      <small>Etapa do pedido</small>
+                      <strong className="erp-order-stage-badge">{order.status || 'Recebido'}</strong>
+                    </span>
+                    <span className={`erp-order-status-group erp-order-payment-badge ${paymentStatusTones[order.paymentStatus] || 'unknown'}`}>
+                      <small>Pagamento</small>
+                      <strong>{paymentStatusLabels[order.paymentStatus] || 'Pagamento não informado'}</strong>
+                    </span>
+                  </div>
+                </td>
               </tr>)}</tbody>
             </table></div>
             : <div className="erp-empty-data">{loading ? 'Carregando pedidos reais...' : loadError ? 'Não foi possível carregar a fila de pedidos.' : 'Nenhum pedido registrado ainda. Os pedidos aparecerão aqui quando uma compra real for finalizada.'}</div>}
@@ -546,7 +585,12 @@ export default function ERPOrdersPage() {
             {trackingError && <p className="erp-delivery-tracking-error" role="alert">{trackingError}</p>}
             {trackingNotice && <p className="erp-delivery-tracking-notice" role="status">{trackingNotice}</p>}
           </section>}
-          {selected.paymentStatus === 'pending' && <p className="erp-order-fefo-note" role="status">A separação está bloqueada até a confirmação do pagamento pela Pagar.me.</p>}
+          {selectedPaymentBlocksProgress && <p className="erp-order-payment-blocked" role="status">
+            <AlertCircle size={16} aria-hidden="true" />
+            {selected.paymentStatus === 'pending'
+              ? 'Pedido recebido, mas ainda não pago. A separação só será liberada após a confirmação do pagamento.'
+              : `${paymentStatusLabels[selected.paymentStatus] || 'Pagamento não confirmado'}. A separação permanece bloqueada.`}
+          </p>}
           <div className="erp-order-address erp-order-invoice-cpf">
             <FileText size={15} />
             <span>
@@ -585,7 +629,6 @@ export default function ERPOrdersPage() {
             >
               <Upload size={16} aria-hidden="true" />{blingBusy ? 'Enviando ao Bling...' : selected.blingSyncStatus === 'uncertain' ? 'Conferi no Bling; tentar novamente' : selected.blingSyncStatus === 'failed' ? 'Tentar enviar novamente' : 'Enviar pedido ao Bling'}
             </button>}
-            {selected.paymentStatus === 'pending' && <p className="erp-order-fefo-note">O pedido só pode ser enviado após a confirmação do pagamento.</p>}
           </section>
           <section className="erp-nfce-order-panel" aria-labelledby="erp-nfce-order-title">
             <div className="erp-bling-order-heading"><h4 id="erp-nfce-order-title">NFC-e automática</h4><span className={`erp-bling-order-status ${selected.blingNfceStatus || 'not_issued'}`}>
@@ -694,8 +737,10 @@ export default function ERPOrdersPage() {
           <div className="erp-order-items">{(selected.items || []).map((item) => <div key={item.id || item.name}><strong>{item.name}<small>Código: {item.productCode || 'não registrado'}</small></strong><span>Qtd. {formatCartQuantity(item)} · {item.price}</span></div>)}</div>
           {selected.status === 'Recebido' && <p className="erp-order-fefo-note"><PackageCheck size={15} /> Ao iniciar a separação, o sistema reserva primeiro os lotes com validade mais próxima.</p>}
           {actionError && <p className="erp-order-action-error" role="alert"><AlertCircle size={16} />{actionError}</p>}
-          <button type="button" className="primary-cta erp-advance-button" disabled={busy || !['Recebido', 'Separacao', 'Expedicao', 'Em transito'].includes(selected.status)} onClick={() => advanceOrder(selected)}>
-            {selected.status === 'Recebido' ? 'Aceitar e enviar para separação' : selected.status === 'Separacao' ? 'Prosseguir para expedição' : selected.status === 'Expedicao' ? 'Confirmar envio à transportadora' : selected.status === 'Em transito' ? 'Confirmar entrega concluída' : 'Entrega concluída'}
+          <button type="button" className="primary-cta erp-advance-button" disabled={busy || selectedPaymentBlocksProgress || !['Recebido', 'Separacao', 'Expedicao', 'Em transito'].includes(selected.status)} onClick={() => advanceOrder(selected)}>
+            {selectedPaymentBlocksProgress
+              ? 'Aguardando pagamento para separar'
+              : selected.status === 'Recebido' ? 'Aceitar e enviar para separação' : selected.status === 'Separacao' ? 'Prosseguir para expedição' : selected.status === 'Expedicao' ? 'Confirmar envio à transportadora' : selected.status === 'Em transito' ? 'Confirmar entrega concluída' : 'Entrega concluída'}
           </button>
         </aside>}
       </div>
