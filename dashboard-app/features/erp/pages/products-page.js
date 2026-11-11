@@ -578,6 +578,7 @@ export default function ERPProductsPage() {
           <h2>Informações do produto</h2>
           {field('Nome do produto', 'title')}
           <label>Descrição<textarea value={product.description} onChange={(event) => update('description', event.target.value)} rows="4" /></label>
+          <p className="editor-hint">Use **texto** para destacar uma frase em negrito na página pública do produto.</p>
           <div className="editor-form-grid three">
             <label>SKU
               {renderBlingFieldBadge('sku', product.sku)}

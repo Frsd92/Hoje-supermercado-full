@@ -2,6 +2,7 @@ import { notFound } from 'next/navigation';
 import { calculateSalePrice } from '@/features/erp/api/product-pricing';
 import { getProductCatalog } from '@/features/erp/api/product-catalog';
 import { publicProductImage } from '@/features/erp/api/product-image-url';
+import { getProductDescriptionText, parseProductDescription } from '@/features/products/product-description.mjs';
 import { prisma } from '@/lib/prisma';
 
 export const dynamic = 'force-dynamic';
@@ -26,15 +27,16 @@ export async function generateMetadata({ searchParams }) {
   const product = await loadProduct(id);
   if (!product) return { title: 'Produto não encontrado | Hoje Supermercado' };
 
+  const description = getProductDescriptionText(product.description);
   const baseUrl = storeBaseUrl();
   const image = publicProductImage(product);
   return {
     title: `${product.title} | Hoje Supermercado`,
-    description: product.description,
+    description,
     alternates: { canonical: new URL(`/produto?id=${encodeURIComponent(product.id)}`, baseUrl).toString() },
     openGraph: {
       title: product.title,
-      description: product.description,
+      description,
       url: new URL(`/produto?id=${encodeURIComponent(product.id)}`, baseUrl).toString(),
       images: image ? [new URL(image, `${baseUrl}/`).toString()] : [],
       type: 'website',
@@ -50,13 +52,15 @@ export default async function ProductPage({ searchParams }) {
   const baseUrl = storeBaseUrl();
   const salePrice = calculateSalePrice(product);
   const image = publicProductImage(product);
+  const descriptionParts = parseProductDescription(product.description);
+  const plainDescription = getProductDescriptionText(product.description);
   const productUrl = new URL(`/produto?id=${encodeURIComponent(product.id)}`, baseUrl).toString();
   const available = Number(product.quantity) > 0;
   const schema = {
     '@context': 'https://schema.org',
     '@type': 'Product',
     name: product.title,
-    description: product.description,
+    description: plainDescription,
     ...(product.brand ? { brand: { '@type': 'Brand', name: product.brand } } : {}),
     ...(image ? { image: new URL(image, `${baseUrl}/`).toString() } : {}),
     offers: {
@@ -80,7 +84,11 @@ export default async function ProductPage({ searchParams }) {
         <div style={{ alignSelf: 'center' }}>
           <a href="/" style={{ color: '#286441', fontWeight: 700, textDecoration: 'none' }}>← Voltar para a loja</a>
           <h1 style={{ margin: '22px 0 12px', fontSize: 'clamp(1.7rem, 4vw, 2.4rem)' }}>{product.title}</h1>
-          <p style={{ color: '#52665a', lineHeight: 1.65 }}>{product.description}</p>
+          <p style={{ color: '#52665a', lineHeight: 1.65 }}>
+            {descriptionParts.map(({ text, bold }, index) => (
+              bold ? <strong key={index}>{text}</strong> : <span key={index}>{text}</span>
+            ))}
+          </p>
           <p style={{ margin: '20px 0 8px', fontSize: '1.8rem', fontWeight: 800 }}>{new Intl.NumberFormat('pt-BR', { style: 'currency', currency: 'BRL' }).format(salePrice)}</p>
           <p style={{ color: available ? '#166534' : '#9a3412', fontWeight: 700 }}>{available ? 'Disponível em estoque' : 'Indisponível no momento'}</p>
           <a href="/" style={{ display: 'inline-flex', marginTop: 16, padding: '12px 18px', borderRadius: 9, background: '#1c5a38', color: '#fff', fontWeight: 700, textDecoration: 'none' }}>Ver catálogo da loja</a>
