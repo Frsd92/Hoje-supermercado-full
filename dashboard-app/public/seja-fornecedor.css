@@ -164,57 +164,28 @@
 .supplier-text-link:hover { color: var(--supplier-lime); }
 .supplier-hero-note { max-width: 500px; margin: 20px 0 0; color: #b6ccbc; font-size: 11px; }
 
-.supplier-hero-visual { position: relative; min-height: 390px; display: grid; place-items: center; }
+.supplier-hero-visual { position: relative; min-height: 390px; display: grid; place-items: center; isolation: isolate; }
 .supplier-visual-glow {
   position: absolute;
+  z-index: -2;
   width: min(32vw, 345px);
   aspect-ratio: 1;
   border-radius: 50%;
   background: #246340;
 }
 
-.supplier-orbit { position: absolute; border: 1px solid rgba(216, 242, 116, .35); border-radius: 50%; }
+.supplier-orbit { position: absolute; z-index: -1; border: 1px solid rgba(216, 242, 116, .35); border-radius: 50%; }
 .supplier-orbit-one { width: 390px; height: 260px; transform: rotate(-28deg); }
 .supplier-orbit-two { width: 300px; height: 390px; transform: rotate(28deg); }
 
-.supplier-product-card {
+.supplier-storyset-art {
   position: relative;
   z-index: 1;
-  width: min(100%, 330px);
-  min-height: 330px;
-  padding: 24px 26px 20px;
-  transform: rotate(-4deg);
-  border: 1px solid rgba(255,255,255,.55);
-  border-radius: 26px;
-  background: #fffdf3;
-  box-shadow: 0 24px 55px rgba(0, 0, 0, .22);
-  color: var(--supplier-forest);
+  width: min(100%, 430px);
+  max-height: 420px;
+  object-fit: contain;
+  filter: drop-shadow(0 22px 28px rgba(0, 0, 0, .16));
 }
-
-.supplier-card-kicker,
-.supplier-card-footer { display: block; font-size: 9px; font-weight: 850; letter-spacing: .15em; }
-.supplier-card-kicker { color: #658044; }
-.supplier-crate { position: relative; height: 156px; margin: 10px 0 13px; display: flex; align-items: center; justify-content: center; }
-.supplier-crate-front {
-  position: absolute;
-  right: 12%;
-  bottom: 8px;
-  left: 12%;
-  height: 58px;
-  border: 3px solid #a96432;
-  border-top: 8px solid #bd7941;
-  border-radius: 8px 8px 17px 17px;
-  background: repeating-linear-gradient(0deg, #d79a5c 0 10px, #c88549 10px 15px);
-  box-shadow: 0 8px 13px rgba(93, 56, 23, .16);
-}
-
-.supplier-produce { position: relative; z-index: 1; margin: 0 -4px 26px; font-size: clamp(50px, 5vw, 68px); filter: drop-shadow(0 5px 4px rgba(30, 55, 34, .15)); }
-.produce-one { transform: rotate(-12deg) translateY(5px); }
-.produce-two { transform: rotate(7deg) translateY(-7px); font-size: 75px; }
-.produce-three { transform: rotate(12deg) translateY(4px); }
-.supplier-product-card > strong { display: block; font-size: 26px; font-weight: 850; letter-spacing: -.045em; line-height: 1.05; }
-.supplier-card-footer { margin-top: 17px; color: #63715e; font-size: 7px; letter-spacing: .1em; }
-.supplier-card-footer i { width: 6px; height: 6px; margin-right: 5px; display: inline-block; border-radius: 50%; background: #7bad37; }
 
 .supplier-visual-sticker {
   position: absolute;
@@ -394,6 +365,8 @@
 .supplier-footer nav { flex-basis: 100%; display: flex; flex-wrap: wrap; gap: 12px 24px; }
 .supplier-footer nav a { color: #fff; font-size: 12px; }
 .supplier-footer small { flex-basis: 100%; padding-top: 15px; border-top: 1px solid rgba(255,255,255,.17); color: #c4d9c9; font-size: 10px; }
+.supplier-footer .supplier-illustration-credit { padding-top: 0; border-top: 0; }
+.supplier-illustration-credit a { color: #fff; text-underline-offset: 3px; }
 
 @media (max-width: 900px) {
   .supplier-header { flex-wrap: wrap; gap: 12px 20px; }
@@ -401,8 +374,7 @@
   .supplier-nav a { flex: 0 0 auto; }
   .supplier-hero { grid-template-columns: minmax(0, 1fr) minmax(260px, .8fr); padding: 42px; }
   .supplier-hero-visual { min-height: 340px; }
-  .supplier-product-card { width: min(100%, 290px); min-height: 300px; }
-  .supplier-crate { height: 135px; }
+  .supplier-storyset-art { width: min(100%, 370px); max-height: 360px; }
   .supplier-visual-sticker { right: -10px; width: 102px; height: 102px; }
   .supplier-visual-sticker strong { font-size: 14px; }
   .supplier-proposal-section { grid-template-columns: minmax(0, .75fr) minmax(0, 1.25fr); gap: 30px; }
@@ -423,10 +395,7 @@
   .supplier-visual-glow { width: min(68vw, 300px); }
   .supplier-orbit-one { width: min(85vw, 350px); height: 230px; }
   .supplier-orbit-two { width: 250px; height: 330px; }
-  .supplier-product-card { width: min(76vw, 295px); min-height: 290px; }
-  .supplier-crate { height: 125px; }
-  .supplier-produce { font-size: 55px; }
-  .produce-two { font-size: 64px; }
+  .supplier-storyset-art { width: min(100%, 340px); max-height: 330px; }
   .supplier-visual-sticker { right: 0; bottom: 7px; width: 98px; height: 98px; }
   .supplier-proof-strip,
   .supplier-opportunity,
