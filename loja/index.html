@@ -98,23 +98,31 @@
         </div>
         <i class="store-account-chevron" data-lucide="chevron-down" aria-hidden="true"></i>
       </summary>
-      <nav class="store-account-links" id="store-account-links" aria-label="Atalhos da minha conta" hidden>
-        <a href="/dashboard/orders"><i data-lucide="package-check" aria-hidden="true"></i>Meus pedidos</a>
-        <a href="/dashboard/addresses"><i data-lucide="map-pin" aria-hidden="true"></i>Meus endereços</a>
-        <a href="/dashboard/favorites"><i data-lucide="heart" aria-hidden="true"></i>Meus favoritos</a>
-        <a href="/dashboard/lists"><i data-lucide="list-checks" aria-hidden="true"></i>Minhas listas</a>
-        <a href="/dashboard/profile"><i data-lucide="user-round" aria-hidden="true"></i>Meu perfil</a>
+      <nav class="store-account-links" id="store-account-links" aria-label="Navegação da conta" hidden>
+        <div class="store-account-links-group" role="group" aria-labelledby="store-account-menu-overview">
+          <span id="store-account-menu-overview">Visão geral</span>
+          <a href="/dashboard" data-account-path="/dashboard"><i data-lucide="house" aria-hidden="true"></i>Início</a>
+        </div>
+        <div class="store-account-links-group" role="group" aria-labelledby="store-account-menu-shopping">
+          <span id="store-account-menu-shopping">Minhas compras</span>
+          <a href="/dashboard/orders" data-account-path="/dashboard/orders"><i data-lucide="package-check" aria-hidden="true"></i>Meus pedidos</a>
+          <a href="/dashboard/reorder" data-account-path="/dashboard/reorder"><i data-lucide="rotate-ccw" aria-hidden="true"></i>Comprar novamente</a>
+          <a href="/dashboard/lists" data-account-path="/dashboard/lists"><i data-lucide="list-checks" aria-hidden="true"></i>Listas de compras</a>
+          <a href="/dashboard/cupons" data-account-path="/dashboard/cupons"><i data-lucide="ticket-percent" aria-hidden="true"></i>Cupons</a>
+          <a href="/dashboard/fidelidade" data-account-path="/dashboard/fidelidade"><i data-lucide="award" aria-hidden="true"></i>Missões e pontos</a>
+          <a href="/dashboard/favorites" data-account-path="/dashboard/favorites"><i data-lucide="star" aria-hidden="true"></i>Favoritos</a>
+          <a href="/dashboard/budget" data-account-path="/dashboard/budget"><i data-lucide="circle-dollar-sign" aria-hidden="true"></i>Orçamento</a>
+        </div>
+        <div class="store-account-links-group" role="group" aria-labelledby="store-account-menu-account">
+          <span id="store-account-menu-account">Minha conta</span>
+          <a href="/dashboard/profile" data-account-path="/dashboard/profile"><i data-lucide="user-round" aria-hidden="true"></i>Perfil</a>
+          <a href="/dashboard/addresses" data-account-path="/dashboard/addresses"><i data-lucide="map-pin" aria-hidden="true"></i>Endereços</a>
+          <a href="/dashboard/payment-methods" data-account-path="/dashboard/payment-methods"><i data-lucide="credit-card" aria-hidden="true"></i>Formas de pagamento</a>
+          <a href="/dashboard/settings" data-account-path="/dashboard/settings"><i data-lucide="settings" aria-hidden="true"></i>Configurações</a>
+        </div>
         <a href="/dashboard" class="store-account-dashboard-link" data-store-dashboard-dedicated><i data-lucide="layout-dashboard" aria-hidden="true"></i>Acesse o dashboard completo</a>
       </nav>
     </details>
-
-    <a class="topbar-item store-favorites-link" href="/dashboard/favorites" aria-label="Abrir meus favoritos" hidden>
-      <i data-lucide="heart"></i>
-      <div class="topbar-text">
-        <strong>Meus favoritos</strong>
-        <span id="store-favorites-count">Entre para favoritar</span>
-      </div>
-    </a>
 
     <button id="install-app-button" class="topbar-item install-app-button" type="button" aria-label="Instalar app Hoje" title="Instalar app Hoje">
       <i data-lucide="download" aria-hidden="true"></i>
@@ -1616,35 +1624,6 @@
           <button id="store-account-section-back" class="store-account-section-back" type="button"><i data-lucide="store" aria-hidden="true"></i> Continuar comprando</button>
         </div>
       </header>
-      <nav id="store-account-section-nav" class="store-account-section-nav" aria-label="Seções da minha conta">
-        <div class="store-account-nav-group" role="group" aria-labelledby="store-account-nav-overview">
-          <span id="store-account-nav-overview" class="store-account-nav-group-label">Visão geral</span>
-          <div class="store-account-nav-links">
-            <a href="/dashboard" data-account-path="/dashboard"><i data-lucide="house" aria-hidden="true"></i> Início</a>
-          </div>
-        </div>
-        <div class="store-account-nav-group" role="group" aria-labelledby="store-account-nav-shopping">
-          <span id="store-account-nav-shopping" class="store-account-nav-group-label">Minhas compras</span>
-          <div class="store-account-nav-links">
-            <a href="/dashboard/orders" data-account-path="/dashboard/orders"><i data-lucide="package-check" aria-hidden="true"></i> Meus pedidos</a>
-            <a href="/dashboard/reorder" data-account-path="/dashboard/reorder"><i data-lucide="rotate-ccw" aria-hidden="true"></i> Comprar novamente</a>
-            <a href="/dashboard/lists" data-account-path="/dashboard/lists"><i data-lucide="list-checks" aria-hidden="true"></i> Listas de compras</a>
-            <a href="/dashboard/cupons" data-account-path="/dashboard/cupons"><i data-lucide="ticket-percent" aria-hidden="true"></i> Meus cupons</a>
-            <a href="/dashboard/fidelidade" data-account-path="/dashboard/fidelidade"><i data-lucide="award" aria-hidden="true"></i> Missões e pontos</a>
-            <a href="/dashboard/favorites" data-account-path="/dashboard/favorites"><i data-lucide="star" aria-hidden="true"></i> Favoritos</a>
-            <a href="/dashboard/budget" data-account-path="/dashboard/budget"><i data-lucide="circle-dollar-sign" aria-hidden="true"></i> Orçamento</a>
-          </div>
-        </div>
-        <div class="store-account-nav-group" role="group" aria-labelledby="store-account-nav-account">
-          <span id="store-account-nav-account" class="store-account-nav-group-label">Minha conta</span>
-          <div class="store-account-nav-links">
-            <a href="/dashboard/profile" data-account-path="/dashboard/profile"><i data-lucide="user-round" aria-hidden="true"></i> Perfil</a>
-            <a href="/dashboard/addresses" data-account-path="/dashboard/addresses"><i data-lucide="map-pin" aria-hidden="true"></i> Endereços</a>
-            <a href="/dashboard/payment-methods" data-account-path="/dashboard/payment-methods"><i data-lucide="credit-card" aria-hidden="true"></i> Formas de pagamento</a>
-            <a href="/dashboard/settings" data-account-path="/dashboard/settings"><i data-lucide="settings" aria-hidden="true"></i> Configurações</a>
-          </div>
-        </div>
-      </nav>
       <p id="store-account-loading" class="store-account-loading" role="status">Carregando sua conta...</p>
       <iframe id="store-account-frame" title="Área da minha conta" src="about:blank" loading="lazy" referrerpolicy="strict-origin-when-cross-origin"></iframe>
     </section>
@@ -1670,6 +1649,7 @@
           <h2>Institucional</h2>
           <ul>
             <li><a href="/sobre-nos.html#sobre">Sobre nós</a></li>
+            <li><a href="/seja-fornecedor.html">Seja fornecedor</a></li>
             <li><a href="/sobre-nos.html#ajuda">Fale conosco</a></li>
             <li><a href="/sobre-nos.html#sobre">Sobre o Hoje</a></li>
           </ul>

@@ -2357,7 +2357,7 @@ function inicializarCarrinho() {
   const accountSectionBack = document.getElementById('store-account-section-back');
   const accountSignout = document.getElementById('store-account-signout');
   const accountFrame = document.getElementById('store-account-frame');
-  const accountNavigation = document.getElementById('store-account-section-nav');
+  const accountNavigation = document.getElementById('store-account-links');
   const contentWrapper = document.querySelector('.content-wrapper');
   let accountFrameResizeObserver;
   const isAccountRoute = (url) => url.origin === window.location.origin
