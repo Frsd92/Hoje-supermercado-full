@@ -6,21 +6,122 @@
   <meta name="theme-color" content="#145c32">
   <title>Sem conexão | Hoje Supermercado</title>
   <style>
-    :root { color-scheme: light; font-family: Arial, sans-serif; background: #f4f8f5; color: #183326; }
-    body { min-height: 100vh; margin: 0; display: grid; place-items: center; padding: 24px; box-sizing: border-box; }
-    main { width: min(100%, 420px); padding: 32px 26px; border: 1px solid #dce9df; border-radius: 24px; background: #fff; text-align: center; box-shadow: 0 18px 50px rgba(20, 92, 50, .1); }
-    img { width: 156px; height: 48px; object-fit: contain; }
-    h1 { margin: 18px 0 10px; font-size: 1.6rem; }
-    p { margin: 0; color: #51655a; line-height: 1.6; }
-    .retry-link { display: inline-flex; align-items: center; justify-content: center; margin-top: 24px; min-height: 48px; padding: 0 22px; border-radius: 14px; background: #145c32; color: #fff; font: inherit; font-weight: 700; text-decoration: none; }
+    :root {
+      color-scheme: light;
+      font-family: Arial, sans-serif;
+      background: #f4f8f5;
+      color: #183326;
+    }
+
+    * { box-sizing: border-box; }
+
+    body {
+      min-height: 100vh;
+      min-height: 100dvh;
+      margin: 0;
+      display: grid;
+      place-items: center;
+      padding: 24px;
+    }
+
+    main {
+      width: min(100%, 520px);
+      padding: clamp(24px, 6vw, 40px);
+      border: 1px solid #dce9df;
+      border-radius: 24px;
+      background: #fff;
+      text-align: center;
+      box-shadow: 0 18px 50px rgba(20, 92, 50, .1);
+    }
+
+    .brand {
+      width: 156px;
+      height: 48px;
+      object-fit: contain;
+    }
+
+    .offline-art {
+      display: block;
+      width: min(100%, 300px);
+      height: auto;
+      margin: 18px auto 8px;
+    }
+
+    .status {
+      display: inline-flex;
+      align-items: center;
+      gap: 8px;
+      margin: 8px 0 12px;
+      color: #52705d;
+      font-size: .75rem;
+      font-weight: 700;
+      letter-spacing: .08em;
+      text-transform: uppercase;
+    }
+
+    .status::before {
+      width: 8px;
+      height: 8px;
+      border-radius: 50%;
+      background: #e2a72e;
+      content: "";
+    }
+
+    h1 {
+      margin: 0 0 10px;
+      font-size: clamp(1.5rem, 6vw, 1.9rem);
+      line-height: 1.2;
+    }
+
+    p {
+      margin: 0;
+      color: #51655a;
+      line-height: 1.6;
+    }
+
+    .retry-link {
+      display: inline-flex;
+      min-height: 48px;
+      align-items: center;
+      justify-content: center;
+      margin-top: 24px;
+      padding: 0 22px;
+      border-radius: 14px;
+      background: #145c32;
+      color: #fff;
+      font: inherit;
+      font-weight: 700;
+      text-decoration: none;
+    }
+
+    .retry-link:hover { background: #0d3b22; }
+    .retry-link:focus-visible { outline: 3px solid #d6a80b; outline-offset: 3px; }
+
+    .art-credit {
+      margin-top: 20px;
+      color: #718177;
+      font-size: .75rem;
+    }
+
+    .art-credit a { color: #145c32; text-underline-offset: 3px; }
   </style>
 </head>
 <body>
   <main>
-    <img src="/imagens/logo/logo-hoje.webp" alt="Hoje Supermercado">
+    <img class="brand" src="/imagens/logo/logo-hoje.webp" alt="Hoje Supermercado" width="156" height="48">
+    <img
+      class="offline-art"
+      src="/imagens/sem-conexao-storyset.svg"
+      alt=""
+      width="500"
+      height="500"
+      fetchpriority="high"
+    >
+    <span class="status">Modo offline</span>
     <h1>Você está sem conexão</h1>
     <p>Conecte-se à internet para consultar os produtos, atualizar o carrinho e finalizar seu pedido.</p>
     <a class="retry-link" href="/">Tentar novamente</a>
+    <p class="art-credit">Ilustração <a href="https://storyset.com/illustration/no-connection/pana" target="_blank" rel="noopener noreferrer">No connection</a> por Storyset.</p>
   </main>
 </body>
 </html>

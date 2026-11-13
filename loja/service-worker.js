@@ -1,4 +1,4 @@
-const CACHE_NAME = 'hoje-store-shell-v27';
+const CACHE_NAME = 'hoje-store-shell-v30';
 const PRECACHE_URLS = [
   '/index.html',
   '/categoria.html',
@@ -14,6 +14,7 @@ const PRECACHE_URLS = [
   '/content-moderation.js',
   '/pwa-register.js',
   '/imagens/logo/logo-hoje.webp',
+  '/imagens/sem-conexao-storyset.svg',
   '/imagens/logo/app-icon-180.png',
   '/imagens/logo/app-icon-192.png',
   '/imagens/logo/app-icon-512.png',
@@ -65,8 +66,9 @@ self.addEventListener('fetch', (event) => {
   if (url.pathname.startsWith('/api/') || url.pathname.startsWith('/_next/')) return;
 
   const isStorePage = STORE_PAGE_PATHS.has(url.pathname);
+  const isDocumentNavigation = request.mode === 'navigate';
   const isStaticAsset = STATIC_ASSET_PATHS.has(url.pathname) || url.pathname.startsWith('/imagens/');
-  if (!isStorePage && !isStaticAsset) return;
+  if (!isStorePage && !isStaticAsset && !isDocumentNavigation) return;
 
   event.respondWith((async () => {
     const cache = await caches.open(CACHE_NAME);
@@ -79,7 +81,7 @@ self.addEventListener('fetch', (event) => {
       const cachedResponse = await cache.match(cacheKey, { ignoreSearch: true });
       if (cachedResponse) return cachedResponse;
 
-      if (isStorePage) {
+      if (isStorePage || isDocumentNavigation) {
         const offlinePage = await cache.match('/offline.html');
         if (offlinePage) return offlinePage;
       }
@@ -87,7 +89,7 @@ self.addEventListener('fetch', (event) => {
       throw error;
     }
 
-    if (response.ok && response.type === 'basic') {
+    if (response.ok && response.type === 'basic' && (isStorePage || isStaticAsset)) {
       const cacheKey = isStorePage ? url.pathname : request;
       try {
         await cache.put(cacheKey, response.clone());

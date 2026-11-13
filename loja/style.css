@@ -2530,53 +2530,6 @@ body {
   background-color: #f5c518;
 }
 
-/* Título "Marcas em destaque" acima do carrossel */
-.brands h2,
-.brands h3 {
-  font-size: 16px;
-  margin-bottom: 12px;
-}
-
-/* Carrossel automático de logos: a "janela" que esconde o excesso */
-.brands-carousel {
-  overflow: hidden;
-  width: 100%;
-  background: linear-gradient(180deg, rgba(255,255,255,0.74), rgba(240,247,242,0.92));
-  border: 1px solid rgba(148, 163, 184, 0.12);
-  border-radius: 22px;
-  padding: 16px 14px;
-  box-shadow: 0 20px 34px rgba(15, 23, 42, 0.04), inset 0 1px 0 rgba(255,255,255,0.72);
-}
-
-/* A fileira de logos que desliza sozinha (a lista de imagens está duplicada no HTML) */
-.brands-track {
-  display: flex;
-  gap: 30px;
-  width: max-content;
-  animation: scroll-brands 25s linear infinite;
-  align-items: center;
-}
-
-.brands-track img {
-  height: 40px;
-  width: auto;
-  object-fit: contain;
-  flex-shrink: 0;
-  opacity: 0.93;
-  filter: saturate(1.05) contrast(1.03);
-  transform: translateY(1px);
-}
-
-/* Animação: desliza a fileira da posição normal até metade da largura (onde a lista duplicada começa) */
-@keyframes scroll-brands {
-  from {
-    transform: translateX(0);
-  }
-  to {
-    transform: translateX(-50%);
-  }
-}
-
 .showcases h2,
 .showcases h3 {
   font-size: 16px;
@@ -5162,11 +5115,6 @@ body {
 
   .btn-finalizar::before {
     animation: none;
-  }
-
-  .brands-track {
-    animation: none;
-    transform: none;
   }
 
   .panel-box,
