@@ -86,13 +86,19 @@ test('defines uniquely identified store banners and brand logos with recommended
   assert.equal(getStoreLayoutSlot('carousel-mercearia')?.recommendedWidth, 520);
   assert.equal(getStoreLayoutSlot('carousel-limpeza')?.recommendedHeight, 700);
   assert.equal(getStoreLayoutSlot('brand-coca-cola')?.group, 'brands');
-  assert.equal(getStoreLayoutSlot('brand-coca-cola')?.fallbackImage, '/imagens/marcas_em_destaque/Coca-Cola.png');
-  assert.equal(getStoreLayoutSlot('brand-ambev')?.fallbackImage, '/imagens/marcas_em_destaque/ype-optimized.webp');
-  assert.equal(getStoreLayoutSlot('brand-danone')?.fallbackImage, '/imagens/marcas_em_destaque/Danone.png');
-  assert.equal(getStoreLayoutSlot('brand-pg')?.fallbackImage, '/imagens/marcas_em_destaque/P-G.webp');
-  assert.equal(getStoreLayoutSlot('brand-unilever')?.fallbackImage, '/imagens/marcas_em_destaque/Unilever.webp');
-  assert.equal(getStoreLayoutSlot('brand-omo')?.fallbackImage, '/imagens/marcas_em_destaque/OMO.webp');
-  assert.equal(getStoreLayoutSlot('brand-colgate')?.fallbackImage, '/imagens/marcas_em_destaque/Colgate.png');
+  for (const key of [
+    'brand-coca-cola',
+    'brand-ambev',
+    'brand-heineken',
+    'brand-danone',
+    'brand-pg',
+    'brand-unilever',
+    'brand-seara',
+    'brand-omo',
+    'brand-colgate',
+  ]) {
+    assert.equal(getStoreLayoutSlot(key)?.fallbackImage, '');
+  }
   assert.equal(getStoreLayoutSlot('unknown'), null);
 });
 

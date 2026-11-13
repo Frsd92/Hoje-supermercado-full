@@ -148,6 +148,7 @@ export default function StoreLayoutPage() {
 
   const removeImage = async (slot) => {
     const isAdditionalHeroSlide = slot.key.startsWith('main-hero-slide-');
+    const isBrandLogo = slot.group === 'brands';
     if (isAdditionalHeroSlide && !slot.imageUrl) {
       if (!window.confirm(`Descartar “${slot.label}” sem salvar?`)) return;
       setSlots((current) => current.filter((item) => item.key !== slot.key));
@@ -172,7 +173,9 @@ export default function StoreLayoutPage() {
     if (!slot.imageUrl) return;
     const confirmationMessage = isAdditionalHeroSlide
       ? `Remover “${slot.label}” do carrossel da Loja?`
-      : `Remover a imagem personalizada de “${slot.label}” e voltar à imagem original?`;
+      : isBrandLogo
+        ? `Remover o logo selecionado de “${slot.label}” do carrossel da Loja?`
+        : `Remover a imagem personalizada de “${slot.label}” e voltar à imagem original?`;
     if (!window.confirm(confirmationMessage)) return;
 
     setSavingKey(slot.key);
@@ -195,7 +198,9 @@ export default function StoreLayoutPage() {
       });
       setFeedback(isAdditionalHeroSlide
         ? `“${slot.label}” removido do carrossel da Loja.`
-        : `Imagem personalizada de “${slot.label}” removida. A Loja voltou à imagem original.`);
+        : isBrandLogo
+          ? `Logo selecionado para “${slot.label}” removido. A marca só voltará a aparecer após um novo envio pelo ERP.`
+          : `Imagem personalizada de “${slot.label}” removida. A Loja voltou à imagem original.`);
     } catch (removeError) {
       setError(removeError.message || 'Não foi possível remover esta imagem.');
     } finally {
@@ -267,19 +272,19 @@ export default function StoreLayoutPage() {
     const draft = drafts[slot.key];
     const slideSettings = slot.group === 'main' ? getSlideSettings(slot) : null;
     const slideSettingsDirty = slot.group === 'main' && Boolean(slideSettingsDrafts[slot.key]);
-    const preview = draft?.imageData || slot.imageUrl || slot.fallbackImage;
+    const preview = draft?.imageData || slot.imageUrl || (slot.group === 'brands' ? '' : slot.fallbackImage);
     const saving = savingKey === slot.key;
     const isBrandLogo = slot.group === 'brands';
     const imageLabel = isBrandLogo ? 'logo' : 'arte';
     return <article className="store-layout-card" key={slot.key}>
-      <div className="store-layout-card-heading"><div><span className="store-layout-location">{slot.placement}{slot.group === 'main' ? ` · Slide ${index + 1}` : ''}</span><h2>{slot.label}</h2></div><span className={`store-layout-status ${slot.imageUrl || draft ? 'customized' : ''}`}>{draft ? 'Alteração pendente' : slot.imageUrl ? `${isBrandLogo ? 'Logo' : 'Arte'} personalizada` : `${isBrandLogo ? 'Logo' : 'Arte'} padrão`}</span></div>
+      <div className="store-layout-card-heading"><div><span className="store-layout-location">{slot.placement}{slot.group === 'main' ? ` · Slide ${index + 1}` : ''}</span><h2>{slot.label}</h2></div><span className={`store-layout-status ${slot.imageUrl || draft ? 'customized' : ''}`}>{draft ? 'Alteração pendente' : slot.imageUrl ? `${isBrandLogo ? 'Logo' : 'Arte'} personalizada` : isBrandLogo ? 'Sem logo selecionado' : 'Arte padrão'}</span></div>
       <div className={`store-layout-preview ${isBrandLogo ? 'store-layout-brand-preview' : ''} ${slot.group === 'main' ? 'store-layout-hero-preview' : ''}`}>
         {preview
           ? <img src={preview} alt={`Prévia: ${slot.label}`} onLoad={(event) => {
             const { naturalWidth, naturalHeight } = event.currentTarget;
             setActualSizes((current) => ({ ...current, [slot.key]: `${naturalWidth} × ${naturalHeight} px` }));
           }} />
-          : <div className="store-layout-preview-empty"><ImagePlus size={26} /><span>Nenhuma imagem personalizada</span></div>}
+          : <div className="store-layout-preview-empty"><ImagePlus size={26} /><span>{isBrandLogo ? 'Nenhum logo selecionado no ERP' : 'Nenhuma imagem personalizada'}</span></div>}
       </div>
       <div className="store-layout-dimensions"><span>{isBrandLogo ? 'Logo recomendada' : 'Arte recomendada'}</span><strong>{slot.recommendedWidth} × {slot.recommendedHeight} px</strong><small>{actualSizes[slot.key] ? `Imagem atual: ${actualSizes[slot.key]}${slot.key === 'promo-roupas' ? '; imagens mais altas podem ser cortadas na vertical' : ''}` : isBrandLogo ? 'Preserve a proporção e prefira fundo transparente' : slot.key === 'promo-roupas' ? 'Faixa mais baixa; imagens mais altas podem ser cortadas na vertical' : slot.group === 'wide-banners' ? 'A faixa ajusta à proporção da arte; no celular, textos ficam abaixo dela' : slot.group === 'main' ? 'Use uma arte de 1644 × 760 px para o banner padrão; outras proporções podem ser cortadas' : 'Imagem exibida por inteiro, sem recortes'}</small></div>
       {slideSettings && <fieldset className="store-layout-slide-options">

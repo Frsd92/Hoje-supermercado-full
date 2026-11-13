@@ -106,7 +106,7 @@ export const STORE_LAYOUT_SLOTS = [
     placement: 'Carrossel Marcas em destaque',
     recommendedWidth: 480,
     recommendedHeight: 200,
-    fallbackImage: '/imagens/marcas_em_destaque/Coca-Cola.png',
+    fallbackImage: '',
     group: 'brands',
   },
   {
@@ -115,7 +115,7 @@ export const STORE_LAYOUT_SLOTS = [
     placement: 'Carrossel Marcas em destaque',
     recommendedWidth: 480,
     recommendedHeight: 200,
-    fallbackImage: '/imagens/marcas_em_destaque/ype-optimized.webp',
+    fallbackImage: '',
     group: 'brands',
   },
   {
@@ -124,7 +124,7 @@ export const STORE_LAYOUT_SLOTS = [
     placement: 'Carrossel Marcas em destaque',
     recommendedWidth: 480,
     recommendedHeight: 200,
-    fallbackImage: '/imagens/marcas_em_destaque/heineken2.svg',
+    fallbackImage: '',
     group: 'brands',
   },
   {
@@ -133,7 +133,7 @@ export const STORE_LAYOUT_SLOTS = [
     placement: 'Carrossel Marcas em destaque',
     recommendedWidth: 480,
     recommendedHeight: 200,
-    fallbackImage: '/imagens/marcas_em_destaque/Danone.png',
+    fallbackImage: '',
     group: 'brands',
   },
   {
@@ -142,7 +142,7 @@ export const STORE_LAYOUT_SLOTS = [
     placement: 'Carrossel Marcas em destaque',
     recommendedWidth: 480,
     recommendedHeight: 200,
-    fallbackImage: '/imagens/marcas_em_destaque/P-G.webp',
+    fallbackImage: '',
     group: 'brands',
   },
   {
@@ -151,7 +151,7 @@ export const STORE_LAYOUT_SLOTS = [
     placement: 'Carrossel Marcas em destaque',
     recommendedWidth: 480,
     recommendedHeight: 200,
-    fallbackImage: '/imagens/marcas_em_destaque/Unilever.webp',
+    fallbackImage: '',
     group: 'brands',
   },
   {
@@ -160,7 +160,7 @@ export const STORE_LAYOUT_SLOTS = [
     placement: 'Carrossel Marcas em destaque',
     recommendedWidth: 480,
     recommendedHeight: 200,
-    fallbackImage: '/imagens/marcas_em_destaque/seara.svg',
+    fallbackImage: '',
     group: 'brands',
   },
   {
@@ -169,7 +169,7 @@ export const STORE_LAYOUT_SLOTS = [
     placement: 'Carrossel Marcas em destaque',
     recommendedWidth: 480,
     recommendedHeight: 200,
-    fallbackImage: '/imagens/marcas_em_destaque/OMO.webp',
+    fallbackImage: '',
     group: 'brands',
   },
   {
@@ -178,7 +178,7 @@ export const STORE_LAYOUT_SLOTS = [
     placement: 'Carrossel Marcas em destaque',
     recommendedWidth: 480,
     recommendedHeight: 200,
-    fallbackImage: '/imagens/marcas_em_destaque/Colgate.png',
+    fallbackImage: '',
     group: 'brands',
   },
 ];
