@@ -3287,9 +3287,25 @@ async function carregarLayoutGerenciado() {
 
     const applyManagedImage = (element, key, imageUrl) => {
       if (element.tagName === 'IMG') {
-        element.loading = 'lazy';
+        const isBrandLogo = key.startsWith('brand-');
+        element.loading = isBrandLogo ? 'eager' : 'lazy';
         element.decoding = 'async';
+        if (isBrandLogo) {
+          element.hidden = true;
+          element.addEventListener('load', () => {
+            if (!element.isConnected) return;
+            element.hidden = false;
+            document.querySelector('#brand-showcase')?.removeAttribute('hidden');
+          }, { once: true });
+          element.addEventListener('error', () => {
+            console.warn(`Não foi possível carregar o logo ${key} enviado pelo ERP.`);
+          }, { once: true });
+        }
         element.src = imageUrl;
+        if (isBrandLogo && element.complete && element.naturalWidth > 0) {
+          element.hidden = false;
+          document.querySelector('#brand-showcase')?.removeAttribute('hidden');
+        }
         return;
       }
 
