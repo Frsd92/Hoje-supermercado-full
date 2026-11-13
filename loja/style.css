@@ -3018,6 +3018,21 @@ body {
   background: #ffe276;
 }
 
+.panel-brand-link {
+  color: inherit;
+  text-decoration: none;
+}
+
+.panel-brand-link:hover .panel-cta-brand {
+  border-color: #ffe276;
+  background: #ffe276;
+}
+
+.panel-brand-link:focus-visible {
+  outline: 3px solid #f5c518;
+  outline-offset: 3px;
+}
+
 .panel-icon-brand {
   background: rgba(255, 255, 255, .13);
   color: #ffe48a;
