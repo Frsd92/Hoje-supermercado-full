@@ -5795,6 +5795,11 @@ body {
     justify-content: center;
     min-height: 48px;
     padding: 5px 2px;
+    background: rgba(255, 255, 255, 0.02);
+  }
+
+  .store-header-shell > .topbar.home-topbar .cart-trigger:hover {
+    background: rgba(255, 255, 255, 0.08);
   }
 
   .main-header .location {
