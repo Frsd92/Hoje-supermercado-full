@@ -28,6 +28,7 @@ import {
   getProductById,
   getProductCatalog,
   getPublicProductCatalog,
+  getPublicProductsByIds,
   readLegacyProducts,
   serializeProduct,
 } from '@/features/erp/api/product-catalog';
@@ -431,6 +432,37 @@ export async function GET(request) {
         'X-Content-Type-Options': 'nosniff',
       },
     });
+  }
+
+  if (purpose === 'cart-prices') {
+    const requestedIds = searchParams.getAll('id');
+    const ids = [...new Set(requestedIds.map((id) => id.trim()))];
+    if (!requestedIds.length || requestedIds.length > 100 || ids.some((id) => !id || id.length > 200)) {
+      return Response.json({ error: 'Informe até 100 identificadores de produto válidos.' }, {
+        status: 400,
+        headers: corsHeaders(request),
+      });
+    }
+
+    try {
+      const products = await getPublicProductsByIds(ids);
+      const currentPrices = products.map((product) => ({
+        id: String(product.id),
+        title: product.title,
+        price: Number(product.price) || 0,
+        salePrice: calculateSalePrice(product),
+        saleUnit: product.saleUnit === 'Quilograma' ? 'Quilograma' : 'Unidade',
+      }));
+      return Response.json({ products: currentPrices }, {
+        headers: { ...corsHeaders(request), 'Cache-Control': 'private, no-store, max-age=0' },
+      });
+    } catch (error) {
+      console.error('Não foi possível atualizar os preços do carrinho:', error);
+      return Response.json({ error: 'Não foi possível atualizar os preços. Tente novamente.' }, {
+        status: 500,
+        headers: corsHeaders(request),
+      });
+    }
   }
 
   if (purpose === 'substitutes') {

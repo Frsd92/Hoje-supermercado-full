@@ -294,6 +294,8 @@ let carrinhoRevision = 0;
 let carrinhoGravacoesPendentes = 0;
 let filaGravacaoCarrinho = Promise.resolve();
 let carrinhoItens = [];
+let cartPriceRefreshTimer = null;
+let cartPriceRefreshInProgress = false;
 let flashOfferCountdownTimer = null;
 let flashOfferRefreshTimer = null;
 let cupomAplicado = { codigo: '', percentual: 0 };
@@ -1054,6 +1056,7 @@ async function carregarCarrinhoDaApi() {
       aplicarCarrinhoNosCartoes(cart);
       carrinhoHidratado = true;
       renderizarCarrinho(false);
+      void atualizarPrecosCarrinhoDaApi();
     }
 
   } catch (error) {
@@ -1817,6 +1820,7 @@ function alterarCarrinhoDoProduto(product, operation, initialQuantity) {
   }
   atualizarCartoesDoProduto(normalizedProduct, cartItem);
   renderizarCarrinho();
+  if (operation !== 'remove') void atualizarPrecosCarrinhoDaApi();
   return cartItem || null;
 }
 
@@ -2299,6 +2303,9 @@ function inicializarCarrinho() {
           }
           if (response.status === 409 && data.error?.includes('taxas do pedido foram atualizadas')) {
             await carregarTaxasCheckoutLoja();
+          }
+          if (response.status === 409 && data.error?.includes('preço atualizado')) {
+            await atualizarPrecosCarrinhoDaApi();
           }
           throw new Error(data.error || 'Não foi possível registrar o pedido.');
         }
@@ -3144,6 +3151,34 @@ function atualizarPrecosCarrinhoDoCatalogo(products) {
   renderizarCarrinho();
 }
 
+async function atualizarPrecosCarrinhoDaApi() {
+  if (cartPriceRefreshInProgress || !carrinhoItens.length || document.visibilityState !== 'visible') return;
+  const productIds = [...new Set(carrinhoItens
+    .map((item) => String(item.id || '').trim())
+    .filter(Boolean))];
+  if (!productIds.length) return;
+
+  cartPriceRefreshInProgress = true;
+  try {
+    const products = [];
+    for (let offset = 0; offset < productIds.length; offset += 100) {
+      const query = new URLSearchParams({ purpose: 'cart-prices' });
+      productIds.slice(offset, offset + 100).forEach((id) => query.append('id', id));
+      const response = await fetch(`/api/products?${query}`, { cache: 'no-store', credentials: 'include' });
+      const data = await response.json();
+      if (!response.ok) throw new Error(data.error || 'Não foi possível atualizar os preços do carrinho.');
+      if (!Array.isArray(data.products)) throw new Error('A resposta de preços do carrinho é inválida.');
+      products.push(...data.products);
+    }
+
+    atualizarPrecosCarrinhoDoCatalogo(products);
+  } catch (error) {
+    console.error('Não foi possível atualizar os preços do carrinho:', error);
+  } finally {
+    cartPriceRefreshInProgress = false;
+  }
+}
+
 function renderFlashOfferPanel(products) {
   const message = document.getElementById('flash-offer-message');
   const countdown = document.getElementById('flash-offer-countdown');
@@ -3362,6 +3397,13 @@ async function carregarLayoutGerenciado() {
 }
 
 window.addEventListener('DOMContentLoaded', () => {
+  if (cartPriceRefreshTimer === null) {
+    cartPriceRefreshTimer = window.setInterval(() => {
+      void atualizarPrecosCarrinhoDaApi();
+    }, 5000);
+    window.addEventListener('focus', atualizarPrecosCarrinhoDaApi);
+    document.addEventListener('visibilitychange', atualizarPrecosCarrinhoDaApi);
+  }
   void carregarTaxasCheckoutLoja();
   configurarDicaDeDeslizeDosCarrosseis();
   inicializarCarrinho();

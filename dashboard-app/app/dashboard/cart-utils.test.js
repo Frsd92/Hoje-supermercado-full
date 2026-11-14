@@ -1,7 +1,7 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
 
-import { adjustCartQuantity, formatCartQuantity, getCartItemCount, isSameCartProduct, normalizeCartItems, removeCartProduct } from './cart-utils.js';
+import { adjustCartQuantity, formatCartQuantity, getCartItemCount, isSameCartProduct, normalizeCartItems, removeCartProduct, updateCartPrices } from './cart-utils.js';
 
 test('formats kilogram cart quantities in 100-gram steps', () => {
   assert.equal(formatCartQuantity({ quantity: 0.1, saleUnit: 'Quilograma' }), '100 g');
@@ -38,6 +38,21 @@ test('normalizes legacy duplicates by accent-insensitive product name', () => {
     { name: 'Café', quantity: 1 },
   ]);
   assert.equal(cart.length, 1);
+});
+
+test('updates existing cart prices from the current sale price without changing quantities', () => {
+  const cart = [{ productId: 'p1', name: 'Café', price: 'R$ 12,00', quantity: 2 }];
+  const updatedCart = updateCartPrices(cart, [{ id: 'p1', price: 15, salePrice: 10 }]);
+
+  assert.equal(updatedCart[0].price.replace(/\u00a0/g, ' '), 'R$ 10,00');
+  assert.equal(updatedCart[0].quantity, 2);
+});
+
+test('preserves the cart reference when prices are unchanged or unavailable', () => {
+  const cart = [{ productId: 'p1', name: 'Café', price: 'R$ 12,00', quantity: 2 }];
+
+  assert.equal(updateCartPrices(cart, [{ id: 'p1', price: 12, salePrice: 12 }]), cart);
+  assert.equal(updateCartPrices(cart, [{ id: 'p1', price: 0 }]), cart);
 });
 
 test('removes the matching product by stable ID even if its catalog title changed', () => {

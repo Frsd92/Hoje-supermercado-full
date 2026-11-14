@@ -205,3 +205,47 @@ export async function getPublicProductCatalog(client = prisma) {
   databaseProducts.forEach((product) => productsById.set(String(product.id), product));
   return [...productsById.values()];
 }
+
+export async function getPublicProductsByIds(ids, client = prisma) {
+  const productIds = [...new Set((Array.isArray(ids) ? ids : [])
+    .map((id) => String(id || '').trim())
+    .filter(Boolean))];
+  if (!productIds.length) return [];
+
+  const records = await client.product.findMany({
+    where: {
+      OR: [{ id: { in: productIds } }, { externalId: { in: productIds } }],
+    },
+    select: {
+      id: true,
+      externalId: true,
+      title: true,
+      price: true,
+      discount: true,
+      status: true,
+      metadata: true,
+    },
+  });
+  const productsById = new Map();
+  records
+    .filter((record) => record.status === 'Ativo')
+    .map(serializePublicProductRecord)
+    .forEach((product) => {
+      productsById.set(String(product.id), product);
+    });
+
+  const databaseIdentifiers = new Set(records.flatMap((record) => [
+    String(record.id),
+    String(record.externalId || ''),
+  ]));
+  const missingIds = productIds.filter((id) => !databaseIdentifiers.has(id));
+  if (missingIds.length) {
+    const requestedIds = new Set(missingIds);
+    const legacyProducts = await readLegacyProducts();
+    legacyProducts
+      .filter((product) => requestedIds.has(String(product.id)) && product.status === 'Ativo')
+      .forEach((product) => productsById.set(String(product.id), product));
+  }
+
+  return [...productsById.values()];
+}

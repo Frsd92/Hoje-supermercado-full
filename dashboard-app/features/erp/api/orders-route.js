@@ -8,7 +8,7 @@ import { deactivateDeliveryTracking } from '@/features/tracking/delivery-trackin
 import { normalizeDeliveryLocation } from '@/lib/delivery-location';
 import { allocateOrderInventory } from '@/features/erp/api/order-inventory-fulfillment';
 import { getOrderPromotionSnapshot } from '@/features/erp/api/product-pricing';
-import { calculateOrderTotals } from '@/features/orders/order-receipt-data';
+import { calculateOrderTotals, parseReceiptAmount } from '@/features/orders/order-receipt-data';
 import { awardCompletedOrderMissions } from '@/features/loyalty/service';
 import {
   getServiceRegionError,
@@ -499,6 +499,12 @@ export async function POST(request) {
     const currentPrice = promotionSnapshot.salePrice;
     if (!Number.isFinite(currentPrice) || currentPrice <= 0) {
       return Response.json({ error: `Não foi possível confirmar o preço de ${product.title}.` }, { status: 409, headers: corsHeaders(request) });
+    }
+    if (Object.prototype.hasOwnProperty.call(item, 'price')
+      && Math.round(parseReceiptAmount(item.price) * 100) !== Math.round(currentPrice * 100)) {
+      return Response.json({
+        error: `${product.title} teve o preço atualizado. Confira o novo valor no carrinho e tente novamente.`,
+      }, { status: 409, headers: corsHeaders(request) });
     }
     orderItems.push({
       productId: product.databaseId,

@@ -2,6 +2,8 @@ function normalizeCartProductName(value) {
   return String(value || '').trim().toLowerCase().normalize('NFD').replace(/[\u0300-\u036f]/g, '');
 }
 
+const cartPriceFormatter = new Intl.NumberFormat('pt-BR', { style: 'currency', currency: 'BRL' });
+
 export function getCartItemCount(cart) {
   if (!Array.isArray(cart)) return 0;
   return cart.reduce((total, item) => {
@@ -64,4 +66,28 @@ export function formatCartQuantity(item) {
 export function adjustCartQuantity(quantity, delta, saleUnit) {
   const step = saleUnit === 'Quilograma' || saleUnit === 'kg' ? 0.1 : 1;
   return Math.max(step, Math.round(((Number(quantity) || step) + (delta * step)) * 10) / 10);
+}
+
+export function updateCartPrices(cart, products) {
+  if (!Array.isArray(cart) || !Array.isArray(products) || !products.length) return cart;
+
+  const productsById = new Map(products.map((product) => [String(product.id || ''), product]));
+  const productsByName = new Map(products.map((product) => [normalizeCartProductName(product.title), product]));
+  let changed = false;
+  const updatedCart = cart.map((item) => {
+    const productId = String(item?.productId || item?.id || '');
+    const product = productsById.get(productId) || productsByName.get(normalizeCartProductName(item?.name));
+    const price = Number(product?.salePrice ?? product?.price);
+    if (!product || !Number.isFinite(price) || price <= 0) return item;
+
+    const isWeighted = item.saleUnit === 'Quilograma' || item.unit === 'kg';
+    const nextPrice = `${cartPriceFormatter.format(price)}${isWeighted ? ' / kg' : ''}`;
+    const currentPrice = String(item.price || '').replace(/\u00a0/g, ' ');
+    if (currentPrice === nextPrice.replace(/\u00a0/g, ' ')) return item;
+
+    changed = true;
+    return { ...item, price: nextPrice };
+  });
+
+  return changed ? updatedCart : cart;
 }

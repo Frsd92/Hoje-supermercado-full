@@ -1,6 +1,6 @@
 import assert from 'node:assert/strict';
 import test from 'node:test';
-import { getProductById, serializeErpProductListRecord } from './product-catalog.js';
+import { getProductById, getPublicProductsByIds, serializeErpProductListRecord } from './product-catalog.js';
 
 test('loads one product by its public ID without querying the complete catalog', async () => {
   let query;
@@ -73,4 +73,39 @@ test('serializes ERP list rows with public image URLs instead of inline image da
   assert.deepEqual(product.blingSyncVerifiedData, { fields: { sku: 'SKU-1' } });
   assert.equal('promotionalPrice' in product, false);
   assert.equal('imageHash' in product, false);
+});
+
+test('loads only active public products requested by cart ID', async () => {
+  let query;
+  const products = await getPublicProductsByIds(['store-product-1', 'store-product-1'], {
+    product: {
+      async findMany(value) {
+        query = value;
+        return [{
+          id: 'database-id',
+          externalId: 'store-product-1',
+          title: 'Produto',
+          description: '',
+          price: '12.50',
+          discount: '0',
+          status: 'Ativo',
+          categories: ['Mercearia'],
+          brand: '',
+          subcategory: '',
+          metadata: { saleUnit: 'Unidade', promotionalPrice: 10 },
+          image: '',
+          imageHash: '',
+        }];
+      },
+    },
+  });
+
+  assert.deepEqual(query.where.OR, [
+    { id: { in: ['store-product-1'] } },
+    { externalId: { in: ['store-product-1'] } },
+  ]);
+  assert.equal(products.length, 1);
+  assert.equal(products[0].id, 'store-product-1');
+  assert.equal(products[0].price, 12.5);
+  assert.equal(products[0].promotionalPrice, 10);
 });

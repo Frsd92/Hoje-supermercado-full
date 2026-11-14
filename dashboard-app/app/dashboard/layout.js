@@ -5,7 +5,7 @@ import Script from 'next/script';
 import { usePathname, useRouter } from 'next/navigation';
 import { signOut, useSession } from 'next-auth/react';
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
-import { adjustCartQuantity, formatCartQuantity, getCartItemCount, normalizeCartItems } from './cart-utils';
+import { adjustCartQuantity, formatCartQuantity, getCartItemCount, normalizeCartItems, updateCartPrices } from './cart-utils';
 import { calculateOrderTotals, parseReceiptAmount } from '@/features/orders/order-receipt-data';
 import { getCouponBenefitLabel } from '@/features/coupons/coupon-benefits';
 import {
@@ -224,6 +224,8 @@ export default function DashboardLayout({ children }) {
   const checkoutRequestIdRef = useRef(null);
   const cartItemsRef = useRef([]);
   const cartWriteQueueRef = useRef(Promise.resolve());
+  const saveCartRef = useRef(null);
+  const refreshCartPricesRef = useRef(() => Promise.resolve());
   const savedAddressesRef = useRef([]);
   const searchProductsLoadedRef = useRef(false);
   const openCart = useCallback(() => {
@@ -846,6 +848,59 @@ export default function DashboardLayout({ children }) {
       });
     await cartWriteQueueRef.current;
   };
+  saveCartRef.current = saveCart;
+
+  useEffect(() => {
+    if (!cartItems.length) return undefined;
+    let active = true;
+    let requestPending = false;
+
+    const refreshCartPrices = async () => {
+      if (!active || requestPending || document.visibilityState !== 'visible') return;
+      const currentCart = cartItemsRef.current;
+      const productIds = [...new Set(currentCart
+        .map((item) => String(item.productId || item.id || '').trim())
+        .filter(Boolean))];
+      if (!productIds.length) return;
+
+      requestPending = true;
+      try {
+        const products = [];
+        for (let offset = 0; offset < productIds.length; offset += 100) {
+          const query = new URLSearchParams({ purpose: 'cart-prices' });
+          productIds.slice(offset, offset + 100).forEach((id) => query.append('id', id));
+          const response = await fetch(`/api/products?${query}`, { cache: 'no-store', credentials: 'include' });
+          const data = await response.json();
+          if (!response.ok) throw new Error(data.error || 'Não foi possível atualizar os preços do carrinho.');
+          if (!Array.isArray(data.products)) throw new Error('A resposta de preços do carrinho é inválida.');
+          products.push(...data.products);
+        }
+
+        if (!active || cartItemsRef.current !== currentCart) return;
+        const updatedCart = updateCartPrices(currentCart, products);
+        if (updatedCart !== currentCart) await saveCartRef.current(updatedCart);
+      } catch (error) {
+        console.error('Não foi possível atualizar os preços do carrinho:', error);
+      } finally {
+        requestPending = false;
+      }
+    };
+
+    refreshCartPricesRef.current = refreshCartPrices;
+    void refreshCartPrices();
+    const interval = window.setInterval(refreshCartPrices, 5000);
+    window.addEventListener('focus', refreshCartPrices);
+    document.addEventListener('visibilitychange', refreshCartPrices);
+    return () => {
+      active = false;
+      if (refreshCartPricesRef.current === refreshCartPrices) {
+        refreshCartPricesRef.current = () => Promise.resolve();
+      }
+      window.clearInterval(interval);
+      window.removeEventListener('focus', refreshCartPrices);
+      document.removeEventListener('visibilitychange', refreshCartPrices);
+    };
+  }, [cartItems.length, session?.user?.email]);
 
   const addToCart = (product) => {
     const price = Number(product.salePrice ?? product.price ?? 0);
@@ -1100,7 +1155,10 @@ export default function DashboardLayout({ children }) {
       setCheckoutStatus(data.message || `Pedido ${data.order.id} realizado com sucesso.`);
       window.dispatchEvent(new Event('dashboard-coupons-updated'));
     } catch (error) {
-      setCheckoutStatus(error.message);
+      if (error?.message?.includes('preço atualizado')) {
+        void refreshCartPricesRef.current();
+      }
+      setCheckoutStatus(error?.message || 'Não foi possível finalizar a compra.');
     } finally {
       setCheckoutLoading(false);
     }
