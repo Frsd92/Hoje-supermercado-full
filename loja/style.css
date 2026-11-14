@@ -122,6 +122,10 @@
   display: none;
 }
 
+.store-mobile-label {
+  display: none;
+}
+
 .store-account-menu .store-account-chevron {
   width: 14px;
   height: 14px;
@@ -4854,15 +4858,11 @@ body {
     padding: 6px 10px;
   }
 
-  .topbar.home-topbar {
-    grid-template-columns: repeat(6, minmax(0, 1fr));
-  }
-
   .topbar.home-topbar .install-app-button {
     width: 100%;
     min-width: 0;
     min-height: 42px;
-    flex: 1 1 auto;
+    flex: 1 1 0;
     flex-direction: column;
     gap: 2px;
     padding: 5px 2px;
@@ -5732,8 +5732,14 @@ body {
     padding-bottom: calc(64px + env(safe-area-inset-bottom));
   }
 
-  .topbar.home-topbar.is-authenticated {
-    grid-template-columns: repeat(7, minmax(0, 1fr));
+  .topbar.home-topbar {
+    display: flex;
+    gap: 6px;
+  }
+
+  .topbar.home-topbar > * {
+    flex: 1 1 0;
+    min-width: 0;
   }
 
   .store-header-shell > .topbar.home-topbar {
@@ -5747,13 +5753,17 @@ body {
 
   .store-header-shell > .topbar.home-topbar .store-home-link {
     display: flex;
+    flex-direction: column;
+    gap: 2px;
     justify-content: center;
-    padding-inline: 2px;
+    min-height: 48px;
+    padding: 5px 2px;
   }
 
   .store-header-shell > .topbar.home-topbar .store-more-menu:not([hidden]) {
     display: block;
     min-width: 0;
+    order: 1;
   }
 
   .store-header-shell > .topbar.home-topbar .store-more-menu > summary {
@@ -5764,11 +5774,13 @@ body {
     padding: 5px 2px;
   }
 
-  .store-more-label {
+  .store-more-label,
+  .store-mobile-label {
     display: block;
     font-size: 9px;
     font-weight: 800;
     line-height: 1;
+    white-space: nowrap;
   }
 
   .store-account-menu,
@@ -5785,6 +5797,28 @@ body {
     left: auto;
   }
 
+  .store-header-shell > .topbar.home-topbar .store-account-menu > summary {
+    flex-direction: column;
+    gap: 2px;
+    justify-content: center;
+    min-height: 48px;
+    padding: 5px 2px;
+  }
+
+  .store-header-shell > .topbar.home-topbar .store-account-menu .topbar-text,
+  .store-header-shell > .topbar.home-topbar .store-account-menu .store-account-chevron,
+  .store-header-shell > .topbar.home-topbar .cart-trigger .topbar-text {
+    display: none;
+  }
+
+  .store-header-shell > .topbar.home-topbar .cart-trigger {
+    flex-direction: column;
+    gap: 2px;
+    justify-content: center;
+    min-height: 48px;
+    padding: 5px 2px;
+  }
+
   .store-account-overview-group,
   .store-account-shopping-group {
     display: none;
@@ -5793,17 +5827,6 @@ body {
   .store-account-shopping-group + .store-account-links-group {
     padding-top: 0;
     border-top: 0;
-  }
-
-  .store-account-menu > summary {
-    gap: 4px;
-    padding-inline: 3px;
-  }
-
-  .store-account-menu .store-account-chevron {
-    width: 12px;
-    height: 12px;
-    margin-left: -2px;
   }
 
   .store-account-menu > summary [data-lucide]:not(.store-account-chevron) {
@@ -5829,19 +5852,7 @@ body {
     padding-inline: 2px;
   }
 
-  .topbar.home-topbar:not(.is-authenticated) {
-    grid-template-columns: repeat(4, minmax(0, 1fr));
-  }
-
-  .topbar.home-topbar.is-authenticated {
-    grid-template-columns: repeat(5, minmax(0, 1fr));
-  }
-
   .topbar.home-topbar > .topbar-item:nth-child(-n+2) {
-    display: none;
-  }
-
-  .store-account-menu .store-account-chevron {
     display: none;
   }
 }
