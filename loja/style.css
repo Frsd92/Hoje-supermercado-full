@@ -5693,3 +5693,34 @@ body {
     min-height: 48px;
   }
 }
+
+@media (max-width: 640px) {
+  body.store-home-page {
+    padding-bottom: calc(64px + env(safe-area-inset-bottom));
+  }
+
+  .store-header-shell > .topbar.home-topbar {
+    position: fixed;
+    top: auto;
+    right: 0;
+    bottom: 0;
+    left: 0;
+    padding-bottom: calc(6px + env(safe-area-inset-bottom));
+  }
+
+  .store-header-shell > .topbar.home-topbar .store-account-links {
+    top: auto;
+    bottom: calc(100% + 8px);
+  }
+}
+
+@media (max-width: 520px) {
+  .store-assistant {
+    bottom: calc(64px + env(safe-area-inset-bottom));
+  }
+
+  .store-assistant-panel {
+    bottom: calc(118px + env(safe-area-inset-bottom));
+    height: min(650px, calc(100dvh - 175px - env(safe-area-inset-bottom)));
+  }
+}
