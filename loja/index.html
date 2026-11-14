@@ -130,6 +130,24 @@
       </nav>
     </details>
 
+    <button id="install-app-button" class="topbar-item install-app-button" type="button" aria-label="Instalar app Hoje" title="Instalar app Hoje">
+      <i data-lucide="download" aria-hidden="true"></i>
+      <span class="install-app-full-label">Instalar app</span>
+      <span class="install-app-short-label" aria-hidden="true">Instalar</span>
+    </button>
+
+    <div class="topbar-item cart-trigger" id="cart-trigger">
+      <div class="cart-icon-wrap" aria-label="Abrir carrinho">
+        <i data-lucide="shopping-cart"></i>
+        <span id="cart-badge" class="cart-badge">0</span>
+      </div>
+      <span class="store-mobile-label">Carrinho</span>
+      <div class="topbar-text">
+        <strong>Meu carrinho</strong>
+        <span id="cart-total">R$ 0,00</span>
+      </div>
+    </div>
+
     <details class="store-more-menu" id="store-more-menu" hidden>
       <summary class="topbar-item store-more-trigger" aria-label="Abrir mais opções">
         <i data-lucide="ellipsis" aria-hidden="true"></i>
@@ -148,24 +166,6 @@
         </div>
       </nav>
     </details>
-
-    <button id="install-app-button" class="topbar-item install-app-button" type="button" aria-label="Instalar app Hoje" title="Instalar app Hoje">
-      <i data-lucide="download" aria-hidden="true"></i>
-      <span class="install-app-full-label">Instalar app</span>
-      <span class="install-app-short-label" aria-hidden="true">Instalar</span>
-    </button>
-
-    <div class="topbar-item cart-trigger" id="cart-trigger">
-      <div class="cart-icon-wrap" aria-label="Abrir carrinho">
-        <i data-lucide="shopping-cart"></i>
-        <span id="cart-badge" class="cart-badge">0</span>
-      </div>
-      <span class="store-mobile-label">Carrinho</span>
-      <div class="topbar-text">
-        <strong>Meu carrinho</strong>
-        <span id="cart-total">R$ 0,00</span>
-      </div>
-    </div>
   </header>
 
   <div id="store-feedback-toast" class="store-feedback-toast" role="status" aria-live="polite" aria-atomic="true"></div>

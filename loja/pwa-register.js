@@ -59,6 +59,12 @@
     }
   }
 
+  const homeTopbar = document.querySelector('.home-topbar');
+  homeTopbar?.classList.add('is-install-state-ready');
+  if (homeTopbar?.classList.contains('is-session-ready')) {
+    homeTopbar.classList.add('is-navigation-ready');
+  }
+
   if (closeDialogButton && installDialog) {
     closeDialogButton.addEventListener('click', () => {
       installDialog.close();

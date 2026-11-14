@@ -1136,6 +1136,10 @@ async function carregarSessaoDaLoja({ atualizarDadosRelacionados = true } = {}) 
         button.setAttribute('aria-label', 'Adicionar aos favoritos');
       });
     }
+    homeTopbar?.classList.add('is-session-ready');
+    if (homeTopbar?.classList.contains('is-install-state-ready')) {
+      homeTopbar.classList.add('is-navigation-ready');
+    }
 
     document.querySelectorAll('.fav-btn').forEach((button) => {
       button.disabled = button.dataset.favoritePending === 'true' || !sessaoLoja.authenticated;
@@ -1168,7 +1172,12 @@ async function carregarSessaoDaLoja({ atualizarDadosRelacionados = true } = {}) 
       moreMenu.hidden = true;
       moreMenu.removeAttribute('open');
     }
-    document.querySelector('.home-topbar')?.classList.remove('is-authenticated');
+    const homeTopbar = document.querySelector('.home-topbar');
+    homeTopbar?.classList.remove('is-authenticated');
+    homeTopbar?.classList.add('is-session-ready');
+    if (homeTopbar?.classList.contains('is-install-state-ready')) {
+      homeTopbar.classList.add('is-navigation-ready');
+    }
     const favoritesLink = document.querySelector('.store-favorites-link');
     if (favoritesLink) favoritesLink.hidden = true;
     checkoutMissionEmail = '';
