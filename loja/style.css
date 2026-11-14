@@ -5861,6 +5861,29 @@ body {
   }
 }
 
+@media (max-width: 640px) {
+  body:has(.store-account-menu[open]) .store-assistant-toggle,
+  body:has(.store-more-menu[open]) .store-assistant-toggle,
+  body:has(.cart-panel.open) .store-assistant-toggle,
+  body:has(#install-app-dialog[open]) .store-assistant-toggle {
+    display: grid;
+    width: 48px;
+    height: 48px;
+    min-height: 48px;
+    padding: 0;
+    place-items: center;
+    border-radius: 50%;
+    font-size: 0;
+  }
+
+  body:has(.store-account-menu[open]) .store-assistant-toggle span,
+  body:has(.store-more-menu[open]) .store-assistant-toggle span,
+  body:has(.cart-panel.open) .store-assistant-toggle span,
+  body:has(#install-app-dialog[open]) .store-assistant-toggle span {
+    margin-right: 0;
+  }
+}
+
 @media (max-width: 360px) {
   .topbar.home-topbar {
     gap: 1px;
