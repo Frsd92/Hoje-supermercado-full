@@ -1097,6 +1097,8 @@ async function carregarSessaoDaLoja({ atualizarDadosRelacionados = true } = {}) 
     const statusElement = document.getElementById('store-user-status');
     const favoritesElement = document.getElementById('store-favorites-count');
     const accountLinks = document.getElementById('store-account-links');
+    const moreMenu = document.getElementById('store-more-menu');
+    const homeTopbar = document.querySelector('.home-topbar');
     const favoritesLink = document.querySelector('.store-favorites-link');
 
     if (sessaoLoja.authenticated) {
@@ -1104,8 +1106,10 @@ async function carregarSessaoDaLoja({ atualizarDadosRelacionados = true } = {}) 
       if (nameElement) nameElement.textContent = `Olá, ${primeiroNome}`;
       if (statusElement) statusElement.textContent = 'Minha conta';
       document.getElementById('login-trigger')?.classList.add('is-authenticated');
-      document.getElementById('login-trigger')?.setAttribute('aria-label', 'Abrir atalhos da minha conta');
+      document.getElementById('login-trigger')?.setAttribute('aria-label', 'Abrir menu da minha conta');
       if (accountLinks) accountLinks.hidden = false;
+      if (moreMenu) moreMenu.hidden = false;
+      homeTopbar?.classList.add('is-authenticated');
       if (favoritesLink) favoritesLink.hidden = false;
       if (favoritesElement) favoritesElement.textContent = 'Favoritos carregando...';
     } else {
@@ -1117,6 +1121,11 @@ async function carregarSessaoDaLoja({ atualizarDadosRelacionados = true } = {}) 
       document.getElementById('login-trigger')?.setAttribute('aria-label', 'Ir para o login do dashboard');
       if (accountLinks) accountLinks.hidden = true;
       document.querySelector('.store-account-menu')?.removeAttribute('open');
+      if (moreMenu) {
+        moreMenu.hidden = true;
+        moreMenu.removeAttribute('open');
+      }
+      homeTopbar?.classList.remove('is-authenticated');
       if (favoritesLink) favoritesLink.hidden = true;
       if (favoritesElement) favoritesElement.textContent = 'Entre para favoritar';
       document.querySelectorAll('.product-card').forEach((card) => {
@@ -1152,8 +1161,14 @@ async function carregarSessaoDaLoja({ atualizarDadosRelacionados = true } = {}) 
     document.getElementById('login-trigger')?.classList.remove('is-authenticated');
     document.getElementById('login-trigger')?.setAttribute('aria-label', 'Ir para o login do dashboard');
     const accountLinks = document.getElementById('store-account-links');
+    const moreMenu = document.getElementById('store-more-menu');
     if (accountLinks) accountLinks.hidden = true;
     document.querySelector('.store-account-menu')?.removeAttribute('open');
+    if (moreMenu) {
+      moreMenu.hidden = true;
+      moreMenu.removeAttribute('open');
+    }
+    document.querySelector('.home-topbar')?.classList.remove('is-authenticated');
     const favoritesLink = document.querySelector('.store-favorites-link');
     if (favoritesLink) favoritesLink.hidden = true;
     checkoutMissionEmail = '';
@@ -2365,19 +2380,34 @@ function inicializarCarrinho() {
   const accountSignout = document.getElementById('store-account-signout');
   const accountFrame = document.getElementById('store-account-frame');
   const accountNavigation = document.getElementById('store-account-links');
+  const moreMenu = document.getElementById('store-more-menu');
+  const moreNavigation = moreMenu?.querySelector('.store-more-links');
+  const accountMenus = [
+    document.querySelector('.store-account-menu'),
+    moreMenu,
+  ].filter(Boolean);
+  const accountNavigations = [accountNavigation, moreNavigation].filter(Boolean);
   const contentWrapper = document.querySelector('.content-wrapper');
   let accountFrameResizeObserver;
   const isAccountRoute = (url) => url.origin === window.location.origin
     && (url.pathname === '/dashboard' || url.pathname.startsWith('/dashboard/'));
   const updateAccountNavigation = (pathname) => {
-    accountNavigation?.querySelectorAll('a[data-account-path]').forEach((link) => {
-      const linkPath = link.dataset.accountPath;
-      const active = pathname === linkPath || (linkPath !== '/dashboard' && pathname.startsWith(`${linkPath}/`));
-      link.classList.toggle('active', active);
-      if (active) link.setAttribute('aria-current', 'page');
-      else link.removeAttribute('aria-current');
+    accountNavigations.forEach((navigation) => {
+      navigation.querySelectorAll('a[data-account-path]').forEach((link) => {
+        const linkPath = link.dataset.accountPath;
+        const active = pathname === linkPath || (linkPath !== '/dashboard' && pathname.startsWith(`${linkPath}/`));
+        link.classList.toggle('active', active);
+        if (active) link.setAttribute('aria-current', 'page');
+        else link.removeAttribute('aria-current');
+      });
     });
   };
+  accountMenus[0]?.addEventListener('toggle', () => {
+    if (accountMenus[0].open) moreMenu?.removeAttribute('open');
+  });
+  moreMenu?.addEventListener('toggle', () => {
+    if (moreMenu.open) accountMenus[0]?.removeAttribute('open');
+  });
   const resizeAccountFrame = () => {
     const frameDocument = accountFrame?.contentDocument;
     if (!frameDocument || accountSection?.hidden) return;
@@ -2424,7 +2454,7 @@ function inicializarCarrinho() {
     accountFrame.src = `${targetUrl.pathname}${targetUrl.search}${targetUrl.hash}`;
     accountSection.hidden = false;
     contentWrapper.classList.add('store-account-view-open');
-    document.querySelector('.store-account-menu')?.removeAttribute('open');
+    accountMenus.forEach((menu) => menu.removeAttribute('open'));
     accountSection.scrollIntoView({ block: 'start' });
     document.getElementById('store-account-section-title')?.focus({ preventScroll: true });
   };

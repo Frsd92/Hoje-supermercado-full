@@ -85,15 +85,30 @@
   outline-offset: 3px;
 }
 
-.store-account-menu {
+.store-account-menu,
+.store-more-menu {
   position: relative;
 }
 
-.store-account-menu > summary {
+.store-more-menu {
+  display: none;
+}
+
+.store-more-menu[hidden] {
+  display: none;
+}
+
+.store-account-menu > summary,
+.store-more-menu > summary {
   list-style: none;
 }
 
-.store-account-menu > summary::-webkit-details-marker {
+.store-account-menu > summary::-webkit-details-marker,
+.store-more-menu > summary::-webkit-details-marker {
+  display: none;
+}
+
+.store-home-link {
   display: none;
 }
 
@@ -108,7 +123,8 @@
   transform: rotate(180deg);
 }
 
-.store-account-links {
+.store-account-links,
+.store-more-links {
   position: absolute;
   top: calc(100% + 8px);
   left: 0;
@@ -127,7 +143,8 @@
   box-shadow: 0 16px 36px rgba(15, 23, 42, .2);
 }
 
-.store-account-links[hidden] {
+.store-account-links[hidden],
+.store-more-links[hidden] {
   display: none;
 }
 
@@ -150,7 +167,8 @@
   text-transform: uppercase;
 }
 
-.store-account-links a {
+.store-account-links a,
+.store-more-links a {
   display: flex;
   align-items: center;
   gap: 10px;
@@ -164,23 +182,28 @@
 }
 
 .store-account-links a:hover,
-.store-account-links a:focus-visible {
+.store-account-links a:focus-visible,
+.store-more-links a:hover,
+.store-more-links a:focus-visible {
   background: #eef7f0;
   color: #145c32;
 }
 
-.store-account-links a.active {
+.store-account-links a.active,
+.store-more-links a.active {
   background: #eef7f0;
   color: #145c32;
   font-weight: 750;
 }
 
-.store-account-links a:focus-visible {
+.store-account-links a:focus-visible,
+.store-more-links a:focus-visible {
   outline: 2px solid #1a7a3c;
   outline-offset: 1px;
 }
 
-.store-account-links a [data-lucide] {
+.store-account-links a [data-lucide],
+.store-more-links a [data-lucide] {
   width: 17px;
   height: 17px;
   color: #1a7a3c;
@@ -5699,6 +5722,10 @@ body {
     padding-bottom: calc(64px + env(safe-area-inset-bottom));
   }
 
+  .topbar.home-topbar.is-authenticated {
+    grid-template-columns: repeat(7, minmax(0, 1fr));
+  }
+
   .store-header-shell > .topbar.home-topbar {
     position: fixed;
     top: auto;
@@ -5708,9 +5735,70 @@ body {
     padding-bottom: calc(6px + env(safe-area-inset-bottom));
   }
 
-  .store-header-shell > .topbar.home-topbar .store-account-links {
+  .store-header-shell > .topbar.home-topbar .store-home-link {
+    display: flex;
+    justify-content: center;
+    padding-inline: 2px;
+  }
+
+  .store-header-shell > .topbar.home-topbar .store-more-menu:not([hidden]) {
+    display: block;
+    min-width: 0;
+  }
+
+  .store-header-shell > .topbar.home-topbar .store-more-menu > summary {
+    min-height: 48px;
+    flex-direction: column;
+    gap: 2px;
+    justify-content: center;
+    padding: 5px 2px;
+  }
+
+  .store-more-label {
+    display: block;
+    font-size: 9px;
+    font-weight: 800;
+    line-height: 1;
+  }
+
+  .store-account-menu,
+  .store-more-menu {
+    position: static;
+    min-width: 0;
+  }
+
+  .store-account-links,
+  .store-more-links {
     top: auto;
     bottom: calc(100% + 8px);
+    right: 12px;
+    left: auto;
+  }
+
+  .store-account-overview-group,
+  .store-account-shopping-group {
+    display: none;
+  }
+
+  .store-account-shopping-group + .store-account-links-group {
+    padding-top: 0;
+    border-top: 0;
+  }
+
+  .store-account-menu > summary {
+    gap: 4px;
+    padding-inline: 3px;
+  }
+
+  .store-account-menu .store-account-chevron {
+    width: 12px;
+    height: 12px;
+    margin-left: -2px;
+  }
+
+  .store-account-menu > summary [data-lucide]:not(.store-account-chevron) {
+    width: 18px;
+    height: 18px;
   }
 }
 
@@ -5722,5 +5810,28 @@ body {
   .store-assistant-panel {
     bottom: calc(118px + env(safe-area-inset-bottom));
     height: min(650px, calc(100dvh - 175px - env(safe-area-inset-bottom)));
+  }
+}
+
+@media (max-width: 360px) {
+  .topbar.home-topbar {
+    gap: 1px;
+    padding-inline: 2px;
+  }
+
+  .topbar.home-topbar:not(.is-authenticated) {
+    grid-template-columns: repeat(4, minmax(0, 1fr));
+  }
+
+  .topbar.home-topbar.is-authenticated {
+    grid-template-columns: repeat(5, minmax(0, 1fr));
+  }
+
+  .topbar.home-topbar > .topbar-item:nth-child(-n+2) {
+    display: none;
+  }
+
+  .store-account-menu .store-account-chevron {
+    display: none;
   }
 }
