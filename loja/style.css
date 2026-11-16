@@ -5895,3 +5895,10 @@ body {
     display: none;
   }
 }
+
+@media (min-width: 901px) {
+  .topbar.home-topbar {
+    justify-content: center;
+    gap: clamp(16px, 3vw, 40px);
+  }
+}
