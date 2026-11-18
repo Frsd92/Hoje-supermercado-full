@@ -5895,3 +5895,14 @@ body {
     display: none;
   }
 }
+
+@media (min-width: 901px) {
+  .topbar.home-topbar {
+    justify-content: flex-start;
+    gap: 10px;
+  }
+
+  .topbar.home-topbar .cart-trigger {
+    margin-left: auto;
+  }
+}
