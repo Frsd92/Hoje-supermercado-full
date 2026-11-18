@@ -40,6 +40,7 @@ import {
   Search,
   ShoppingBag,
   ShoppingCart,
+  Gift,
   RotateCcw,
   ListPlus,
   Minus,
@@ -86,6 +87,7 @@ const navigationGroups = [
       { label: 'Listas de compras', href: '/dashboard/lists', icon: ListPlus, badgeId: 'shopping-lists' },
       { label: 'Meus cupons', href: '/dashboard/cupons', icon: TicketPercent, badgeId: 'coupons' },
       { label: 'Missões e pontos', href: '/dashboard/fidelidade', icon: Award, badgeId: 'loyalty' },
+      { label: 'Benefícios', href: '/dashboard/beneficios', icon: Gift },
       { label: 'Favoritos', href: '/dashboard/favorites', icon: Star, badgeId: 'favorites' },
       { label: 'Orçamento', href: '/dashboard/budget', icon: CircleDollarSign, badgeId: 'budget' },
     ],
@@ -157,6 +159,7 @@ export default function DashboardLayout({ children }) {
   const [couponMaximumDiscountAmount, setCouponMaximumDiscountAmount] = useState(null);
   const [couponBenefitType, setCouponBenefitType] = useState('');
   const [couponMinimumOrderAmount, setCouponMinimumOrderAmount] = useState(0);
+  const [couponSelected, setCouponSelected] = useState(false);
   const [checkoutFees, setCheckoutFees] = useState(null);
   const [checkoutFeesError, setCheckoutFeesError] = useState('');
   const [checkoutMission, setCheckoutMission] = useState(null);
@@ -165,9 +168,13 @@ export default function DashboardLayout({ children }) {
   const normalizedCoupon = coupon.trim().toUpperCase();
   const cartSubtotal = useMemo(() => calculateOrderTotals(cartItems).subtotal, [cartItems]);
   const couponMinimumNotMet = appliedCouponCode === normalizedCoupon
+    && couponSelected
     && normalizedCoupon
     && cartSubtotal < couponMinimumOrderAmount;
-  const activeCoupon = appliedCouponCode === normalizedCoupon && normalizedCoupon && !couponMinimumNotMet;
+  const activeCoupon = appliedCouponCode === normalizedCoupon
+    && couponSelected
+    && normalizedCoupon
+    && !couponMinimumNotMet;
   const cartTotals = useMemo(
     () => calculateOrderTotals(cartItems, {
       discountPercent: activeCoupon ? couponDiscountPercent : 0,
@@ -220,6 +227,7 @@ export default function DashboardLayout({ children }) {
   const cartPanelRef = useRef(null);
   const cartOpenerRef = useRef(null);
   const checkoutRequestIdRef = useRef(null);
+  const applyCouponRef = useRef(null);
   const cartItemsRef = useRef([]);
   const cartWriteQueueRef = useRef(Promise.resolve());
   const saveCartRef = useRef(null);
@@ -249,10 +257,15 @@ export default function DashboardLayout({ children }) {
       setCouponBenefitType('');
       setCouponMinimumOrderAmount(0);
       setAppliedCouponCode('');
+      setCouponSelected(false);
       setCouponStatus('');
       setCheckoutStatus('');
       openCart();
-      window.requestAnimationFrame(() => document.getElementById('cart-coupon-code')?.focus());
+      if (event.detail?.autoApply) {
+        void applyCouponRef.current?.(code);
+      } else {
+        window.requestAnimationFrame(() => document.getElementById('cart-coupon-code')?.focus());
+      }
     };
     window.addEventListener('dashboard-use-coupon', handleCouponRequest);
     return () => window.removeEventListener('dashboard-use-coupon', handleCouponRequest);
@@ -941,10 +954,15 @@ export default function DashboardLayout({ children }) {
       setCheckoutStatus(`Não foi possível salvar o tema escolhido: ${error.message}`);
     }
   };
-  const applyCoupon = async () => {
-    const code = coupon.trim().toUpperCase();
+  const applyCoupon = async (requestedCode = coupon) => {
+    const code = String(requestedCode).trim().toUpperCase();
+    if (!code) {
+      setCouponStatus('Digite o código do cupom antes de aplicar.');
+      return;
+    }
     if (appliedCouponCode === code && code) {
-      setCouponStatus(`Cupom ${code} já está aplicado.`);
+      setCouponSelected(true);
+      setCouponStatus(`Cupom ${code} aplicado com sucesso.`);
       return;
     }
     try {
@@ -968,6 +986,7 @@ export default function DashboardLayout({ children }) {
       const minimumOrderAmount = Number(assignedCoupon.minimumOrderAmount) || 0;
       setCouponMinimumOrderAmount(minimumOrderAmount);
       setAppliedCouponCode(code);
+      setCouponSelected(true);
       setCouponStatus(cartSubtotal < minimumOrderAmount
         ? `O cupom ${code} exige um pedido mínimo de R$ ${minimumOrderAmount.toFixed(2).replace('.', ',')}.`
         : `Cupom ${code} aplicado com sucesso: ${getCouponBenefitLabel(assignedCoupon.benefitType, assignedCoupon.discountPercent, assignedCoupon.discountAmount, assignedCoupon.maximumDiscountAmount)}.`);
@@ -978,16 +997,18 @@ export default function DashboardLayout({ children }) {
       setCouponBenefitType('');
       setCouponMinimumOrderAmount(0);
       setAppliedCouponCode('');
+      setCouponSelected(false);
       setCouponStatus(error.message);
     }
   };
+  applyCouponRef.current = applyCoupon;
   const finishPurchase = (event) => {
     event.preventDefault();
     if (!cartItems.length) return setCheckoutStatus('Adicione produtos antes de finalizar.');
     if (!session?.user?.email) return setCheckoutStatus('É necessário estar autenticado para finalizar a compra.');
     if (checkoutFeesError) return setCheckoutStatus(`Não foi possível confirmar as taxas do pedido: ${checkoutFeesError}`);
     if (!checkoutFees) return setCheckoutStatus('Estamos carregando as taxas do pedido. Aguarde um instante.');
-    if (appliedCouponCode === normalizedCoupon && normalizedCoupon && couponMinimumNotMet) {
+    if (couponSelected && appliedCouponCode === normalizedCoupon && normalizedCoupon && couponMinimumNotMet) {
       return setCheckoutStatus(`Este cupom exige compras a partir de R$ ${couponMinimumOrderAmount.toFixed(2).replace('.', ',')}.`);
     }
     if (addressesLoading) return setCheckoutStatus('Estamos verificando seus endereços. Aguarde um instante.');
@@ -1114,7 +1135,7 @@ export default function DashboardLayout({ children }) {
           useSavedCard: paymentMethod === 'combinado' ? false : chargeSavedCard,
           savedCardId: chargeSavedCard ? selectedSavedCard?.id : undefined,
           includeCpfOnReceipt,
-          couponCode: coupon.trim().toUpperCase(),
+          couponCode: couponSelected && appliedCouponCode === normalizedCoupon ? normalizedCoupon : '',
           expectedFees: checkoutFees,
           total: `R$ ${total.toFixed(2).replace('.', ',')}`,
         }),
@@ -1138,6 +1159,7 @@ export default function DashboardLayout({ children }) {
       setCouponBenefitType('');
       setCouponMinimumOrderAmount(0);
       setAppliedCouponCode('');
+      setCouponSelected(false);
       setCouponStatus('');
       setCheckoutOrderId(data.order.id);
       if (data.order.paymentStatus === 'paid') {
@@ -1684,13 +1706,13 @@ export default function DashboardLayout({ children }) {
                 <strong>R$ {cartTotals.couponDiscountAmount.toFixed(2).replace('.', ',')}</strong>
               </div>
               <div className="summary-row">
-                <span className="summary-row-label">Entrega{couponBenefitType === 'FREE_DELIVERY' && appliedCouponCode === normalizedCoupon ? ' · grátis' : ''}
+                <span className="summary-row-label">Entrega{couponBenefitType === 'FREE_DELIVERY' && activeCoupon ? ' · grátis' : ''}
                   {checkoutFees?.showFeeExplanations && <CheckoutFeeInfo label="taxa de entrega" explanation={deliveryFeeExplanation} />}
                 </span>
                 <strong>R$ {cartTotals.deliveryFee.toFixed(2).replace('.', ',')}</strong>
               </div>
               <div className="summary-row">
-                <span className="summary-row-label">Taxa de serviço{couponBenefitType === 'FREE_SERVICE_FEE' && appliedCouponCode === normalizedCoupon ? ' · zerada' : ''}
+                <span className="summary-row-label">Taxa de serviço{couponBenefitType === 'FREE_SERVICE_FEE' && activeCoupon ? ' · zerada' : ''}
                   {checkoutFees?.showFeeExplanations && <CheckoutFeeInfo label="taxa de serviço" explanation={serviceFeeExplanation} />}
                 </span>
                 <strong>R$ {cartTotals.serviceFee.toFixed(2).replace('.', ',')}</strong>
@@ -1704,13 +1726,30 @@ export default function DashboardLayout({ children }) {
               <input
                 id="cart-coupon-code"
                 value={coupon}
-                onChange={(event) => { setCoupon(event.target.value); setCouponDiscountPercent(0); setCouponFixedDiscountAmount(0); setCouponMaximumDiscountAmount(null); setCouponBenefitType(''); setCouponMinimumOrderAmount(0); setAppliedCouponCode(''); setCouponStatus(''); }}
+                onChange={(event) => { setCoupon(event.target.value); setCouponDiscountPercent(0); setCouponFixedDiscountAmount(0); setCouponMaximumDiscountAmount(null); setCouponBenefitType(''); setCouponMinimumOrderAmount(0); setAppliedCouponCode(''); setCouponSelected(false); setCouponStatus(''); }}
                 placeholder="Insira seu Cupom"
                 maxLength={24}
                 aria-label="Código do cupom"
               />
               <button className="btn-coupon" type="button" onClick={applyCoupon}>Aplicar</button>
             </div>
+            {appliedCouponCode === normalizedCoupon && normalizedCoupon && <label className="cart-coupon-selected">
+              <span className="cart-coupon-selected-info">
+                <TicketPercent size={17} aria-hidden="true" />
+                <span><strong>{appliedCouponCode}</strong><small>Usar este cupom nesta compra</small></span>
+              </span>
+              <input
+                type="checkbox"
+                checked={couponSelected}
+                onChange={(event) => {
+                  setCouponSelected(event.target.checked);
+                  setCouponStatus(event.target.checked
+                    ? `Cupom ${appliedCouponCode} aplicado com sucesso.`
+                    : '');
+                }}
+                aria-label={`Usar o cupom ${appliedCouponCode} nesta compra`}
+              />
+            </label>}
             <p className={`coupon-feedback ${couponMinimumNotMet || (!couponStatus.includes('sucesso') && couponStatus) ? 'error' : couponStatus ? 'success' : ''}`} role="status" aria-live="polite">
               {couponMinimumNotMet
                 ? `Este cupom exige compras a partir de R$ ${couponMinimumOrderAmount.toFixed(2).replace('.', ',')}.`
