@@ -60,7 +60,15 @@ export async function GET() {
       durationDays: Math.max(1, Math.ceil((campaign.expiresAt.getTime() - campaign.createdAt.getTime()) / 86400000)),
       expiresAt: campaign.expiresAt.toISOString(),
       createdAt: campaign.createdAt.toISOString(),
-      coupon: { code: campaign.code, discountPercent: campaign.discountPercent, expiresAt: campaign.expiresAt.toISOString() },
+      coupon: {
+        code: campaign.code,
+        benefitType: campaign.benefitType || 'PERCENTAGE',
+        discountPercent: campaign.discountPercent,
+        discountAmount: Number(campaign.discountAmount),
+        maximumDiscountAmount: Number(campaign.maximumDiscountAmount) || null,
+        minimumOrderAmount: Number(campaign.minimumOrderAmount),
+        expiresAt: campaign.expiresAt.toISOString(),
+      },
     }));
     return Response.json({ notifications: [...couponNotifications, ...visibleNotifications, ...visibleFileNotifications].slice(0, 30) });
   } catch (error) {

@@ -9,7 +9,11 @@ import {
   loyaltyPointExpiryOptions,
 } from '@/features/loyalty/mission-rules.js';
 import { canonicalizeLoyaltyMissionDestinationPath, loyaltyMissionDestinationOptions } from '@/features/loyalty/mission-destinations.js';
-import { couponBenefitOptions, getCouponBenefitLabel } from '@/features/coupons/coupon-benefits.js';
+import {
+  couponBenefitOptions,
+  fixedCouponAmounts,
+  getCouponBenefitLabel,
+} from '@/features/coupons/coupon-benefits.js';
 
 const currencyFormatter = new Intl.NumberFormat('pt-BR', { style: 'currency', currency: 'BRL' });
 const MAX_MISSION_IMAGE_ENCODED_LENGTH = 600_000;
@@ -50,6 +54,8 @@ const initialRewardForm = {
   pointsCost: '100',
   benefitType: 'PERCENTAGE',
   discountPercent: '10',
+  discountAmount: '3',
+  maximumDiscountAmount: '',
   minimumOrderAmount: '0',
   validityDays: '30',
   active: true,
@@ -164,10 +170,40 @@ export default function LoyaltyPage() {
       pointsCost: String(reward.pointsCost),
       benefitType: reward.benefitType || 'PERCENTAGE',
       discountPercent: String(Number(reward.discountPercent) || 10),
+      discountAmount: String(Number(reward.discountAmount) || 3),
+      maximumDiscountAmount: reward.maximumDiscountAmount == null ? '' : String(reward.maximumDiscountAmount),
       minimumOrderAmount: String(Number(reward.minimumOrderAmount) || 0),
       validityDays: String(reward.validityDays),
       active: reward.active,
     });
+  };
+
+  const updateRewardBenefitType = (benefitType) => {
+    setRewardForm((current) => {
+      if (benefitType !== 'FIXED_AMOUNT') {
+        return { ...current, benefitType, maximumDiscountAmount: '' };
+      }
+      const currentAmount = Number(current.discountAmount);
+      const discountAmount = fixedCouponAmounts.includes(currentAmount) ? currentAmount : fixedCouponAmounts[0];
+      return {
+        ...current,
+        benefitType,
+        discountAmount: String(discountAmount),
+        pointsCost: String(discountAmount * 100),
+        minimumOrderAmount: Number(current.minimumOrderAmount) > 0
+          ? current.minimumOrderAmount
+          : String(discountAmount * 10),
+        maximumDiscountAmount: '',
+      };
+    });
+  };
+
+  const updateRewardDiscountAmount = (value) => {
+    setRewardForm((current) => ({
+      ...current,
+      discountAmount: value,
+      pointsCost: String(Number(value) * 100),
+    }));
   };
 
   const selectMissionImage = async (event) => {
@@ -385,9 +421,13 @@ export default function LoyaltyPage() {
           <label>Descrição<textarea value={rewardForm.description} onChange={(event) => setRewardForm((current) => ({ ...current, description: event.target.value }))} maxLength="300" rows="2" /></label>
           <div className="loyalty-form-grid">
             <div className="loyalty-form-section-heading"><strong>Resgate em pontos</strong><span>O custo é descontado do saldo de pontos do cliente.</span></div>
-            <label>Custo em pontos<input type="number" min="1" max="1000000" step="1" value={rewardForm.pointsCost} onChange={(event) => setRewardForm((current) => ({ ...current, pointsCost: event.target.value }))} required /></label>
-            <label>Tipo de cupom<select value={rewardForm.benefitType} onChange={(event) => setRewardForm((current) => ({ ...current, benefitType: event.target.value }))}>{couponBenefitOptions.map((option) => <option key={option.value} value={option.value}>{option.label}</option>)}</select></label>
-            {rewardForm.benefitType === 'PERCENTAGE' && <label>Desconto (%)<input type="number" min="1" max="90" step="1" value={rewardForm.discountPercent} onChange={(event) => setRewardForm((current) => ({ ...current, discountPercent: event.target.value }))} required /></label>}
+            <label>Custo em pontos<input type="number" min="1" max="1000000" step="1" value={rewardForm.pointsCost} onChange={(event) => setRewardForm((current) => ({ ...current, pointsCost: event.target.value }))} disabled={rewardForm.benefitType === 'FIXED_AMOUNT'} required />{rewardForm.benefitType === 'FIXED_AMOUNT' && <small>Calculado automaticamente para esta recompensa.</small>}</label>
+            <label>Tipo de cupom<select value={rewardForm.benefitType} onChange={(event) => updateRewardBenefitType(event.target.value)}>{couponBenefitOptions.map((option) => <option key={option.value} value={option.value}>{option.label}</option>)}</select></label>
+            {rewardForm.benefitType === 'PERCENTAGE' && <>
+              <label>Desconto (%)<input type="number" min="1" max="90" step="1" value={rewardForm.discountPercent} onChange={(event) => setRewardForm((current) => ({ ...current, discountPercent: event.target.value }))} required /></label>
+              <label>Desconto máximo (R$)<input type="number" min="0.01" max="100000000" step="0.01" inputMode="decimal" value={rewardForm.maximumDiscountAmount} onChange={(event) => setRewardForm((current) => ({ ...current, maximumDiscountAmount: event.target.value }))} placeholder="Sem limite" /><small>Deixe em branco para não limitar o desconto.</small></label>
+            </>}
+            {rewardForm.benefitType === 'FIXED_AMOUNT' && <label>Valor fixo do cupom<select value={rewardForm.discountAmount} onChange={(event) => updateRewardDiscountAmount(event.target.value)}>{fixedCouponAmounts.map((amount) => <option key={amount} value={amount}>{currencyFormatter.format(amount)}</option>)}</select></label>}
             <div className="loyalty-form-section-heading"><strong>Valor mínimo do pedido</strong><span>Este requisito é em reais e não representa pontos.</span></div>
             <label>Pedido mínimo da compra<div className="loyalty-currency-input"><span aria-hidden="true">R$</span><input type="number" min="0" max="100000000" step="0.01" inputMode="decimal" value={rewardForm.minimumOrderAmount} onChange={(event) => setRewardForm((current) => ({ ...current, minimumOrderAmount: event.target.value }))} required /></div></label>
             <label>Validade do cupom (dias)<input type="number" min="1" max="365" step="1" value={rewardForm.validityDays} onChange={(event) => setRewardForm((current) => ({ ...current, validityDays: event.target.value }))} required /></label>
@@ -435,12 +475,12 @@ export default function LoyaltyPage() {
         {rewards.length ? <div className="loyalty-admin-list">
           {rewards.map((reward) => <article className="loyalty-admin-card loyalty-admin-reward" key={reward.id}>
             <div className="loyalty-admin-card-main">
-              <div><span className={statusClass(reward.active ? 'active' : 'paused')}>{reward.active ? 'Disponível' : 'Indisponível'}</span><h3>{reward.name}</h3><p>{reward.description || getCouponBenefitLabel(reward.benefitType, reward.discountPercent)}</p></div>
+              <div><span className={statusClass(reward.active ? 'active' : 'paused')}>{reward.active ? 'Disponível' : 'Indisponível'}</span><h3>{reward.name}</h3><p>{reward.description || getCouponBenefitLabel(reward.benefitType, reward.discountPercent, reward.discountAmount, reward.maximumDiscountAmount)}</p></div>
               <button className="editor-ghost" type="button" onClick={() => startRewardEdit(reward)} aria-label={`Editar recompensa ${reward.name}`}><Pencil size={15} aria-hidden="true" />Editar</button>
             </div>
             <div className="loyalty-admin-card-stats">
               <span><strong>{reward.pointsCost.toLocaleString('pt-BR')}</strong> pontos</span>
-              <span><strong>{getCouponBenefitLabel(reward.benefitType, reward.discountPercent)}</strong></span>
+              <span><strong>{getCouponBenefitLabel(reward.benefitType, reward.discountPercent, reward.discountAmount, reward.maximumDiscountAmount)}</strong></span>
               <span><strong>{currencyFormatter.format(reward.minimumOrderAmount)}</strong> pedido mínimo</span>
               <span><strong>{reward.redemptions}</strong> resgates</span>
             </div>

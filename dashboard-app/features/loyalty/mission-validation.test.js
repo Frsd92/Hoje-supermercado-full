@@ -104,6 +104,7 @@ test('validates reward discounts, point costs, and minimum-order amounts', () =>
     name: 'Desconto especial',
     pointsCost: '250',
     discountPercent: '15',
+    maximumDiscountAmount: '20',
     minimumOrderAmount: '80.50',
     validityDays: '14',
     active: true,
@@ -113,6 +114,26 @@ test('validates reward discounts, point costs, and minimum-order amounts', () =>
   assert.equal(reward.pointsCost, 250);
   assert.equal(reward.validityDays, 14);
   assert.equal(reward.benefitType, 'PERCENTAGE');
+  assert.equal(reward.maximumDiscountAmount, 20);
+  const fixedReward = validateLoyaltyRewardPayload({
+    name: 'Cupom de R$ 14',
+    pointsCost: 1400,
+    benefitType: 'FIXED_AMOUNT',
+    discountAmount: 14,
+    minimumOrderAmount: 140,
+    validityDays: 30,
+  });
+  assert.equal(fixedReward.discountAmount, 14);
+  assert.equal(fixedReward.discountPercent, 0);
+  assert.equal(fixedReward.pointsCost, 1400);
+  assert.throws(() => validateLoyaltyRewardPayload({
+    name: 'Cupom de R$ 14',
+    pointsCost: 1401,
+    benefitType: 'FIXED_AMOUNT',
+    discountAmount: 14,
+    minimumOrderAmount: 0,
+    validityDays: 30,
+  }), /custo em pontos/);
   const freeDeliveryReward = validateLoyaltyRewardPayload({
     name: 'Entrega por pontos',
     benefitType: 'FREE_DELIVERY',

@@ -3,7 +3,11 @@
 import { Bell, CheckCheck, CheckSquare, CircleDollarSign, RefreshCw, Search, Send, TicketPercent, TrendingUp, Users } from 'lucide-react';
 import { useEffect, useMemo, useState } from 'react';
 import { consumeErpRecipientHandoff } from '@/features/erp/customer-recipient-handoff';
-import { couponBenefitOptions, getCouponBenefitLabel } from '@/features/coupons/coupon-benefits.js';
+import {
+  couponBenefitOptions,
+  fixedCouponAmounts,
+  getCouponBenefitLabel,
+} from '@/features/coupons/coupon-benefits.js';
 
 const currencyFormatter = new Intl.NumberFormat('pt-BR', { style: 'currency', currency: 'BRL' });
 
@@ -52,6 +56,8 @@ export default function PromotionsPage() {
   const [code, setCode] = useState('');
   const [benefitType, setBenefitType] = useState('PERCENTAGE');
   const [discountPercent, setDiscountPercent] = useState('10');
+  const [discountAmount, setDiscountAmount] = useState('3');
+  const [maximumDiscountAmount, setMaximumDiscountAmount] = useState('');
   const [checkoutFees, setCheckoutFees] = useState({ deliveryFee: '0', serviceFee: '0', showFeeExplanations: true });
   const [durationDays, setDurationDays] = useState('7');
   const [message, setMessage] = useState('');
@@ -157,17 +163,27 @@ export default function PromotionsPage() {
     if (campaign) {
       setBenefitType(campaign.benefitType || 'PERCENTAGE');
       setDiscountPercent(String(campaign.discountPercent));
+      setDiscountAmount(String(Number(campaign.discountAmount) || 3));
+      setMaximumDiscountAmount(campaign.maximumDiscountAmount == null ? '' : String(campaign.maximumDiscountAmount));
       setDurationDays(String(Math.max(1, Math.ceil((new Date(campaign.expiresAt).getTime() - Date.now()) / 86400000))));
       setMessage('');
     } else {
       setBenefitType('PERCENTAGE');
+      setMaximumDiscountAmount('');
     }
+  };
+
+  const updateBenefitType = (value) => {
+    setBenefitType(value);
+    if (value !== 'PERCENTAGE') setMaximumDiscountAmount('');
   };
 
   const reuseCampaign = (campaign) => {
     setCode(campaign.code);
     setBenefitType(campaign.benefitType || 'PERCENTAGE');
     setDiscountPercent(String(campaign.discountPercent));
+    setDiscountAmount(String(Number(campaign.discountAmount) || 3));
+    setMaximumDiscountAmount(campaign.maximumDiscountAmount == null ? '' : String(campaign.maximumDiscountAmount));
     setDurationDays(String(Math.max(1, Math.ceil((new Date(campaign.expiresAt).getTime() - Date.now()) / 86400000))));
     setMessage('');
     setSelectedEmails([]);
@@ -215,6 +231,8 @@ export default function PromotionsPage() {
           code,
           benefitType,
           discountPercent: Number(discountPercent),
+          discountAmount: Number(discountAmount),
+          maximumDiscountAmount: maximumDiscountAmount || null,
           durationDays: Number(durationDays),
           recipients: selectedEmails,
           message,
@@ -228,6 +246,8 @@ export default function PromotionsPage() {
       setBenefitType('PERCENTAGE');
       setMessage('');
       setDiscountPercent('10');
+      setDiscountAmount('3');
+      setMaximumDiscountAmount('');
       setDurationDays('7');
       const successMessage = data.campaign.addedRecipientsCount === data.campaign.recipientsCount
         ? `Cupom ${data.campaign.code} enviado para ${data.campaign.addedRecipientsCount} cliente(s).`
@@ -300,8 +320,12 @@ export default function PromotionsPage() {
         <div className="notification-composer-heading"><span className="notification-composer-icon"><TicketPercent size={19} /></span><div><h2>{selectedCampaign ? `Adicionar clientes ao ${selectedCampaign.code}` : 'Criar e enviar cupom'}</h2><p>{selectedCampaign ? 'O desconto e a validade existentes serão mantidos.' : 'Defina o desconto, a validade e o público.'}</p></div></div>
         <div className="coupon-form-row">
         <label>Código do cupom<input value={code} onChange={(event) => updateCode(event.target.value)} placeholder="Ex.: CLIENTE15" minLength="3" maxLength="24" required /><small>{selectedCampaign ? 'Cupom existente: os novos destinatários terão o mesmo desconto e vencimento.' : 'Digite um código novo ou selecione um cupom enviado abaixo.'}</small></label>
-        <label>Benefício<select value={benefitType} onChange={(event) => setBenefitType(event.target.value)} disabled={Boolean(selectedCampaign)}>{couponBenefitOptions.map((option) => <option key={option.value} value={option.value}>{option.label}</option>)}</select><small>Os cupons de taxa zeram o valor configurado acima.</small></label>
-        {benefitType === 'PERCENTAGE' && <label>Desconto (%)<input type="number" min="1" max="90" step="1" value={discountPercent} onChange={(event) => setDiscountPercent(event.target.value)} disabled={Boolean(selectedCampaign)} required /></label>}
+        <label>Benefício<select value={benefitType} onChange={(event) => updateBenefitType(event.target.value)} disabled={Boolean(selectedCampaign)}>{couponBenefitOptions.map((option) => <option key={option.value} value={option.value}>{option.label}</option>)}</select><small>Os cupons de taxa zeram o valor configurado acima.</small></label>
+        {benefitType === 'PERCENTAGE' && <>
+          <label>Desconto (%)<input type="number" min="1" max="90" step="1" value={discountPercent} onChange={(event) => setDiscountPercent(event.target.value)} disabled={Boolean(selectedCampaign)} required /></label>
+          <label>Desconto máximo (R$)<input type="number" min="0.01" max="100000000" step="0.01" inputMode="decimal" value={maximumDiscountAmount} onChange={(event) => setMaximumDiscountAmount(event.target.value)} placeholder="Sem limite" disabled={Boolean(selectedCampaign)} /><small>Deixe em branco para não limitar o desconto.</small></label>
+        </>}
+        {benefitType === 'FIXED_AMOUNT' && <label>Valor fixo do desconto<select value={discountAmount} onChange={(event) => setDiscountAmount(event.target.value)} disabled={Boolean(selectedCampaign)}>{fixedCouponAmounts.map((amount) => <option key={amount} value={amount}>{money(amount)}</option>)}</select></label>}
         <label>Validade (dias)<input type="number" min="1" max="365" step="1" value={durationDays} onChange={(event) => setDurationDays(event.target.value)} disabled={Boolean(selectedCampaign)} required /></label>
         </div>
         <label>Mensagem opcional<textarea value={message} onChange={(event) => setMessage(event.target.value)} placeholder="Ex.: Aproveite para fazer suas compras da semana." rows="3" maxLength="300" /><small>A mensagem será exibida junto ao código no Dashboard do cliente.</small></label>
@@ -346,7 +370,7 @@ export default function PromotionsPage() {
         {visibleCampaigns.length ? <div className="coupon-campaign-list">
           {visibleCampaigns.map((campaign) => <article className="coupon-campaign-card" key={campaign.id}>
             <div className="coupon-campaign-card-heading">
-              <div><strong>{campaign.code}</strong><span>{getCouponBenefitLabel(campaign.benefitType, campaign.discountPercent)}</span></div>
+              <div><strong>{campaign.code}</strong><span>{getCouponBenefitLabel(campaign.benefitType, campaign.discountPercent, campaign.discountAmount, campaign.maximumDiscountAmount)}</span></div>
               <span className={`coupon-campaign-status status-${campaign.status}`}>{campaignStatusLabels[campaign.status] || 'Situação não identificada'}</span>
             </div>
             <p>{campaign.message || 'Cupom direcionado aos clientes selecionados.'}</p>

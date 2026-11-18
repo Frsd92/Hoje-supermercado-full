@@ -67,6 +67,7 @@ test('lists active mission progress and flags customers at 75 percent or more', 
 });
 
 test('keeps pending coupon orders in processing and ignores canceled orders', () => {
+  const now = new Date('2026-10-10T12:00:00.000Z');
   const campaigns = ['PENDENTE', 'CANCELADO'].map((code) => ({
     code,
     discountPercent: 10,
@@ -78,10 +79,32 @@ test('keeps pending coupon orders in processing and ignores canceled orders', ()
     loyaltyRedemption: null,
   }));
   const result = getCustomerCouponInsights(campaigns, [
-    { id: 'order-1', couponCode: 'PENDENTE', status: 'Em processamento', paymentStatus: 'pending', createdAt: new Date() },
-    { id: 'order-2', couponCode: 'CANCELADO', status: 'Cancelado', paymentStatus: 'pending', createdAt: new Date() },
-  ], 'cliente@example.com');
+    { id: 'order-1', couponCode: 'PENDENTE', status: 'Em processamento', paymentStatus: 'pending', createdAt: now },
+    { id: 'order-2', couponCode: 'CANCELADO', status: 'Cancelado', paymentStatus: 'pending', createdAt: now },
+  ], 'cliente@example.com', now);
 
   assert.equal(result.couponCounts.processing, 1);
   assert.equal(result.couponCounts.available, 1);
+});
+
+test('preserves fixed coupon values in customer insights', () => {
+  const result = getCustomerCouponInsights([
+    {
+      code: 'FIXO14',
+      benefitType: 'FIXED_AMOUNT',
+      discountPercent: 0,
+      discountAmount: 14,
+      maximumDiscountAmount: null,
+      minimumOrderAmount: 140,
+      expiresAt: new Date('2026-10-20T12:00:00.000Z'),
+      createdBy: 'ERP',
+      recipients: [{ email: 'cliente@example.com' }],
+      redemptions: [],
+      loyaltyRedemption: null,
+    },
+  ], [], 'cliente@example.com', new Date('2026-10-10T12:00:00.000Z'));
+
+  assert.equal(result.coupons[0].benefitType, 'FIXED_AMOUNT');
+  assert.equal(result.coupons[0].discountAmount, 14);
+  assert.equal(result.coupons[0].minimumOrderAmount, 140);
 });

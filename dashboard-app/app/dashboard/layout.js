@@ -153,6 +153,8 @@ export default function DashboardLayout({ children }) {
   const [cpfNoteDialogOpen, setCpfNoteDialogOpen] = useState(false);
   const [coupon, setCoupon] = useState('');
   const [couponDiscountPercent, setCouponDiscountPercent] = useState(0);
+  const [couponFixedDiscountAmount, setCouponFixedDiscountAmount] = useState(0);
+  const [couponMaximumDiscountAmount, setCouponMaximumDiscountAmount] = useState(null);
   const [couponBenefitType, setCouponBenefitType] = useState('');
   const [couponMinimumOrderAmount, setCouponMinimumOrderAmount] = useState(0);
   const [checkoutFees, setCheckoutFees] = useState(null);
@@ -162,24 +164,20 @@ export default function DashboardLayout({ children }) {
   const [couponStatus, setCouponStatus] = useState('');
   const normalizedCoupon = coupon.trim().toUpperCase();
   const cartSubtotal = useMemo(() => calculateOrderTotals(cartItems).subtotal, [cartItems]);
-  const validCoupons = appliedCouponCode === normalizedCoupon && normalizedCoupon
-    ? { [normalizedCoupon]: couponDiscountPercent / 100 }
-    : {};
   const couponMinimumNotMet = appliedCouponCode === normalizedCoupon
     && normalizedCoupon
     && cartSubtotal < couponMinimumOrderAmount;
-  const activeCouponDiscountPercent = appliedCouponCode === normalizedCoupon && normalizedCoupon
-    && !couponMinimumNotMet
-    ? couponDiscountPercent
-    : 0;
+  const activeCoupon = appliedCouponCode === normalizedCoupon && normalizedCoupon && !couponMinimumNotMet;
   const cartTotals = useMemo(
     () => calculateOrderTotals(cartItems, {
-      discountPercent: activeCouponDiscountPercent,
-      benefitType: appliedCouponCode === normalizedCoupon ? couponBenefitType : null,
+      discountPercent: activeCoupon ? couponDiscountPercent : 0,
+      discountAmount: activeCoupon ? couponFixedDiscountAmount : 0,
+      maximumDiscountAmount: activeCoupon ? couponMaximumDiscountAmount : null,
+      benefitType: activeCoupon ? couponBenefitType : null,
       deliveryFee: checkoutFees?.deliveryFee || 0,
       serviceFee: checkoutFees?.serviceFee || 0,
     }),
-    [cartItems, activeCouponDiscountPercent, appliedCouponCode, normalizedCoupon, couponBenefitType, checkoutFees],
+    [cartItems, activeCoupon, couponDiscountPercent, couponFixedDiscountAmount, couponMaximumDiscountAmount, couponBenefitType, checkoutFees],
   );
   const combinedPaymentTotalCents = Math.round(cartTotals.total * 100);
   const combinedPaymentAmounts = combinedPayments.map((line) => parsePaymentAmountToCents(line.amount));
@@ -945,11 +943,8 @@ export default function DashboardLayout({ children }) {
   };
   const applyCoupon = async () => {
     const code = coupon.trim().toUpperCase();
-    if (validCoupons[code]) {
-      setCouponDiscountPercent(validCoupons[code] * 100);
-      setCouponMinimumOrderAmount(0);
-      setAppliedCouponCode(code);
-      setCouponStatus(`Cupom ${code} aplicado com sucesso!`);
+    if (appliedCouponCode === code && code) {
+      setCouponStatus(`Cupom ${code} já está aplicado.`);
       return;
     }
     try {
@@ -966,20 +961,20 @@ export default function DashboardLayout({ children }) {
       if (!assignedCoupon || assignedCoupon.code !== code) {
         throw new Error('Cupom inválido, expirado ou não disponível para sua conta.');
       }
-      setCouponDiscountPercent(assignedCoupon.discountPercent);
+      setCouponDiscountPercent(Number(assignedCoupon.discountPercent) || 0);
+      setCouponFixedDiscountAmount(Number(assignedCoupon.discountAmount) || 0);
+      setCouponMaximumDiscountAmount(Number(assignedCoupon.maximumDiscountAmount) || null);
       setCouponBenefitType(assignedCoupon.benefitType || 'PERCENTAGE');
       const minimumOrderAmount = Number(assignedCoupon.minimumOrderAmount) || 0;
       setCouponMinimumOrderAmount(minimumOrderAmount);
       setAppliedCouponCode(code);
       setCouponStatus(cartSubtotal < minimumOrderAmount
         ? `O cupom ${code} exige um pedido mínimo de R$ ${minimumOrderAmount.toFixed(2).replace('.', ',')}.`
-        : `Cupom ${code} aplicado com sucesso: ${assignedCoupon.benefitType === 'FREE_DELIVERY'
-          ? 'entrega grátis.'
-          : assignedCoupon.benefitType === 'FREE_SERVICE_FEE'
-            ? 'taxa de serviço zerada.'
-            : `${assignedCoupon.discountPercent}% de desconto.`}`);
+        : `Cupom ${code} aplicado com sucesso: ${getCouponBenefitLabel(assignedCoupon.benefitType, assignedCoupon.discountPercent, assignedCoupon.discountAmount, assignedCoupon.maximumDiscountAmount)}.`);
     } catch (error) {
       setCouponDiscountPercent(0);
+      setCouponFixedDiscountAmount(0);
+      setCouponMaximumDiscountAmount(null);
       setCouponBenefitType('');
       setCouponMinimumOrderAmount(0);
       setAppliedCouponCode('');
@@ -1674,8 +1669,8 @@ export default function DashboardLayout({ children }) {
                 Ao concluir, você recebe <strong>+{Number(closestCheckoutMission.mission.pointsReward).toLocaleString('pt-BR')} pontos</strong>.
                 {closestCheckoutMission.projectedReward
                   ? closestCheckoutMission.projectedReward.complete
-                    ? <> Depois, poderá resgatar <strong>{closestCheckoutMission.projectedReward.reward.name}</strong> ({getCouponBenefitLabel(closestCheckoutMission.projectedReward.reward.benefitType, closestCheckoutMission.projectedReward.reward.discountPercent)}).</>
-                    : <> Após a missão, faltarão <strong>{closestCheckoutMission.projectedReward.pointsNeeded.toLocaleString('pt-BR')} pontos</strong> para resgatar <strong>{closestCheckoutMission.projectedReward.reward.name}</strong> ({getCouponBenefitLabel(closestCheckoutMission.projectedReward.reward.benefitType, closestCheckoutMission.projectedReward.reward.discountPercent)}).</>
+                    ? <> Depois, poderá resgatar <strong>{closestCheckoutMission.projectedReward.reward.name}</strong> ({getCouponBenefitLabel(closestCheckoutMission.projectedReward.reward.benefitType, closestCheckoutMission.projectedReward.reward.discountPercent, closestCheckoutMission.projectedReward.reward.discountAmount, closestCheckoutMission.projectedReward.reward.maximumDiscountAmount)}).</>
+                    : <> Após a missão, faltarão <strong>{closestCheckoutMission.projectedReward.pointsNeeded.toLocaleString('pt-BR')} pontos</strong> para resgatar <strong>{closestCheckoutMission.projectedReward.reward.name}</strong> ({getCouponBenefitLabel(closestCheckoutMission.projectedReward.reward.benefitType, closestCheckoutMission.projectedReward.reward.discountPercent, closestCheckoutMission.projectedReward.reward.discountAmount, closestCheckoutMission.projectedReward.reward.maximumDiscountAmount)}).</>
                   : ' Os pontos podem ser trocados por cupons na área Missões e pontos.'}
               </p>
             </section>}
@@ -1709,7 +1704,7 @@ export default function DashboardLayout({ children }) {
               <input
                 id="cart-coupon-code"
                 value={coupon}
-                onChange={(event) => { setCoupon(event.target.value); setCouponDiscountPercent(0); setCouponBenefitType(''); setCouponMinimumOrderAmount(0); setAppliedCouponCode(''); setCouponStatus(''); }}
+                onChange={(event) => { setCoupon(event.target.value); setCouponDiscountPercent(0); setCouponFixedDiscountAmount(0); setCouponMaximumDiscountAmount(null); setCouponBenefitType(''); setCouponMinimumOrderAmount(0); setAppliedCouponCode(''); setCouponStatus(''); }}
                 placeholder="Insira seu Cupom"
                 maxLength={24}
                 aria-label="Código do cupom"

@@ -422,9 +422,17 @@ function getStoreCheckoutTotals(subtotal) {
     && cupomAplicado.codigo === (document.getElementById('coupon-input')?.value || '').trim().toUpperCase();
   const minimumMet = !couponMinimumOrderAmount || subtotal >= couponMinimumOrderAmount;
   const activeCoupon = couponMatches && minimumMet;
-  const discount = activeCoupon && (!cupomAplicado.benefitType || cupomAplicado.benefitType === 'PERCENTAGE')
-    ? subtotal * (Number(cupomAplicado.percentual) || 0) / 100
-    : 0;
+  let discount = 0;
+  if (activeCoupon && cupomAplicado.benefitType === 'FIXED_AMOUNT') {
+    discount = Number(cupomAplicado.discountAmount) || 0;
+  } else if (activeCoupon && (!cupomAplicado.benefitType || cupomAplicado.benefitType === 'PERCENTAGE')) {
+    discount = subtotal * (Number(cupomAplicado.percentual) || 0) / 100;
+    const maximumDiscountAmount = Number(cupomAplicado.maximumDiscountAmount);
+    if (Number.isFinite(maximumDiscountAmount) && maximumDiscountAmount > 0) {
+      discount = Math.min(discount, maximumDiscountAmount);
+    }
+  }
+  discount = Number(Math.min(subtotal, Math.max(0, discount)).toFixed(2));
   const baseDeliveryFee = Number(checkoutFeeSettings?.deliveryFee) || 0;
   const baseServiceFee = Number(checkoutFeeSettings?.serviceFee) || 0;
   const deliveryFee = activeCoupon && cupomAplicado.benefitType === 'FREE_DELIVERY' ? 0 : baseDeliveryFee;
@@ -2672,6 +2680,8 @@ function inicializarCarrinho() {
         cupomAplicado = {
           codigo: valor,
           percentual: Number(assignedCoupon.discountPercent) || 0,
+          discountAmount: Number(assignedCoupon.discountAmount) || 0,
+          maximumDiscountAmount: Number(assignedCoupon.maximumDiscountAmount) || null,
           benefitType: assignedCoupon.benefitType || 'PERCENTAGE',
         };
         couponMinimumOrderAmount = Number(assignedCoupon.minimumOrderAmount) || 0;
@@ -2680,7 +2690,9 @@ function inicializarCarrinho() {
             ? 'entrega grátis'
             : assignedCoupon.benefitType === 'FREE_SERVICE_FEE'
               ? 'taxa de serviço zerada'
-              : `${assignedCoupon.discountPercent}% de desconto`;
+              : assignedCoupon.benefitType === 'FIXED_AMOUNT'
+                ? `${formatarPreco(assignedCoupon.discountAmount)} de desconto`
+                : `${assignedCoupon.discountPercent}% de desconto${assignedCoupon.maximumDiscountAmount ? ` (até ${formatarPreco(assignedCoupon.maximumDiscountAmount)})` : ''}`;
           feedback.textContent = `Cupom ${valor} aplicado: ${benefitLabel}.${couponMinimumOrderAmount > 0 ? ` Pedido mínimo: ${formatarPreco(couponMinimumOrderAmount)}.` : ''}`;
           feedback.className = 'coupon-feedback success';
         }

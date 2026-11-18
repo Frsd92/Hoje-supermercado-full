@@ -1,3 +1,5 @@
+import { calculateCouponDiscountAmount } from '../coupons/coupon-benefits.js';
+
 function roundMoney(value) {
   return Number((Number(value) || 0).toFixed(2));
 }
@@ -38,7 +40,12 @@ export function calculateOrderTotals(items, couponOptions = 0) {
   const discountPercent = Number.isFinite(rawDiscountPercent)
     ? Math.min(90, Math.max(0, rawDiscountPercent))
     : 0;
-  const couponDiscountAmount = roundMoney(subtotal * discountPercent / 100);
+  const couponDiscountAmount = calculateCouponDiscountAmount(subtotal, {
+    benefitType: options.benefitType || (discountPercent ? 'PERCENTAGE' : null),
+    discountPercent,
+    discountAmount: options.discountAmount,
+    maximumDiscountAmount: options.maximumDiscountAmount,
+  });
   const deliveryFee = roundMoney(Math.max(0, parseReceiptAmount(options.deliveryFee)));
   const serviceFee = roundMoney(Math.max(0, parseReceiptAmount(options.serviceFee)));
   const chargedDeliveryFee = options.benefitType === 'FREE_DELIVERY' ? 0 : deliveryFee;

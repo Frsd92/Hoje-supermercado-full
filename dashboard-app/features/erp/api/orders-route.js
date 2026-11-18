@@ -441,6 +441,8 @@ export async function POST(request) {
     }
   }
   const appliedDiscountPercent = campaignCoupon?.discountPercent || 0;
+  const appliedDiscountAmount = Number(campaignCoupon?.discountAmount) || 0;
+  const maximumDiscountAmount = Number(campaignCoupon?.maximumDiscountAmount) || null;
   const appliedBenefitType = campaignCoupon?.benefitType || null;
   let checkoutFees;
   try {
@@ -527,6 +529,8 @@ export async function POST(request) {
     total,
   } = calculateOrderTotals(orderItems, {
     discountPercent: appliedDiscountPercent,
+    discountAmount: appliedDiscountAmount,
+    maximumDiscountAmount,
     benefitType: appliedBenefitType,
     ...checkoutFees,
   });

@@ -47,6 +47,30 @@ test('waives configured delivery or service fees for the matching coupon benefit
   assert.equal(freeService.total, 56);
 });
 
+test('caps percentage discounts and applies fixed coupon values up to the item subtotal', () => {
+  const items = [{ name: 'Compra', price: 'R$ 100,00', quantity: 1 }];
+  const capped = calculateOrderTotals(items, {
+    benefitType: 'PERCENTAGE',
+    discountPercent: 10,
+    maximumDiscountAmount: 6,
+  });
+  const fixed = calculateOrderTotals(items, {
+    benefitType: 'FIXED_AMOUNT',
+    discountAmount: 14,
+  });
+  const fixedAboveSubtotal = calculateOrderTotals(
+    [{ name: 'Produto', price: 'R$ 12,00', quantity: 1 }],
+    { benefitType: 'FIXED_AMOUNT', discountAmount: 20 },
+  );
+
+  assert.equal(capped.couponDiscountAmount, 6);
+  assert.equal(capped.total, 94);
+  assert.equal(fixed.couponDiscountAmount, 14);
+  assert.equal(fixed.total, 86);
+  assert.equal(fixedAboveSubtotal.couponDiscountAmount, 12);
+  assert.equal(fixedAboveSubtotal.total, 0);
+});
+
 test('includes the persisted fee benefit in the receipt without double-charging', () => {
   const receipt = buildOrderReceiptData({
     id: 'PED-FREE-DELIVERY',

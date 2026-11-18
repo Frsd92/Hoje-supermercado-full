@@ -11,8 +11,11 @@ import {
 import {
   calculateLoyaltyPointBalance,
   getRefundAdjustedAwardPoints,
+  getUpcomingLoyaltyPointExpiry,
   planLoyaltyPointRedemption,
 } from './point-balance.js';
+import { getCouponRecipientStatus } from '../coupons/coupon-reporting.js';
+import { getCouponBenefitLabel } from '../coupons/coupon-benefits.js';
 
 function normalizeEmail(value) {
   return String(value || '').trim().toLowerCase();
@@ -226,7 +229,18 @@ async function getCustomerPointEntries(transaction, email) {
       rewardRedemption: {
         select: {
           reward: { select: { name: true } },
-          couponCampaign: { select: { code: true } },
+          couponCampaign: {
+            select: {
+              id: true,
+              code: true,
+              expiresAt: true,
+              discountPercent: true,
+              discountAmount: true,
+              maximumDiscountAmount: true,
+              benefitType: true,
+              minimumOrderAmount: true,
+            },
+          },
         },
       },
       awardsAllocations: { select: { points: true } },
@@ -287,6 +301,28 @@ export async function getCustomerLoyaltySnapshot(transaction, customerEmail, now
   ]));
   const pointEntries = await getCustomerPointEntries(transaction, email);
   const balance = calculateLoyaltyPointBalance(pointEntries, now);
+  const expiringPoints = getUpcomingLoyaltyPointExpiry(pointEntries, now);
+  const recentCoupons = pointEntries.slice(0, 50)
+    .map((entry) => entry.rewardRedemption?.couponCampaign)
+    .filter(Boolean);
+  const couponCampaignIds = [...new Set(recentCoupons.map((campaign) => campaign.id))];
+  const couponRedemptions = couponCampaignIds.length
+    ? await transaction.couponRedemption.findMany({
+      where: { campaignId: { in: couponCampaignIds }, email },
+      select: { campaignId: true, orderId: true, createdAt: true },
+    })
+    : [];
+  const couponRedemptionsByCampaignId = new Map(
+    couponRedemptions.map((redemption) => [redemption.campaignId, redemption]),
+  );
+  const couponOrderIds = [...new Set(couponRedemptions.map((redemption) => redemption.orderId).filter(Boolean))];
+  const couponOrders = couponOrderIds.length
+    ? await transaction.order.findMany({
+      where: { id: { in: couponOrderIds } },
+      select: { id: true, status: true, paymentStatus: true },
+    })
+    : [];
+  const couponOrdersById = new Map(couponOrders.map((order) => [order.id, order]));
   const rewards = await transaction.loyaltyReward.findMany({
     where: { active: true },
     include: { _count: { select: { redemptions: true } } },
@@ -295,6 +331,7 @@ export async function getCustomerLoyaltySnapshot(transaction, customerEmail, now
 
   return {
     balance,
+    expiringPoints,
     missions: missionWindows.map(({ mission, cycle }) => {
       const progress = progressByKey.get(`${mission.id}:${cycle.cycleStartAt.toISOString()}`);
       return {
@@ -331,6 +368,8 @@ export async function getCustomerLoyaltySnapshot(transaction, customerEmail, now
       description: reward.description,
       pointsCost: reward.pointsCost,
       discountPercent: reward.discountPercent,
+      discountAmount: Number(reward.discountAmount) || 0,
+      maximumDiscountAmount: Number(reward.maximumDiscountAmount) || null,
       benefitType: reward.benefitType || 'PERCENTAGE',
       minimumOrderAmount: Number(reward.minimumOrderAmount),
       validityDays: reward.validityDays,
@@ -340,6 +379,9 @@ export async function getCustomerLoyaltySnapshot(transaction, customerEmail, now
       const points = entry.type === 'MISSION_AWARD'
         ? getRefundAdjustedAwardPoints(entry)
         : entry.points;
+      const campaign = entry.rewardRedemption?.couponCampaign;
+      const couponRedemption = campaign ? couponRedemptionsByCampaignId.get(campaign.id) || null : null;
+      const order = couponRedemption ? couponOrdersById.get(couponRedemption.orderId) : null;
       return {
         id: entry.id,
         type: entry.type,
@@ -348,7 +390,23 @@ export async function getCustomerLoyaltySnapshot(transaction, customerEmail, now
         createdAt: entry.createdAt.toISOString(),
         expiresAt: entry.expiresAt?.toISOString() || null,
         expired: Boolean(entry.expiresAt && entry.expiresAt <= now),
-        couponCode: entry.rewardRedemption?.couponCampaign?.code || null,
+        couponCode: campaign?.code || null,
+        coupon: campaign ? {
+          code: campaign.code,
+          expiresAt: campaign.expiresAt.toISOString(),
+          benefitType: campaign.benefitType || 'PERCENTAGE',
+          discountPercent: campaign.discountPercent,
+          discountAmount: Number(campaign.discountAmount) || 0,
+          maximumDiscountAmount: Number(campaign.maximumDiscountAmount) || null,
+          minimumOrderAmount: Number(campaign.minimumOrderAmount) || 0,
+          status: getCouponRecipientStatus(
+            campaign.expiresAt,
+            couponRedemption
+              ? { ...couponRedemption, ...(order ? { ...order, createdAt: couponRedemption.createdAt } : {}) }
+              : null,
+            now,
+          ),
+        } : null,
       };
     }),
   };
@@ -429,7 +487,15 @@ export async function redeemLoyaltyReward(transaction, { customerEmail, rewardId
   const email = normalizeEmail(customerEmail);
   const existing = await transaction.loyaltyRewardRedemption.findUnique({
     where: { requestId },
-    include: { couponCampaign: { select: { code: true, discountPercent: true, benefitType: true, minimumOrderAmount: true, expiresAt: true } } },
+    include: { couponCampaign: { select: {
+      code: true,
+      discountPercent: true,
+      discountAmount: true,
+      maximumDiscountAmount: true,
+      benefitType: true,
+      minimumOrderAmount: true,
+      expiresAt: true,
+    } } },
   });
   if (existing) {
     if (normalizeEmail(existing.customerEmail) !== email || existing.rewardId !== rewardId) {
@@ -439,6 +505,8 @@ export async function redeemLoyaltyReward(transaction, { customerEmail, rewardId
       redemption: {
         code: existing.couponCampaign.code,
         discountPercent: existing.couponCampaign.discountPercent,
+        discountAmount: Number(existing.couponCampaign.discountAmount) || 0,
+        maximumDiscountAmount: Number(existing.couponCampaign.maximumDiscountAmount) || null,
         benefitType: existing.couponCampaign.benefitType || 'PERCENTAGE',
         minimumOrderAmount: Number(existing.couponCampaign.minimumOrderAmount),
         expiresAt: existing.couponCampaign.expiresAt.toISOString(),
@@ -472,17 +540,23 @@ export async function redeemLoyaltyReward(transaction, { customerEmail, rewardId
     ? ` Pedido mínimo: R$ ${minimumOrderAmount.toFixed(2).replace('.', ',')}.`
     : '';
   const benefitType = reward.benefitType || 'PERCENTAGE';
-  const benefitLabel = benefitType === 'FREE_DELIVERY'
-    ? 'entrega grátis'
-    : benefitType === 'FREE_SERVICE_FEE'
-      ? 'taxa de serviço zero'
-      : `${reward.discountPercent}% de desconto`;
-  const couponMessage = `Recompensa resgatada: ${reward.name}. Use ${code} para obter ${benefitLabel}.${minOrderCopy}`;
+  const discountAmount = Number(reward.discountAmount) || 0;
+  const maximumDiscountAmount = Number(reward.maximumDiscountAmount) || null;
+  const benefitLabel = getCouponBenefitLabel(
+    benefitType,
+    reward.discountPercent,
+    discountAmount,
+    maximumDiscountAmount,
+  );
+  const expiresAtLabel = expiresAt.toLocaleDateString('pt-BR', { timeZone: 'America/Sao_Paulo' });
+  const couponMessage = `Recompensa resgatada: ${reward.name}. Use ${code} para obter ${benefitLabel}.${minOrderCopy} Válido até ${expiresAtLabel}.`;
   const campaign = await transaction.couponCampaign.create({
     data: {
       id: campaignId,
       code,
       discountPercent: reward.discountPercent,
+      discountAmount: reward.discountAmount,
+      maximumDiscountAmount: reward.maximumDiscountAmount,
       benefitType,
       minimumOrderAmount: reward.minimumOrderAmount,
       message: couponMessage,
@@ -522,6 +596,8 @@ export async function redeemLoyaltyReward(transaction, { customerEmail, rewardId
     redemption: {
       code: campaign.code,
       discountPercent: campaign.discountPercent,
+      discountAmount: Number(campaign.discountAmount) || 0,
+      maximumDiscountAmount: Number(campaign.maximumDiscountAmount) || null,
       benefitType,
       minimumOrderAmount: Number(campaign.minimumOrderAmount),
       expiresAt: campaign.expiresAt.toISOString(),

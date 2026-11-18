@@ -6,6 +6,7 @@ import { useEffect, useRef, useState } from 'react';
 import { formatCartQuantity } from '@/app/dashboard/cart-utils';
 import { storeErpRecipientHandoff } from '@/features/erp/customer-recipient-handoff';
 import { storeTrafficPeriodOptions } from '@/features/store-presence/periods';
+import { getCouponBenefitLabel } from '@/features/coupons/coupon-benefits.js';
 
 const money = (value) => `R$ ${Number(value || 0).toFixed(2).replace('.', ',')}`;
 const percent = (value) => `${Number(value || 0).toFixed(1).replace('.', ',')}%`;
@@ -331,7 +332,7 @@ function PromotionInsights({ promotions }) {
             {promotions.coupons.map((coupon) => <tr key={coupon.id}>
               <td><strong>{coupon.code}</strong><small>{coupon.recipients} destinatário(s)</small></td>
               <td>{coupon.expired ? 'Expirada' : 'Ativa'}</td>
-              <td>{coupon.discountPercent}%</td>
+              <td>{getCouponBenefitLabel(coupon.benefitType, coupon.discountPercent, coupon.discountAmount, coupon.maximumDiscountAmount)}</td>
               <td>{coupon.redemptions}</td>
               <td>{coupon.orders}</td>
               <td>{money(coupon.discount)}</td>

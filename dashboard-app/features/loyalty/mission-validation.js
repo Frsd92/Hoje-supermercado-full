@@ -1,6 +1,6 @@
 import { validateImageDataUrl } from '../../lib/image-data.js';
 import { normalizeLoyaltyMissionDestinationPath } from './mission-destinations.js';
-import { couponBenefitOptions } from '../coupons/coupon-benefits.js';
+import { normalizeCouponBenefit } from '../coupons/coupon-benefits.js';
 
 const allowedRuleTypes = new Set([
   'FIRST_PURCHASE',
@@ -12,7 +12,6 @@ const allowedRecurrences = new Set(['none', 'weekly']);
 const allowedExpiryPolicies = new Set(['CYCLE_END', 'DAYS_AFTER_AWARD', 'FIXED_DATE', 'NEVER']);
 const allowedMissionStatuses = new Set(['draft', 'active', 'paused', 'archived']);
 const maximumMissionImageBytes = 450_000;
-const allowedRewardBenefitTypes = new Set(couponBenefitOptions.map((option) => option.value));
 
 function readDate(value, label, optional = false) {
   if (optional && (value === null || value === undefined || value === '')) return null;
@@ -131,18 +130,17 @@ export function validateLoyaltyRewardPayload(body) {
   const name = String(body.name || '').trim();
   const description = String(body.description || '').trim();
   const pointsCost = parsePositiveInteger(body.pointsCost, 'O custo em pontos', 1_000_000);
-  const benefitType = String(body.benefitType || 'PERCENTAGE').trim();
-  const discountPercent = benefitType === 'PERCENTAGE'
-    ? parsePositiveInteger(body.discountPercent, 'O desconto percentual', 90)
-    : 0;
+  const benefit = normalizeCouponBenefit(body);
   const minimumOrderAmount = parseAmount(body.minimumOrderAmount ?? 0, 'O pedido mínimo', true);
   const validityDays = parsePositiveInteger(body.validityDays, 'A validade do cupom', 365);
   const active = body.active === undefined ? true : body.active;
 
   if (name.length < 3 || name.length > 80) throw new RangeError('O nome da recompensa deve ter entre 3 e 80 caracteres.');
   if (description.length > 300) throw new RangeError('A descrição pode ter no máximo 300 caracteres.');
-  if (!allowedRewardBenefitTypes.has(benefitType)) throw new RangeError('Selecione um tipo de cupom válido.');
+  if (benefit.benefitType === 'FIXED_AMOUNT' && pointsCost !== Math.round(benefit.discountAmount * 100)) {
+    throw new RangeError('O custo em pontos da recompensa de valor fixo deve corresponder ao valor do cupom.');
+  }
   if (typeof active !== 'boolean') throw new TypeError('O status da recompensa é inválido.');
 
-  return { name, description, pointsCost, discountPercent, benefitType, minimumOrderAmount, validityDays, active };
+  return { name, description, pointsCost, ...benefit, minimumOrderAmount, validityDays, active };
 }

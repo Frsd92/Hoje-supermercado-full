@@ -560,7 +560,10 @@ export async function GET(request) {
       return {
         id: campaign.id,
         code,
+        benefitType: campaign.benefitType || 'PERCENTAGE',
         discountPercent: campaign.discountPercent,
+        discountAmount: Number(campaign.discountAmount) || 0,
+        maximumDiscountAmount: Number(campaign.maximumDiscountAmount) || null,
         createdAt: campaign.createdAt,
         expiresAt: campaign.expiresAt,
         expired: campaign.expiresAt.getTime() <= now.getTime(),

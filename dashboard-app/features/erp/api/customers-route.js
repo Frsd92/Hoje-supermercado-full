@@ -107,6 +107,9 @@ export async function GET() {
         select: {
           code: true,
           discountPercent: true,
+          discountAmount: true,
+          maximumDiscountAmount: true,
+          benefitType: true,
           minimumOrderAmount: true,
           expiresAt: true,
           createdBy: true,

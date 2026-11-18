@@ -2688,7 +2688,23 @@ body {
 .loyalty-program-rules { margin-top: 28px; }
 .loyalty-program-rules > summary { color: var(--customer-coupon-text); font-weight: 800; cursor: pointer; }
 .loyalty-program-rules > summary:focus-visible { outline: 3px solid #d1a74f; outline-offset: 3px; }
-.loyalty-reward-card .customer-coupon-card-heading span { display: inline-flex; align-items: center; gap: 6px; }
+.loyalty-reward-card { border-color: #83aa8b; border-style: dashed; background: linear-gradient(145deg, var(--customer-coupon-surface), var(--customer-coupon-subtle)); }
+.loyalty-ticket-heading { display: flex; flex-wrap: wrap; align-items: center; justify-content: space-between; gap: 8px; padding-bottom: 12px; border-bottom: 1px dashed var(--customer-coupon-border); color: var(--customer-coupon-accent); }
+.loyalty-ticket-heading > span { display: inline-flex; align-items: center; gap: 6px; font-size: .78rem; font-weight: 800; }
+.loyalty-ticket-heading > strong { color: var(--customer-coupon-text); font-size: 1.08rem; text-align: right; }
+.loyalty-ticket-heading .loyalty-ticket-cost { padding: 5px 8px; border-radius: 999px; color: var(--customer-coupon-accent); background: var(--customer-coupon-subtle); font-size: .7rem; white-space: nowrap; }
+.loyalty-ticket-progress { display: grid; gap: 7px; }
+.loyalty-ticket-progress .loyalty-progress-track { height: 9px; }
+.loyalty-reward-card .loyalty-redeem-button { width: 100%; }
+.loyalty-previous-coupon-card { border-style: dashed; }
+.loyalty-expiry-alert { display: grid; grid-template-columns: 22px minmax(0, 1fr); align-items: start; gap: 10px; margin: 0 0 16px; padding: 13px 15px; border: 1px solid #dfc27e; border-radius: 12px; color: #674d13; background: #fff8e6; }
+.loyalty-expiry-alert svg { margin-top: 2px; }
+.loyalty-expiry-alert p { margin: 0; font-size: .82rem; line-height: 1.55; }
+.loyalty-expiry-alert.is-urgent { border-color: #e6a09a; color: #7a2822; background: #fff1ef; }
+.loyalty-redeem-button:focus-visible, .customer-coupon-actions button:focus-visible { outline: 3px solid #d1a74f; outline-offset: 3px; }
+.dashboard-shell[data-dashboard-theme="dark"] .loyalty-reward-card { border-color: #527a5b; }
+.dashboard-shell[data-dashboard-theme="dark"] .loyalty-expiry-alert { border-color: #75643c; color: #f3dfa9; background: #352f20; }
+.dashboard-shell[data-dashboard-theme="dark"] .loyalty-expiry-alert.is-urgent { border-color: #744343; color: #ffc1c1; background: #3b2525; }
 .loyalty-redeem-button { min-height: 42px; padding: 8px 12px; border: 1px solid #27663f; border-radius: 9px; color: #fff; background: #27663f; font: inherit; font-size: .78rem; font-weight: 800; cursor: pointer; }
 .loyalty-redeem-button:disabled { border-color: #a8b4aa; color: #66756a; background: #e7ede8; cursor: not-allowed; }
 .loyalty-feedback-actions { display: flex; flex-wrap: wrap; align-items: center; gap: 8px; margin-top: 8px; }
@@ -2806,6 +2822,8 @@ body {
   .loyalty-mission-list .loyalty-mission-card-layout:not(.is-compact) .loyalty-mission-thumb { width: 46px; height: 46px; }
   .loyalty-mission-list .loyalty-mission-card-layout.has-action:not(.is-compact) .loyalty-mission-action { grid-column: 1 / -1; justify-self: stretch; }
   .loyalty-mission-heading { flex-wrap: wrap; }
+  .loyalty-ticket-heading > strong { font-size: 1rem; text-align: left; }
+  .loyalty-expiry-alert { padding: 12px; }
   .loyalty-history-item { grid-template-columns: minmax(0, 1fr) auto; }
   .loyalty-history-item button { grid-column: 1 / -1; justify-self: start; }
   .loyalty-page-header-actions, .loyalty-erp-header-actions { justify-content: flex-start; }

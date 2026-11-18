@@ -162,3 +162,20 @@ test('counts waived delivery and service fees as benefits given by the campaign'
   assert.equal(report.benefitType, 'FREE_SERVICE_FEE');
   assert.equal(report.discountGiven, 5);
 });
+
+test('preserves fixed discount values and optional caps in campaign summaries', () => {
+  const report = summarizeCouponCampaign({
+    id: 'CPN-FIXED',
+    code: 'FIXO14',
+    benefitType: 'FIXED_AMOUNT',
+    discountAmount: '14.00',
+    discountPercent: 0,
+    maximumDiscountAmount: null,
+    expiresAt: new Date('2026-10-12T12:00:00.000Z'),
+    recipients: [],
+    redemptions: [],
+  }, [], now);
+
+  assert.equal(report.discountAmount, 14);
+  assert.equal(report.maximumDiscountAmount, null);
+});

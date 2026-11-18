@@ -53,8 +53,9 @@ export default function LoyaltyRulesPage() {
       <section id="pontos" className="loyalty-rules-section">
         <h2>3. Crédito e validade dos pontos</h2>
         <ul>
-          <li>Os pontos são creditados somente quando a meta da missão é atingida. A quantidade é a indicada na própria missão; não existe uma conversão fixa entre pontos e reais.</li>
+          <li>Os pontos são creditados somente quando a meta da missão é atingida. A quantidade é a indicada na própria missão; pontos não são dinheiro, não podem ser sacados nem transferidos.</li>
           <li>A validade depende da missão: pode terminar com o ciclo, ocorrer após um número de dias, usar uma data definida ou não expirar. Consulte o cartão da missão e o histórico do saldo.</li>
+          <li>O Dashboard exibe um aviso quando houver pontos com vencimento nos próximos 30 dias. Confira o prazo informado e resgate uma recompensa antes da expiração.</li>
           <li>Ao resgatar uma recompensa, o sistema usa primeiro os pontos que vencem antes.</li>
           <li>O extrato do Dashboard mostra créditos, resgates e datas de expiração. O saldo considera também estornos processados.</li>
         </ul>
@@ -74,9 +75,9 @@ export default function LoyaltyRulesPage() {
       <section id="resgates" className="loyalty-rules-section">
         <h2>5. Resgates e cupons</h2>
         <ul>
-          <li>Cada recompensa informa o custo em pontos, o benefício oferecido (desconto percentual, entrega grátis ou taxa de serviço zero), o pedido mínimo e a validade do cupom.</li>
+          <li>Cada recompensa informa o custo em pontos, o benefício oferecido (desconto percentual com ou sem limite máximo, valor fixo, entrega grátis ou taxa de serviço zero), o pedido mínimo e a validade do cupom.</li>
           <li>Ao confirmar o resgate, os pontos são debitados e o cupom é emitido para o e-mail da conta. O resgate é definitivo: pontos não são devolvidos se o cupom não for usado antes de expirar.</li>
-          <li>O cupom é pessoal, de uso único e precisa ser usado dentro da validade. Se houver pedido mínimo, ele é calculado sobre o subtotal antes do desconto do cupom.</li>
+          <li>O cupom é pessoal, de uso único e precisa ser usado até a data exibida após o resgate. Se houver pedido mínimo, ele é calculado sobre o subtotal antes do desconto do cupom; cupons percentuais também podem ter um desconto máximo indicado na oferta.</li>
           <li>É permitido usar um cupom por pedido. O desconto do cupom pode ser combinado com ofertas aplicadas aos produtos.</li>
           <li>Cupons emitidos continuam sujeitos às condições e à validade exibidas, mesmo que a recompensa deixe de estar disponível para novos resgates.</li>
         </ul>

@@ -9,6 +9,7 @@ import {
   orderServiceRequestType,
   orderServiceRequestTypeLabels,
 } from '@/features/orders/order-service-request-utils';
+import { getCouponBenefitLabel } from '@/features/coupons/coupon-benefits.js';
 
 const initialCustomers = [];
 
@@ -198,7 +199,7 @@ export default function ERPCustomersPage() {
           </div>
           {selected.coupons?.length ? <div className="customer-coupon-list">{selected.coupons.map((coupon) => (
             <article className="customer-coupon-card" key={coupon.code}>
-              <div><strong>{coupon.code}</strong><span>{coupon.discountPercent}% de desconto</span></div>
+              <div><strong>{coupon.code}</strong><span>{getCouponBenefitLabel(coupon.benefitType, coupon.discountPercent, coupon.discountAmount, coupon.maximumDiscountAmount)}</span></div>
               <span className={`customer-coupon-status ${coupon.status}`}>{({
                 available: 'Disponível',
                 expired: 'Expirado sem uso',

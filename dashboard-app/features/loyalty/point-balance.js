@@ -61,6 +61,48 @@ export function calculateLoyaltyPointBalance(entries, now = new Date()) {
   return currentAwardLots(entries, now).reduce((sum, lot) => sum + lot.remaining, 0);
 }
 
+export function getUpcomingLoyaltyPointExpiry(entries, now = new Date(), windowDays = 30) {
+  if (!Number.isInteger(windowDays) || windowDays < 1) throw new RangeError('Janela de aviso de expiração inválida.');
+  const instant = new Date(now);
+  const lots = currentAwardLots(entries, instant);
+  const activeCredits = lots
+    .filter((lot) => !lot.expired && lot.remaining > 0)
+    .sort((first, second) => {
+      const firstExpiry = first.expiresAt?.getTime() ?? Number.POSITIVE_INFINITY;
+      const secondExpiry = second.expiresAt?.getTime() ?? Number.POSITIVE_INFINITY;
+      return firstExpiry - secondExpiry
+        || first.createdAt.getTime() - second.createdAt.getTime()
+        || first.id.localeCompare(second.id);
+    })
+    .map((lot) => ({ ...lot, available: lot.remaining }));
+  let refundDebt = lots.reduce((sum, lot) => sum + Math.max(0, -lot.remaining), 0);
+
+  activeCredits.forEach((lot) => {
+    const offset = Math.min(refundDebt, lot.available);
+    lot.available -= offset;
+    refundDebt -= offset;
+  });
+
+  const deadline = instant.getTime() + windowDays * 24 * 60 * 60 * 1000;
+  const expiringCredits = activeCredits.filter((lot) => (
+    lot.expiresAt
+    && lot.expiresAt.getTime() > instant.getTime()
+    && lot.expiresAt.getTime() <= deadline
+    && lot.available > 0
+  ));
+  const expiresAt = expiringCredits[0]?.expiresAt || null;
+  const points = expiringCredits.reduce((sum, lot) => sum + lot.available, 0);
+
+  return {
+    points,
+    expiresAt: expiresAt?.toISOString() || null,
+    daysRemaining: expiresAt
+      ? Math.ceil((expiresAt.getTime() - instant.getTime()) / (24 * 60 * 60 * 1000))
+      : null,
+    windowDays,
+  };
+}
+
 export function planLoyaltyPointRedemption(entries, points, now = new Date()) {
   if (!Number.isInteger(points) || points < 1) throw new TypeError('Quantidade de pontos inválida.');
   const lots = currentAwardLots(entries, now);

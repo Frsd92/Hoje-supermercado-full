@@ -58,6 +58,86 @@ test('returns active customer missions and all active rewards with the mission d
   assert.equal(snapshot.missions.length, 1);
   assert.equal(snapshot.missions[0].destinationPath, mission.destinationPath);
   assert.deepEqual(snapshot.rewards.map((reward) => reward.name), ['tesla10', 'Cupom de 10%']);
+  assert.deepEqual(snapshot.expiringPoints, {
+    points: 0,
+    expiresAt: null,
+    daysRemaining: null,
+    windowDays: 30,
+  });
+});
+
+test('reports net points nearing expiry and the status of previously redeemed coupons', async () => {
+  const now = new Date('2026-10-08T12:00:00.000Z');
+  const redemptionAt = new Date('2026-10-07T12:00:00.000Z');
+  const campaignExpiry = new Date('2026-11-07T12:00:00.000Z');
+  const pointEntries = [
+    {
+      id: 'redemption-entry',
+      type: 'REDEMPTION',
+      points: -100,
+      description: 'Resgate: Cupom de R$ 3',
+      createdAt: redemptionAt,
+      expiresAt: null,
+      awardsAllocations: [],
+      spendsAllocations: [{ points: 100 }],
+      rewardRedemption: {
+        reward: { name: 'Cupom de R$ 3' },
+        couponCampaign: {
+          id: 'CPN-1',
+          code: 'PNT123',
+          expiresAt: campaignExpiry,
+          discountPercent: 0,
+          discountAmount: 3,
+          maximumDiscountAmount: null,
+          benefitType: 'FIXED_AMOUNT',
+          minimumOrderAmount: 30,
+        },
+      },
+    },
+    {
+      id: 'award-entry',
+      type: 'MISSION_AWARD',
+      points: 500,
+      description: 'Missão concluída',
+      createdAt: redemptionAt,
+      expiresAt: new Date('2026-10-28T12:00:00.000Z'),
+      sourceOrder: null,
+      awardsAllocations: [{ points: 100 }],
+      spendsAllocations: [],
+      rewardRedemption: null,
+    },
+  ];
+  const transaction = {
+    loyaltyMission: { findMany: async () => [] },
+    loyaltyMissionProgress: { findMany: async () => [] },
+    loyaltyPointEntry: { findMany: async () => pointEntries },
+    loyaltyReward: { findMany: async () => [] },
+    couponRedemption: {
+      findMany: async ({ where }) => {
+        assert.deepEqual(where, { campaignId: { in: ['CPN-1'] }, email: 'cliente@example.com' });
+        return [{ campaignId: 'CPN-1', orderId: 'ORDER-1', createdAt: redemptionAt }];
+      },
+    },
+    order: {
+      findMany: async ({ where }) => {
+        assert.deepEqual(where.id.in, ['ORDER-1']);
+        return [{ id: 'ORDER-1', status: 'Concluido', paymentStatus: 'paid' }];
+      },
+    },
+  };
+
+  const snapshot = await getCustomerLoyaltySnapshot(transaction, 'cliente@example.com', now);
+
+  assert.equal(snapshot.balance, 400);
+  assert.deepEqual(snapshot.expiringPoints, {
+    points: 400,
+    expiresAt: '2026-10-28T12:00:00.000Z',
+    daysRemaining: 20,
+    windowDays: 30,
+  });
+  assert.equal(snapshot.history[0].coupon.status, 'redeemed');
+  assert.equal(snapshot.history[0].coupon.discountAmount, 3);
+  assert.equal(snapshot.history[0].couponCode, 'PNT123');
 });
 
 test('awards a completed mission once and caps its global reward count', async () => {

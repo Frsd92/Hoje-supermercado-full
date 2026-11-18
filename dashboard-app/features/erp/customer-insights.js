@@ -60,6 +60,9 @@ export function getCustomerCouponInsights(campaigns, customerOrders, customerEma
     return [{
       code: campaign.code,
       discountPercent: campaign.discountPercent,
+      discountAmount: Number(campaign.discountAmount) || 0,
+      maximumDiscountAmount: Number(campaign.maximumDiscountAmount) || null,
+      benefitType: campaign.benefitType || 'PERCENTAGE',
       minimumOrderAmount: Number(campaign.minimumOrderAmount),
       expiresAt: campaign.expiresAt,
       status,

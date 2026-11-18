@@ -115,7 +115,9 @@ export default function OrderReceipt({ order }) {
       {(receipt.couponCode || receipt.couponDiscountAmount > 0) && <div className="order-receipt-discount">
         <dt>Cupom aplicado {receipt.couponCode && <span>({receipt.couponCode})</span>}{receipt.couponBenefitType === 'FREE_DELIVERY' || receipt.couponBenefitType === 'FREE_SERVICE_FEE'
           ? <span> · {getCouponBenefitLabel(receipt.couponBenefitType, receipt.couponDiscountPercent)}</span>
-          : receipt.couponDiscountPercent > 0 && <span> · {receipt.couponDiscountPercent}%</span>}</dt>
+          : receipt.couponBenefitType === 'FIXED_AMOUNT'
+            ? <span> · {getCouponBenefitLabel(receipt.couponBenefitType, receipt.couponDiscountPercent, receipt.couponDiscountAmount)}</span>
+            : receipt.couponDiscountPercent > 0 && <span> · {receipt.couponDiscountPercent}%</span>}</dt>
         {receipt.couponBenefitType === 'FREE_DELIVERY' || receipt.couponBenefitType === 'FREE_SERVICE_FEE'
           ? <dd>Taxa zerada{receipt.couponFeeSavings > 0 ? ` · economia ${money(receipt.couponFeeSavings)}` : ''}</dd>
           : <dd>−{money(receipt.couponDiscountAmount)}</dd>}

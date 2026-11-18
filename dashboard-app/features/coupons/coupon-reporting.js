@@ -126,6 +126,10 @@ export function summarizeCouponCampaign(campaign, sourceOrders = [], now = new D
     id: campaign.id,
     code,
     discountPercent: Number(campaign.discountPercent),
+    discountAmount: roundMoney(Math.max(0, parseMoney(campaign.discountAmount))),
+    maximumDiscountAmount: campaign.maximumDiscountAmount === null || campaign.maximumDiscountAmount === undefined
+      ? null
+      : roundMoney(Math.max(0, parseMoney(campaign.maximumDiscountAmount))),
     benefitType: campaign.benefitType || 'PERCENTAGE',
     minimumOrderAmount: roundMoney(Math.max(0, parseMoney(campaign.minimumOrderAmount))),
     message: campaign.message,

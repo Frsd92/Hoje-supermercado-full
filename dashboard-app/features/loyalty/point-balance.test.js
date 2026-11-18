@@ -2,6 +2,7 @@ import test from 'node:test';
 import assert from 'node:assert/strict';
 import {
   calculateLoyaltyPointBalance,
+  getUpcomingLoyaltyPointExpiry,
   getRefundAdjustedAwardPoints,
   planLoyaltyPointRedemption,
 } from './point-balance.js';
@@ -58,6 +59,27 @@ test('redemption allocations consume the soonest-expiring points after refund de
     { awardEntryId: 'soon', points: 10 },
   ]);
   assert.equal(planLoyaltyPointRedemption(entries, 61, now), null);
+});
+
+test('warns only about unspent points expiring soon after refunds and debt', () => {
+  const entries = [
+    award({ id: 'debt', points: 80, refundedAmount: 'R$ 50,00', consumed: 60 }),
+    award({ id: 'soon', points: 50, expiresAt: '2026-10-18T12:00:00.000Z', consumed: 5 }),
+    award({ id: 'later', points: 30, expiresAt: '2026-11-20T12:00:00.000Z' }),
+  ];
+
+  assert.deepEqual(getUpcomingLoyaltyPointExpiry(entries, now), {
+    points: 25,
+    expiresAt: '2026-10-18T12:00:00.000Z',
+    daysRemaining: 10,
+    windowDays: 30,
+  });
+  assert.deepEqual(getUpcomingLoyaltyPointExpiry([], now), {
+    points: 0,
+    expiresAt: null,
+    daysRemaining: null,
+    windowDays: 30,
+  });
 });
 
 test('requires every redemption debit to have matching point-lot allocations', () => {

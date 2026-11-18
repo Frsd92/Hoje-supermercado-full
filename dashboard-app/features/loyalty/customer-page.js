@@ -62,10 +62,20 @@ export default function CustomerLoyaltyPage() {
       });
       const data = await response.json();
       if (!response.ok) throw new Error(data.error || 'Não foi possível resgatar esta recompensa.');
+      const expiresAt = data.redemption.expiresAt
+        ? formatDate(data.redemption.expiresAt)
+        : '—';
+      const minimumOrderAmount = Number(data.redemption.minimumOrderAmount) || 0;
+      const benefitLabel = getCouponBenefitLabel(
+        data.redemption.benefitType,
+        data.redemption.discountPercent,
+        data.redemption.discountAmount,
+        data.redemption.maximumDiscountAmount,
+      );
       setFeedback({
         error: false,
         code: data.redemption.code,
-        message: `Você resgatou ${reward.name}. Seu cupom ${data.redemption.code} já está disponível.`,
+        message: `Você resgatou ${reward.name}: ${benefitLabel}. O cupom ${data.redemption.code} é válido até ${expiresAt}.${minimumOrderAmount > 0 ? ` Pedido mínimo: ${currencyFormatter.format(minimumOrderAmount)}.` : ''}`,
       });
       await loadSnapshot(false);
     } catch (redeemError) {
@@ -96,6 +106,9 @@ export default function CustomerLoyaltyPage() {
   const rewards = snapshot?.rewards || [];
   const pointsProgress = getPointsProgressToNextReward(balance, rewards);
   const history = snapshot?.history || [];
+  const previousCoupons = history.filter((entry) => entry.coupon);
+  const expiringPoints = snapshot?.expiringPoints;
+  const showExpiryNotice = !loading && !error && Number(expiringPoints?.points) > 0;
   const availableMissions = missions.filter((mission) => !mission.completedAt && !mission.soldOut);
   const completedMissions = missions.filter((mission) => Boolean(mission.completedAt));
   const missionFilterOptions = [
@@ -154,6 +167,15 @@ export default function CustomerLoyaltyPage() {
       </div>
     </section>
 
+    {showExpiryNotice && <aside
+      className={`loyalty-expiry-alert${expiringPoints.daysRemaining <= 7 ? ' is-urgent' : ''}`}
+      role={expiringPoints.daysRemaining <= 7 ? 'alert' : 'status'}
+      aria-live={expiringPoints.daysRemaining <= 7 ? 'assertive' : 'polite'}
+    >
+      <Clock3 size={18} aria-hidden="true" />
+      <p><strong>Atenção: seus pontos têm prazo.</strong> Até {Number(expiringPoints.points).toLocaleString('pt-BR')} pontos podem expirar nos próximos {expiringPoints.windowDays} dias. O primeiro vencimento é {formatDate(expiringPoints.expiresAt)}{expiringPoints.daysRemaining === 0 ? ' (hoje)' : ` (em ${expiringPoints.daysRemaining} dias)`}. Resgate uma recompensa antes dessa data.</p>
+    </aside>}
+
     <section className="customer-coupon-summary loyalty-balance-summary" aria-label="Resumo de fidelidade">
       <div><Sparkles size={18} aria-hidden="true" /><span>Em andamento</span><strong>{availableMissions.length}</strong></div>
       <div><Gift size={18} aria-hidden="true" /><span>Recompensas</span><strong>{rewards.length}</strong></div>
@@ -163,6 +185,7 @@ export default function CustomerLoyaltyPage() {
     <nav className="loyalty-customer-nav" aria-label="Navegação de Missões e pontos">
       <a href="#loyalty-missions">Missões <span>{missions.length}</span></a>
       <a href="#loyalty-rewards">Recompensas <span>{rewards.length}</span></a>
+      <a href="#loyalty-past-coupons">Cupons anteriores <span>{previousCoupons.length}</span></a>
       <a href="#loyalty-history">Histórico <span>{history.length}</span></a>
     </nav>
 
@@ -217,13 +240,38 @@ export default function CustomerLoyaltyPage() {
         : rewards.length ? <div className="loyalty-card-grid">
           {rewards.map((reward) => {
             const canRedeem = balance >= reward.pointsCost;
+            const progressPoints = Math.max(0, Math.min(Number(reward.pointsCost) || 0, balance));
+            const progressPercent = reward.pointsCost > 0
+              ? Math.min(100, progressPoints / reward.pointsCost * 100)
+              : 0;
+            const benefitLabel = getCouponBenefitLabel(
+              reward.benefitType,
+              reward.discountPercent,
+              reward.discountAmount,
+              reward.maximumDiscountAmount,
+            );
             return <article className="customer-coupon-card loyalty-reward-card" key={reward.id}>
-              <div className="customer-coupon-card-heading"><span><Gift size={16} aria-hidden="true" />Cupom de recompensa</span><strong>{getCouponBenefitLabel(reward.benefitType, reward.discountPercent)}</strong></div>
+              <div className="loyalty-ticket-heading">
+                <span><Gift size={16} aria-hidden="true" />Cupom de recompensa</span>
+                <strong>{benefitLabel}</strong>
+                <span className="loyalty-ticket-cost">{reward.pointsCost.toLocaleString('pt-BR')} pontos</span>
+              </div>
               <h3>{reward.name}</h3>
-              <p className="customer-coupon-card-message">{reward.description || `Cupom de ${getCouponBenefitLabel(reward.benefitType, reward.discountPercent)}.`}</p>
+              <p className="customer-coupon-card-message">{reward.description || `Cupom de ${benefitLabel}.`}</p>
+              <div className="loyalty-ticket-progress">
+                <div className="loyalty-progress-label"><span>Seu progresso</span><strong>{balance.toLocaleString('pt-BR')} / {reward.pointsCost.toLocaleString('pt-BR')} pontos</strong></div>
+                <div
+                  className="loyalty-progress-track"
+                  role="progressbar"
+                  aria-label={`Progresso para resgatar ${reward.name}`}
+                  aria-valuemin="0"
+                  aria-valuemax={reward.pointsCost}
+                  aria-valuenow={progressPoints}
+                  aria-valuetext={canRedeem ? 'Pronto para resgatar' : `Faltam ${(reward.pointsCost - balance).toLocaleString('pt-BR')} pontos`}
+                ><span style={{ width: `${progressPercent}%` }} /></div>
+              </div>
               <dl className="customer-coupon-dates">
-                <div><dt>Custo</dt><dd>{reward.pointsCost.toLocaleString('pt-BR')} pontos</dd></div>
-                <div><dt>Pedido mínimo</dt><dd>{currencyFormatter.format(Number(reward.minimumOrderAmount))}</dd></div>
+                <div><dt>Pedido mínimo</dt><dd>{Number(reward.minimumOrderAmount) > 0 ? currencyFormatter.format(Number(reward.minimumOrderAmount)) : 'Sem mínimo'}</dd></div>
                 <div><dt>Validade</dt><dd>{reward.validityDays} dias após resgatar</dd></div>
               </dl>
               <button
@@ -239,6 +287,46 @@ export default function CustomerLoyaltyPage() {
         </div> : <div className="customer-coupon-empty"><p>As recompensas serão exibidas aqui quando estiverem disponíveis.</p></div>}
     </section>
 
+    <section className="loyalty-section" id="loyalty-past-coupons" aria-labelledby="loyalty-past-coupons-heading">
+      <div className="loyalty-section-heading">
+        <div><span className="orders-kicker">Seus resgates</span><h2 id="loyalty-past-coupons-heading">Cupons anteriores</h2></div>
+      </div>
+      {loading ? <div className="favorites-loading" role="status"><span className="favorites-loading-indicator" />Carregando cupons anteriores...</div>
+        : previousCoupons.length ? <div className="loyalty-card-grid">
+        {previousCoupons.map((entry) => {
+          const coupon = entry.coupon;
+          const statusLabels = {
+            available: 'Disponível',
+            processing: 'Pedido em andamento',
+            redeemed: 'Usado',
+            expired: 'Expirado',
+          };
+          const benefitLabel = getCouponBenefitLabel(
+            coupon.benefitType,
+            coupon.discountPercent,
+            coupon.discountAmount,
+            coupon.maximumDiscountAmount,
+          );
+          return <article className="customer-coupon-card loyalty-previous-coupon-card" key={entry.id}>
+            <div className="customer-coupon-card-heading">
+              <span><TicketPercent size={16} aria-hidden="true" />{benefitLabel}</span>
+              <strong className={`customer-coupon-status status-${coupon.status}`}>{statusLabels[coupon.status] || 'Situação não identificada'}</strong>
+            </div>
+            <h3>{entry.description.replace(/^Resgate:\s*/, '')}</h3>
+            <div className="customer-coupon-code"><span>Código do cupom</span><strong>{coupon.code}</strong></div>
+            <dl className="customer-coupon-dates">
+              <div><dt>Pedido mínimo</dt><dd>{Number(coupon.minimumOrderAmount) > 0 ? currencyFormatter.format(Number(coupon.minimumOrderAmount)) : 'Sem mínimo'}</dd></div>
+              <div><dt>Válido até</dt><dd>{formatDate(coupon.expiresAt)}</dd></div>
+            </dl>
+            {coupon.status === 'available' && <div className="customer-coupon-actions">
+              <button className="customer-coupon-use" type="button" onClick={() => useCoupon(coupon.code)}><TicketPercent size={14} aria-hidden="true" />Usar no carrinho</button>
+              <button className="customer-coupon-copy" type="button" onClick={() => void copyCode(coupon.code)}><Copy size={14} aria-hidden="true" />Copiar código</button>
+            </div>}
+          </article>;
+        })}
+        </div> : <div className="customer-coupon-empty"><p>Seus cupons resgatados aparecerão aqui.</p></div>}
+    </section>
+
     <section className="loyalty-section" id="loyalty-history" aria-labelledby="loyalty-history-heading">
       <div className="loyalty-section-heading">
         <div><span className="orders-kicker">Seu extrato</span><h2 id="loyalty-history-heading">Histórico de pontos</h2></div>
@@ -248,7 +336,7 @@ export default function CustomerLoyaltyPage() {
           {history.map((entry) => <article className="loyalty-history-item" key={entry.id}>
             <div><strong>{historyDescription(entry)}</strong><small>{entry.expiresAt ? `Validade: ${formatDate(entry.expiresAt)}` : 'Sem data de expiração'}</small></div>
             <span className={entry.points < 0 ? 'negative' : ''}>{entry.points > 0 ? '+' : ''}{entry.points.toLocaleString('pt-BR')} pts</span>
-            {entry.couponCode && <button type="button" onClick={() => useCoupon(entry.couponCode)}>Usar {entry.couponCode}</button>}
+            {entry.couponCode && entry.coupon?.status === 'available' && <button type="button" onClick={() => useCoupon(entry.couponCode)}>Usar {entry.couponCode}</button>}
           </article>)}
         </div> : <div className="customer-coupon-empty"><p>Suas movimentações de pontos aparecerão aqui.</p></div>}
     </section>
@@ -258,8 +346,8 @@ export default function CustomerLoyaltyPage() {
       <ul>
         <li>Os pontos são creditados quando o pedido é concluído; pedidos cancelados não pontuam.</li>
         <li>Estornos ajustam proporcionalmente os pontos da compra e podem deixar saldo negativo, compensado por pontos futuros.</li>
-        <li>Confira o prazo de cada missão: os pontos podem expirar conforme as regras do desafio.</li>
-        <li>Ao resgatar, você recebe um cupom pessoal de uso único, sujeito ao pedido mínimo indicado.</li>
+        <li>Confira o prazo de cada missão: os pontos podem expirar conforme as regras do desafio. O Dashboard avisa quando houver pontos próximos do vencimento.</li>
+        <li>Ao resgatar, você recebe um cupom pessoal de uso único. A data para usar e o pedido mínimo, quando houver, aparecem no cupom.</li>
       </ul>
     </details>
 
