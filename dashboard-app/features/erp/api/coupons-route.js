@@ -4,7 +4,11 @@ import { authOptions } from '@/auth';
 import { erpActorLabel, hasErpAccess } from '@/features/erp/access';
 import { prisma } from '@/lib/prisma';
 import { summarizeCouponCampaign } from '@/features/coupons/coupon-reporting';
-import { getCouponBenefitLabel, normalizeCouponBenefit } from '@/features/coupons/coupon-benefits';
+import {
+  getCouponBenefitLabel,
+  normalizeCouponBenefit,
+  normalizeCouponMinimumOrderAmount,
+} from '@/features/coupons/coupon-benefits';
 
 export async function GET() {
   const session = await getServerSession(authOptions);
@@ -69,8 +73,10 @@ export async function POST(request) {
   const body = await request.json();
   const code = String(body?.code || '').trim().toUpperCase();
   let benefit;
+  let minimumOrderAmount;
   try {
     benefit = normalizeCouponBenefit(body);
+    minimumOrderAmount = normalizeCouponMinimumOrderAmount(body);
   } catch (error) {
     if (error instanceof RangeError) return Response.json({ error: error.message }, { status: 400 });
     throw error;
@@ -101,9 +107,10 @@ export async function POST(request) {
       if (existingCampaign.benefitType !== benefitType
         || existingCampaign.discountPercent !== discountPercent
         || Number(existingCampaign.discountAmount) !== discountAmount
-        || (Number(existingCampaign.maximumDiscountAmount) || null) !== maximumDiscountAmount) {
+        || (Number(existingCampaign.maximumDiscountAmount) || null) !== maximumDiscountAmount
+        || Number(existingCampaign.minimumOrderAmount) !== minimumOrderAmount) {
         return Response.json({
-          error: `O cupom ${code} já existe como ${getCouponBenefitLabel(existingCampaign.benefitType, existingCampaign.discountPercent, existingCampaign.discountAmount, existingCampaign.maximumDiscountAmount)}. Para manter o código, use o mesmo benefício.`,
+          error: `O cupom ${code} já existe como ${getCouponBenefitLabel(existingCampaign.benefitType, existingCampaign.discountPercent, existingCampaign.discountAmount, existingCampaign.maximumDiscountAmount)}${Number(existingCampaign.minimumOrderAmount) > 0 ? ` com pedido mínimo de R$ ${Number(existingCampaign.minimumOrderAmount).toFixed(2).replace('.', ',')}` : ''}. Para manter o código, use as mesmas condições.`,
         }, { status: 409 });
       }
 
@@ -126,6 +133,7 @@ export async function POST(request) {
           discountAmount: Number(existingCampaign.discountAmount),
           maximumDiscountAmount: Number(existingCampaign.maximumDiscountAmount) || null,
           benefitType: existingCampaign.benefitType,
+          minimumOrderAmount: Number(existingCampaign.minimumOrderAmount) || 0,
           expiresAt: existingCampaign.expiresAt,
           createdAt: existingCampaign.createdAt,
           recipientsCount: existingCampaign.recipients.length + addedRecipients.count,
@@ -139,12 +147,19 @@ export async function POST(request) {
     const createdAt = new Date();
     const expiresAt = new Date(createdAt.getTime() + durationDays * 86400000).toISOString();
     const campaignId = `CPN-${randomUUID()}`;
-    const couponMessage = [`Você recebeu ${getCouponBenefitLabel(benefitType, discountPercent, discountAmount, maximumDiscountAmount)}!`, `Use o cupom ${code} na finalização da compra.`, message, `Válido até ${new Date(expiresAt).toLocaleDateString('pt-BR')}.`].filter(Boolean).join(' ');
+    const couponMessage = [
+      `Você recebeu ${getCouponBenefitLabel(benefitType, discountPercent, discountAmount, maximumDiscountAmount)}!`,
+      `Use o cupom ${code} na finalização da compra.`,
+      minimumOrderAmount > 0 ? `Pedido mínimo: R$ ${minimumOrderAmount.toFixed(2).replace('.', ',')}.` : '',
+      message,
+      `Válido até ${new Date(expiresAt).toLocaleDateString('pt-BR')}.`,
+    ].filter(Boolean).join(' ');
     await prisma.couponCampaign.create({
       data: {
         id: campaignId,
         code,
         ...benefit,
+        minimumOrderAmount,
         message: couponMessage,
         expiresAt: new Date(expiresAt),
         createdBy: erpActorLabel(session.user),
@@ -161,6 +176,7 @@ export async function POST(request) {
         id: campaignId,
         code,
         ...benefit,
+        minimumOrderAmount,
         expiresAt,
         createdAt: createdAt.toISOString(),
         recipientsCount: recipients.length,

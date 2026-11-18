@@ -1,6 +1,9 @@
 import { validateImageDataUrl } from '../../lib/image-data.js';
 import { normalizeLoyaltyMissionDestinationPath } from './mission-destinations.js';
-import { normalizeCouponBenefit } from '../coupons/coupon-benefits.js';
+import {
+  normalizeCouponBenefit,
+  normalizeCouponMinimumOrderAmount,
+} from '../coupons/coupon-benefits.js';
 
 const allowedRuleTypes = new Set([
   'FIRST_PURCHASE',
@@ -8,7 +11,7 @@ const allowedRuleTypes = new Set([
   'PURCHASE_FREQUENCY',
   'CATEGORY_SPEND',
 ]);
-const allowedRecurrences = new Set(['none', 'weekly']);
+const allowedRecurrences = new Set(['none', 'weekly', 'after_days']);
 const allowedExpiryPolicies = new Set(['CYCLE_END', 'DAYS_AFTER_AWARD', 'FIXED_DATE', 'NEVER']);
 const allowedMissionStatuses = new Set(['draft', 'active', 'paused', 'archived']);
 const maximumMissionImageBytes = 450_000;
@@ -72,6 +75,9 @@ export function validateLoyaltyMissionPayload(body, { now = new Date(), statusRe
   const targetCount = ruleType === 'FIRST_PURCHASE'
     ? 1
     : parsePositiveInteger(body.targetCount ?? 1, 'A meta de compras', 10_000);
+  const recurrenceDays = recurrence === 'after_days'
+    ? parsePositiveInteger(body.recurrenceDays, 'O intervalo para repetir a missão', 3650)
+    : 0;
   const targetAmount = ['MINIMUM_SPEND', 'CATEGORY_SPEND'].includes(ruleType)
     ? parseAmount(body.targetAmount, 'A meta de valor')
     : 0;
@@ -88,14 +94,14 @@ export function validateLoyaltyMissionPayload(body, { now = new Date(), statusRe
   if (!allowedExpiryPolicies.has(pointsExpiryPolicy)) throw new RangeError('Selecione uma validade de pontos válida.');
   if (!allowedMissionStatuses.has(status)) throw new RangeError('Selecione um status de missão válido.');
   if (ruleType === 'FIRST_PURCHASE' && recurrence !== 'none') {
-    throw new RangeError('A missão de primeira compra não pode se repetir semanalmente.');
+    throw new RangeError('A missão de primeira compra não pode se repetir.');
   }
   if (endsAt && endsAt <= startsAt) throw new RangeError('A data final deve ser posterior à data inicial.');
   if (status === 'active' && endsAt && endsAt <= now) throw new RangeError('Uma missão com prazo encerrado não pode ser ativada.');
   if (ruleType === 'CATEGORY_SPEND' && (category.length < 2 || category.length > 80)) {
     throw new RangeError('Informe a categoria de produtos da missão.');
   }
-  if (pointsExpiryPolicy === 'CYCLE_END' && recurrence !== 'weekly' && !endsAt) {
+  if (pointsExpiryPolicy === 'CYCLE_END' && !['weekly', 'after_days'].includes(recurrence) && !endsAt) {
     throw new RangeError('Para expirar no fim do ciclo, defina o encerramento da missão ou use uma missão semanal.');
   }
   if (pointsExpiryPolicy === 'FIXED_DATE') {
@@ -115,6 +121,7 @@ export function validateLoyaltyMissionPayload(body, { now = new Date(), statusRe
     pointsReward,
     rewardLimit,
     recurrence,
+    recurrenceDays,
     startsAt,
     endsAt,
     pointsExpiryPolicy,
@@ -131,8 +138,14 @@ export function validateLoyaltyRewardPayload(body) {
   const description = String(body.description || '').trim();
   const pointsCost = parsePositiveInteger(body.pointsCost, 'O custo em pontos', 1_000_000);
   const benefit = normalizeCouponBenefit(body);
-  const minimumOrderAmount = parseAmount(body.minimumOrderAmount ?? 0, 'O pedido mínimo', true);
+  const minimumOrderAmount = normalizeCouponMinimumOrderAmount(body);
   const validityDays = parsePositiveInteger(body.validityDays, 'A validade do cupom', 365);
+  const cooldownValue = body.cooldownDays === null || body.cooldownDays === undefined || body.cooldownDays === ''
+    ? 0
+    : Number(body.cooldownDays);
+  const cooldownDays = cooldownValue === 0
+    ? 0
+    : parsePositiveInteger(cooldownValue, 'O intervalo para novo resgate', 3650);
   const active = body.active === undefined ? true : body.active;
 
   if (name.length < 3 || name.length > 80) throw new RangeError('O nome da recompensa deve ter entre 3 e 80 caracteres.');
@@ -142,5 +155,5 @@ export function validateLoyaltyRewardPayload(body) {
   }
   if (typeof active !== 'boolean') throw new TypeError('O status da recompensa é inválido.');
 
-  return { name, description, pointsCost, ...benefit, minimumOrderAmount, validityDays, active };
+  return { name, description, pointsCost, ...benefit, minimumOrderAmount, validityDays, cooldownDays, active };
 }

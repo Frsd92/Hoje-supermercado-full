@@ -935,6 +935,7 @@ model LoyaltyMission {
   rewardLimit        Int?
   claimedRewards     Int                          @default(0)
   recurrence         String                       @default("none")
+  recurrenceDays     Int                          @default(0)
   startsAt           DateTime
   endsAt             DateTime?
   pointsExpiryPolicy String                       @default("CYCLE_END")
@@ -1001,6 +1002,7 @@ model LoyaltyReward {
   maximumDiscountAmount Decimal?                  @db.Decimal(12, 2)
   benefitType           String                    @default("PERCENTAGE")
   minimumOrderAmount    Decimal                   @default(0) @db.Decimal(12, 2)
+  cooldownDays          Int                       @default(0)
   validityDays          Int
   active                Boolean                   @default(true)
   createdBy             String
@@ -1017,6 +1019,7 @@ model LoyaltyRewardRedemption {
   rewardId         String
   couponCampaignId String             @unique
   pointsCost       Int
+  cooldownDays     Int                @default(0)
   createdAt        DateTime           @default(now())
   reward           LoyaltyReward      @relation(fields: [rewardId], references: [id], onDelete: Restrict)
   couponCampaign   CouponCampaign     @relation(fields: [couponCampaignId], references: [id], onDelete: Restrict)

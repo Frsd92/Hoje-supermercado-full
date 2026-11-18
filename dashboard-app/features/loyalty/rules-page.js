@@ -41,10 +41,11 @@ export default function LoyaltyRulesPage() {
         <h2>2. Missões e ciclos</h2>
         <p>As missões ativas podem pedir uma primeira compra, um valor acumulado em compras, uma quantidade de pedidos concluídos ou compras em uma categoria específica. Cada cartão mostra a meta, a recompensa e o progresso considerado.</p>
         <ul>
-          <li><strong>Primeira compra:</strong> pode ser concluída uma vez por cliente e não se repete semanalmente.</li>
+          <li><strong>Primeira compra:</strong> pode ser concluída uma vez por cliente e não se repete.</li>
           <li><strong>Valor ou categoria:</strong> o progresso soma os valores elegíveis dentro do ciclo. O valor considera os descontos aplicados; para uma missão por categoria, contam os produtos dessa categoria.</li>
           <li><strong>Frequência:</strong> cada pedido elegível concluído conta para a meta de quantidade.</li>
           <li><strong>Missão semanal:</strong> o ciclo reinicia automaticamente toda segunda-feira à meia-noite, no horário de Brasília (São Paulo). Uma mesma pessoa pode concluir aquela missão uma vez por ciclo.</li>
+          <li><strong>Missão com intervalo:</strong> após concluir, aguarde o número de dias exibido no cartão para começar uma nova rodada. Enquanto isso, o cartão mostra a data em que ela volta.</li>
           <li>Missões de ciclo único não reiniciam. Quando uma missão tiver limite total de recompensas, a quantidade restante aparece no cartão; ao esgotar, ela deixa de conceder pontos.</li>
         </ul>
         <p>Quando uma missão precisa de mais de um pedido para ser concluída, os pontos de missões por valor são distribuídos proporcionalmente entre os pedidos que contribuíram; em missões por quantidade de pedidos, são distribuídos igualmente entre eles.</p>
@@ -75,9 +76,10 @@ export default function LoyaltyRulesPage() {
       <section id="resgates" className="loyalty-rules-section">
         <h2>5. Resgates e cupons</h2>
         <ul>
-          <li>Cada recompensa informa o custo em pontos, o benefício oferecido (desconto percentual com ou sem limite máximo, valor fixo, entrega grátis ou taxa de serviço zero), o pedido mínimo e a validade do cupom.</li>
+          <li>Cada recompensa informa o custo em pontos, o benefício oferecido (desconto percentual com ou sem limite máximo, valor fixo, entrega grátis ou taxa de serviço zero), se há pedido mínimo, a validade do cupom e o intervalo para um novo resgate, quando configurado.</li>
           <li>Ao confirmar o resgate, os pontos são debitados e o cupom é emitido para o e-mail da conta. O resgate é definitivo: pontos não são devolvidos se o cupom não for usado antes de expirar.</li>
           <li>O cupom é pessoal, de uso único e precisa ser usado até a data exibida após o resgate. Se houver pedido mínimo, ele é calculado sobre o subtotal antes do desconto do cupom; cupons percentuais também podem ter um desconto máximo indicado na oferta.</li>
+          <li>Se a recompensa tiver intervalo entre resgates, os cupons anteriores mostram quando você poderá trocar essa mesma recompensa novamente por pontos.</li>
           <li>É permitido usar um cupom por pedido. O desconto do cupom pode ser combinado com ofertas aplicadas aos produtos.</li>
           <li>Cupons emitidos continuam sujeitos às condições e à validade exibidas, mesmo que a recompensa deixe de estar disponível para novos resgates.</li>
         </ul>

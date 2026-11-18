@@ -17,8 +17,34 @@ import {
 import { getCouponRecipientStatus } from '../coupons/coupon-reporting.js';
 import { getCouponBenefitLabel } from '../coupons/coupon-benefits.js';
 
+const dayMs = 24 * 60 * 60 * 1000;
+
 function normalizeEmail(value) {
   return String(value || '').trim().toLowerCase();
+}
+
+function getRewardCooldownState(redemption, now) {
+  if (!redemption) {
+    return { cooldownDays: 0, cooldownActive: false, daysRemaining: 0, availableAgainAt: null };
+  }
+  const cooldownDays = Number(redemption.cooldownDays);
+  const createdAt = new Date(redemption.createdAt);
+  const nowAt = new Date(now);
+  if (!Number.isInteger(cooldownDays) || cooldownDays < 0
+    || !Number.isFinite(createdAt.getTime()) || !Number.isFinite(nowAt.getTime())) {
+    throw new TypeError('Os dados do intervalo de resgate são inválidos.');
+  }
+  if (cooldownDays === 0) {
+    return { cooldownDays, cooldownActive: false, daysRemaining: 0, availableAgainAt: null };
+  }
+  const availableAgainAt = new Date(createdAt.getTime() + cooldownDays * dayMs);
+  const cooldownActive = nowAt < availableAgainAt;
+  return {
+    cooldownDays,
+    cooldownActive,
+    daysRemaining: cooldownActive ? Math.ceil((availableAgainAt.getTime() - nowAt.getTime()) / dayMs) : 0,
+    availableAgainAt,
+  };
 }
 
 function amountString(value) {
@@ -86,6 +112,7 @@ export async function awardCompletedOrderMissions(transaction, orderId) {
       rewardLimit: true,
       claimedRewards: true,
       recurrence: true,
+      recurrenceDays: true,
       startsAt: true,
       endsAt: true,
       pointsExpiryPolicy: true,
@@ -98,8 +125,15 @@ export async function awardCompletedOrderMissions(transaction, orderId) {
   let previousPurchaseCount = null;
   const completedMissionIds = [];
   for (const mission of missions) {
-    const cycle = getLoyaltyMissionCycle(mission, completedAt);
+    const latestProgress = mission.recurrence === 'after_days'
+      ? await transaction.loyaltyMissionProgress.findFirst({
+        where: { missionId: mission.id, customerEmail: email },
+        orderBy: { cycleStartAt: 'desc' },
+      })
+      : null;
+    const cycle = getLoyaltyMissionCycle(mission, completedAt, latestProgress);
     if (!cycle) continue;
+    if (cycle.cooldownActive) continue;
 
     const progressWhere = missionProgressKey(mission.id, email, cycle.cycleStartAt);
     const existingProgress = await transaction.loyaltyMissionProgress.findUnique({
@@ -185,10 +219,20 @@ export async function awardCompletedOrderMissions(transaction, orderId) {
     });
     if (!completesMission) continue;
 
-    const expiryAt = getLoyaltyPointExpiryAt(mission, cycle.cycleEndAt, completedAt);
+    const completedCycleEndAt = mission.recurrence === 'after_days'
+      ? new Date(Math.min(
+        completedAt.getTime() + Number(mission.recurrenceDays) * dayMs,
+        mission.endsAt ? new Date(mission.endsAt).getTime() : Number.POSITIVE_INFINITY,
+      ))
+      : cycle.cycleEndAt;
+    const expiryAt = getLoyaltyPointExpiryAt(mission, completedCycleEndAt, completedAt);
     await transaction.loyaltyMissionProgress.update({
       where: { id: updatedProgress.id },
-      data: { completedAt, pointsAwarded: mission.pointsReward },
+      data: {
+        completedAt,
+        pointsAwarded: mission.pointsReward,
+        ...(mission.recurrence === 'after_days' ? { cycleEndAt: completedCycleEndAt } : {}),
+      },
     });
     const contributions = await transaction.loyaltyMissionContribution.findMany({
       where: { progressId: updatedProgress.id },
@@ -228,7 +272,9 @@ async function getCustomerPointEntries(transaction, email) {
       sourceOrder: { select: { total: true, refundedAmount: true, status: true, paymentStatus: true } },
       rewardRedemption: {
         select: {
-          reward: { select: { name: true } },
+          createdAt: true,
+          cooldownDays: true,
+          reward: { select: { id: true, name: true } },
           couponCampaign: {
             select: {
               id: true,
@@ -272,6 +318,7 @@ export async function getCustomerLoyaltySnapshot(transaction, customerEmail, now
       destinationPath: true,
       pointsReward: true,
       recurrence: true,
+      recurrenceDays: true,
       startsAt: true,
       endsAt: true,
       pointsExpiryPolicy: true,
@@ -281,8 +328,27 @@ export async function getCustomerLoyaltySnapshot(transaction, customerEmail, now
       updatedAt: true,
     },
   });
+  const repeatableMissionIds = missions
+    .filter((mission) => mission.recurrence === 'after_days')
+    .map((mission) => mission.id);
+  const latestProgressRows = repeatableMissionIds.length
+    ? await transaction.loyaltyMissionProgress.findMany({
+      where: { customerEmail: email, missionId: { in: repeatableMissionIds } },
+      orderBy: { cycleStartAt: 'desc' },
+    })
+    : [];
+  const latestProgressByMissionId = new Map();
+  for (const progress of latestProgressRows) {
+    if (!latestProgressByMissionId.has(progress.missionId)) {
+      latestProgressByMissionId.set(progress.missionId, progress);
+    }
+  }
   const missionWindows = missions
-    .map((mission) => ({ mission, cycle: getLoyaltyMissionCycle(mission, now) }))
+    .map((mission) => ({
+      mission,
+      latestProgress: latestProgressByMissionId.get(mission.id) || null,
+      cycle: getLoyaltyMissionCycle(mission, now, latestProgressByMissionId.get(mission.id)),
+    }))
     .filter(({ cycle }) => Boolean(cycle));
   const progressRows = missionWindows.length
     ? await transaction.loyaltyMissionProgress.findMany({
@@ -302,6 +368,16 @@ export async function getCustomerLoyaltySnapshot(transaction, customerEmail, now
   const pointEntries = await getCustomerPointEntries(transaction, email);
   const balance = calculateLoyaltyPointBalance(pointEntries, now);
   const expiringPoints = getUpcomingLoyaltyPointExpiry(pointEntries, now);
+  const latestRewardRedemptionById = new Map();
+  for (const entry of pointEntries) {
+    const redemption = entry.rewardRedemption;
+    const rewardId = redemption?.reward?.id;
+    if (!rewardId) continue;
+    const previous = latestRewardRedemptionById.get(rewardId);
+    if (!previous || redemption.createdAt > previous.createdAt) {
+      latestRewardRedemptionById.set(rewardId, redemption);
+    }
+  }
   const recentCoupons = pointEntries.slice(0, 50)
     .map((entry) => entry.rewardRedemption?.couponCampaign)
     .filter(Boolean);
@@ -332,8 +408,12 @@ export async function getCustomerLoyaltySnapshot(transaction, customerEmail, now
   return {
     balance,
     expiringPoints,
-    missions: missionWindows.map(({ mission, cycle }) => {
-      const progress = progressByKey.get(`${mission.id}:${cycle.cycleStartAt.toISOString()}`);
+    missions: missionWindows.map(({ mission, latestProgress, cycle }) => {
+      const progress = cycle.cooldownActive
+        ? latestProgress
+        : progressByKey.get(`${mission.id}:${cycle.cycleStartAt.toISOString()}`);
+      const cooldownActive = Boolean(cycle.cooldownActive
+        && (mission.rewardLimit === null || mission.claimedRewards < mission.rewardLimit));
       return {
         id: mission.id,
         name: mission.name,
@@ -348,8 +428,14 @@ export async function getCustomerLoyaltySnapshot(transaction, customerEmail, now
         destinationPath: mission.destinationPath,
         pointsReward: mission.pointsReward,
         recurrence: mission.recurrence,
+        recurrenceDays: mission.recurrenceDays,
         cycleStartAt: cycle.cycleStartAt.toISOString(),
-        cycleEndAt: cycle.cycleEndAt.toISOString(),
+        cycleEndAt: (cycle.cooldownActive && progress?.cycleEndAt
+          ? progress.cycleEndAt
+          : cycle.cycleEndAt).toISOString(),
+        cooldownActive,
+        availableAgainAt: cooldownActive ? cycle.cycleStartAt.toISOString() : null,
+        cooldownDaysRemaining: cooldownActive ? cycle.cooldownDaysRemaining || 0 : 0,
         pointsExpiryPolicy: mission.pointsExpiryPolicy,
         progressCount: progress?.progressCount || 0,
         progressAmount: Number(progress?.progressAmount || 0),
@@ -374,6 +460,8 @@ export async function getCustomerLoyaltySnapshot(transaction, customerEmail, now
       minimumOrderAmount: Number(reward.minimumOrderAmount),
       validityDays: reward.validityDays,
       redemptions: reward._count.redemptions,
+      ...getRewardCooldownState(latestRewardRedemptionById.get(reward.id), now),
+      cooldownDays: Number(reward.cooldownDays) || 0,
     })),
     history: pointEntries.slice(0, 50).map((entry) => {
       const points = entry.type === 'MISSION_AWARD'
@@ -382,6 +470,10 @@ export async function getCustomerLoyaltySnapshot(transaction, customerEmail, now
       const campaign = entry.rewardRedemption?.couponCampaign;
       const couponRedemption = campaign ? couponRedemptionsByCampaignId.get(campaign.id) || null : null;
       const order = couponRedemption ? couponOrdersById.get(couponRedemption.orderId) : null;
+      const rewardId = entry.rewardRedemption?.reward?.id;
+      const rewardCooldown = rewardId
+        ? getRewardCooldownState(latestRewardRedemptionById.get(rewardId), now)
+        : null;
       return {
         id: entry.id,
         type: entry.type,
@@ -399,6 +491,9 @@ export async function getCustomerLoyaltySnapshot(transaction, customerEmail, now
           discountAmount: Number(campaign.discountAmount) || 0,
           maximumDiscountAmount: Number(campaign.maximumDiscountAmount) || null,
           minimumOrderAmount: Number(campaign.minimumOrderAmount) || 0,
+          rewardCooldownDays: rewardCooldown?.cooldownDays || 0,
+          daysUntilRedeemAgain: rewardCooldown?.daysRemaining || 0,
+          redeemAgainAt: rewardCooldown?.availableAgainAt?.toISOString() || null,
           status: getCouponRecipientStatus(
             campaign.expiresAt,
             couponRedemption
@@ -429,6 +524,7 @@ export async function getLoyaltyAdminSnapshot(transaction) {
         rewardLimit: true,
         claimedRewards: true,
         recurrence: true,
+        recurrenceDays: true,
         startsAt: true,
         endsAt: true,
         pointsExpiryPolicy: true,
@@ -511,6 +607,8 @@ export async function redeemLoyaltyReward(transaction, { customerEmail, rewardId
         minimumOrderAmount: Number(existing.couponCampaign.minimumOrderAmount),
         expiresAt: existing.couponCampaign.expiresAt.toISOString(),
         pointsCost: existing.pointsCost,
+        cooldownDays: Number(existing.cooldownDays) || 0,
+        redeemAgainAt: getRewardCooldownState(existing, now).availableAgainAt?.toISOString() || null,
       },
       replayed: true,
     };
@@ -518,6 +616,18 @@ export async function redeemLoyaltyReward(transaction, { customerEmail, rewardId
 
   const reward = await transaction.loyaltyReward.findUnique({ where: { id: rewardId } });
   if (!reward || !reward.active) return { error: 'Esta recompensa não está disponível.', status: 404 };
+  const previousRedemption = await transaction.loyaltyRewardRedemption.findFirst({
+    where: { customerEmail: email, rewardId },
+    orderBy: { createdAt: 'desc' },
+  });
+  const cooldown = getRewardCooldownState(previousRedemption, now);
+  if (cooldown.cooldownActive) {
+    const availableDate = cooldown.availableAgainAt.toLocaleDateString('pt-BR', { timeZone: 'America/Sao_Paulo' });
+    return {
+      error: `Você poderá trocar esta recompensa novamente em ${cooldown.daysRemaining} dia(s), a partir de ${availableDate}.`,
+      status: 409,
+    };
+  }
   const entries = await getCustomerPointEntries(transaction, email);
   const balance = calculateLoyaltyPointBalance(entries, now);
   if (balance < reward.pointsCost) {
@@ -573,6 +683,7 @@ export async function redeemLoyaltyReward(transaction, { customerEmail, rewardId
       rewardId: reward.id,
       couponCampaignId: campaign.id,
       pointsCost: reward.pointsCost,
+      cooldownDays: Number(reward.cooldownDays) || 0,
     },
   });
   const redemptionEntry = await transaction.loyaltyPointEntry.create({
@@ -602,6 +713,8 @@ export async function redeemLoyaltyReward(transaction, { customerEmail, rewardId
       minimumOrderAmount: Number(campaign.minimumOrderAmount),
       expiresAt: campaign.expiresAt.toISOString(),
       pointsCost: reward.pointsCost,
+      cooldownDays: redemption.cooldownDays,
+      redeemAgainAt: getRewardCooldownState(redemption, now).availableAgainAt?.toISOString() || null,
     },
     replayed: false,
   };

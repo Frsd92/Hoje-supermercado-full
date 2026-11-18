@@ -37,6 +37,7 @@ function initialMissionForm() {
     pointsReward: '100',
     rewardLimit: '',
     recurrence: 'weekly',
+    recurrenceDays: '7',
     startsAt: localDateTimeValue(new Date()),
     endsAt: '',
     pointsExpiryPolicy: 'CYCLE_END',
@@ -56,7 +57,9 @@ const initialRewardForm = {
   discountPercent: '10',
   discountAmount: '3',
   maximumDiscountAmount: '',
-  minimumOrderAmount: '0',
+  minimumOrderRequired: false,
+  minimumOrderAmount: '',
+  cooldownDays: '',
   validityDays: '30',
   active: true,
 };
@@ -151,6 +154,7 @@ export default function LoyaltyPage() {
       pointsReward: String(mission.pointsReward),
       rewardLimit: mission.rewardLimit === null ? '' : String(mission.rewardLimit),
       recurrence: mission.recurrence,
+      recurrenceDays: mission.recurrenceDays > 0 ? String(mission.recurrenceDays) : '7',
       startsAt: localDateTimeValue(mission.startsAt),
       endsAt: localDateTimeValue(mission.endsAt),
       pointsExpiryPolicy: mission.pointsExpiryPolicy,
@@ -172,7 +176,9 @@ export default function LoyaltyPage() {
       discountPercent: String(Number(reward.discountPercent) || 10),
       discountAmount: String(Number(reward.discountAmount) || 3),
       maximumDiscountAmount: reward.maximumDiscountAmount == null ? '' : String(reward.maximumDiscountAmount),
-      minimumOrderAmount: String(Number(reward.minimumOrderAmount) || 0),
+      minimumOrderRequired: Number(reward.minimumOrderAmount) > 0,
+      minimumOrderAmount: Number(reward.minimumOrderAmount) > 0 ? String(reward.minimumOrderAmount) : '',
+      cooldownDays: Number(reward.cooldownDays) > 0 ? String(reward.cooldownDays) : '',
       validityDays: String(reward.validityDays),
       active: reward.active,
     });
@@ -190,9 +196,6 @@ export default function LoyaltyPage() {
         benefitType,
         discountAmount: String(discountAmount),
         pointsCost: String(discountAmount * 100),
-        minimumOrderAmount: Number(current.minimumOrderAmount) > 0
-          ? current.minimumOrderAmount
-          : String(discountAmount * 10),
         maximumDiscountAmount: '',
       };
     });
@@ -255,6 +258,7 @@ export default function LoyaltyPage() {
       if (field === 'ruleType' && value === 'FIRST_PURCHASE') {
         next.targetCount = '1';
         next.recurrence = 'none';
+        next.recurrenceDays = '';
       }
       return next;
     });
@@ -300,7 +304,11 @@ export default function LoyaltyPage() {
     event.preventDefault();
     setSavingReward(true);
     setFeedback('');
-    const payload = { ...rewardForm, type: 'reward' };
+    const payload = {
+      ...rewardForm,
+      minimumOrderAmount: rewardForm.minimumOrderRequired ? rewardForm.minimumOrderAmount : 0,
+      type: 'reward',
+    };
     try {
       await requestData('/api/erp/loyalty', {
         method: editingRewardId ? 'PATCH' : 'POST',
@@ -401,7 +409,8 @@ export default function LoyaltyPage() {
             <label>Pontos concedidos ao concluir<input type="number" min="1" max="1000000" step="1" value={missionForm.pointsReward} onChange={(event) => updateMissionField('pointsReward', event.target.value)} required /></label>
             <div className="loyalty-form-section-heading"><strong>Período e validade</strong><span>Defina quando a missão fica disponível, sua recorrência e a validade dos pontos.</span></div>
             <label>Limite total de recompensas<input type="number" min="1" max="10000000" step="1" value={missionForm.rewardLimit} onChange={(event) => updateMissionField('rewardLimit', event.target.value)} placeholder="Sem limite" /></label>
-            <label>Recorrência<select value={missionForm.recurrence} onChange={(event) => updateMissionField('recurrence', event.target.value)} disabled={missionForm.ruleType === 'FIRST_PURCHASE'}><option value="none">Uma única vez</option><option value="weekly">Semanal, reinicia automaticamente</option></select></label>
+            <label>Quando pode repetir?<select value={missionForm.recurrence} onChange={(event) => updateMissionField('recurrence', event.target.value)} disabled={missionForm.ruleType === 'FIRST_PURCHASE'}><option value="none">Não repetir</option><option value="weekly">Toda semana</option><option value="after_days">Após um intervalo da conclusão</option></select></label>
+            {missionForm.recurrence === 'after_days' && <label>Repetir após (dias)<input type="number" min="1" max="3650" step="1" value={missionForm.recurrenceDays} onChange={(event) => updateMissionField('recurrenceDays', event.target.value)} required /><small>A contagem começa quando o cliente conclui a missão.</small></label>}
             <label>Status<select value={missionForm.status} onChange={(event) => updateMissionField('status', event.target.value)}><option value="draft">Rascunho</option><option value="active">Ativa</option><option value="paused">Pausada</option><option value="archived">Arquivada</option></select></label>
             <label>Início<input type="datetime-local" value={missionForm.startsAt} onChange={(event) => updateMissionField('startsAt', event.target.value)} required /></label>
             <label>Encerramento{missionForm.pointsExpiryPolicy === 'FIXED_DATE' ? '' : ' (opcional)'}<input type="datetime-local" value={missionForm.endsAt} onChange={(event) => updateMissionField('endsAt', event.target.value)} required={missionForm.pointsExpiryPolicy === 'FIXED_DATE'} /></label>
@@ -428,9 +437,11 @@ export default function LoyaltyPage() {
               <label>Desconto máximo (R$)<input type="number" min="0.01" max="100000000" step="0.01" inputMode="decimal" value={rewardForm.maximumDiscountAmount} onChange={(event) => setRewardForm((current) => ({ ...current, maximumDiscountAmount: event.target.value }))} placeholder="Sem limite" /><small>Deixe em branco para não limitar o desconto.</small></label>
             </>}
             {rewardForm.benefitType === 'FIXED_AMOUNT' && <label>Valor fixo do cupom<select value={rewardForm.discountAmount} onChange={(event) => updateRewardDiscountAmount(event.target.value)}>{fixedCouponAmounts.map((amount) => <option key={amount} value={amount}>{currencyFormatter.format(amount)}</option>)}</select></label>}
-            <div className="loyalty-form-section-heading"><strong>Valor mínimo do pedido</strong><span>Este requisito é em reais e não representa pontos.</span></div>
-            <label>Pedido mínimo da compra<div className="loyalty-currency-input"><span aria-hidden="true">R$</span><input type="number" min="0" max="100000000" step="0.01" inputMode="decimal" value={rewardForm.minimumOrderAmount} onChange={(event) => setRewardForm((current) => ({ ...current, minimumOrderAmount: event.target.value }))} required /></div></label>
+            <div className="loyalty-form-section-heading"><strong>Condição de uso</strong><span>O requisito vale para usar o cupom na compra, não para resgatar os pontos.</span></div>
+            <label className="editor-checkbox"><input type="checkbox" checked={rewardForm.minimumOrderRequired} onChange={(event) => setRewardForm((current) => ({ ...current, minimumOrderRequired: event.target.checked }))} />Exigir compra mínima para usar o cupom</label>
+            {rewardForm.minimumOrderRequired && <label>Pedido mínimo (R$)<div className="loyalty-currency-input"><span aria-hidden="true">R$</span><input type="number" min="0.01" max="100000000" step="0.01" inputMode="decimal" value={rewardForm.minimumOrderAmount} onChange={(event) => setRewardForm((current) => ({ ...current, minimumOrderAmount: event.target.value }))} required /></div></label>}
             <label>Validade do cupom (dias)<input type="number" min="1" max="365" step="1" value={rewardForm.validityDays} onChange={(event) => setRewardForm((current) => ({ ...current, validityDays: event.target.value }))} required /></label>
+            <label>Intervalo para novo resgate (dias)<input type="number" min="1" max="3650" step="1" value={rewardForm.cooldownDays} onChange={(event) => setRewardForm((current) => ({ ...current, cooldownDays: event.target.value }))} placeholder="Sem intervalo" /><small>Conte a partir do resgate. Deixe em branco para permitir nova troca quando houver pontos.</small></label>
             <label className="editor-checkbox"><input type="checkbox" checked={rewardForm.active} onChange={(event) => setRewardForm((current) => ({ ...current, active: event.target.checked }))} />Disponível para resgate</label>
           </div>
           <div className="loyalty-form-actions">
@@ -465,7 +476,7 @@ export default function LoyaltyPage() {
               <span><strong>{mission.pointsAwarded.toLocaleString('pt-BR')}</strong> pontos concedidos</span>
               <span><strong>{mission.claimedRewards}{mission.rewardLimit === null ? '' : ` / ${mission.rewardLimit}`}</strong> recompensas</span>
             </div>
-            <small>{loyaltyMissionRuleOptions.find((item) => item.value === mission.ruleType)?.label} · {mission.recurrence === 'weekly' ? 'ciclo semanal' : 'ciclo único'}</small>
+            <small>{loyaltyMissionRuleOptions.find((item) => item.value === mission.ruleType)?.label} · {mission.recurrence === 'weekly' ? 'ciclo semanal' : mission.recurrence === 'after_days' ? `repete após ${mission.recurrenceDays} ${mission.recurrenceDays === 1 ? 'dia' : 'dias'}` : 'ciclo único'}</small>
           </article>)}
         </div> : <div className="erp-empty-data">Nenhuma missão cadastrada.</div>}
       </section>
@@ -481,7 +492,8 @@ export default function LoyaltyPage() {
             <div className="loyalty-admin-card-stats">
               <span><strong>{reward.pointsCost.toLocaleString('pt-BR')}</strong> pontos</span>
               <span><strong>{getCouponBenefitLabel(reward.benefitType, reward.discountPercent, reward.discountAmount, reward.maximumDiscountAmount)}</strong></span>
-              <span><strong>{currencyFormatter.format(reward.minimumOrderAmount)}</strong> pedido mínimo</span>
+              <span><strong>{Number(reward.minimumOrderAmount) > 0 ? currencyFormatter.format(reward.minimumOrderAmount) : 'Sem mínimo'}</strong>{Number(reward.minimumOrderAmount) > 0 ? ' pedido mínimo' : ' para usar'}</span>
+              <span><strong>{Number(reward.cooldownDays) > 0 ? `${reward.cooldownDays} dias` : 'Sem intervalo'}</strong> para novo resgate</span>
               <span><strong>{reward.redemptions}</strong> resgates</span>
             </div>
           </article>)}

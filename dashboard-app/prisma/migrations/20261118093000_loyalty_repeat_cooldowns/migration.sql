@@ -1,0 +1,8 @@
+ALTER TABLE "LoyaltyMission"
+ADD COLUMN "recurrenceDays" INTEGER NOT NULL DEFAULT 0;
+
+ALTER TABLE "LoyaltyReward"
+ADD COLUMN "cooldownDays" INTEGER NOT NULL DEFAULT 0;
+
+ALTER TABLE "LoyaltyRewardRedemption"
+ADD COLUMN "cooldownDays" INTEGER NOT NULL DEFAULT 0;

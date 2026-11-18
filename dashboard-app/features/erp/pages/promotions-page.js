@@ -58,6 +58,8 @@ export default function PromotionsPage() {
   const [discountPercent, setDiscountPercent] = useState('10');
   const [discountAmount, setDiscountAmount] = useState('3');
   const [maximumDiscountAmount, setMaximumDiscountAmount] = useState('');
+  const [minimumOrderRequired, setMinimumOrderRequired] = useState(false);
+  const [minimumOrderAmount, setMinimumOrderAmount] = useState('');
   const [checkoutFees, setCheckoutFees] = useState({ deliveryFee: '0', serviceFee: '0', showFeeExplanations: true });
   const [durationDays, setDurationDays] = useState('7');
   const [message, setMessage] = useState('');
@@ -165,11 +167,15 @@ export default function PromotionsPage() {
       setDiscountPercent(String(campaign.discountPercent));
       setDiscountAmount(String(Number(campaign.discountAmount) || 3));
       setMaximumDiscountAmount(campaign.maximumDiscountAmount == null ? '' : String(campaign.maximumDiscountAmount));
+      setMinimumOrderRequired(Number(campaign.minimumOrderAmount) > 0);
+      setMinimumOrderAmount(Number(campaign.minimumOrderAmount) > 0 ? String(campaign.minimumOrderAmount) : '');
       setDurationDays(String(Math.max(1, Math.ceil((new Date(campaign.expiresAt).getTime() - Date.now()) / 86400000))));
       setMessage('');
     } else {
       setBenefitType('PERCENTAGE');
       setMaximumDiscountAmount('');
+      setMinimumOrderRequired(false);
+      setMinimumOrderAmount('');
     }
   };
 
@@ -184,6 +190,8 @@ export default function PromotionsPage() {
     setDiscountPercent(String(campaign.discountPercent));
     setDiscountAmount(String(Number(campaign.discountAmount) || 3));
     setMaximumDiscountAmount(campaign.maximumDiscountAmount == null ? '' : String(campaign.maximumDiscountAmount));
+    setMinimumOrderRequired(Number(campaign.minimumOrderAmount) > 0);
+    setMinimumOrderAmount(Number(campaign.minimumOrderAmount) > 0 ? String(campaign.minimumOrderAmount) : '');
     setDurationDays(String(Math.max(1, Math.ceil((new Date(campaign.expiresAt).getTime() - Date.now()) / 86400000))));
     setMessage('');
     setSelectedEmails([]);
@@ -233,6 +241,8 @@ export default function PromotionsPage() {
           discountPercent: Number(discountPercent),
           discountAmount: Number(discountAmount),
           maximumDiscountAmount: maximumDiscountAmount || null,
+          minimumOrderRequired,
+          minimumOrderAmount: minimumOrderRequired ? Number(minimumOrderAmount) : 0,
           durationDays: Number(durationDays),
           recipients: selectedEmails,
           message,
@@ -248,6 +258,8 @@ export default function PromotionsPage() {
       setDiscountPercent('10');
       setDiscountAmount('3');
       setMaximumDiscountAmount('');
+      setMinimumOrderRequired(false);
+      setMinimumOrderAmount('');
       setDurationDays('7');
       const successMessage = data.campaign.addedRecipientsCount === data.campaign.recipientsCount
         ? `Cupom ${data.campaign.code} enviado para ${data.campaign.addedRecipientsCount} cliente(s).`
@@ -317,29 +329,52 @@ export default function PromotionsPage() {
     </section>
     <div className="coupon-manager-grid">
       <form className="notification-composer coupon-composer" onSubmit={sendCoupon}>
-        <div className="notification-composer-heading"><span className="notification-composer-icon"><TicketPercent size={19} /></span><div><h2>{selectedCampaign ? `Adicionar clientes ao ${selectedCampaign.code}` : 'Criar e enviar cupom'}</h2><p>{selectedCampaign ? 'O desconto e a validade existentes serão mantidos.' : 'Defina o desconto, a validade e o público.'}</p></div></div>
-        <div className="coupon-form-row">
-        <label>Código do cupom<input value={code} onChange={(event) => updateCode(event.target.value)} placeholder="Ex.: CLIENTE15" minLength="3" maxLength="24" required /><small>{selectedCampaign ? 'Cupom existente: os novos destinatários terão o mesmo desconto e vencimento.' : 'Digite um código novo ou selecione um cupom enviado abaixo.'}</small></label>
-        <label>Benefício<select value={benefitType} onChange={(event) => updateBenefitType(event.target.value)} disabled={Boolean(selectedCampaign)}>{couponBenefitOptions.map((option) => <option key={option.value} value={option.value}>{option.label}</option>)}</select><small>Os cupons de taxa zeram o valor configurado acima.</small></label>
-        {benefitType === 'PERCENTAGE' && <>
-          <label>Desconto (%)<input type="number" min="1" max="90" step="1" value={discountPercent} onChange={(event) => setDiscountPercent(event.target.value)} disabled={Boolean(selectedCampaign)} required /></label>
-          <label>Desconto máximo (R$)<input type="number" min="0.01" max="100000000" step="0.01" inputMode="decimal" value={maximumDiscountAmount} onChange={(event) => setMaximumDiscountAmount(event.target.value)} placeholder="Sem limite" disabled={Boolean(selectedCampaign)} /><small>Deixe em branco para não limitar o desconto.</small></label>
-        </>}
-        {benefitType === 'FIXED_AMOUNT' && <label>Valor fixo do desconto<select value={discountAmount} onChange={(event) => setDiscountAmount(event.target.value)} disabled={Boolean(selectedCampaign)}>{fixedCouponAmounts.map((amount) => <option key={amount} value={amount}>{money(amount)}</option>)}</select></label>}
-        <label>Validade (dias)<input type="number" min="1" max="365" step="1" value={durationDays} onChange={(event) => setDurationDays(event.target.value)} disabled={Boolean(selectedCampaign)} required /></label>
-        </div>
-        <label>Mensagem opcional<textarea value={message} onChange={(event) => setMessage(event.target.value)} placeholder="Ex.: Aproveite para fazer suas compras da semana." rows="3" maxLength="300" /><small>A mensagem será exibida junto ao código no Dashboard do cliente.</small></label>
-        <div className="coupon-recipient-heading"><div><strong>Quem vai receber?</strong><span>{selectedEmails.length} selecionado(s) de {customers.length}</span></div><label className="coupon-search"><Search size={15} /><input value={search} onChange={(event) => setSearch(event.target.value)} placeholder="Buscar cliente ou e-mail" /></label></div>
-        <div className="coupon-recipient-list">
-          {loading ? <div className="erp-empty-data">Carregando clientes...</div> : filteredCustomers.length ? <>
-            <label className="coupon-recipient-select-all"><input type="checkbox" checked={allVisibleSelected} onChange={toggleAllVisible} /><CheckSquare size={15} />Selecionar clientes exibidos</label>
-            {filteredCustomers.map((customer) => {
-              const email = customer.email.toLowerCase();
-              const alreadyReceived = selectedCampaign?.recipientEmails?.includes(email) || false;
-              return <label className="coupon-recipient" key={email}><input type="checkbox" checked={alreadyReceived || selectedEmails.includes(email)} disabled={alreadyReceived} onChange={() => toggleCustomer(email)} /><span><strong>{customer.name}</strong><small>{customer.email}</small></span><small>{alreadyReceived ? 'Já recebeu' : `${customer.orders} pedido(s)`}</small></label>;
-            })}
-          </> : <div className="erp-empty-data">{customers.length ? 'Nenhum cliente corresponde à busca.' : 'Nenhum cliente cadastrado foi encontrado.'}</div>}
-        </div>
+        <div className="notification-composer-heading"><span className="notification-composer-icon"><TicketPercent size={19} /></span><div><h2>{selectedCampaign ? `Adicionar clientes ao ${selectedCampaign.code}` : 'Criar e enviar cupom'}</h2><p>{selectedCampaign ? 'O cupom mantém as condições da campanha original.' : 'Configure a oferta e escolha quem vai recebê-la.'}</p></div></div>
+        <section className="coupon-composer-section" aria-labelledby="coupon-offer-heading">
+          <div className="coupon-composer-section-heading"><strong id="coupon-offer-heading">1. Código e benefício</strong><span>Defina o código que o cliente usará e o tipo de vantagem.</span></div>
+          <div className="coupon-form-row">
+            <label>Código do cupom<input value={code} onChange={(event) => updateCode(event.target.value)} placeholder="Ex.: CLIENTE15" minLength="3" maxLength="24" required /><small>{selectedCampaign ? 'Novos destinatários recebem as mesmas condições e validade.' : 'Digite um código novo ou selecione um cupom existente.'}</small></label>
+            <label>Benefício<select value={benefitType} onChange={(event) => updateBenefitType(event.target.value)} disabled={Boolean(selectedCampaign)}>{couponBenefitOptions.map((option) => <option key={option.value} value={option.value}>{option.label}</option>)}</select><small>Cupons de taxa zeram o valor configurado no checkout.</small></label>
+          </div>
+        </section>
+        <section className="coupon-composer-section" aria-labelledby="coupon-conditions-heading">
+          <div className="coupon-composer-section-heading"><strong id="coupon-conditions-heading">2. Desconto e validade</strong><span>{selectedCampaign ? 'As condições desta campanha não podem ser alteradas.' : 'Defina os limites e quando o cupom expira.'}</span></div>
+          {benefitType === 'PERCENTAGE' && <div className="coupon-form-row">
+            <label>Desconto (%)<input type="number" min="1" max="90" step="1" value={discountPercent} onChange={(event) => setDiscountPercent(event.target.value)} disabled={Boolean(selectedCampaign)} required /></label>
+            <label>Desconto máximo (R$)<input type="number" min="0.01" max="100000000" step="0.01" inputMode="decimal" value={maximumDiscountAmount} onChange={(event) => setMaximumDiscountAmount(event.target.value)} placeholder="Sem limite" disabled={Boolean(selectedCampaign)} /><small>Deixe em branco para não limitar o desconto.</small></label>
+          </div>}
+          {benefitType === 'FIXED_AMOUNT' && <div className="coupon-form-row">
+            <label>Valor fixo do desconto<select value={discountAmount} onChange={(event) => setDiscountAmount(event.target.value)} disabled={Boolean(selectedCampaign)}>{fixedCouponAmounts.map((amount) => <option key={amount} value={amount}>{money(amount)}</option>)}</select></label>
+            <div className="coupon-form-explainer">O desconto aplicado não será maior do que o subtotal da compra.</div>
+          </div>}
+          <div className="coupon-form-row coupon-form-conditions">
+            <label>Validade (dias)<input type="number" min="1" max="365" step="1" value={durationDays} onChange={(event) => setDurationDays(event.target.value)} disabled={Boolean(selectedCampaign)} required /><small>O cupom expira após esse prazo.</small></label>
+            <div className="coupon-minimum-order-field">
+              <label className="editor-checkbox"><input type="checkbox" checked={minimumOrderRequired} onChange={(event) => setMinimumOrderRequired(event.target.checked)} disabled={Boolean(selectedCampaign)} />Exigir compra mínima</label>
+              {minimumOrderRequired
+                ? <label>Pedido mínimo (R$)<input type="number" min="0.01" max="100000000" step="0.01" inputMode="decimal" value={minimumOrderAmount} onChange={(event) => setMinimumOrderAmount(event.target.value)} disabled={Boolean(selectedCampaign)} required /><small>O cliente poderá usar o cupom a partir deste valor.</small></label>
+                : <small>Sem valor mínimo para usar este cupom.</small>}
+            </div>
+          </div>
+        </section>
+        <section className="coupon-composer-section" aria-labelledby="coupon-message-heading">
+          <div className="coupon-composer-section-heading"><strong id="coupon-message-heading">3. Mensagem para o cliente</strong><span>Uma explicação curta ajuda o cliente a entender a oferta.</span></div>
+          <label>Mensagem opcional<textarea value={message} onChange={(event) => setMessage(event.target.value)} placeholder="Ex.: Aproveite para fazer suas compras da semana." rows="3" maxLength="300" disabled={Boolean(selectedCampaign)} /><small>{selectedCampaign ? 'A mensagem original da campanha será mantida.' : 'A mensagem será exibida junto ao cupom no Dashboard do cliente.'}</small></label>
+        </section>
+        <section className="coupon-composer-section" aria-labelledby="coupon-recipients-heading">
+          <div className="coupon-composer-section-heading"><strong id="coupon-recipients-heading">4. Destinatários</strong><span>Escolha os clientes que receberão este cupom.</span></div>
+          <div className="coupon-recipient-heading"><div><strong>{selectedEmails.length} selecionado(s) de {customers.length}</strong><span>Você pode buscar clientes por nome ou e-mail.</span></div><label className="coupon-search"><Search size={15} aria-hidden="true" /><input value={search} onChange={(event) => setSearch(event.target.value)} placeholder="Buscar cliente ou e-mail" aria-label="Buscar cliente ou e-mail" /></label></div>
+          <div className="coupon-recipient-list">
+            {loading ? <div className="erp-empty-data">Carregando clientes...</div> : filteredCustomers.length ? <>
+              <label className="coupon-recipient-select-all"><input type="checkbox" checked={allVisibleSelected} onChange={toggleAllVisible} /><CheckSquare size={15} />Selecionar clientes exibidos</label>
+              {filteredCustomers.map((customer) => {
+                const email = customer.email.toLowerCase();
+                const alreadyReceived = selectedCampaign?.recipientEmails?.includes(email) || false;
+                return <label className="coupon-recipient" key={email}><input type="checkbox" checked={alreadyReceived || selectedEmails.includes(email)} disabled={alreadyReceived} onChange={() => toggleCustomer(email)} /><span><strong>{customer.name}</strong><small>{customer.email}</small></span><small>{alreadyReceived ? 'Já recebeu' : `${customer.orders} pedido(s)`}</small></label>;
+              })}
+            </> : <div className="erp-empty-data">{customers.length ? 'Nenhum cliente corresponde à busca.' : 'Nenhum cliente cadastrado foi encontrado.'}</div>}
+          </div>
+        </section>
         <button className="primary-cta" type="submit" disabled={loading || sending || !selectedEmails.length}><Send size={15} />{sending ? 'Enviando...' : `Enviar para ${selectedEmails.length} cliente(s)`}</button>
         {feedback && <p className={`notification-feedback ${feedbackError ? 'error' : 'success'}`} role={feedbackError ? 'alert' : 'status'} aria-live={feedbackError ? 'assertive' : 'polite'}>{feedback}</p>}
       </form>

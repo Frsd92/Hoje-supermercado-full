@@ -4,6 +4,7 @@ import {
   calculateCouponDiscountAmount,
   getCouponBenefitLabel,
   normalizeCouponBenefit,
+  normalizeCouponMinimumOrderAmount,
 } from './coupon-benefits.js';
 
 test('normalizes fixed rewards and validates the optional percentage cap', () => {
@@ -57,4 +58,25 @@ test('applies percentage caps and fixed coupons without exceeding the subtotal',
 test('labels fixed and capped coupons clearly', () => {
   assert.match(getCouponBenefitLabel('FIXED_AMOUNT', 0, 20), /^R\$\s20 de desconto$/);
   assert.match(getCouponBenefitLabel('PERCENTAGE', 10, 0, 12), /^10% de desconto \(até R\$\s12\)$/);
+});
+
+test('normalizes optional coupon minimums and keeps legacy positive amounts', () => {
+  assert.equal(normalizeCouponMinimumOrderAmount({
+    minimumOrderRequired: false,
+    minimumOrderAmount: '80',
+  }), 0);
+  assert.equal(normalizeCouponMinimumOrderAmount({
+    minimumOrderRequired: true,
+    minimumOrderAmount: '80,50',
+  }), 80.5);
+  assert.equal(normalizeCouponMinimumOrderAmount({ minimumOrderAmount: 80 }), 80);
+  assert.equal(normalizeCouponMinimumOrderAmount({}), 0);
+  assert.throws(() => normalizeCouponMinimumOrderAmount({
+    minimumOrderRequired: true,
+    minimumOrderAmount: 0,
+  }), /pedido mínimo/);
+  assert.throws(() => normalizeCouponMinimumOrderAmount({
+    minimumOrderRequired: 'true',
+    minimumOrderAmount: 80,
+  }), /compra mínima/);
 });

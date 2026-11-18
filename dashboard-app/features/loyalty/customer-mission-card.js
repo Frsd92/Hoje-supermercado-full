@@ -5,6 +5,8 @@ import { getLoyaltyMissionDestinationHref } from './mission-destinations';
 export default function CustomerMissionCard({ mission, compact = false }) {
   const progress = missionProgress(mission);
   const complete = Boolean(mission.completedAt);
+  const cooldownActive = Boolean(mission.cooldownActive);
+  const cooldownDaysLabel = mission.cooldownDaysRemaining === 1 ? 'dia' : 'dias';
   const rewardUnavailable = mission.soldOut && !complete;
   const progressPercent = complete ? 100 : Math.max(0, Math.min(100, progress.percent));
   const currentProgress = complete ? progress.target : progress.current;
@@ -24,8 +26,10 @@ export default function CustomerMissionCard({ mission, compact = false }) {
             <small className="loyalty-mission-kind">{missionRuleLabels[mission.ruleType] || 'Missão'}</small>
             <h3>{mission.name}</h3>
           </div>
-          <span className={`customer-coupon-status${complete ? '' : mission.soldOut ? ' status-expired' : ''}`}>
-            {complete ? 'Concluída' : mission.soldOut ? 'Limite atingido' : mission.recurrence === 'weekly' ? 'Missão semanal' : 'Em andamento'}
+          <span className={`customer-coupon-status${cooldownActive ? ' status-cooldown' : complete ? '' : mission.soldOut ? ' status-expired' : ''}`}>
+            {cooldownActive
+              ? `Volta em ${mission.cooldownDaysRemaining} ${cooldownDaysLabel}`
+              : complete ? 'Concluída' : mission.soldOut ? 'Limite atingido' : mission.recurrence === 'weekly' ? 'Missão semanal' : 'Em andamento'}
           </span>
         </div>
         <p className="customer-coupon-card-message">{mission.description || describeMission(mission)}</p>
@@ -55,7 +59,9 @@ export default function CustomerMissionCard({ mission, compact = false }) {
         </div>
         {!compact && <>
           <p className="loyalty-mission-footer">
-            {complete
+            {cooldownActive
+              ? `Você poderá fazer esta missão novamente em ${formatDate(mission.availableAgainAt)}.`
+              : complete
               ? `Concluída em ${formatDate(mission.completedAt)}.`
               : rewardUnavailable
                 ? 'As recompensas desta missão foram esgotadas.'
@@ -68,7 +74,9 @@ export default function CustomerMissionCard({ mission, compact = false }) {
           </small>}
           {mission.pointsExpiryPolicy !== 'NEVER' && <small className="loyalty-expiry-note loyalty-points-expiry-note">
             {mission.pointsExpiryPolicy === 'CYCLE_END'
-              ? `Os pontos expiram em ${formatDate(mission.cycleEndAt)}.`
+              ? mission.recurrence === 'after_days' && !complete
+                ? `Após concluir, os pontos duram até a próxima rodada, em ${mission.recurrenceDays} dias.`
+                : `Os pontos expiram em ${formatDate(mission.cycleEndAt)}.`
               : 'Os pontos seguem o prazo de validade configurado nesta missão.'}
           </small>}
         </>}

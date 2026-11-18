@@ -32,6 +32,25 @@ test('mission cycle respects its start and end boundaries', () => {
   assert.equal(getLoyaltyMissionCycle(mission, mission.endsAt), null);
 });
 
+test('mission completion cooldown opens the next customer cycle on the due date', () => {
+  const mission = {
+    startsAt: new Date('2026-10-01T12:00:00.000Z'),
+    endsAt: null,
+    recurrence: 'after_days',
+    recurrenceDays: 14,
+  };
+  const previousProgress = { completedAt: new Date('2026-10-08T12:00:00.000Z') };
+  const waiting = getLoyaltyMissionCycle(mission, new Date('2026-10-20T12:00:00.000Z'), previousProgress);
+  assert.equal(waiting.cooldownActive, true);
+  assert.equal(waiting.cooldownDaysRemaining, 2);
+  assert.equal(waiting.cycleStartAt.toISOString(), '2026-10-22T12:00:00.000Z');
+
+  const available = getLoyaltyMissionCycle(mission, waiting.cycleStartAt, previousProgress);
+  assert.equal(available.cooldownActive, false);
+  assert.equal(available.cycleStartAt.toISOString(), waiting.cycleStartAt.toISOString());
+  assert.throws(() => getLoyaltyMissionCycle({ ...mission, recurrenceDays: 0 }, new Date('2026-10-20T12:00:00.000Z')), /Intervalo de repetição/);
+});
+
 test('counts only completed, paid or manual orders and protects the first-purchase mission', () => {
   const order = { status: 'Concluido', paymentStatus: 'paid', total: 'R$ 120,00', refundedAmount: '20.00' };
 

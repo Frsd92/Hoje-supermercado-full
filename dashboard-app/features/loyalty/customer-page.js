@@ -66,6 +66,7 @@ export default function CustomerLoyaltyPage() {
         ? formatDate(data.redemption.expiresAt)
         : '—';
       const minimumOrderAmount = Number(data.redemption.minimumOrderAmount) || 0;
+      const cooldownDays = Number(data.redemption.cooldownDays) || 0;
       const benefitLabel = getCouponBenefitLabel(
         data.redemption.benefitType,
         data.redemption.discountPercent,
@@ -75,7 +76,7 @@ export default function CustomerLoyaltyPage() {
       setFeedback({
         error: false,
         code: data.redemption.code,
-        message: `Você resgatou ${reward.name}: ${benefitLabel}. O cupom ${data.redemption.code} é válido até ${expiresAt}.${minimumOrderAmount > 0 ? ` Pedido mínimo: ${currencyFormatter.format(minimumOrderAmount)}.` : ''}`,
+        message: `Você resgatou ${reward.name}: ${benefitLabel}. O cupom ${data.redemption.code} é válido até ${expiresAt}.${minimumOrderAmount > 0 ? ` Pedido mínimo: ${currencyFormatter.format(minimumOrderAmount)}.` : ''}${cooldownDays > 0 ? ` Nova troca por pontos em ${cooldownDays} ${cooldownDays === 1 ? 'dia' : 'dias'}.` : ''}`,
       });
       await loadSnapshot(false);
     } catch (redeemError) {
@@ -240,6 +241,7 @@ export default function CustomerLoyaltyPage() {
         : rewards.length ? <div className="loyalty-card-grid">
           {rewards.map((reward) => {
             const canRedeem = balance >= reward.pointsCost;
+            const canRedeemNow = canRedeem && !reward.cooldownActive;
             const progressPoints = Math.max(0, Math.min(Number(reward.pointsCost) || 0, balance));
             const progressPercent = reward.pointsCost > 0
               ? Math.min(100, progressPoints / reward.pointsCost * 100)
@@ -273,14 +275,23 @@ export default function CustomerLoyaltyPage() {
               <dl className="customer-coupon-dates">
                 <div><dt>Pedido mínimo</dt><dd>{Number(reward.minimumOrderAmount) > 0 ? currencyFormatter.format(Number(reward.minimumOrderAmount)) : 'Sem mínimo'}</dd></div>
                 <div><dt>Validade</dt><dd>{reward.validityDays} dias após resgatar</dd></div>
+                <div><dt>Novo resgate</dt><dd>{reward.cooldownActive
+                  ? `Em ${reward.daysRemaining} ${reward.daysRemaining === 1 ? 'dia' : 'dias'}`
+                  : Number(reward.cooldownDays) > 0
+                    ? `${reward.cooldownDays} ${reward.cooldownDays === 1 ? 'dia' : 'dias'} após a troca`
+                    : 'Sem intervalo'}</dd></div>
               </dl>
               <button
                 className="customer-coupon-use loyalty-redeem-button"
                 type="button"
                 onClick={() => void redeemReward(reward)}
-                disabled={!canRedeem || Boolean(redeemingId)}
+                disabled={!canRedeemNow || Boolean(redeemingId)}
               >
-                {redeemingId === reward.id ? 'Resgatando...' : canRedeem ? 'Resgatar pontos' : `Faltam ${(reward.pointsCost - balance).toLocaleString('pt-BR')} pontos`}
+                {redeemingId === reward.id
+                  ? 'Resgatando...'
+                  : reward.cooldownActive
+                    ? `Disponível em ${reward.daysRemaining} ${reward.daysRemaining === 1 ? 'dia' : 'dias'}`
+                    : canRedeem ? 'Resgatar pontos' : `Faltam ${(reward.pointsCost - balance).toLocaleString('pt-BR')} pontos`}
               </button>
             </article>;
           })}
@@ -317,6 +328,9 @@ export default function CustomerLoyaltyPage() {
             <dl className="customer-coupon-dates">
               <div><dt>Pedido mínimo</dt><dd>{Number(coupon.minimumOrderAmount) > 0 ? currencyFormatter.format(Number(coupon.minimumOrderAmount)) : 'Sem mínimo'}</dd></div>
               <div><dt>Válido até</dt><dd>{formatDate(coupon.expiresAt)}</dd></div>
+              <div><dt>Nova troca por pontos</dt><dd>{coupon.daysUntilRedeemAgain > 0
+                ? `Em ${coupon.daysUntilRedeemAgain} ${coupon.daysUntilRedeemAgain === 1 ? 'dia' : 'dias'}`
+                : coupon.rewardCooldownDays > 0 ? 'Já pode trocar novamente' : 'Sem intervalo'}</dd></div>
             </dl>
             {coupon.status === 'available' && <div className="customer-coupon-actions">
               <button className="customer-coupon-use" type="button" onClick={() => useCoupon(coupon.code)}><TicketPercent size={14} aria-hidden="true" />Usar no carrinho</button>

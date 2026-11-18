@@ -2420,8 +2420,18 @@ body {
 .coupon-composer { max-width: none; }
 .checkout-fee-settings { margin-bottom: 16px; }
 .checkout-fee-settings .coupon-form-row { grid-template-columns: repeat(2, minmax(0, 1fr)); }
-.coupon-form-row { display: grid; grid-template-columns: minmax(0, 1.5fr) minmax(110px, .7fr) minmax(110px, .7fr); gap: 12px; }
+.coupon-composer-section { display: grid; gap: 12px; padding-top: 13px; border-top: 1px solid #e8eee9; }
+.coupon-composer-section-heading { display: grid; gap: 3px; }
+.coupon-composer-section-heading strong { color: #273b30; font-size: .83rem; }
+.coupon-composer-section-heading span { color: #718078; font-size: .72rem; font-weight: 500; line-height: 1.45; }
+.coupon-form-row { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 14px; }
 .coupon-form-row > label { min-width: 0; }
+.coupon-form-explainer { align-self: center; color: #64748b; font-size: .75rem; font-weight: 500; line-height: 1.5; }
+.coupon-minimum-order-field { display: grid; align-content: start; gap: 10px; min-width: 0; }
+.coupon-minimum-order-field > small { color: #718078; font-size: .72rem; font-weight: 500; line-height: 1.45; }
+.coupon-minimum-order-field > label:not(.editor-checkbox) { min-width: 0; }
+.coupon-composer .coupon-minimum-order-field > .editor-checkbox { display: flex; align-items: flex-start; gap: 9px; color: #33463a; font-size: .76rem; line-height: 1.4; }
+.coupon-composer .coupon-minimum-order-field > .editor-checkbox input { width: 17px; height: 17px; flex: 0 0 auto; margin: 0; accent-color: #2f7656; }
 .coupon-recipient-heading { display: flex; align-items: end; justify-content: space-between; gap: 12px; }
 .coupon-recipient-heading > div { display: grid; gap: 4px; color: #334155; font-size: .82rem; }
 .coupon-recipient-heading > div span { color: #64748b; font-size: .74rem; font-weight: 500; }
@@ -2527,6 +2537,12 @@ body {
 .dashboard-shell[data-dashboard-theme="dark"] .coupon-recipient-state.state-expired { color: #f0d4a1; background: #493c27; }
 .dashboard-shell[data-dashboard-theme="dark"] .coupon-composer .notification-feedback.error { border-color: #744343; color: #ffc1c1; background: #3b2525; }
 .dashboard-shell[data-dashboard-theme="dark"] .coupon-composer .notification-feedback.success { border-color: #315e3c; color: #b6efc1; background: #1e3826; }
+.dashboard-shell[data-dashboard-theme="dark"] .coupon-composer-section { border-color: #35483b; }
+.dashboard-shell[data-dashboard-theme="dark"] .coupon-composer-section-heading strong,
+.dashboard-shell[data-dashboard-theme="dark"] .coupon-minimum-order-field > .editor-checkbox { color: #edf5ef; }
+.dashboard-shell[data-dashboard-theme="dark"] .coupon-composer-section-heading span,
+.dashboard-shell[data-dashboard-theme="dark"] .coupon-form-explainer,
+.dashboard-shell[data-dashboard-theme="dark"] .coupon-minimum-order-field > small { color: #b3c2b7; }
 .customer-coupons-showcase {
   --customer-coupon-surface: #fff;
   --customer-coupon-subtle: #f7faf7;
@@ -2552,6 +2568,7 @@ body {
 .customer-coupon-card-heading { display: flex; flex-wrap: wrap; align-items: center; justify-content: space-between; gap: 8px; color: var(--customer-coupon-accent); font-size: .9rem; font-weight: 800; }
 .customer-coupon-status { display: inline-flex; align-items: center; min-height: 26px; padding: 4px 9px; border-radius: 99px; color: #1c6835; background: #eaf7ed; font-size: .72rem; font-weight: 800; }
 .customer-coupon-status.status-processing { color: #75521a; background: #fbf1dc; }
+.customer-coupon-status.status-cooldown { color: #75521a; background: #fbf1dc; }
 .customer-coupon-status.status-redeemed { color: #39546e; background: #edf3f8; }
 .customer-coupon-status.status-expired { color: #745a37; background: #f7f1e6; }
 .customer-coupon-card-message { margin: 0; color: var(--customer-coupon-muted); font-size: .84rem; line-height: 1.5; }
@@ -2583,6 +2600,7 @@ body {
 }
 .dashboard-shell[data-dashboard-theme="dark"] .customer-coupon-status { color: #a5e8b4; background: #23432e; }
 .dashboard-shell[data-dashboard-theme="dark"] .customer-coupon-status.status-processing { color: #f0d4a1; background: #493c27; }
+.dashboard-shell[data-dashboard-theme="dark"] .customer-coupon-status.status-cooldown { color: #f0d4a1; background: #493c27; }
 .dashboard-shell[data-dashboard-theme="dark"] .customer-coupon-status.status-redeemed { color: #bfd8ed; background: #263b4d; }
 .dashboard-shell[data-dashboard-theme="dark"] .customer-coupon-status.status-expired { color: #f0d4a1; background: #493c27; }
 .dashboard-shell[data-dashboard-theme="dark"] .customer-coupon-actions .customer-coupon-use { border-color: #3a8956; color: #102318; background: #8bd4a0; }

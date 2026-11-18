@@ -35,6 +35,28 @@ test('validates recurring weekly spend missions and normalizes irrelevant fields
   assert.equal(mission.pointsExpireAt, null);
 });
 
+test('validates missions that repeat after a customer-specific completion cooldown', () => {
+  const mission = validateLoyaltyMissionPayload({
+    ...baseMission,
+    recurrence: 'after_days',
+    recurrenceDays: '14',
+  });
+  assert.equal(mission.recurrence, 'after_days');
+  assert.equal(mission.recurrenceDays, 14);
+
+  assert.throws(() => validateLoyaltyMissionPayload({
+    ...baseMission,
+    recurrence: 'after_days',
+    recurrenceDays: 0,
+  }), /intervalo para repetir/);
+  assert.throws(() => validateLoyaltyMissionPayload({
+    ...baseMission,
+    ruleType: 'FIRST_PURCHASE',
+    recurrence: 'after_days',
+    recurrenceDays: 14,
+  }), /não pode se repetir/);
+});
+
 test('validates optional store destinations and defaults the customer action to the store', () => {
   const wineDestination = '/categoria.html?categoria=vinhos';
   const mission = validateLoyaltyMissionPayload({ ...baseMission, destinationPath: wineDestination });
@@ -106,6 +128,7 @@ test('validates reward discounts, point costs, and minimum-order amounts', () =>
     discountPercent: '15',
     maximumDiscountAmount: '20',
     minimumOrderAmount: '80.50',
+    cooldownDays: '14',
     validityDays: '14',
     active: true,
   });
@@ -115,6 +138,7 @@ test('validates reward discounts, point costs, and minimum-order amounts', () =>
   assert.equal(reward.validityDays, 14);
   assert.equal(reward.benefitType, 'PERCENTAGE');
   assert.equal(reward.maximumDiscountAmount, 20);
+  assert.equal(reward.cooldownDays, 14);
   const fixedReward = validateLoyaltyRewardPayload({
     name: 'Cupom de R$ 14',
     pointsCost: 1400,
@@ -138,12 +162,30 @@ test('validates reward discounts, point costs, and minimum-order amounts', () =>
     name: 'Entrega por pontos',
     benefitType: 'FREE_DELIVERY',
     pointsCost: 300,
-    minimumOrderAmount: 0,
+    minimumOrderRequired: false,
+    minimumOrderAmount: 80,
     validityDays: 14,
     active: true,
   });
   assert.equal(freeDeliveryReward.discountPercent, 0);
   assert.equal(freeDeliveryReward.benefitType, 'FREE_DELIVERY');
+  assert.equal(freeDeliveryReward.minimumOrderAmount, 0);
+  assert.equal(freeDeliveryReward.cooldownDays, 0);
+  assert.throws(() => validateLoyaltyRewardPayload({
+    name: 'Intervalo inválido',
+    pointsCost: 100,
+    discountPercent: 10,
+    cooldownDays: 3651,
+    validityDays: 30,
+  }), /intervalo para novo resgate/);
+  assert.throws(() => validateLoyaltyRewardPayload({
+    name: 'Cupom com mínimo inválido',
+    pointsCost: 300,
+    discountPercent: 10,
+    minimumOrderRequired: true,
+    minimumOrderAmount: 0,
+    validityDays: 14,
+  }), /pedido mínimo/);
   assert.throws(() => validateLoyaltyRewardPayload({
     name: 'Desconto inválido',
     pointsCost: 100,

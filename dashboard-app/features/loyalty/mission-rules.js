@@ -1,4 +1,5 @@
 const dayMs = 24 * 60 * 60 * 1000;
+const maximumMissionRecurrenceDays = 3650;
 const validRuleTypes = new Set([
   'FIRST_PURCHASE',
   'MINIMUM_SPEND',
@@ -90,7 +91,7 @@ export function getWeeklyLoyaltyCycle(at) {
   };
 }
 
-export function getLoyaltyMissionCycle(mission, at) {
+export function getLoyaltyMissionCycle(mission, at, latestProgress = null) {
   const instant = new Date(at);
   const startsAt = new Date(mission.startsAt);
   const endsAt = mission.endsAt ? new Date(mission.endsAt) : null;
@@ -105,6 +106,29 @@ export function getLoyaltyMissionCycle(mission, at) {
     return {
       cycleStartAt: cycle.cycleStartAt,
       cycleEndAt: endsAt && endsAt < cycle.cycleEndAt ? endsAt : cycle.cycleEndAt,
+    };
+  }
+  if (mission.recurrence === 'after_days') {
+    const recurrenceDays = Number(mission.recurrenceDays);
+    if (!Number.isInteger(recurrenceDays) || recurrenceDays < 1 || recurrenceDays > maximumMissionRecurrenceDays) {
+      throw new RangeError('Intervalo de repetição da missão inválido.');
+    }
+    const completedAt = latestProgress?.completedAt ? new Date(latestProgress.completedAt) : null;
+    if (completedAt && !Number.isFinite(completedAt.getTime())) {
+      throw new TypeError('Data de conclusão da missão inválida.');
+    }
+    const cycleStartAt = completedAt
+      ? new Date(completedAt.getTime() + recurrenceDays * dayMs)
+      : startsAt;
+    if (endsAt && cycleStartAt >= endsAt) return null;
+    const cooldownActive = instant < cycleStartAt;
+    return {
+      cycleStartAt,
+      cycleEndAt: endsAt || new Date('9999-12-31T23:59:59.999Z'),
+      cooldownActive,
+      cooldownDaysRemaining: cooldownActive
+        ? Math.ceil((cycleStartAt.getTime() - instant.getTime()) / dayMs)
+        : 0,
     };
   }
   if (mission.recurrence !== 'none') throw new RangeError('Recorrência da missão inválida.');

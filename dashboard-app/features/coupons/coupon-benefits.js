@@ -32,6 +32,22 @@ function parseOptionalMoney(value, label) {
   return parseMoney(value, label);
 }
 
+export function normalizeCouponMinimumOrderAmount(body) {
+  const required = body?.minimumOrderRequired;
+  if (required !== undefined && typeof required !== 'boolean') {
+    throw new RangeError('Informe se o cupom exige compra mínima.');
+  }
+  if (required === false) return 0;
+
+  const value = body?.minimumOrderAmount;
+  if (required === true) return parseMoney(value, 'O pedido mínimo');
+  if (value === null || value === undefined || value === '') return 0;
+
+  const amount = Number(String(value).trim().replace(',', '.'));
+  if (amount === 0) return 0;
+  return parseMoney(value, 'O pedido mínimo');
+}
+
 export function normalizeCouponBenefit(body) {
   const benefitType = String(body?.benefitType || 'PERCENTAGE').trim();
   if (!couponBenefitOptions.some((option) => option.value === benefitType)) {
