@@ -105,7 +105,7 @@ export default function CustomerBenefitsPage() {
       </div>
       <div className="loyalty-page-header-actions">
         <Link className="loyalty-rules-back" href="/dashboard/fidelidade"><ArrowLeft size={16} aria-hidden="true" />Missões e pontos</Link>
-        <Link className="loyalty-rules-back" href="/dashboard/cupons"><TicketPercent size={16} aria-hidden="true" />Meus cupons</Link>
+        <Link className="loyalty-rules-back" href="#loyalty-past-coupons"><TicketPercent size={16} aria-hidden="true" />Meus cupons</Link>
       </div>
     </header>
 
@@ -122,7 +122,7 @@ export default function CustomerBenefitsPage() {
       {feedback.code && <span className="loyalty-feedback-actions">
         <button type="button" onClick={() => void copyCode(feedback.code)}><Copy size={14} aria-hidden="true" />Copiar</button>
         <button type="button" onClick={() => useCoupon(feedback.code)}><TicketPercent size={14} aria-hidden="true" />Usar</button>
-        <Link href="/dashboard/cupons">Ver meus cupons</Link>
+        <Link href="#loyalty-past-coupons">Ver meus cupons</Link>
       </span>}
     </p>}
 

@@ -156,7 +156,7 @@ export default function CustomerLoyaltyPage() {
       {feedback.code && <span className="loyalty-feedback-actions">
         <button type="button" onClick={() => void copyCode(feedback.code)}><Copy size={14} aria-hidden="true" />Copiar</button>
         <button type="button" onClick={() => useCoupon(feedback.code)}><TicketPercent size={14} aria-hidden="true" />Usar</button>
-        <Link href="/dashboard/cupons">Ver meus cupons</Link>
+        <Link href="/dashboard/beneficios#loyalty-past-coupons">Ver meus cupons</Link>
       </span>}
     </p>}
     {error && <div className="dashboard-data-alert" role="alert">

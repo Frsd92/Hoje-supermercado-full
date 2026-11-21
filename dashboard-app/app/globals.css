@@ -2306,6 +2306,10 @@ body {
 .cart-coupon-selected-info small { color: #63776a; font-size: .68rem; }
 .cart-coupon-selected input { width: 18px; height: 18px; flex: 0 0 auto; margin: 0; accent-color: #267044; cursor: pointer; }
 .cart-coupon-selected:focus-within { outline: 3px solid #d1a74f; outline-offset: 3px; }
+.checkout-section-heading { display: flex; align-items: center; gap: 8px; margin: 12px 0 8px; color: #20372a; font-size: .78rem; }
+.checkout-section-heading:first-child { margin-top: 0; }
+.checkout-section-heading > span { display: grid; place-items: center; width: 22px; height: 22px; border-radius: 50%; color: #fff; background: #267044; font-size: .68rem; font-weight: 900; }
+.dashboard-shell[data-dashboard-theme="dark"] .checkout-section-heading { color: #edf5ef; }
 .dashboard-shell[data-dashboard-theme="dark"] .cart-coupon-selected { border-color: #45684e; color: #e2f2e5; background: #1d3023; }
 .dashboard-shell[data-dashboard-theme="dark"] .cart-coupon-selected-info > svg { color: #8bd4a0; }
 .dashboard-shell[data-dashboard-theme="dark"] .cart-coupon-selected-info small { color: #b3c2b7; }

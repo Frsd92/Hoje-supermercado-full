@@ -114,7 +114,7 @@
           <a href="/dashboard/orders" data-account-path="/dashboard/orders"><i data-lucide="package-check" aria-hidden="true"></i>Meus pedidos</a>
           <a href="/dashboard/reorder" data-account-path="/dashboard/reorder"><i data-lucide="rotate-ccw" aria-hidden="true"></i>Comprar novamente</a>
           <a href="/dashboard/lists" data-account-path="/dashboard/lists"><i data-lucide="list-checks" aria-hidden="true"></i>Listas de compras</a>
-          <a href="/dashboard/cupons" data-account-path="/dashboard/cupons"><i data-lucide="ticket-percent" aria-hidden="true"></i>Cupons</a>
+          <a href="/dashboard/beneficios#loyalty-past-coupons" data-account-path="/dashboard/beneficios"><i data-lucide="ticket-percent" aria-hidden="true"></i>Meus cupons</a>
           <a href="/dashboard/fidelidade" data-account-path="/dashboard/fidelidade"><i data-lucide="award" aria-hidden="true"></i>Missões e pontos</a>
           <a href="/dashboard/favorites" data-account-path="/dashboard/favorites"><i data-lucide="star" aria-hidden="true"></i>Favoritos</a>
           <a href="/dashboard/budget" data-account-path="/dashboard/budget"><i data-lucide="circle-dollar-sign" aria-hidden="true"></i>Orçamento</a>
@@ -130,23 +130,31 @@
       </nav>
     </details>
 
+    <a class="topbar-item store-favorites-link" href="/dashboard/favorites" aria-label="Abrir meus favoritos" hidden>
+      <i data-lucide="heart" aria-hidden="true"></i>
+      <div class="topbar-text">
+        <strong>Meus favoritos</strong>
+        <span id="store-favorites-count">Entre para favoritar</span>
+      </div>
+    </a>
+
     <button id="install-app-button" class="topbar-item install-app-button" type="button" aria-label="Instalar app Hoje" title="Instalar app Hoje">
       <i data-lucide="download" aria-hidden="true"></i>
       <span class="install-app-full-label">Instalar app</span>
       <span class="install-app-short-label" aria-hidden="true">Instalar</span>
     </button>
 
-    <div class="topbar-item cart-trigger" id="cart-trigger">
-      <div class="cart-icon-wrap" aria-label="Abrir carrinho">
+    <button type="button" class="topbar-item cart-trigger" id="cart-trigger" aria-label="Abrir carrinho" aria-expanded="false" aria-controls="cart-panel">
+      <span class="cart-icon-wrap" aria-hidden="true">
         <i data-lucide="shopping-cart"></i>
         <span id="cart-badge" class="cart-badge">0</span>
-      </div>
+      </span>
       <span class="store-mobile-label">Carrinho</span>
       <div class="topbar-text">
         <strong>Meu carrinho</strong>
         <span id="cart-total">R$ 0,00</span>
       </div>
-    </div>
+    </button>
 
     <details class="store-more-menu" id="store-more-menu" hidden>
       <summary class="topbar-item store-more-trigger" aria-label="Abrir mais opções">
@@ -159,7 +167,7 @@
           <a href="/dashboard/orders" data-account-path="/dashboard/orders"><i data-lucide="package-check" aria-hidden="true"></i>Meus pedidos</a>
           <a href="/dashboard/reorder" data-account-path="/dashboard/reorder"><i data-lucide="rotate-ccw" aria-hidden="true"></i>Comprar novamente</a>
           <a href="/dashboard/lists" data-account-path="/dashboard/lists"><i data-lucide="list-checks" aria-hidden="true"></i>Listas de compras</a>
-          <a href="/dashboard/cupons" data-account-path="/dashboard/cupons"><i data-lucide="ticket-percent" aria-hidden="true"></i>Cupons</a>
+          <a href="/dashboard/beneficios#loyalty-past-coupons" data-account-path="/dashboard/beneficios"><i data-lucide="ticket-percent" aria-hidden="true"></i>Meus cupons</a>
           <a href="/dashboard/fidelidade" data-account-path="/dashboard/fidelidade"><i data-lucide="award" aria-hidden="true"></i>Missões e pontos</a>
           <a href="/dashboard/favorites" data-account-path="/dashboard/favorites"><i data-lucide="star" aria-hidden="true"></i>Favoritos</a>
           <a href="/dashboard/budget" data-account-path="/dashboard/budget"><i data-lucide="circle-dollar-sign" aria-hidden="true"></i>Orçamento</a>
@@ -187,6 +195,7 @@
     <div class="cart-panel-footer">
       <div class="cart-panel-footer-content">
       <div id="checkout-mission-progress"></div>
+      <div class="checkout-section-heading"><span>1</span><strong>Resumo do pedido</strong></div>
       <div class="cart-summary-box">
         <div class="summary-row"><span>Subtotal (0 itens)</span><strong>R$ 0,00</strong></div>
         <div class="summary-row"><span>Descontos</span><strong>R$ 0,00</strong></div>
@@ -195,8 +204,9 @@
         <div class="summary-row total"><span>Total</span><strong>R$ 0,00</strong></div>
       </div>
 
+      <div class="checkout-section-heading"><span>2</span><strong>Cupom</strong></div>
       <div class="cart-coupon">
-        <input id="coupon-input" type="text" placeholder="Insira seu Cupom" maxlength="24">
+        <input id="coupon-input" type="text" placeholder="Insira seu cupom" maxlength="24" aria-label="Código do cupom">
         <button id="apply-coupon" class="btn-coupon" type="button">Aplicar</button>
       </div>
       <p id="coupon-feedback" class="coupon-feedback" aria-live="polite"></p>
@@ -210,6 +220,7 @@
         <button id="checkout-retry" type="button" hidden>Tentar novamente</button>
       </div>
 
+      <div class="checkout-section-heading"><span>3</span><strong>Entrega e pagamento</strong></div>
       <label class="delivery-address-field" for="payment-method">
         Forma de pagamento
         <select id="payment-method" required>

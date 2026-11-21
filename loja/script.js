@@ -1139,9 +1139,10 @@ async function carregarSessaoDaLoja({ atualizarDadosRelacionados = true } = {}) 
       document.querySelectorAll('.product-card').forEach((card) => {
         const button = card.querySelector('.fav-btn');
         if (!button) return;
+        const name = card.querySelector('.product-name')?.textContent?.trim() || 'produto';
         button.classList.remove('is-favorite');
         button.setAttribute('aria-pressed', 'false');
-        button.setAttribute('aria-label', 'Adicionar aos favoritos');
+        button.setAttribute('aria-label', `Adicionar ${name} aos favoritos`);
       });
     }
     homeTopbar?.classList.add('is-session-ready');
@@ -1466,9 +1467,10 @@ function aplicarEstadoFavoritoNosCartoes() {
     const button = card.querySelector('.fav-btn');
     if (!button) return;
     const ativo = favoritosLoja.has(card.dataset.id || '');
+    const name = card.querySelector('.product-name')?.textContent?.trim() || 'produto';
     button.classList.toggle('is-favorite', ativo);
     button.setAttribute('aria-pressed', String(ativo));
-    button.setAttribute('aria-label', ativo ? 'Remover dos favoritos' : 'Adicionar aos favoritos');
+    button.setAttribute('aria-label', ativo ? `Remover ${name} dos favoritos` : `Adicionar ${name} aos favoritos`);
   });
 }
 
@@ -2960,6 +2962,23 @@ function createProductImageFallback(title) {
   return fallback;
 }
 
+function enrichStoreControlLabels(root = document) {
+  root.querySelectorAll('.product-card').forEach((card) => {
+    const name = card.querySelector('.product-name')?.textContent?.trim() || 'produto';
+    card.querySelectorAll('.btn-comprar').forEach((button) => button.setAttribute('aria-label', `Adicionar ${name} ao carrinho`));
+    card.querySelectorAll('.btn-remove').forEach((button) => button.setAttribute('aria-label', `Remover ${name} do carrinho`));
+    card.querySelectorAll('.btn-add').forEach((button) => button.setAttribute('aria-label', `Aumentar quantidade de ${name}`));
+    card.querySelectorAll('.fav-btn').forEach((button) => button.setAttribute('aria-label', `Adicionar ${name} aos favoritos`));
+  });
+
+  root.querySelectorAll('.carousel-arrow').forEach((button) => {
+    const section = button.closest('section');
+    const sectionName = section?.querySelector('h2')?.textContent?.trim();
+    const direction = button.classList.contains('arrow-left') ? 'anterior' : 'próximo';
+    button.setAttribute('aria-label', sectionName ? `Mostrar ${direction} produtos de ${sectionName}` : `Mostrar produtos ${direction}`);
+  });
+}
+
 document.addEventListener('error', (event) => {
   const image = event.target;
   if (!(image instanceof HTMLImageElement) || !image.classList.contains('product-img')) return;
@@ -3756,6 +3775,9 @@ function buscarProdutos() {
 // Ensure index built after content populated
 window.addEventListener('DOMContentLoaded', () => {
   buildProductIndex();
+  enrichStoreControlLabels();
+  const storeContentObserver = new MutationObserver(() => enrichStoreControlLabels());
+  storeContentObserver.observe(document.body, { childList: true, subtree: true });
 });
 
 // Ensure first result activation on Enter still works (keeps previous behavior)

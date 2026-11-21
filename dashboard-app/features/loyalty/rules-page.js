@@ -98,7 +98,7 @@ export default function LoyaltyRulesPage() {
 
     <div className="loyalty-rules-footer">
       <CircleHelp size={18} aria-hidden="true" />
-      <p>Seu saldo e o andamento das campanhas ficam em <Link href="/dashboard/fidelidade">Missões e pontos</Link>. As recompensas resgatadas também aparecem em <Link href="/dashboard/cupons">Meus cupons</Link>.</p>
+      <p>Seu saldo e o andamento das campanhas ficam em <Link href="/dashboard/fidelidade">Missões e pontos</Link>. As recompensas resgatadas aparecem em <Link href="/dashboard/beneficios#loyalty-past-coupons">Benefícios: seus cupons</Link>.</p>
     </div>
   </article>;
 }

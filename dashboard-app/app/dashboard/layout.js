@@ -80,12 +80,12 @@ const navigationGroups = [
     items: [{ label: 'Início', href: '/dashboard', icon: Home }],
   },
   {
-    label: 'Minhas compras',
+    label: 'Compras',
     items: [
-      { label: 'Meus Pedidos', href: '/dashboard/orders', icon: ShoppingBag, badgeId: 'orders' },
+      { label: 'Meus pedidos', href: '/dashboard/orders', icon: ShoppingBag, badgeId: 'orders' },
       { label: 'Comprar novamente', href: '/dashboard/reorder', icon: RotateCcw, badgeId: 'buy-again' },
       { label: 'Listas de compras', href: '/dashboard/lists', icon: ListPlus, badgeId: 'shopping-lists' },
-      { label: 'Meus cupons', href: '/dashboard/cupons', icon: TicketPercent, badgeId: 'coupons' },
+      { label: 'Meus cupons', href: '/dashboard/beneficios#loyalty-past-coupons', icon: TicketPercent, badgeId: 'coupons' },
       { label: 'Missões e pontos', href: '/dashboard/fidelidade', icon: Award, badgeId: 'loyalty' },
       { label: 'Benefícios', href: '/dashboard/beneficios', icon: Gift },
       { label: 'Favoritos', href: '/dashboard/favorites', icon: Star, badgeId: 'favorites' },
@@ -1696,6 +1696,7 @@ export default function DashboardLayout({ children }) {
                   : ' Os pontos podem ser trocados por cupons na área Missões e pontos.'}
               </p>
             </section>}
+            <div className="checkout-section-heading"><span>1</span><strong>Resumo do pedido</strong></div>
             <div className="cart-summary-box">
               <div className="summary-row">
                 <span>Subtotal ({cartCount} itens)</span>
@@ -1722,6 +1723,7 @@ export default function DashboardLayout({ children }) {
                 <strong>R$ {cartTotals.total.toFixed(2).replace('.', ',')}</strong>
               </div>
             </div>
+            <div className="checkout-section-heading"><span>2</span><strong>Cupom</strong></div>
             <div className="cart-coupon">
               <input
                 id="cart-coupon-code"
@@ -1755,6 +1757,7 @@ export default function DashboardLayout({ children }) {
                 ? `Este cupom exige compras a partir de R$ ${couponMinimumOrderAmount.toFixed(2).replace('.', ',')}.`
                 : couponStatus}
             </p>
+            <div className="checkout-section-heading"><span>3</span><strong>Entrega e pagamento</strong></div>
             {addressLoadError ? (
               <small className="checkout-field-hint" role="alert">Não foi possível confirmar seus endereços: {addressLoadError}</small>
             ) : addressesLoading ? (
