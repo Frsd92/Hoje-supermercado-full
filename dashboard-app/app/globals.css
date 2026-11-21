@@ -2748,6 +2748,12 @@ body {
 .loyalty-benefit-cost svg { flex: 0 0 auto; }
 .loyalty-benefit-note { display: inline-flex; align-items: center; gap: 5px; color: var(--customer-coupon-muted); font-size: .63rem; }
 .loyalty-benefit-note svg { flex: 0 0 auto; }
+.loyalty-previous-coupon-card.is-used { filter: grayscale(1); opacity: .58; }
+.loyalty-previous-coupon-card.is-unavailable:not(.is-used) { border-color: var(--customer-coupon-border); }
+.loyalty-previous-coupon-card .customer-coupon-status { max-width: 130px; font-size: .62rem; }
+.loyalty-previous-coupon-inactive { margin: 0; padding: 8px 12px; border-top: 1px dashed var(--customer-coupon-border); color: var(--customer-coupon-muted); background: var(--customer-coupon-subtle); font-size: .68rem; font-weight: 700; }
+.loyalty-previous-coupon-actions { padding: 9px 12px 11px; border-top: 1px dashed var(--customer-coupon-border); }
+.loyalty-previous-coupon-actions button { min-height: 34px; padding: 6px 9px; font-size: .7rem; }
 .loyalty-ticket-heading { display: flex; flex-wrap: wrap; align-items: center; justify-content: space-between; gap: 8px; padding-bottom: 12px; border-bottom: 1px dashed var(--customer-coupon-border); color: var(--customer-coupon-accent); }
 .loyalty-ticket-heading > span { display: inline-flex; align-items: center; gap: 6px; font-size: .78rem; font-weight: 800; }
 .loyalty-ticket-heading > strong { color: var(--customer-coupon-text); font-size: 1.08rem; text-align: right; }
